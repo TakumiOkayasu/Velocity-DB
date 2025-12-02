@@ -32,6 +32,7 @@ private:
     // Handler methods
     std::string handleConnect(const std::string& params);
     std::string handleDisconnect(const std::string& params);
+    std::string handleTestConnection(const std::string& params);
     std::string handleExecuteQuery(const std::string& params);
     std::string handleGetTables(const std::string& params);
     std::string handleGetColumns(const std::string& params);
@@ -55,6 +56,10 @@ private:
     std::unique_ptr<QueryHistory> m_queryHistory;
     std::unique_ptr<SQLFormatter> m_sqlFormatter;
     std::unique_ptr<A5ERParser> m_a5erParser;
+
+    // Active connections
+    std::unordered_map<std::string, std::unique_ptr<SQLServerDriver>> m_connections;
+    int m_nextConnectionId = 1;
 };
 
 }  // namespace predategrip

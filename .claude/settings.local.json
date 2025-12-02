@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(powershell -Command \"Set-Location ''D:\\prog\\Pre-DateGrip''; if (Test-Path build) { Remove-Item -Recurse -Force build }; Get-ChildItem -Filter ''*.sln'' -ErrorAction SilentlyContinue | Remove-Item -Force; Get-ChildItem -Filter ''*.vcxproj*'' -ErrorAction SilentlyContinue | Remove-Item -Force; Write-Host ''Cleaned up old files''\")",
-      "Bash(powershell -Command:*)"
+      "Bash(powershell -Command:*)",
+      "Bash(cmd /c \"\"\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\"\" && cd /d D:\\prog\\Pre-DateGrip && cmake --build build --config Release\")",
+      "Bash(cmd /c \"\"\"D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\"\" && cd /d D:\\prog\\Pre-DateGrip && cmake --build build --config Release 2>&1\")",
+      "Bash(cmd /c \"where npm\")",
+      "Bash(cmd /c \"C:\\nvm4w\\nodejs\\npm.cmd run build\")",
+      "Bash(cmd /c \"set PATH=C:\\nvm4w\\nodejs;%PATH% && cd /d D:\\prog\\Pre-DateGrip\\frontend && npm run build\")",
+      "Bash(C:nvm4wnodejsnode.exe -v)",
+      "Bash(cmd /c \"D:\\prog\\Pre-DateGrip\\scripts\\run-lint.bat\")"
     ],
     "deny": [],
     "ask": []

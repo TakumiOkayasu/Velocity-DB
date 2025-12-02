@@ -11,6 +11,7 @@
 #include <string>
 #include <map>
 #include <atomic>
+#include "simdjson.h"
 
 #define WEBVIEW_HINT_NONE 0
 #define WEBVIEW_HINT_MIN 1
@@ -29,6 +30,23 @@
 #pragma comment(lib, "shlwapi.lib")
 
 namespace webview {
+
+// UTF-8 <-> UTF-16 conversion helpers
+inline std::wstring utf8_to_utf16(const std::string& str) {
+    if (str.empty()) return std::wstring();
+    int size = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), (int)str.size(), nullptr, 0);
+    std::wstring result(size, 0);
+    MultiByteToWideChar(CP_UTF8, 0, str.c_str(), (int)str.size(), &result[0], size);
+    return result;
+}
+
+inline std::string utf16_to_utf8(const std::wstring& wstr) {
+    if (wstr.empty()) return std::string();
+    int size = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.size(), nullptr, 0, nullptr, nullptr);
+    std::string result(size, 0);
+    WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.size(), &result[0], size, nullptr, nullptr);
+    return result;
+}
 
 using Microsoft::WRL::Callback;
 using Microsoft::WRL::ComPtr;
@@ -71,7 +89,7 @@ public:
     void navigate(const std::string& url) {
         m_url = url;
         if (m_webviewWindow) {
-            std::wstring wurl(url.begin(), url.end());
+            std::wstring wurl = utf8_to_utf16(url);
             m_webviewWindow->Navigate(wurl.c_str());
         }
     }
@@ -170,7 +188,7 @@ private:
 
                                 // Navigate to URL
                                 if (!m_url.empty()) {
-                                    std::wstring wurl(m_url.begin(), m_url.end());
+                                    std::wstring wurl = utf8_to_utf16(m_url);
                                     m_webviewWindow->Navigate(wurl.c_str());
                                 }
 
@@ -192,8 +210,30 @@ private:
     void setupBindings() {
         if (!m_webviewWindow) return;
 
-        // Inject JavaScript bridge
-        std::wstring script = L"window.invoke = function(request) { return window.chrome.webview.postMessage(request); };";
+        // Inject JavaScript bridge with promise-based IPC
+        std::wstring script = LR"(
+(function() {
+    let requestId = 0;
+    const pendingRequests = new Map();
+
+    window.invoke = function(request) {
+        return new Promise((resolve, reject) => {
+            const id = ++requestId;
+            const wrappedRequest = JSON.stringify({ __id: id, __data: request });
+            pendingRequests.set(id, { resolve, reject });
+            window.chrome.webview.postMessage(wrappedRequest);
+        });
+    };
+
+    window.__webview_response__ = function(id, response) {
+        const pending = pendingRequests.get(id);
+        if (pending) {
+            pendingRequests.delete(id);
+            pending.resolve(response);
+        }
+    };
+})();
+)";
         m_webviewWindow->AddScriptToExecuteOnDocumentCreated(script.c_str(), nullptr);
 
         // Handle messages from JavaScript
@@ -205,18 +245,38 @@ private:
 
                     if (messageRaw) {
                         std::wstring wmessage(messageRaw);
-                        std::string message(wmessage.begin(), wmessage.end());
+                        std::string message = utf16_to_utf8(wmessage);
                         CoTaskMemFree(messageRaw);
 
-                        // Call the "invoke" binding if it exists
-                        auto it = m_bindings.find("invoke");
-                        if (it != m_bindings.end()) {
-                            std::string response = it->second(message);
+                        // Parse wrapped request to extract id and data
+                        simdjson::dom::parser parser;
+                        auto doc_result = parser.parse(message);
+                        if (!doc_result.error()) {
+                            auto doc = doc_result.value();
+                            int64_t id = 0;
+                            std::string data;
 
-                            // Send response back to JavaScript
-                            std::wstring wresponse(response.begin(), response.end());
-                            std::wstring script = L"window.__webview_response__(" + wresponse + L");";
-                            m_webviewWindow->ExecuteScript(script.c_str(), nullptr);
+                            auto id_result = doc["__id"].get_int64();
+                            if (!id_result.error()) {
+                                id = id_result.value();
+                            }
+
+                            auto data_result = doc["__data"].get_string();
+                            if (!data_result.error()) {
+                                data = std::string(data_result.value());
+                            }
+
+                            // Call the "invoke" binding if it exists
+                            auto it = m_bindings.find("invoke");
+                            if (it != m_bindings.end()) {
+                                std::string response = it->second(data);
+
+                                // Send response back to JavaScript with request id
+                                std::wstring wresponse = utf8_to_utf16(response);
+                                std::wstring script = L"window.__webview_response__(" +
+                                    std::to_wstring(id) + L", " + wresponse + L");";
+                                m_webviewWindow->ExecuteScript(script.c_str(), nullptr);
+                            }
                         }
                     }
                     return S_OK;

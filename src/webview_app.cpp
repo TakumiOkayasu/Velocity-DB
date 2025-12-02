@@ -40,10 +40,10 @@ void WebViewApp::initializeWebView() {
 
     // Load frontend
     auto exePath = getExecutablePath();
-    auto webPath = std::filesystem::path(exePath).parent_path() / "web" / "index.html";
+    auto frontendPath = std::filesystem::path(exePath).parent_path() / "frontend" / "index.html";
 
-    if (std::filesystem::exists(webPath)) {
-        wv->navigate("file:///" + webPath.string());
+    if (std::filesystem::exists(frontendPath)) {
+        wv->navigate("file:///" + frontendPath.string());
     } else {
         // Development mode: load from Vite dev server
         wv->navigate("http://localhost:5173");
