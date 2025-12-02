@@ -1,0 +1,168 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dialog {
+  background: var(--bg-secondary, #2b2b2b);
+  border: 1px solid var(--border-color, #3c3f41);
+  border-radius: 6px;
+  width: 450px;
+  max-width: 90vw;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color, #3c3f41);
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-primary, #bbbbbb);
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  color: var(--text-secondary, #808080);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.closeButton:hover {
+  color: var(--text-primary, #bbbbbb);
+}
+
+.content {
+  padding: 20px;
+}
+
+.formGroup {
+  margin-bottom: 16px;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--text-secondary, #808080);
+}
+
+.formGroup input[type="text"],
+.formGroup input[type="number"],
+.formGroup input[type="password"] {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg-input, #1e1e1e);
+  border: 1px solid var(--border-color, #3c3f41);
+  border-radius: 4px;
+  color: var(--text-primary, #bbbbbb);
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.formGroup input:focus {
+  outline: none;
+  border-color: var(--accent-color, #4a88c7);
+}
+
+.checkboxLabel {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.checkboxLabel input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.testResult {
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  margin-top: 16px;
+}
+
+.testResult.success {
+  background: rgba(72, 166, 72, 0.2);
+  border: 1px solid #48a648;
+  color: #6fbf6f;
+}
+
+.testResult.error {
+  background: rgba(204, 51, 51, 0.2);
+  border: 1px solid #cc3333;
+  color: #ff6666;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-color, #3c3f41);
+  gap: 8px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.footer button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+}
+
+.testButton {
+  background: transparent;
+  border: 1px solid var(--border-color, #3c3f41) !important;
+  color: var(--text-primary, #bbbbbb);
+}
+
+.testButton:hover:not(:disabled) {
+  background: var(--bg-hover, #3c3f41);
+}
+
+.testButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancelButton {
+  background: transparent;
+  color: var(--text-primary, #bbbbbb);
+}
+
+.cancelButton:hover {
+  background: var(--bg-hover, #3c3f41);
+}
+
+.connectButton {
+  background: var(--accent-color, #4a88c7);
+  color: white;
+}
+
+.connectButton:hover {
+  background: var(--accent-hover, #5a98d7);
+}

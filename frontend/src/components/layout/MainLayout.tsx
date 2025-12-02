@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { LeftPanel } from './LeftPanel'
 import { CenterPanel } from './CenterPanel'
 import { BottomPanel } from './BottomPanel'
+import { ConnectionDialog, type ConnectionConfig } from '../dialogs/ConnectionDialog'
+import { useConnectionStore } from '../../store/connectionStore'
 import styles from './MainLayout.module.css'
 
 export function MainLayout() {
@@ -9,10 +11,37 @@ export function MainLayout() {
   const [bottomPanelHeight, setBottomPanelHeight] = useState(200)
   const [isLeftPanelVisible, setIsLeftPanelVisible] = useState(true)
   const [isBottomPanelVisible, setIsBottomPanelVisible] = useState(true)
+  const [isConnectionDialogOpen, setIsConnectionDialogOpen] = useState(false)
+
+  const { connections, activeConnectionId, addConnection } = useConnectionStore()
+  const activeConnection = connections.find(c => c.id === activeConnectionId)
+
+  const handleConnect = async (config: ConnectionConfig) => {
+    try {
+      await addConnection({
+        name: config.name,
+        server: config.server,
+        database: config.database,
+        username: config.username,
+        password: config.password,
+        useWindowsAuth: config.useWindowsAuth,
+      })
+    } catch (error) {
+      console.error('Connection failed:', error)
+    }
+  }
 
   return (
     <div className={styles.container}>
       <header className={styles.toolbar}>
+        <div className={styles.toolbarGroup}>
+          <button
+            onClick={() => setIsConnectionDialogOpen(true)}
+            title="New Connection"
+          >
+            + Connect
+          </button>
+        </div>
         <div className={styles.toolbarGroup}>
           <button title="New Query (Ctrl+N)">New</button>
           <button title="Open File (Ctrl+O)">Open</button>
@@ -102,8 +131,14 @@ export function MainLayout() {
       <footer className={styles.statusBar}>
         <span>Ready</span>
         <span>|</span>
-        <span>No connection</span>
+        <span>{activeConnection ? `${activeConnection.name} (${activeConnection.server})` : 'No connection'}</span>
       </footer>
+
+      <ConnectionDialog
+        isOpen={isConnectionDialogOpen}
+        onClose={() => setIsConnectionDialogOpen(false)}
+        onConnect={handleConnect}
+      />
     </div>
   )
 }

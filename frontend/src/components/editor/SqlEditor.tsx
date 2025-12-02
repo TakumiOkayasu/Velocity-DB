@@ -4,7 +4,7 @@ import { useConnectionStore } from '../../store/connectionStore'
 import styles from './SqlEditor.module.css'
 
 export function SqlEditor() {
-  const { queries, activeQueryId, updateQuery, executeQuery, executeSelectedText } = useQueryStore()
+  const { queries, activeQueryId, updateQuery, executeQuery } = useQueryStore()
   const { activeConnectionId } = useConnectionStore()
 
   const activeQuery = queries.find((q) => q.id === activeQueryId)

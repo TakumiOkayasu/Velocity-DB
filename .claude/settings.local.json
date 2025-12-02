@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -Command \"Set-Location ''D:\\prog\\Pre-DateGrip''; if (Test-Path build) { Remove-Item -Recurse -Force build }; Get-ChildItem -Filter ''*.sln'' -ErrorAction SilentlyContinue | Remove-Item -Force; Get-ChildItem -Filter ''*.vcxproj*'' -ErrorAction SilentlyContinue | Remove-Item -Force; Write-Host ''Cleaned up old files''\")",
+      "Bash(powershell -Command:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

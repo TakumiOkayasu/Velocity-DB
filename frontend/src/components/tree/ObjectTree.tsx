@@ -81,20 +81,19 @@ export function ObjectTree({ filter }: ObjectTreeProps) {
 
     const lowerFilter = filter.toLowerCase()
 
-    return nodes
-      .map((node) => {
-        const matchesFilter = node.name.toLowerCase().includes(lowerFilter)
-        const filteredChildren = node.children ? filterTree(node.children) : []
+    const result: DatabaseObject[] = []
+    for (const node of nodes) {
+      const matchesFilter = node.name.toLowerCase().includes(lowerFilter)
+      const filteredChildren = node.children ? filterTree(node.children) : []
 
-        if (matchesFilter || filteredChildren.length > 0) {
-          return {
-            ...node,
-            children: filteredChildren.length > 0 ? filteredChildren : node.children,
-          }
-        }
-        return null
-      })
-      .filter((node): node is DatabaseObject => node !== null)
+      if (matchesFilter || filteredChildren.length > 0) {
+        result.push({
+          ...node,
+          children: filteredChildren.length > 0 ? filteredChildren : node.children,
+        })
+      }
+    }
+    return result
   }
 
   const filteredData = filterTree(mockData)

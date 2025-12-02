@@ -9,7 +9,7 @@ interface HistoryItemProps {
 
 export function HistoryItem({ item }: HistoryItemProps) {
   const { setFavorite, removeHistory } = useHistoryStore()
-  const { addQuery, queries, setActive, updateQuery } = useQueryStore()
+  const { addQuery, queries, updateQuery } = useQueryStore()
 
   const formatTimestamp = (date: Date): string => {
     return date.toLocaleString('ja-JP', {

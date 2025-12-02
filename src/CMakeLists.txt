@@ -59,10 +59,14 @@ add_executable(PreDateGrip WIN32 main.cpp)
 
 target_link_libraries(PreDateGrip PRIVATE PreDateGripCore)
 
-# Copy frontend dist to output directory
-add_custom_command(TARGET PreDateGrip POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${CMAKE_SOURCE_DIR}/frontend/dist
-    $<TARGET_FILE_DIR:PreDateGrip>/web
-    COMMENT "Copying frontend files..."
-)
+# Copy frontend dist to output directory (if it exists)
+if(EXISTS "${CMAKE_SOURCE_DIR}/frontend/dist")
+    add_custom_command(TARGET PreDateGrip POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/frontend/dist
+        $<TARGET_FILE_DIR:PreDateGrip>/web
+        COMMENT "Copying frontend files..."
+    )
+else()
+    message(STATUS "Frontend dist not found. Run 'npm run build' in frontend/ first.")
+endif()
