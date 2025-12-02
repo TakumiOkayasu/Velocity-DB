@@ -95,7 +95,10 @@
 .changesIndicator {
   color: #dcdcaa;
   font-size: 11px;
-  margin-left: auto;
+}
+
+.toolbarSpacer {
+  flex: 1;
 }
 
 .changedCell {

@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import type { HistoryItem } from '../types'
 
 interface HistoryState {
@@ -12,13 +13,17 @@ interface HistoryState {
   setSearchKeyword: (keyword: string) => void;
   getFilteredHistory: () => HistoryItem[];
   getFavorites: () => HistoryItem[];
+  exportHistory: () => string;
+  importHistory: (json: string) => void;
 }
 
 let historyCounter = 0
 
-export const useHistoryStore = create<HistoryState>((set, get) => ({
-  history: [],
-  searchKeyword: '',
+export const useHistoryStore = create<HistoryState>()(
+  persist(
+    (set, get) => ({
+      history: [],
+      searchKeyword: '',
 
   addHistory: (item) => {
     const id = `history-${++historyCounter}`
@@ -73,4 +78,48 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
     const { history } = get()
     return history.filter((h) => h.isFavorite)
   },
-}))
+
+  exportHistory: () => {
+    const { history } = get()
+    return JSON.stringify(history, null, 2)
+  },
+
+  importHistory: (json: string) => {
+    try {
+      const imported = JSON.parse(json) as HistoryItem[]
+      if (!Array.isArray(imported)) {
+        throw new Error('Invalid format')
+      }
+      // Merge with existing, avoiding duplicates by SQL content
+      set((state) => {
+        const existingSql = new Set(state.history.map((h) => h.sql))
+        const newItems = imported.filter((h) => !existingSql.has(h.sql))
+        return {
+          history: [...state.history, ...newItems].slice(0, 10000),
+        }
+      })
+    } catch (error) {
+      console.error('Failed to import history:', error)
+    }
+  },
+    }),
+    {
+      name: 'query-history',
+      partialize: (state) => ({
+        history: state.history,
+      }),
+      onRehydrateStorage: () => {
+        return (state) => {
+          if (state?.history) {
+            // Update historyCounter to avoid ID collisions
+            const maxId = state.history.reduce((max, h) => {
+              const num = parseInt(h.id.replace('history-', ''), 10)
+              return isNaN(num) ? max : Math.max(max, num)
+            }, 0)
+            historyCounter = maxId
+          }
+        }
+      },
+    }
+  )
+)

@@ -3,6 +3,7 @@ import { AgGridReact } from 'ag-grid-react'
 import type { ColDef, GridReadyEvent, CellClassParams, CellValueChangedEvent, GridApi } from 'ag-grid-community'
 import { useQueryStore } from '../../store/queryStore'
 import { useEditStore } from '../../store/editStore'
+import { ExportDialog } from '../export/ExportDialog'
 import 'ag-grid-community/styles/ag-grid.css'
 import 'ag-grid-community/styles/ag-theme-alpine.css'
 import styles from './ResultGrid.module.css'
@@ -22,6 +23,7 @@ export function ResultGrid() {
   } = useEditStore()
   const gridRef = useRef<AgGridReact>(null)
   const [gridApi, setGridApi] = useState<GridApi | null>(null)
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
 
   const resultSet = activeQueryId ? results.get(activeQueryId) : null
 
@@ -300,6 +302,14 @@ export function ResultGrid() {
         {hasChanges() && (
           <span className={styles.changesIndicator}>Unsaved changes</span>
         )}
+        <div className={styles.toolbarSpacer} />
+        <button
+          onClick={() => setIsExportDialogOpen(true)}
+          className={styles.toolbarButton}
+          title="Export Data"
+        >
+          Export
+        </button>
       </div>
       <div className={`ag-theme-alpine-dark ${styles.grid}`}>
         <AgGridReact
@@ -341,6 +351,12 @@ export function ResultGrid() {
         )}
         {isEditMode && <span className={styles.editModeIndicator}>EDIT MODE</span>}
       </div>
+
+      <ExportDialog
+        isOpen={isExportDialogOpen}
+        onClose={() => setIsExportDialogOpen(false)}
+        resultSet={resultSet}
+      />
     </div>
   )
 }
