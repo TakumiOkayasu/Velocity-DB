@@ -9,15 +9,6 @@ interface ExecutionPlanDialogProps {
   sql: string
 }
 
-interface PlanNode {
-  operation: string
-  cost: number
-  rows: number
-  actualRows?: number
-  actualTime?: number
-  children?: PlanNode[]
-}
-
 export function ExecutionPlanDialog({ isOpen, onClose, sql }: ExecutionPlanDialogProps) {
   const { activeConnectionId } = useConnectionStore()
   const [planText, setPlanText] = useState<string>('')
@@ -123,19 +114,4 @@ export function ExecutionPlanDialog({ isOpen, onClose, sql }: ExecutionPlanDialo
       </div>
     </div>
   )
-}
-
-// Helper to parse execution plan (simplified)
-export function parsePlanText(text: string): PlanNode | null {
-  // This is a simplified parser - real implementation would parse XML or text format
-  const lines = text.split('\n').filter((l) => l.trim())
-  if (lines.length === 0) return null
-
-  const root: PlanNode = {
-    operation: lines[0] || 'Unknown',
-    cost: 0,
-    rows: 0,
-  }
-
-  return root
 }
