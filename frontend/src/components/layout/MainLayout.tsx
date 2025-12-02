@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { LeftPanel } from './LeftPanel'
 import { CenterPanel } from './CenterPanel'
 import { BottomPanel } from './BottomPanel'
 import { ConnectionDialog, type ConnectionConfig } from '../dialogs/ConnectionDialog'
 import { useConnectionStore } from '../../store/connectionStore'
+import { useQueryStore } from '../../store/queryStore'
 import styles from './MainLayout.module.css'
 
 export function MainLayout() {
@@ -14,7 +15,9 @@ export function MainLayout() {
   const [isConnectionDialogOpen, setIsConnectionDialogOpen] = useState(false)
 
   const { connections, activeConnectionId, addConnection } = useConnectionStore()
+  const { queries, activeQueryId, addQuery, executeQuery, formatQuery, isExecuting } = useQueryStore()
   const activeConnection = connections.find(c => c.id === activeConnectionId)
+  const activeQuery = queries.find(q => q.id === activeQueryId)
 
   const handleConnect = async (config: ConnectionConfig) => {
     try {
@@ -31,6 +34,41 @@ export function MainLayout() {
     }
   }
 
+  const handleNewQuery = useCallback(() => {
+    addQuery(activeConnectionId)
+  }, [addQuery, activeConnectionId])
+
+  const handleExecute = useCallback(() => {
+    if (activeQueryId && activeConnectionId) {
+      executeQuery(activeQueryId, activeConnectionId)
+    }
+  }, [activeQueryId, activeConnectionId, executeQuery])
+
+  const handleFormat = useCallback(() => {
+    if (activeQueryId) {
+      formatQuery(activeQueryId)
+    }
+  }, [activeQueryId, formatQuery])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'n') {
+        e.preventDefault()
+        handleNewQuery()
+      } else if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault()
+        handleExecute()
+      } else if (e.ctrlKey && e.shiftKey && e.key === 'F') {
+        e.preventDefault()
+        handleFormat()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleNewQuery, handleExecute, handleFormat])
+
   return (
     <div className={styles.container}>
       <header className={styles.toolbar}>
@@ -43,16 +81,26 @@ export function MainLayout() {
           </button>
         </div>
         <div className={styles.toolbarGroup}>
-          <button title="New Query (Ctrl+N)">New</button>
-          <button title="Open File (Ctrl+O)">Open</button>
-          <button title="Save (Ctrl+S)">Save</button>
+          <button onClick={handleNewQuery} title="New Query (Ctrl+N)">New</button>
         </div>
         <div className={styles.toolbarGroup}>
-          <button title="Execute (Ctrl+Enter)">▶ Execute</button>
-          <button title="Cancel">⬛ Cancel</button>
+          <button
+            onClick={handleExecute}
+            disabled={!activeQueryId || !activeConnectionId || isExecuting}
+            title="Execute (Ctrl+Enter)"
+            className={styles.executeButton}
+          >
+            {isExecuting ? '⏳' : '▶'} Execute
+          </button>
         </div>
         <div className={styles.toolbarGroup}>
-          <button title="Format SQL (Ctrl+Shift+F)">Format</button>
+          <button
+            onClick={handleFormat}
+            disabled={!activeQuery?.content}
+            title="Format SQL (Ctrl+Shift+F)"
+          >
+            Format
+          </button>
         </div>
         <div className={styles.toolbarGroup}>
           <button
@@ -129,9 +177,19 @@ export function MainLayout() {
       </div>
 
       <footer className={styles.statusBar}>
-        <span>Ready</span>
-        <span>|</span>
-        <span>{activeConnection ? `${activeConnection.name} (${activeConnection.server})` : 'No connection'}</span>
+        <div className={styles.statusLeft}>
+          <span className={isExecuting ? styles.statusExecuting : styles.statusReady}>
+            {isExecuting ? 'Executing...' : 'Ready'}
+          </span>
+        </div>
+        <div className={styles.statusCenter}>
+          {activeQuery && <span>Query: {activeQuery.name}</span>}
+        </div>
+        <div className={styles.statusRight}>
+          <span className={activeConnection ? styles.connected : styles.disconnected}>
+            {activeConnection ? `${activeConnection.server}/${activeConnection.database}` : 'Not connected'}
+          </span>
+        </div>
       </footer>
 
       <ConnectionDialog

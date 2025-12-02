@@ -29,8 +29,22 @@
   font-size: 12px;
 }
 
-.toolbarGroup button:hover {
+.toolbarGroup button:hover:not(:disabled) {
   background-color: var(--bg-hover);
+}
+
+.toolbarGroup button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.executeButton {
+  background-color: #2d5a27 !important;
+  border-color: #3d7a37 !important;
+}
+
+.executeButton:hover:not(:disabled) {
+  background-color: #3d7a37 !important;
 }
 
 .mainContent {
@@ -68,10 +82,34 @@
 
 .statusBar {
   display: flex;
-  gap: 8px;
+  justify-content: space-between;
   padding: 4px 12px;
   background-color: var(--bg-secondary);
   border-top: 1px solid var(--border-color);
   font-size: 12px;
   color: var(--text-secondary);
+}
+
+.statusLeft,
+.statusCenter,
+.statusRight {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.statusReady {
+  color: #6a9955;
+}
+
+.statusExecuting {
+  color: #dcdcaa;
+}
+
+.connected {
+  color: #4ec9b0;
+}
+
+.disconnected {
+  color: #808080;
 }
