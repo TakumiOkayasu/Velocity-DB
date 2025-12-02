@@ -1,0 +1,87 @@
+.container {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tabs {
+  display: flex;
+  flex: 1;
+  overflow-x: auto;
+  gap: 0;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: var(--bg-tertiary);
+  border-right: 1px solid var(--border-color);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.tab:hover {
+  background-color: var(--bg-hover);
+}
+
+.tab.active {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.tabName {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dirty {
+  color: var(--accent-color);
+  font-size: 8px;
+}
+
+.closeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 2px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.closeButton:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.addButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 4px 8px;
+  padding: 0;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.addButton:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}

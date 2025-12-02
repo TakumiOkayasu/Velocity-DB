@@ -1,0 +1,37 @@
+.container {
+  user-select: none;
+}
+
+.node {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.node:hover {
+  background-color: var(--bg-hover);
+}
+
+.expander {
+  width: 12px;
+  font-size: 8px;
+  color: var(--text-secondary);
+}
+
+.icon {
+  font-size: 14px;
+}
+
+.name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.children {
+  /* Children are indented via paddingLeft in the node */
+}

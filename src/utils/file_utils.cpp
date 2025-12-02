@@ -1,0 +1,74 @@
+#include "file_utils.h"
+#include <Windows.h>
+#include <ShlObj.h>
+#include <fstream>
+#include <sstream>
+#include <filesystem>
+
+namespace predategrip {
+
+std::optional<std::string> FileUtils::readFile(const std::string& filepath) {
+    std::ifstream file(filepath, std::ios::binary);
+    if (!file.is_open()) {
+        return std::nullopt;
+    }
+
+    std::ostringstream content;
+    content << file.rdbuf();
+    return content.str();
+}
+
+bool FileUtils::writeFile(const std::string& filepath, const std::string& content) {
+    std::ofstream file(filepath, std::ios::binary);
+    if (!file.is_open()) {
+        return false;
+    }
+
+    file << content;
+    return true;
+}
+
+bool FileUtils::fileExists(const std::string& filepath) {
+    return std::filesystem::exists(filepath);
+}
+
+bool FileUtils::createDirectory(const std::string& path) {
+    return std::filesystem::create_directories(path);
+}
+
+std::string FileUtils::getAppDataPath() {
+    wchar_t path[MAX_PATH];
+    if (SUCCEEDED(SHGetFolderPathW(nullptr, CSIDL_LOCAL_APPDATA, nullptr, 0, path))) {
+        std::wstring wpath(path);
+        std::string result(wpath.begin(), wpath.end());
+        return result + "\\PreDateGrip";
+    }
+    return "";
+}
+
+std::string FileUtils::getExecutablePath() {
+    wchar_t path[MAX_PATH];
+    GetModuleFileNameW(nullptr, path, MAX_PATH);
+    std::wstring wpath(path);
+    return std::string(wpath.begin(), wpath.end());
+}
+
+std::vector<std::string> FileUtils::listFiles(const std::string& directory, const std::string& extension) {
+    std::vector<std::string> files;
+
+    if (!std::filesystem::exists(directory)) {
+        return files;
+    }
+
+    for (const auto& entry : std::filesystem::directory_iterator(directory)) {
+        if (entry.is_regular_file()) {
+            if (extension.empty() || entry.path().extension() == extension) {
+                files.push_back(entry.path().string());
+            }
+        }
+    }
+
+    return files;
+}
+
+}  // namespace predategrip

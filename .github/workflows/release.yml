@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build Release
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: microsoft/setup-msbuild@v1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build Frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Configure CMake
+        run: cmake -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Backend
+        run: cmake --build build --config Release
+
+      - name: Package
+        run: |
+          mkdir dist
+          copy build\Release\PreDateGrip.exe dist\
+          xcopy /E /I frontend\dist dist\web
+
+      - name: Create ZIP
+        run: Compress-Archive -Path dist\* -DestinationPath PreDateGrip-${{ github.ref_name }}.zip
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: PreDateGrip-${{ github.ref_name }}.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

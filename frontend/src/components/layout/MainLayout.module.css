@@ -1,0 +1,77 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.toolbar {
+  display: flex;
+  gap: 16px;
+  padding: 8px 12px;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.toolbarGroup {
+  display: flex;
+  gap: 4px;
+}
+
+.toolbarGroup button {
+  padding: 4px 12px;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.toolbarGroup button:hover {
+  background-color: var(--bg-hover);
+}
+
+.mainContent {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.rightSection {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.verticalResizer {
+  width: 4px;
+  cursor: col-resize;
+  background-color: var(--border-color);
+}
+
+.verticalResizer:hover {
+  background-color: var(--accent-color);
+}
+
+.horizontalResizer {
+  height: 4px;
+  cursor: row-resize;
+  background-color: var(--border-color);
+}
+
+.horizontalResizer:hover {
+  background-color: var(--accent-color);
+}
+
+.statusBar {
+  display: flex;
+  gap: 8px;
+  padding: 4px 12px;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  font-size: 12px;
+  color: var(--text-secondary);
+}

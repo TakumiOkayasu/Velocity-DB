@@ -1,0 +1,82 @@
+# Build directories
+build/
+dist/
+out/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.sdf
+*.opensdf
+*.aps
+*.ncb
+*.opendb
+*.db
+*.db-shm
+*.db-wal
+*.ipch
+*.idb
+*.pdb
+*.ilk
+*.obj
+*.res
+*.log
+*.tlog/
+*.lastbuildstate
+*.recipe
+x64/
+Debug/
+Release/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+
+# Frontend build
+frontend/dist/
+frontend/coverage/
+*.local
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Test artifacts
+*.test.csv
+*.test.json
+test_export.*
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/

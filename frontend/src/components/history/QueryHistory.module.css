@@ -1,0 +1,56 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.searchInput {
+  flex: 1;
+  padding: 6px 8px;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.clearButton {
+  padding: 6px 12px;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.clearButton:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-secondary);
+  font-size: 12px;
+}

@@ -1,0 +1,68 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: microsoft/setup-msbuild@v1
+
+      - name: Configure CMake
+        run: cmake -B build -G "Visual Studio 17 2022" -A x64 -DBUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --config Debug
+
+      - name: Run C++ Tests
+        run: |
+          cd build
+          ctest -C Debug --output-on-failure --verbose
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run Frontend Tests
+        working-directory: frontend
+        run: npm run test -- --run
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: windows-latest
+    # Only run on main branch
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: microsoft/setup-msbuild@v1
+
+      - name: Configure CMake
+        run: cmake -B build -G "Visual Studio 17 2022" -A x64 -DBUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --config Debug
+
+      # Integration tests are disabled by default as they require a database
+      # Uncomment when a test database is available
+      # - name: Run Integration Tests
+      #   run: |
+      #     cd build
+      #     ctest -C Debug -R "DISABLED_" --output-on-failure
