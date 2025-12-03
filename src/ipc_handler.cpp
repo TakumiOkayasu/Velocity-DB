@@ -1,6 +1,8 @@
 ﻿#include "ipc_handler.h"
 
+#include "database/async_query_executor.h"
 #include "database/connection_pool.h"
+#include "utils/simd_filter.h"
 #include "database/query_history.h"
 #include "database/result_cache.h"
 #include "database/schema_inspector.h"
@@ -82,6 +84,8 @@ IPCHandler::IPCHandler()
     , m_transactionManager(std::make_unique<TransactionManager>())
     , m_queryHistory(std::make_unique<QueryHistory>())
     , m_resultCache(std::make_unique<ResultCache>())
+    , m_asyncExecutor(std::make_unique<AsyncQueryExecutor>())
+    , m_simdFilter(std::make_unique<SIMDFilter>())
     , m_sqlFormatter(std::make_unique<SQLFormatter>())
     , m_a5erParser(std::make_unique<A5ERParser>()) {
     registerRequestRoutes();
@@ -110,6 +114,11 @@ void IPCHandler::registerRequestRoutes() {
     m_requestRoutes["getExecutionPlan"] = [this](std::string_view p) { return getExecutionPlan(p); };
     m_requestRoutes["getCacheStats"] = [this](std::string_view p) { return getCacheStats(p); };
     m_requestRoutes["clearCache"] = [this](std::string_view p) { return clearCache(p); };
+    m_requestRoutes["executeAsyncQuery"] = [this](std::string_view p) { return executeAsyncQuery(p); };
+    m_requestRoutes["getAsyncQueryResult"] = [this](std::string_view p) { return getAsyncQueryResult(p); };
+    m_requestRoutes["cancelAsyncQuery"] = [this](std::string_view p) { return cancelAsyncQuery(p); };
+    m_requestRoutes["getActiveQueries"] = [this](std::string_view p) { return getActiveQueries(p); };
+    m_requestRoutes["filterResultSet"] = [this](std::string_view p) { return filterResultSet(p); };
 }
 
 std::string IPCHandler::dispatchRequest(std::string_view request) {
@@ -744,6 +753,207 @@ std::string IPCHandler::getCacheStats(std::string_view) {
 std::string IPCHandler::clearCache(std::string_view) {
     m_resultCache->clear();
     return JsonUtils::successResponse(R"({"cleared":true})");
+}
+
+std::string IPCHandler::executeAsyncQuery(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        simdjson::dom::element doc = parser.parse(params);
+
+        std::string connectionId = std::string(doc["connectionId"].get_string().value());
+        std::string sqlQuery = std::string(doc["sql"].get_string().value());
+
+        auto connection = m_activeConnections.find(connectionId);
+        if (connection == m_activeConnections.end()) [[unlikely]] {
+            return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
+        }
+
+        auto& driver = connection->second;
+        std::string queryId = m_asyncExecutor->submitQuery(driver.get(), sqlQuery);
+
+        return JsonUtils::successResponse(std::format(R"({{"queryId":"{}"}})", queryId));
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string IPCHandler::getAsyncQueryResult(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        simdjson::dom::element doc = parser.parse(params);
+
+        std::string queryId = std::string(doc["queryId"].get_string().value());
+
+        AsyncQueryResult asyncResult = m_asyncExecutor->getQueryResult(queryId);
+
+        std::string statusStr;
+        switch (asyncResult.status) {
+        case QueryStatus::Pending:
+            statusStr = "pending";
+            break;
+        case QueryStatus::Running:
+            statusStr = "running";
+            break;
+        case QueryStatus::Completed:
+            statusStr = "completed";
+            break;
+        case QueryStatus::Cancelled:
+            statusStr = "cancelled";
+            break;
+        case QueryStatus::Failed:
+            statusStr = "failed";
+            break;
+        }
+
+        std::string jsonResponse = "{";
+        jsonResponse += std::format(R"("queryId":"{}","status":"{}")", asyncResult.queryId, statusStr);
+
+        if (!asyncResult.errorMessage.empty()) {
+            jsonResponse += std::format(R"(,"error":"{}")", JsonUtils::escapeString(asyncResult.errorMessage));
+        }
+
+        if (asyncResult.result.has_value()) {
+            const auto& queryResult = *asyncResult.result;
+
+            jsonResponse += R"(,"columns":[)";
+            for (size_t i = 0; i < queryResult.columns.size(); ++i) {
+                if (i > 0)
+                    jsonResponse += ',';
+                jsonResponse += std::format(R"({{"name":"{}","type":"{}"}})",
+                                            JsonUtils::escapeString(queryResult.columns[i].name),
+                                            queryResult.columns[i].type);
+            }
+            jsonResponse += "],";
+
+            jsonResponse += R"("rows":[)";
+            for (size_t rowIndex = 0; rowIndex < queryResult.rows.size(); ++rowIndex) {
+                if (rowIndex > 0)
+                    jsonResponse += ',';
+                jsonResponse += '[';
+                for (size_t colIndex = 0; colIndex < queryResult.rows[rowIndex].values.size(); ++colIndex) {
+                    if (colIndex > 0)
+                        jsonResponse += ',';
+                    jsonResponse +=
+                        std::format(R"("{}")", JsonUtils::escapeString(queryResult.rows[rowIndex].values[colIndex]));
+                }
+                jsonResponse += ']';
+            }
+            jsonResponse += "],";
+
+            jsonResponse +=
+                std::format(R"("affectedRows":{},"executionTimeMs":{})", queryResult.affectedRows, queryResult.executionTimeMs);
+        }
+
+        jsonResponse += "}";
+
+        return JsonUtils::successResponse(jsonResponse);
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string IPCHandler::cancelAsyncQuery(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        simdjson::dom::element doc = parser.parse(params);
+
+        std::string queryId = std::string(doc["queryId"].get_string().value());
+
+        bool cancelled = m_asyncExecutor->cancelQuery(queryId);
+
+        return JsonUtils::successResponse(std::format(R"({{"cancelled":{}}})", cancelled ? "true" : "false"));
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string IPCHandler::getActiveQueries(std::string_view) {
+    auto activeIds = m_asyncExecutor->getActiveQueryIds();
+
+    std::string jsonResponse = "[";
+    for (size_t i = 0; i < activeIds.size(); ++i) {
+        if (i > 0)
+            jsonResponse += ',';
+        jsonResponse += std::format(R"("{}")", activeIds[i]);
+    }
+    jsonResponse += "]";
+
+    return JsonUtils::successResponse(jsonResponse);
+}
+
+std::string IPCHandler::filterResultSet(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        simdjson::dom::element doc = parser.parse(params);
+
+        std::string connectionId = std::string(doc["connectionId"].get_string().value());
+        std::string sqlQuery = std::string(doc["sql"].get_string().value());
+        auto columnIndex = doc["columnIndex"].get_uint64().value();
+        std::string filterType = std::string(doc["filterType"].get_string().value());
+        std::string filterValue = std::string(doc["filterValue"].get_string().value());
+
+        auto connection = m_activeConnections.find(connectionId);
+        if (connection == m_activeConnections.end()) [[unlikely]] {
+            return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
+        }
+
+        // First execute the query to get data
+        auto& driver = connection->second;
+        ResultSet queryResult = driver->execute(sqlQuery);
+
+        // Apply SIMD-optimized filter
+        std::vector<size_t> matchingIndices;
+        if (filterType == "equals") {
+            matchingIndices = m_simdFilter->filterEquals(queryResult, columnIndex, filterValue);
+        } else if (filterType == "contains") {
+            matchingIndices = m_simdFilter->filterContains(queryResult, columnIndex, filterValue);
+        } else if (filterType == "range") {
+            std::string minValue = filterValue;
+            std::string maxValue;
+            if (auto maxVal = doc["filterValueMax"].get_string(); !maxVal.error()) {
+                maxValue = std::string(maxVal.value());
+            }
+            matchingIndices = m_simdFilter->filterRange(queryResult, columnIndex, minValue, maxValue);
+        } else {
+            return JsonUtils::errorResponse(std::format("Unknown filter type: {}", filterType));
+        }
+
+        // Build filtered result
+        std::string jsonResponse = "{";
+
+        // Columns
+        jsonResponse += R"("columns":[)";
+        for (size_t i = 0; i < queryResult.columns.size(); ++i) {
+            if (i > 0)
+                jsonResponse += ',';
+            jsonResponse += std::format(R"({{"name":"{}","type":"{}"}})",
+                                        JsonUtils::escapeString(queryResult.columns[i].name), queryResult.columns[i].type);
+        }
+        jsonResponse += "],";
+
+        // Filtered rows
+        jsonResponse += R"("rows":[)";
+        for (size_t i = 0; i < matchingIndices.size(); ++i) {
+            if (i > 0)
+                jsonResponse += ',';
+            jsonResponse += '[';
+            const auto& row = queryResult.rows[matchingIndices[i]];
+            for (size_t colIndex = 0; colIndex < row.values.size(); ++colIndex) {
+                if (colIndex > 0)
+                    jsonResponse += ',';
+                jsonResponse += std::format(R"("{}")", JsonUtils::escapeString(row.values[colIndex]));
+            }
+            jsonResponse += ']';
+        }
+        jsonResponse += "],";
+
+        jsonResponse += std::format(R"("totalRows":{},"filteredRows":{},"simdAvailable":{}}})", queryResult.rows.size(),
+                                    matchingIndices.size(), SIMDFilter::isAVX2Available() ? "true" : "false");
+
+        return JsonUtils::successResponse(jsonResponse);
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
 }
 
 }  // namespace predategrip

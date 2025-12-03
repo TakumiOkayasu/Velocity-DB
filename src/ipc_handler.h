@@ -15,6 +15,8 @@ class SchemaInspector;
 class TransactionManager;
 class QueryHistory;
 class ResultCache;
+class AsyncQueryExecutor;
+class SIMDFilter;
 class DataExporter;
 class A5ERParser;
 class SQLFormatter;
@@ -48,6 +50,12 @@ private:
     [[nodiscard]] std::string executeSQL(std::string_view params);
     [[nodiscard]] std::string cancelRunningQuery(std::string_view params);
 
+    // Async query operations
+    [[nodiscard]] std::string executeAsyncQuery(std::string_view params);
+    [[nodiscard]] std::string getAsyncQueryResult(std::string_view params);
+    [[nodiscard]] std::string cancelAsyncQuery(std::string_view params);
+    [[nodiscard]] std::string getActiveQueries(std::string_view params);
+
     // Schema retrieval operations
     [[nodiscard]] std::string fetchTableList(std::string_view params);
     [[nodiscard]] std::string fetchColumnDefinitions(std::string_view params);
@@ -73,11 +81,16 @@ private:
     [[nodiscard]] std::string getCacheStats(std::string_view params);
     [[nodiscard]] std::string clearCache(std::string_view params);
 
+    // Filter operations
+    [[nodiscard]] std::string filterResultSet(std::string_view params);
+
     std::unique_ptr<ConnectionPool> m_connectionPool;
     std::unique_ptr<SchemaInspector> m_schemaInspector;
     std::unique_ptr<TransactionManager> m_transactionManager;
     std::unique_ptr<QueryHistory> m_queryHistory;
     std::unique_ptr<ResultCache> m_resultCache;
+    std::unique_ptr<AsyncQueryExecutor> m_asyncExecutor;
+    std::unique_ptr<SIMDFilter> m_simdFilter;
     std::unique_ptr<SQLFormatter> m_sqlFormatter;
     std::unique_ptr<A5ERParser> m_a5erParser;
 

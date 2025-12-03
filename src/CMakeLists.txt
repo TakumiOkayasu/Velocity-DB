@@ -5,6 +5,7 @@ set(LIB_SOURCES
     database/sqlserver_driver.cpp
     database/connection_pool.cpp
     database/result_cache.cpp
+    database/async_query_executor.cpp
     database/schema_inspector.cpp
     database/query_history.cpp
     database/transaction_manager.cpp
@@ -24,6 +25,7 @@ set(HEADERS
     database/sqlserver_driver.h
     database/connection_pool.h
     database/result_cache.h
+    database/async_query_executor.h
     database/schema_inspector.h
     database/query_history.h
     database/transaction_manager.h

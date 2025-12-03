@@ -32,6 +32,33 @@ const mockData: Record<string, unknown> = {
     usagePercent: 0,
   },
   clearCache: { cleared: true },
+  executeAsyncQuery: { queryId: 'mock-query-1' },
+  getAsyncQueryResult: {
+    queryId: 'mock-query-1',
+    status: 'completed',
+    columns: [
+      { name: 'id', type: 'int' },
+      { name: 'name', type: 'nvarchar' },
+    ],
+    rows: [
+      ['1', 'Test Item 1'],
+      ['2', 'Test Item 2'],
+    ],
+    affectedRows: 0,
+    executionTimeMs: 50,
+  },
+  cancelAsyncQuery: { cancelled: true },
+  getActiveQueries: [],
+  filterResultSet: {
+    columns: [
+      { name: 'id', type: 'int' },
+      { name: 'name', type: 'nvarchar' },
+    ],
+    rows: [['1', 'Test Item 1']],
+    totalRows: 3,
+    filteredRows: 1,
+    simdAvailable: true,
+  },
   getDatabases: ['master', 'tempdb', 'model', 'msdb'],
   getTables: [
     { schema: 'dbo', name: 'Users', type: 'TABLE' },
@@ -257,6 +284,56 @@ class Bridge {
 
   async clearCache(): Promise<{ cleared: boolean }> {
     return this.call('clearCache', {});
+  }
+
+  // Async query methods
+  async executeAsyncQuery(connectionId: string, sql: string): Promise<{ queryId: string }> {
+    return this.call('executeAsyncQuery', { connectionId, sql });
+  }
+
+  async getAsyncQueryResult(queryId: string): Promise<{
+    queryId: string;
+    status: 'pending' | 'running' | 'completed' | 'cancelled' | 'failed';
+    error?: string;
+    columns?: { name: string; type: string }[];
+    rows?: string[][];
+    affectedRows?: number;
+    executionTimeMs?: number;
+  }> {
+    return this.call('getAsyncQueryResult', { queryId });
+  }
+
+  async cancelAsyncQuery(queryId: string): Promise<{ cancelled: boolean }> {
+    return this.call('cancelAsyncQuery', { queryId });
+  }
+
+  async getActiveQueries(): Promise<string[]> {
+    return this.call('getActiveQueries', {});
+  }
+
+  // SIMD filter methods
+  async filterResultSet(
+    connectionId: string,
+    sql: string,
+    columnIndex: number,
+    filterType: 'equals' | 'contains' | 'range',
+    filterValue: string,
+    filterValueMax?: string
+  ): Promise<{
+    columns: { name: string; type: string }[];
+    rows: string[][];
+    totalRows: number;
+    filteredRows: number;
+    simdAvailable: boolean;
+  }> {
+    return this.call('filterResultSet', {
+      connectionId,
+      sql,
+      columnIndex,
+      filterType,
+      filterValue,
+      filterValueMax,
+    });
   }
 }
 
