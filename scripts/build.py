@@ -27,8 +27,16 @@ def run_command(cmd: list[str], description: str, env: dict | None = None) -> bo
     if env:
         merged_env.update(env)
 
-    result = subprocess.run(cmd, env=merged_env)
-    return result.returncode == 0
+    try:
+        result = subprocess.run(cmd, env=merged_env, shell=True)
+        return result.returncode == 0
+    except FileNotFoundError as e:
+        print(f"ERROR: Command not found: {cmd[0]}")
+        print(f"  Details: {e}")
+        return False
+    except Exception as e:
+        print(f"ERROR: Failed to execute command: {e}")
+        return False
 
 
 def find_vcvars() -> Path | None:
@@ -61,18 +69,33 @@ def get_msvc_env() -> dict[str, str]:
     vcvars = find_vcvars()
     if not vcvars:
         print("ERROR: Could not find vcvars64.bat")
-        print("Please install Visual Studio 2022 with C++ workload")
+        print("  Visual Studio 2022 with C++ workload is required.")
+        print("")
+        print("  Install options:")
+        print("    1. Visual Studio Installer -> Modify -> 'Desktop development with C++'")
+        print("    2. winget install Microsoft.VisualStudio.2022.Community")
+        print("")
+        print("  Searched locations:")
+        print("    - C:\\Program Files\\Microsoft Visual Studio\\2022\\*")
+        print("    - D:\\Program Files\\Microsoft Visual Studio\\2022\\*")
+        print("    - C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\*")
         sys.exit(1)
 
     print(f"Using MSVC from: {vcvars}")
 
     # Run vcvars64.bat and capture environment
     cmd = f'cmd /c ""{vcvars}" && set"'
-    result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
+    except Exception as e:
+        print(f"ERROR: Failed to execute vcvars64.bat: {e}")
+        sys.exit(1)
 
     if result.returncode != 0:
-        print(f"ERROR: Failed to run vcvars64.bat")
-        print(result.stderr)
+        print("ERROR: Failed to run vcvars64.bat")
+        print(f"  Exit code: {result.returncode}")
+        if result.stderr:
+            print(f"  Stderr: {result.stderr}")
         sys.exit(1)
 
     env = {}
@@ -81,25 +104,57 @@ def get_msvc_env() -> dict[str, str]:
             key, _, value = line.partition('=')
             env[key] = value
 
+    if not env:
+        print("ERROR: Failed to capture environment from vcvars64.bat")
+        print("  No environment variables were captured.")
+        sys.exit(1)
+
     return env
 
 
 def check_tools(env: dict[str, str]) -> bool:
     """Check if required tools are available."""
     # Check CMake
-    result = subprocess.run(["cmake", "--version"], capture_output=True, env=env)
-    if result.returncode != 0:
-        print("ERROR: CMake not found. Install from https://cmake.org/download/")
+    try:
+        result = subprocess.run(
+            ["cmake", "--version"],
+            capture_output=True,
+            env=env,
+            shell=True  # Required on Windows for PATH resolution
+        )
+        if result.returncode != 0:
+            print("ERROR: CMake not found.")
+            print("  Install from: https://cmake.org/download/")
+            print("  Or run: winget install Kitware.CMake")
+            return False
+        print(f"CMake: {result.stdout.decode().splitlines()[0]}")
+    except FileNotFoundError:
+        print("ERROR: CMake not found in PATH.")
+        print("  Install from: https://cmake.org/download/")
+        print("  Or run: winget install Kitware.CMake")
         return False
-    print(f"CMake: {result.stdout.decode().splitlines()[0]}")
+    except Exception as e:
+        print(f"ERROR: Failed to check CMake: {e}")
+        return False
 
     # Check Ninja (optional but preferred)
-    result = subprocess.run(["ninja", "--version"], capture_output=True, env=env)
-    has_ninja = result.returncode == 0
-    if has_ninja:
-        print(f"Ninja: {result.stdout.decode().strip()}")
-    else:
+    try:
+        result = subprocess.run(
+            ["ninja", "--version"],
+            capture_output=True,
+            env=env,
+            shell=True
+        )
+        has_ninja = result.returncode == 0
+        if has_ninja:
+            print(f"Ninja: {result.stdout.decode().strip()}")
+        else:
+            print("Ninja: not found (will use Visual Studio generator)")
+    except FileNotFoundError:
         print("Ninja: not found (will use Visual Studio generator)")
+    except Exception as e:
+        print(f"WARNING: Failed to check Ninja: {e}")
+        print("  Will use Visual Studio generator")
 
     return True
 
@@ -155,11 +210,15 @@ def main():
         sys.exit(1)
 
     # Check if Ninja is available
-    ninja_available = subprocess.run(
-        ["ninja", "--version"],
-        capture_output=True,
-        env=env
-    ).returncode == 0
+    try:
+        ninja_available = subprocess.run(
+            ["ninja", "--version"],
+            capture_output=True,
+            env=env,
+            shell=True
+        ).returncode == 0
+    except Exception:
+        ninja_available = False
 
     # Create build directory
     build_dir.mkdir(exist_ok=True)
