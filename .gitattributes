@@ -1,30 +1,30 @@
 ###############################################################################
 # Set default behavior to automatically normalize line endings.
 ###############################################################################
-* text=auto eol=lf
+* text=auto eol=crlf
 
 # Windows batch files need CRLF
 *.bat text eol=crlf
 *.cmd text eol=crlf
 
 # Source code files - use LF
-*.cpp text eol=lf
-*.h text eol=lf
-*.hpp text eol=lf
-*.c text eol=lf
-*.ts text eol=lf
-*.tsx text eol=lf
-*.js text eol=lf
-*.jsx text eol=lf
-*.json text eol=lf
-*.css text eol=lf
-*.html text eol=lf
-*.md text eol=lf
-*.yml text eol=lf
-*.yaml text eol=lf
-*.xml text eol=lf
-*.cmake text eol=lf
-CMakeLists.txt text eol=lf
+*.cpp text eol=crlf
+*.h text eol=crlf
+*.hpp text eol=crlf
+*.c text eol=crlf
+*.ts text eol=crlf
+*.tsx text eol=crlf
+*.js text eol=crlf
+*.jsx text eol=crlf
+*.json text eol=crlf
+*.css text eol=crlf
+*.html text eol=crlf
+*.md text eol=crlf
+*.yml text eol=crlf
+*.yaml text eol=crlf
+*.xml text eol=crlf
+*.cmake text eol=crlf
+CMakeLists.txt text eol=crlf
 
 # Binary files
 *.exe binary

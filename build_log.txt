@@ -1,0 +1,4 @@
+Building Pre-DateGrip (Release)...
+'cmake' は、内部コマンドまたは外部コマンド、
+操作可能なプログラムまたはバッチ ファイルとして認識されていません。
+CMake configuration failed

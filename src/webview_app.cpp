@@ -40,9 +40,26 @@ void WebViewApp::initializeWebView() {
 
     // Load frontend
     auto exePath = getExecutablePath();
-    auto frontendPath = std::filesystem::path(exePath).parent_path() / "frontend" / "index.html";
+    auto exeDir = std::filesystem::path(exePath).parent_path();
 
-    if (std::filesystem::exists(frontendPath)) {
+    // Try multiple paths in order:
+    // 1. Built distribution: exe_dir/frontend/index.html (packaged app)
+    // 2. Development build: project_root/frontend/dist/index.html
+    std::vector<std::filesystem::path> searchPaths = {
+        exeDir / "frontend" / "index.html",
+        exeDir.parent_path().parent_path().parent_path() / "frontend" / "dist" / "index.html",  // Debug/Release build
+        exeDir.parent_path().parent_path() / "frontend" / "dist" / "index.html",
+    };
+
+    std::filesystem::path frontendPath;
+    for (const auto& path : searchPaths) {
+        if (std::filesystem::exists(path)) {
+            frontendPath = path;
+            break;
+        }
+    }
+
+    if (!frontendPath.empty()) {
         wv->navigate("file:///" + frontendPath.generic_string());
     } else {
         // Development mode: load from Vite dev server
