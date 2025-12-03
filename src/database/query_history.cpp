@@ -1,9 +1,12 @@
 ﻿#include "query_history.h"
 
+#include "simdjson.h"
+
 #include <algorithm>
 #include <format>
 #include <fstream>
 #include <ranges>
+#include <sstream>
 
 namespace predategrip {
 
@@ -134,9 +137,71 @@ bool QueryHistory::save(std::string_view filepath) const {
     return true;
 }
 
-bool QueryHistory::load(std::string_view) {
-    // TODO: Implement JSON parsing with simdjson
-    return false;
+bool QueryHistory::load(std::string_view filepath) {
+    std::lock_guard lock(m_mutex);
+
+    std::string path(filepath);
+    std::ifstream inFile(path);
+    if (!inFile.is_open()) [[unlikely]] {
+        return false;
+    }
+
+    std::stringstream buffer;
+    buffer << inFile.rdbuf();
+    std::string jsonContent = buffer.str();
+
+    if (jsonContent.empty()) {
+        return true;  // Empty file is valid
+    }
+
+    try {
+        simdjson::dom::parser parser;
+        simdjson::dom::element doc = parser.parse(jsonContent);
+
+        if (!doc.is_array()) {
+            return false;
+        }
+
+        m_history.clear();
+
+        for (simdjson::dom::element item : doc.get_array()) {
+            HistoryItem historyItem;
+
+            if (auto id = item["id"].get_string(); !id.error()) {
+                historyItem.id = std::string(id.value());
+            }
+            if (auto sql = item["sql"].get_string(); !sql.error()) {
+                historyItem.sql = std::string(sql.value());
+            }
+            if (auto connId = item["connectionId"].get_string(); !connId.error()) {
+                historyItem.connectionId = std::string(connId.value());
+            }
+            if (auto timestamp = item["timestamp"].get_int64(); !timestamp.error()) {
+                historyItem.timestamp = std::chrono::system_clock::from_time_t(timestamp.value());
+            }
+            if (auto execTime = item["executionTimeMs"].get_double(); !execTime.error()) {
+                historyItem.executionTimeMs = execTime.value();
+            }
+            if (auto success = item["success"].get_bool(); !success.error()) {
+                historyItem.success = success.value();
+            }
+            if (auto errorMsg = item["errorMessage"].get_string(); !errorMsg.error()) {
+                historyItem.errorMessage = std::string(errorMsg.value());
+            }
+            if (auto affected = item["affectedRows"].get_int64(); !affected.error()) {
+                historyItem.affectedRows = affected.value();
+            }
+            if (auto favorite = item["isFavorite"].get_bool(); !favorite.error()) {
+                historyItem.isFavorite = favorite.value();
+            }
+
+            m_history.push_back(std::move(historyItem));
+        }
+
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
 }  // namespace predategrip

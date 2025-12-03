@@ -51,7 +51,8 @@
       "Bash(gh run view:*)",
       "Bash(dir /b \"C:\\prog\\Pre-DateGrip\\scripts\")",
       "Bash(python:*)",
-      "Bash(powershell -NoProfile -Command:*)"
+      "Bash(powershell -NoProfile -Command:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

@@ -66,6 +66,7 @@ private:
     [[nodiscard]] std::string formatSQLQuery(std::string_view params);
     [[nodiscard]] std::string parseA5ERFile(std::string_view params);
     [[nodiscard]] std::string retrieveQueryHistory(std::string_view params);
+    [[nodiscard]] std::string getExecutionPlan(std::string_view params);
 
     std::unique_ptr<ConnectionPool> m_connectionPool;
     std::unique_ptr<SchemaInspector> m_schemaInspector;

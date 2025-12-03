@@ -10,6 +10,7 @@ Usage:
     python scripts/build.py [Debug|Release]
 """
 
+import shutil
 import subprocess
 import sys
 import os
@@ -177,8 +178,6 @@ def get_cached_generator(build_dir: Path) -> str | None:
 
 def clear_build_cache(build_dir: Path) -> None:
     """Clear CMake cache files."""
-    import shutil
-
     cache_file = build_dir / "CMakeCache.txt"
     cmake_files = build_dir / "CMakeFiles"
 
@@ -215,6 +214,8 @@ def find_executable(build_dir: Path, build_type: str) -> Path | None:
 def main():
     # Parse arguments
     build_type = sys.argv[1] if len(sys.argv) > 1 else "Debug"
+    clean_build = "--clean" in sys.argv or "-c" in sys.argv
+
     if build_type not in ("Debug", "Release"):
         print(f"ERROR: Invalid build type '{build_type}'. Use 'Debug' or 'Release'")
         sys.exit(1)
@@ -222,6 +223,7 @@ def main():
     print(f"\n{'#'*60}")
     print(f"#  Pre-DateGrip Build Script")
     print(f"#  Build Type: {build_type}")
+    print(f"#  Clean Build: {clean_build}")
     print(f"{'#'*60}")
 
     # Get project root
@@ -231,6 +233,12 @@ def main():
 
     os.chdir(project_root)
     print(f"\nProject root: {project_root}")
+
+    # Clean build directory if requested or always clean for fresh builds
+    if build_dir.exists():
+        print(f"\n[0/4] Cleaning build directory...")
+        shutil.rmtree(build_dir)
+        print(f"  Removed: {build_dir}")
 
     # Setup MSVC environment
     print("\n[1/4] Setting up MSVC environment...")

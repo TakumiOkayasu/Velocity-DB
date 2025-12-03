@@ -39,6 +39,7 @@ const mockData: Record<string, unknown> = {
   formatSQL: { sql: 'SELECT\n    *\nFROM\n    users\nWHERE\n    id = 1;' },
   getQueryHistory: [],
   parseA5ER: { tables: [], relations: [] },
+  getExecutionPlan: { plan: 'Mock execution plan text', actual: false },
 };
 
 class Bridge {
@@ -194,6 +195,15 @@ class Bridge {
     relations: { source: string; target: string; cardinality: string }[];
   }> {
     return this.call('parseA5ER', { filepath });
+  }
+
+  // Execution plan methods
+  async getExecutionPlan(
+    connectionId: string,
+    sql: string,
+    actual: boolean = false
+  ): Promise<{ plan: string; actual: boolean }> {
+    return this.call('getExecutionPlan', { connectionId, sql, actual });
   }
 }
 

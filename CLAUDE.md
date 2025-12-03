@@ -231,6 +231,11 @@ interface RelationEdge {
 ```
 ## 重要な指示 (Instructions for Claude)
 
+### Python実行について
+- **Pythonスクリプトは必ず `uv run` 経由で実行すること**
+- 例: `uv run scripts/build.py Debug`（`python scripts/build.py Debug` は使わない）
+- uvがPython環境とインラインスクリプト依存を自動管理する
+
 ### 禁止事項
 - **git commit, git push は絶対禁止**。コミットメッセージを考えるだけにすること。
 

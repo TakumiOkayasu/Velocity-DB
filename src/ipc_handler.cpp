@@ -5,6 +5,9 @@
 #include "database/schema_inspector.h"
 #include "database/sqlserver_driver.h"
 #include "database/transaction_manager.h"
+#include "exporters/csv_exporter.h"
+#include "exporters/excel_exporter.h"
+#include "exporters/json_exporter.h"
 #include "parsers/a5er_parser.h"
 #include "parsers/sql_formatter.h"
 #include "simdjson.h"
@@ -102,6 +105,7 @@ void IPCHandler::registerRequestRoutes() {
     m_requestRoutes["formatSQL"] = [this](std::string_view p) { return formatSQLQuery(p); };
     m_requestRoutes["parseA5ER"] = [this](std::string_view p) { return parseA5ERFile(p); };
     m_requestRoutes["getQueryHistory"] = [this](std::string_view p) { return retrieveQueryHistory(p); };
+    m_requestRoutes["getExecutionPlan"] = [this](std::string_view p) { return getExecutionPlan(p); };
 }
 
 std::string IPCHandler::dispatchRequest(std::string_view request) {
@@ -393,19 +397,102 @@ std::string IPCHandler::rollbackTransaction(std::string_view) {
     return JsonUtils::successResponse("{}");
 }
 
-std::string IPCHandler::exportToCSV(std::string_view) {
-    // TODO: Implement CSV export
-    return JsonUtils::successResponse("{}");
+std::string IPCHandler::exportToCSV(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        simdjson::dom::element doc = parser.parse(params);
+
+        std::string connectionId = std::string(doc["connectionId"].get_string().value());
+        std::string filepath = std::string(doc["filepath"].get_string().value());
+        std::string sqlQuery = std::string(doc["sql"].get_string().value());
+
+        auto connection = m_activeConnections.find(connectionId);
+        if (connection == m_activeConnections.end()) [[unlikely]] {
+            return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
+        }
+
+        auto& driver = connection->second;
+        ResultSet queryResult = driver->execute(sqlQuery);
+
+        ExportOptions options;
+        if (auto delimiter = doc["delimiter"].get_string(); !delimiter.error()) {
+            options.delimiter = std::string(delimiter.value());
+        }
+        if (auto includeHeader = doc["includeHeader"].get_bool(); !includeHeader.error()) {
+            options.includeHeader = includeHeader.value();
+        }
+        if (auto nullValue = doc["nullValue"].get_string(); !nullValue.error()) {
+            options.nullValue = std::string(nullValue.value());
+        }
+
+        CSVExporter exporter;
+        if (exporter.exportData(queryResult, filepath, options)) {
+            return JsonUtils::successResponse(std::format(R"({{"filepath":"{}"}})", JsonUtils::escapeString(filepath)));
+        }
+        return JsonUtils::errorResponse("Failed to export CSV");
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
 }
 
-std::string IPCHandler::exportToJSON(std::string_view) {
-    // TODO: Implement JSON export
-    return JsonUtils::successResponse("{}");
+std::string IPCHandler::exportToJSON(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        simdjson::dom::element doc = parser.parse(params);
+
+        std::string connectionId = std::string(doc["connectionId"].get_string().value());
+        std::string filepath = std::string(doc["filepath"].get_string().value());
+        std::string sqlQuery = std::string(doc["sql"].get_string().value());
+
+        auto connection = m_activeConnections.find(connectionId);
+        if (connection == m_activeConnections.end()) [[unlikely]] {
+            return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
+        }
+
+        auto& driver = connection->second;
+        ResultSet queryResult = driver->execute(sqlQuery);
+
+        JSONExporter exporter;
+        if (auto prettyPrint = doc["prettyPrint"].get_bool(); !prettyPrint.error()) {
+            exporter.setPrettyPrint(prettyPrint.value());
+        }
+
+        ExportOptions options;
+        if (exporter.exportData(queryResult, filepath, options)) {
+            return JsonUtils::successResponse(std::format(R"({{"filepath":"{}"}})", JsonUtils::escapeString(filepath)));
+        }
+        return JsonUtils::errorResponse("Failed to export JSON");
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
 }
 
-std::string IPCHandler::exportToExcel(std::string_view) {
-    // TODO: Implement Excel export
-    return JsonUtils::successResponse("{}");
+std::string IPCHandler::exportToExcel(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        simdjson::dom::element doc = parser.parse(params);
+
+        std::string connectionId = std::string(doc["connectionId"].get_string().value());
+        std::string filepath = std::string(doc["filepath"].get_string().value());
+        std::string sqlQuery = std::string(doc["sql"].get_string().value());
+
+        auto connection = m_activeConnections.find(connectionId);
+        if (connection == m_activeConnections.end()) [[unlikely]] {
+            return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
+        }
+
+        auto& driver = connection->second;
+        ResultSet queryResult = driver->execute(sqlQuery);
+
+        ExcelExporter exporter;
+        ExportOptions options;
+        if (exporter.exportData(queryResult, filepath, options)) {
+            return JsonUtils::successResponse(std::format(R"({{"filepath":"{}"}})", JsonUtils::escapeString(filepath)));
+        }
+        return JsonUtils::errorResponse("Excel export not yet implemented");
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
 }
 
 std::string IPCHandler::formatSQLQuery(std::string_view params) {
@@ -448,6 +535,55 @@ std::string IPCHandler::retrieveQueryHistory(std::string_view) {
     jsonResponse += ']';
 
     return JsonUtils::successResponse(jsonResponse);
+}
+
+std::string IPCHandler::getExecutionPlan(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        simdjson::dom::element doc = parser.parse(params);
+
+        std::string connectionId = std::string(doc["connectionId"].get_string().value());
+        std::string sqlQuery = std::string(doc["sql"].get_string().value());
+        bool actualPlan = false;
+        if (auto actual = doc["actual"].get_bool(); !actual.error()) {
+            actualPlan = actual.value();
+        }
+
+        auto connection = m_activeConnections.find(connectionId);
+        if (connection == m_activeConnections.end()) [[unlikely]] {
+            return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
+        }
+
+        auto& driver = connection->second;
+
+        // Build execution plan query for SQL Server
+        std::string planQuery;
+        if (actualPlan) {
+            // Actual execution plan (executes the query)
+            planQuery = std::format("SET STATISTICS XML ON;\n{}\nSET STATISTICS XML OFF;", sqlQuery);
+        } else {
+            // Estimated execution plan (does not execute)
+            planQuery = std::format("SET SHOWPLAN_TEXT ON;\nGO\n{}\nGO\nSET SHOWPLAN_TEXT OFF;", sqlQuery);
+        }
+
+        ResultSet queryResult = driver->execute(planQuery);
+
+        // Collect plan text from result
+        std::string planText;
+        for (const auto& row : queryResult.rows) {
+            for (const auto& value : row.values) {
+                if (!planText.empty()) {
+                    planText += "\n";
+                }
+                planText += value;
+            }
+        }
+
+        return JsonUtils::successResponse(
+            std::format(R"({{"plan":"{}","actual":{}}})", JsonUtils::escapeString(planText), actualPlan ? "true" : "false"));
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
 }
 
 }  // namespace predategrip
