@@ -42,9 +42,13 @@ bool FileUtils::createDirectory(const std::string& path) {
 std::string FileUtils::getAppDataPath() {
     wchar_t path[MAX_PATH];
     if (SUCCEEDED(SHGetFolderPathW(nullptr, CSIDL_LOCAL_APPDATA, nullptr, 0, path))) {
-        std::wstring wpath(path);
-        std::string result(wpath.begin(), wpath.end());
-        return result + "\\PreDateGrip";
+        // Convert wchar_t to UTF-8 string
+        int size = WideCharToMultiByte(CP_UTF8, 0, path, -1, nullptr, 0, nullptr, nullptr);
+        if (size > 0) {
+            std::string result(size - 1, '\0');
+            WideCharToMultiByte(CP_UTF8, 0, path, -1, result.data(), size, nullptr, nullptr);
+            return result + "\\PreDateGrip";
+        }
     }
     return "";
 }
@@ -52,8 +56,14 @@ std::string FileUtils::getAppDataPath() {
 std::string FileUtils::getExecutablePath() {
     wchar_t path[MAX_PATH];
     GetModuleFileNameW(nullptr, path, MAX_PATH);
-    std::wstring wpath(path);
-    return std::string(wpath.begin(), wpath.end());
+    // Convert wchar_t to UTF-8 string
+    int size = WideCharToMultiByte(CP_UTF8, 0, path, -1, nullptr, 0, nullptr, nullptr);
+    if (size > 0) {
+        std::string result(size - 1, '\0');
+        WideCharToMultiByte(CP_UTF8, 0, path, -1, result.data(), size, nullptr, nullptr);
+        return result;
+    }
+    return "";
 }
 
 std::vector<std::string> FileUtils::listFiles(const std::string& directory, const std::string& extension) {

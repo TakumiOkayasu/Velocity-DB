@@ -96,17 +96,17 @@ void QueryHistory::clear() {
 bool QueryHistory::save(std::string_view filepath) const {
     std::lock_guard lock(m_mutex);
 
-    std::ofstream file(std::string(filepath));
-    if (!file.is_open()) [[unlikely]] {
+    std::ofstream ofs(std::string(filepath));
+    if (!ofs.is_open()) [[unlikely]] {
         return false;
     }
 
-    file << "[\n";
+    ofs << "[\n";
     for (size_t i = 0; i < m_history.size(); ++i) {
         const auto& item = m_history[i];
         auto time = std::chrono::system_clock::to_time_t(item.timestamp);
 
-        file << std::format(R"(  {{
+        ofs << std::format(R"(  {{
     "id": "{}",
     "sql": "{}",
     "connectionId": "{}",
@@ -117,16 +117,16 @@ bool QueryHistory::save(std::string_view filepath) const {
     "affectedRows": {},
     "isFavorite": {}
   }})",
-                            item.id, item.sql, item.connectionId, time, item.executionTimeMs,
-                            item.success ? "true" : "false", item.errorMessage, item.affectedRows,
-                            item.isFavorite ? "true" : "false");
+                           item.id, item.sql, item.connectionId, time, item.executionTimeMs,
+                           item.success ? "true" : "false", item.errorMessage, item.affectedRows,
+                           item.isFavorite ? "true" : "false");
 
         if (i < m_history.size() - 1) {
-            file << ",";
+            ofs << ",";
         }
-        file << "\n";
+        ofs << "\n";
     }
-    file << "]\n";
+    ofs << "]\n";
 
     return true;
 }
