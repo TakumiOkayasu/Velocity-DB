@@ -1,14 +1,11 @@
-#pragma once
+﻿#pragma once
 
 #include <string>
+#include <string_view>
 
 namespace predategrip {
 
-enum class KeywordCase {
-    Upper,
-    Lower,
-    Unchanged
-};
+enum class KeywordCase { Upper, Lower, Unchanged };
 
 class SQLFormatter {
 public:
@@ -24,12 +21,12 @@ public:
     SQLFormatter() = default;
     ~SQLFormatter() = default;
 
-    std::string format(const std::string& sql, const FormatOptions& options = FormatOptions());
+    [[nodiscard]] std::string format(std::string_view sql, const FormatOptions& options = FormatOptions{});
 
 private:
-    std::string applyKeywordCase(const std::string& word, KeywordCase keywordCase) const;
-    bool isKeyword(const std::string& word) const;
-    std::string getIndent(int level, const FormatOptions& options) const;
+    [[nodiscard]] std::string applyKeywordCase(std::string_view word, KeywordCase keywordCase) const;
+    [[nodiscard]] static bool isKeyword(std::string_view word);
+    [[nodiscard]] static std::string getIndent(int level, const FormatOptions& options);
 };
 
 }  // namespace predategrip

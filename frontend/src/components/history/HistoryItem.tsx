@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react'
+﻿import { memo, useCallback } from 'react'
 import type { HistoryItem as HistoryItemType } from '../../types'
 import { useHistoryStore } from '../../store/historyStore'
 import { useQueryStore } from '../../store/queryStore'
@@ -52,7 +52,7 @@ export const HistoryItem = memo(function HistoryItem({ item }: HistoryItemProps)
     >
       <div className={styles.header}>
         <span className={styles.status}>
-          {item.success ? '✓' : '✗'}
+          {item.success ? '笨・ : '笨・}
         </span>
         <span className={styles.timestamp}>{formatTimestamp(item.timestamp)}</span>
         <span className={styles.duration}>{item.executionTimeMs.toFixed(0)}ms</span>
@@ -64,7 +64,7 @@ export const HistoryItem = memo(function HistoryItem({ item }: HistoryItemProps)
           }}
           title={item.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
         >
-          {item.isFavorite ? '★' : '☆'}
+          {item.isFavorite ? '笘・ : '笘・}
         </button>
         <button
           className={styles.deleteButton}
@@ -74,8 +74,7 @@ export const HistoryItem = memo(function HistoryItem({ item }: HistoryItemProps)
           }}
           title="Remove from history"
         >
-          ×
-        </button>
+          ﾃ・        </button>
       </div>
       <div className={styles.sql}>{truncateSql(item.sql)}</div>
       {!item.success && item.errorMessage && (

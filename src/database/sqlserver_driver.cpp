@@ -1,4 +1,6 @@
-#include "sqlserver_driver.h"
+﻿#include "sqlserver_driver.h"
+
+#include <array>
 #include <chrono>
 #include <stdexcept>
 
@@ -6,18 +8,18 @@ namespace predategrip {
 
 SQLServerDriver::SQLServerDriver() {
     SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &m_env);
-    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
+    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) [[unlikely]] {
         throw std::runtime_error("Failed to allocate ODBC environment handle");
     }
 
-    ret = SQLSetEnvAttr(m_env, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0);
-    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
+    ret = SQLSetEnvAttr(m_env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
+    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) [[unlikely]] {
         SQLFreeHandle(SQL_HANDLE_ENV, m_env);
         throw std::runtime_error("Failed to set ODBC version");
     }
 
     ret = SQLAllocHandle(SQL_HANDLE_DBC, m_env, &m_dbc);
-    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
+    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) [[unlikely]] {
         SQLFreeHandle(SQL_HANDLE_ENV, m_env);
         throw std::runtime_error("Failed to allocate ODBC connection handle");
     }
@@ -33,27 +35,21 @@ SQLServerDriver::~SQLServerDriver() {
     }
 }
 
-bool SQLServerDriver::connect(const std::string& connectionString) {
+bool SQLServerDriver::connect(std::string_view connectionString) {
     if (m_connected) {
         disconnect();
     }
 
-    SQLCHAR outConnectionString[1024];
-    SQLSMALLINT outConnectionStringLen;
+    std::array<SQLCHAR, 1024> outConnectionString{};
+    SQLSMALLINT outConnectionStringLen = 0;
 
-    SQLRETURN ret = SQLDriverConnectA(
-        m_dbc,
-        nullptr,
-        (SQLCHAR*)connectionString.c_str(),
-        SQL_NTS,
-        outConnectionString,
-        sizeof(outConnectionString),
-        &outConnectionStringLen,
-        SQL_DRIVER_NOPROMPT
-    );
+    std::string connStr(connectionString);
+    SQLRETURN ret = SQLDriverConnectA(m_dbc, nullptr, reinterpret_cast<SQLCHAR*>(connStr.data()), SQL_NTS,
+                                      outConnectionString.data(), static_cast<SQLSMALLINT>(outConnectionString.size()),
+                                      &outConnectionStringLen, SQL_DRIVER_NOPROMPT);
 
-    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
-        checkError(ret, SQL_HANDLE_DBC, m_dbc);
+    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) [[unlikely]] {
+        storeODBCDiagnosticMessage(ret, SQL_HANDLE_DBC, m_dbc);
         return false;
     }
 
@@ -72,130 +68,114 @@ void SQLServerDriver::disconnect() {
     }
 }
 
-bool SQLServerDriver::isConnected() const {
-    return m_connected;
+std::string SQLServerDriver::convertSQLTypeToDisplayName(SQLSMALLINT dataType) {
+    switch (dataType) {
+        case SQL_CHAR:
+        case SQL_VARCHAR:
+        case SQL_LONGVARCHAR:
+            return "VARCHAR";
+        case SQL_WCHAR:
+        case SQL_WVARCHAR:
+        case SQL_WLONGVARCHAR:
+            return "NVARCHAR";
+        case SQL_INTEGER:
+            return "INT";
+        case SQL_BIGINT:
+            return "BIGINT";
+        case SQL_SMALLINT:
+            return "SMALLINT";
+        case SQL_FLOAT:
+        case SQL_DOUBLE:
+            return "FLOAT";
+        case SQL_DECIMAL:
+        case SQL_NUMERIC:
+            return "DECIMAL";
+        case SQL_TYPE_DATE:
+            return "DATE";
+        case SQL_TYPE_TIME:
+            return "TIME";
+        case SQL_TYPE_TIMESTAMP:
+            return "DATETIME";
+        case SQL_BIT:
+            return "BIT";
+        default:
+            return "UNKNOWN";
+    }
 }
 
-ResultSet SQLServerDriver::execute(const std::string& sql) {
+ResultSet SQLServerDriver::execute(std::string_view sql) {
     ResultSet result;
 
-    if (!m_connected) {
+    if (!m_connected) [[unlikely]] {
         throw std::runtime_error("Not connected to database");
     }
 
-    auto startTime = std::chrono::high_resolution_clock::now();
+    const auto startTime = std::chrono::high_resolution_clock::now();
 
     if (m_stmt != SQL_NULL_HSTMT) {
         SQLFreeHandle(SQL_HANDLE_STMT, m_stmt);
     }
 
     SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, m_dbc, &m_stmt);
-    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
-        checkError(ret, SQL_HANDLE_DBC, m_dbc);
+    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) [[unlikely]] {
+        storeODBCDiagnosticMessage(ret, SQL_HANDLE_DBC, m_dbc);
         throw std::runtime_error(m_lastError);
     }
 
-    ret = SQLExecDirectA(m_stmt, (SQLCHAR*)sql.c_str(), SQL_NTS);
-    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO && ret != SQL_NO_DATA) {
-        checkError(ret, SQL_HANDLE_STMT, m_stmt);
+    std::string sqlStr(sql);
+    ret = SQLExecDirectA(m_stmt, reinterpret_cast<SQLCHAR*>(sqlStr.data()), SQL_NTS);
+    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO && ret != SQL_NO_DATA) [[unlikely]] {
+        storeODBCDiagnosticMessage(ret, SQL_HANDLE_STMT, m_stmt);
         throw std::runtime_error(m_lastError);
     }
 
-    // Get column info
-    SQLSMALLINT numCols;
+    SQLSMALLINT numCols = 0;
     SQLNumResultCols(m_stmt, &numCols);
 
-    for (SQLSMALLINT i = 1; i <= numCols; i++) {
-        SQLCHAR colName[256];
-        SQLSMALLINT colNameLen;
-        SQLSMALLINT dataType;
-        SQLULEN colSize;
-        SQLSMALLINT decimalDigits;
-        SQLSMALLINT nullable;
+    result.columns.reserve(static_cast<size_t>(numCols));
+    for (SQLSMALLINT i = 1; i <= numCols; ++i) {
+        std::array<SQLCHAR, 256> colName{};
+        SQLSMALLINT colNameLen = 0;
+        SQLSMALLINT dataType = 0;
+        SQLULEN colSize = 0;
+        SQLSMALLINT decimalDigits = 0;
+        SQLSMALLINT nullable = 0;
 
-        SQLDescribeColA(m_stmt, i, colName, sizeof(colName), &colNameLen,
-                       &dataType, &colSize, &decimalDigits, &nullable);
+        SQLDescribeColA(m_stmt, i, colName.data(), static_cast<SQLSMALLINT>(colName.size()), &colNameLen, &dataType,
+                        &colSize, &decimalDigits, &nullable);
 
-        ColumnInfo col;
-        col.name = std::string((char*)colName, colNameLen);
-        col.size = static_cast<int>(colSize);
-        col.nullable = (nullable == SQL_NULLABLE);
-        col.isPrimaryKey = false;
-
-        // Map SQL type to string
-        switch (dataType) {
-            case SQL_CHAR:
-            case SQL_VARCHAR:
-            case SQL_LONGVARCHAR:
-                col.type = "VARCHAR";
-                break;
-            case SQL_WCHAR:
-            case SQL_WVARCHAR:
-            case SQL_WLONGVARCHAR:
-                col.type = "NVARCHAR";
-                break;
-            case SQL_INTEGER:
-                col.type = "INT";
-                break;
-            case SQL_BIGINT:
-                col.type = "BIGINT";
-                break;
-            case SQL_SMALLINT:
-                col.type = "SMALLINT";
-                break;
-            case SQL_FLOAT:
-            case SQL_DOUBLE:
-                col.type = "FLOAT";
-                break;
-            case SQL_DECIMAL:
-            case SQL_NUMERIC:
-                col.type = "DECIMAL";
-                break;
-            case SQL_TYPE_DATE:
-                col.type = "DATE";
-                break;
-            case SQL_TYPE_TIME:
-                col.type = "TIME";
-                break;
-            case SQL_TYPE_TIMESTAMP:
-                col.type = "DATETIME";
-                break;
-            case SQL_BIT:
-                col.type = "BIT";
-                break;
-            default:
-                col.type = "UNKNOWN";
-                break;
-        }
-
-        result.columns.push_back(col);
+        result.columns.push_back({.name = std::string(reinterpret_cast<char*>(colName.data()), colNameLen),
+                                  .type = convertSQLTypeToDisplayName(dataType),
+                                  .size = static_cast<int>(colSize),
+                                  .nullable = (nullable == SQL_NULLABLE),
+                                  .isPrimaryKey = false});
     }
 
-    // Fetch rows
-    SQLCHAR buffer[4096];
-    SQLLEN indicator;
+    std::array<SQLCHAR, 4096> buffer{};
+    SQLLEN indicator = 0;
 
     while (SQLFetch(m_stmt) == SQL_SUCCESS) {
         ResultRow row;
-        for (SQLSMALLINT i = 1; i <= numCols; i++) {
-            ret = SQLGetData(m_stmt, i, SQL_C_CHAR, buffer, sizeof(buffer), &indicator);
+        row.values.reserve(static_cast<size_t>(numCols));
+
+        for (SQLSMALLINT i = 1; i <= numCols; ++i) {
+            ret = SQLGetData(m_stmt, i, SQL_C_CHAR, buffer.data(), buffer.size(), &indicator);
             if (indicator == SQL_NULL_DATA) {
-                row.values.push_back("");  // NULL represented as empty string
+                row.values.emplace_back();
             } else {
-                row.values.push_back(std::string((char*)buffer));
+                row.values.emplace_back(reinterpret_cast<char*>(buffer.data()));
             }
         }
-        result.rows.push_back(row);
+        result.rows.push_back(std::move(row));
     }
 
-    // Get affected rows count
-    SQLLEN rowCount;
+    SQLLEN rowCount = 0;
     SQLRowCount(m_stmt, &rowCount);
     result.affectedRows = rowCount;
 
-    auto endTime = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
-    result.executionTimeMs = duration.count() / 1000.0;
+    const auto endTime = std::chrono::high_resolution_clock::now();
+    const auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
+    result.executionTimeMs = static_cast<double>(duration.count()) / 1000.0;
 
     return result;
 }
@@ -206,24 +186,21 @@ void SQLServerDriver::cancel() {
     }
 }
 
-std::string SQLServerDriver::getLastError() const {
-    return m_lastError;
-}
-
-void SQLServerDriver::checkError(SQLRETURN ret, SQLSMALLINT handleType, SQLHANDLE handle) {
-    if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
+void SQLServerDriver::storeODBCDiagnosticMessage(SQLRETURN returnCode, SQLSMALLINT odbcHandleType,
+                                                 SQLHANDLE odbcHandle) {
+    if (returnCode == SQL_SUCCESS || returnCode == SQL_SUCCESS_WITH_INFO) [[likely]] {
         return;
     }
 
-    SQLCHAR sqlState[6];
-    SQLINTEGER nativeError;
-    SQLCHAR messageText[1024];
-    SQLSMALLINT textLength;
+    std::array<SQLCHAR, 6> sqlState{};
+    SQLINTEGER nativeErrorCode = 0;
+    std::array<SQLCHAR, 1024> diagnosticMessage{};
+    SQLSMALLINT messageLength = 0;
 
-    SQLGetDiagRecA(handleType, handle, 1, sqlState, &nativeError,
-                   messageText, sizeof(messageText), &textLength);
+    SQLGetDiagRecA(odbcHandleType, odbcHandle, 1, sqlState.data(), &nativeErrorCode, diagnosticMessage.data(),
+                   static_cast<SQLSMALLINT>(diagnosticMessage.size()), &messageLength);
 
-    m_lastError = std::string((char*)messageText, textLength);
+    m_lastError = std::string(reinterpret_cast<char*>(diagnosticMessage.data()), messageLength);
 }
 
 }  // namespace predategrip

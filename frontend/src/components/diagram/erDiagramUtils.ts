@@ -1,4 +1,4 @@
-import type { ERTableNode, Column } from '../../types'
+﻿import type { ERTableNode, Column } from '../../types'
 
 // Auto-layout helper function
 export function autoLayoutTables(

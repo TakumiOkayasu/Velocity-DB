@@ -1,4 +1,4 @@
-import { create } from 'zustand'
+﻿import { create } from 'zustand'
 import { useShallow } from 'zustand/react/shallow'
 import type { Query, ResultSet } from '../types'
 import { bridge } from '../api/bridge'

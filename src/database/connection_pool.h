@@ -1,11 +1,12 @@
-#pragma once
+﻿#pragma once
 
-#include <string>
-#include <vector>
+#include <condition_variable>
 #include <memory>
 #include <mutex>
-#include <condition_variable>
 #include <queue>
+#include <string>
+#include <string_view>
+#include <vector>
 
 namespace predategrip {
 
@@ -18,28 +19,28 @@ struct ConnectionInfo {
     std::string database;
     std::string username;
     std::string password;
-    bool useWindowsAuth;
+    bool useWindowsAuth = true;
 };
 
 class ConnectionPool {
 public:
-    ConnectionPool(size_t poolSize = 5);
+    explicit ConnectionPool(size_t poolSize = 5) : m_poolSize(poolSize) {}
     ~ConnectionPool();
 
     ConnectionPool(const ConnectionPool&) = delete;
     ConnectionPool& operator=(const ConnectionPool&) = delete;
 
-    bool addConnection(const ConnectionInfo& info);
-    void removeConnection(const std::string& id);
+    [[nodiscard]] bool addConnection(const ConnectionInfo& info);
+    void removeConnection(std::string_view id);
 
-    std::shared_ptr<SQLServerDriver> acquire(const std::string& connectionId);
+    [[nodiscard]] std::shared_ptr<SQLServerDriver> acquire(std::string_view connectionId);
     void release(std::shared_ptr<SQLServerDriver> connection);
 
-    std::vector<ConnectionInfo> getConnections() const;
-    bool testConnection(const ConnectionInfo& info);
+    [[nodiscard]] std::vector<ConnectionInfo> getConnections() const;
+    [[nodiscard]] bool testConnection(const ConnectionInfo& info);
 
 private:
-    std::string buildConnectionString(const ConnectionInfo& info) const;
+    [[nodiscard]] std::string buildConnectionString(const ConnectionInfo& info) const;
 
     size_t m_poolSize;
     mutable std::mutex m_mutex;

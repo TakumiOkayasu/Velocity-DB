@@ -1,4 +1,4 @@
-# Core library sources (without main.cpp)
+﻿# Core library sources (without main.cpp)
 set(LIB_SOURCES
     webview_app.cpp
     ipc_handler.cpp

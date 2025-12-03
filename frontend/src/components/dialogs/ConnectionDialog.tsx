@@ -1,4 +1,5 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
+import { bridge } from '../../api/bridge';
 import styles from './ConnectionDialog.module.css';
 
 interface ConnectionDialogProps {
@@ -43,17 +44,21 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
     setTestResult(null);
 
     try {
-      // Call backend to test connection
-      const connectionString = buildConnectionString(config);
-      const response = await window.bridge?.invoke('testConnection', { connectionString });
+      const response = await bridge.testConnection({
+        server: `${config.server},${config.port}`,
+        database: config.database,
+        username: config.username,
+        password: config.password,
+        useWindowsAuth: config.useWindowsAuth,
+      });
 
-      if (response?.success) {
-        setTestResult({ success: true, message: 'Connection successful!' });
+      if (response.success) {
+        setTestResult({ success: true, message: response.message || 'Connection successful!' });
       } else {
-        setTestResult({ success: false, message: response?.error || 'Connection failed' });
+        setTestResult({ success: false, message: response.message || 'Connection failed' });
       }
     } catch (error) {
-      setTestResult({ success: false, message: String(error) });
+      setTestResult({ success: false, message: error instanceof Error ? error.message : String(error) });
     } finally {
       setTesting(false);
     }
@@ -170,30 +175,4 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
       </div>
     </div>
   );
-}
-
-function buildConnectionString(config: ConnectionConfig): string {
-  const parts = [
-    `Driver={ODBC Driver 17 for SQL Server}`,
-    `Server=${config.server},${config.port}`,
-    `Database=${config.database}`,
-  ];
-
-  if (config.useWindowsAuth) {
-    parts.push('Trusted_Connection=yes');
-  } else {
-    parts.push(`Uid=${config.username}`);
-    parts.push(`Pwd=${config.password}`);
-  }
-
-  return parts.join(';');
-}
-
-// Extend Window interface for bridge
-declare global {
-  interface Window {
-    bridge?: {
-      invoke: (method: string, params: unknown) => Promise<{ success: boolean; error?: string; data?: unknown }>;
-    };
-  }
 }

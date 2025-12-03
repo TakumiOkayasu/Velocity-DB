@@ -1,17 +1,76 @@
-#include "ipc_handler.h"
-#include "database/sqlserver_driver.h"
+﻿#include "ipc_handler.h"
+
 #include "database/connection_pool.h"
-#include "database/schema_inspector.h"
-#include "database/transaction_manager.h"
 #include "database/query_history.h"
-#include "parsers/sql_formatter.h"
+#include "database/schema_inspector.h"
+#include "database/sqlserver_driver.h"
+#include "database/transaction_manager.h"
 #include "parsers/a5er_parser.h"
-#include "utils/json_utils.h"
+#include "parsers/sql_formatter.h"
 #include "simdjson.h"
-#include <sstream>
+#include "utils/json_utils.h"
+
 #include <chrono>
+#include <format>
 
 namespace predategrip {
+
+namespace {
+
+struct DatabaseConnectionParams {
+    std::string server;
+    std::string database;
+    std::string username;
+    std::string password;
+    bool useWindowsAuth = true;
+};
+
+[[nodiscard]] std::string buildODBCConnectionString(const DatabaseConnectionParams& params) {
+    auto connectionString =
+        std::format("Driver={{ODBC Driver 17 for SQL Server}};Server={};Database={};", params.server, params.database);
+
+    if (params.useWindowsAuth) {
+        connectionString += "Trusted_Connection=yes;";
+    } else {
+        connectionString += std::format("Uid={};Pwd={};", params.username, params.password);
+    }
+
+    return connectionString;
+}
+
+[[nodiscard]] std::expected<DatabaseConnectionParams, std::string> extractConnectionParams(
+    std::string_view jsonParams) {
+    try {
+        simdjson::dom::parser parser;
+        simdjson::dom::element doc = parser.parse(jsonParams);
+
+        DatabaseConnectionParams result;
+        result.server = std::string(doc["server"].get_string().value());
+        result.database = std::string(doc["database"].get_string().value());
+
+        if (auto username = doc["username"].get_string(); !username.error()) {
+            result.username = std::string(username.value());
+        }
+        if (auto password = doc["password"].get_string(); !password.error()) {
+            result.password = std::string(password.value());
+        }
+        if (auto auth = doc["useWindowsAuth"].get_bool(); !auth.error()) {
+            result.useWindowsAuth = auth.value();
+        }
+
+        return result;
+    } catch (const std::exception& e) {
+        return std::unexpected(e.what());
+    }
+}
+
+[[nodiscard]] std::string extractConnectionId(std::string_view jsonParams) {
+    simdjson::dom::parser parser;
+    simdjson::dom::element doc = parser.parse(jsonParams);
+    return std::string(doc["connectionId"].get_string().value());
+}
+
+}  // namespace
 
 IPCHandler::IPCHandler()
     : m_connectionPool(std::make_unique<ConnectionPool>())
@@ -19,310 +78,240 @@ IPCHandler::IPCHandler()
     , m_transactionManager(std::make_unique<TransactionManager>())
     , m_queryHistory(std::make_unique<QueryHistory>())
     , m_sqlFormatter(std::make_unique<SQLFormatter>())
-    , m_a5erParser(std::make_unique<A5ERParser>())
-{
-    registerHandlers();
+    , m_a5erParser(std::make_unique<A5ERParser>()) {
+    registerRequestRoutes();
 }
 
 IPCHandler::~IPCHandler() = default;
 
-void IPCHandler::registerHandlers() {
-    m_handlers["connect"] = [this](const std::string& p) { return handleConnect(p); };
-    m_handlers["disconnect"] = [this](const std::string& p) { return handleDisconnect(p); };
-    m_handlers["testConnection"] = [this](const std::string& p) { return handleTestConnection(p); };
-    m_handlers["executeQuery"] = [this](const std::string& p) { return handleExecuteQuery(p); };
-    m_handlers["getTables"] = [this](const std::string& p) { return handleGetTables(p); };
-    m_handlers["getColumns"] = [this](const std::string& p) { return handleGetColumns(p); };
-    m_handlers["getDatabases"] = [this](const std::string& p) { return handleGetDatabases(p); };
-    m_handlers["beginTransaction"] = [this](const std::string& p) { return handleBeginTransaction(p); };
-    m_handlers["commit"] = [this](const std::string& p) { return handleCommit(p); };
-    m_handlers["rollback"] = [this](const std::string& p) { return handleRollback(p); };
-    m_handlers["exportCSV"] = [this](const std::string& p) { return handleExportCSV(p); };
-    m_handlers["exportJSON"] = [this](const std::string& p) { return handleExportJSON(p); };
-    m_handlers["exportExcel"] = [this](const std::string& p) { return handleExportExcel(p); };
-    m_handlers["formatSQL"] = [this](const std::string& p) { return handleFormatSQL(p); };
-    m_handlers["parseA5ER"] = [this](const std::string& p) { return handleParseA5ER(p); };
-    m_handlers["getQueryHistory"] = [this](const std::string& p) { return handleGetQueryHistory(p); };
+void IPCHandler::registerRequestRoutes() {
+    m_requestRoutes["connect"] = [this](std::string_view p) { return openDatabaseConnection(p); };
+    m_requestRoutes["disconnect"] = [this](std::string_view p) { return closeDatabaseConnection(p); };
+    m_requestRoutes["testConnection"] = [this](std::string_view p) { return verifyDatabaseConnection(p); };
+    m_requestRoutes["executeQuery"] = [this](std::string_view p) { return executeSQL(p); };
+    m_requestRoutes["cancelQuery"] = [this](std::string_view p) { return cancelRunningQuery(p); };
+    m_requestRoutes["getTables"] = [this](std::string_view p) { return fetchTableList(p); };
+    m_requestRoutes["getColumns"] = [this](std::string_view p) { return fetchColumnDefinitions(p); };
+    m_requestRoutes["getDatabases"] = [this](std::string_view p) { return fetchDatabaseList(p); };
+    m_requestRoutes["beginTransaction"] = [this](std::string_view p) { return startTransaction(p); };
+    m_requestRoutes["commit"] = [this](std::string_view p) { return commitTransaction(p); };
+    m_requestRoutes["rollback"] = [this](std::string_view p) { return rollbackTransaction(p); };
+    m_requestRoutes["exportCSV"] = [this](std::string_view p) { return exportToCSV(p); };
+    m_requestRoutes["exportJSON"] = [this](std::string_view p) { return exportToJSON(p); };
+    m_requestRoutes["exportExcel"] = [this](std::string_view p) { return exportToExcel(p); };
+    m_requestRoutes["formatSQL"] = [this](std::string_view p) { return formatSQLQuery(p); };
+    m_requestRoutes["parseA5ER"] = [this](std::string_view p) { return parseA5ERFile(p); };
+    m_requestRoutes["getQueryHistory"] = [this](std::string_view p) { return retrieveQueryHistory(p); };
 }
 
-std::string IPCHandler::handle(const std::string& request) {
+std::string IPCHandler::dispatchRequest(std::string_view request) {
     try {
         simdjson::dom::parser parser;
         simdjson::dom::element doc = parser.parse(request);
 
-        std::string_view method_sv;
-        auto method_result = doc["method"].get_string();
-        if (method_result.error()) {
+        auto methodResult = doc["method"].get_string();
+        if (methodResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing method field");
         }
-        method_sv = method_result.value();
+        std::string_view method = methodResult.value();
 
         std::string params;
-        auto params_result = doc["params"].get_string();
-        if (!params_result.error()) {
-            params = std::string(params_result.value());
+        if (auto paramsResult = doc["params"].get_string(); !paramsResult.error()) {
+            params = std::string(paramsResult.value());
         }
 
-        auto it = m_handlers.find(std::string(method_sv));
-        if (it != m_handlers.end()) {
-            return it->second(params);
+        if (auto route = m_requestRoutes.find(std::string(method)); route != m_requestRoutes.end()) [[likely]] {
+            return route->second(params);
         }
 
-        return JsonUtils::errorResponse("Unknown method: " + std::string(method_sv));
-    }
-    catch (const std::exception& e) {
+        return JsonUtils::errorResponse(std::format("Unknown method: {}", method));
+    } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
     }
 }
 
-// Build ODBC connection string from parameters
-static std::string buildConnectionString(
-    const std::string& server,
-    const std::string& database,
-    const std::string& username,
-    const std::string& password,
-    bool useWindowsAuth)
-{
-    std::ostringstream ss;
-    ss << "Driver={ODBC Driver 17 for SQL Server};";
-    ss << "Server=" << server << ";";
-    ss << "Database=" << database << ";";
-
-    if (useWindowsAuth) {
-        ss << "Trusted_Connection=yes;";
-    } else {
-        ss << "Uid=" << username << ";";
-        ss << "Pwd=" << password << ";";
+std::string IPCHandler::openDatabaseConnection(std::string_view params) {
+    auto connectionParams = extractConnectionParams(params);
+    if (!connectionParams) {
+        return JsonUtils::errorResponse(connectionParams.error());
     }
 
-    return ss.str();
+    auto odbcString = buildODBCConnectionString(*connectionParams);
+
+    auto driver = std::make_unique<SQLServerDriver>();
+    if (!driver->connect(odbcString)) {
+        return JsonUtils::errorResponse(std::format("Connection failed: {}", driver->getLastError()));
+    }
+
+    auto connectionId = std::format("conn_{}", m_connectionIdCounter++);
+    m_activeConnections[connectionId] = std::move(driver);
+
+    return JsonUtils::successResponse(std::format(R"({{"connectionId":"{}"}})", connectionId));
 }
 
-std::string IPCHandler::handleConnect(const std::string& params) {
+std::string IPCHandler::closeDatabaseConnection(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
-        simdjson::dom::element doc = parser.parse(params);
+        auto connectionId = extractConnectionId(params);
 
-        std::string server = std::string(doc["server"].get_string().value());
-        std::string database = std::string(doc["database"].get_string().value());
-
-        std::string username;
-        auto username_result = doc["username"].get_string();
-        if (!username_result.error()) {
-            username = std::string(username_result.value());
-        }
-
-        std::string password;
-        auto password_result = doc["password"].get_string();
-        if (!password_result.error()) {
-            password = std::string(password_result.value());
-        }
-
-        bool useWindowsAuth = true;
-        auto auth_result = doc["useWindowsAuth"].get_bool();
-        if (!auth_result.error()) {
-            useWindowsAuth = auth_result.value();
-        }
-
-        std::string connStr = buildConnectionString(server, database, username, password, useWindowsAuth);
-
-        auto driver = std::make_unique<SQLServerDriver>();
-        if (!driver->connect(connStr)) {
-            return JsonUtils::errorResponse("Connection failed: " + driver->getLastError());
-        }
-
-        std::string connectionId = "conn_" + std::to_string(m_nextConnectionId++);
-        m_connections[connectionId] = std::move(driver);
-
-        return JsonUtils::successResponse("{\"connectionId\":\"" + connectionId + "\"}");
-    }
-    catch (const std::exception& e) {
-        return JsonUtils::errorResponse(e.what());
-    }
-}
-
-std::string IPCHandler::handleDisconnect(const std::string& params) {
-    try {
-        simdjson::dom::parser parser;
-        simdjson::dom::element doc = parser.parse(params);
-
-        std::string connectionId = std::string(doc["connectionId"].get_string().value());
-
-        auto it = m_connections.find(connectionId);
-        if (it != m_connections.end()) {
-            it->second->disconnect();
-            m_connections.erase(it);
+        if (auto connection = m_activeConnections.find(connectionId); connection != m_activeConnections.end()) {
+            connection->second->disconnect();
+            m_activeConnections.erase(connection);
         }
 
         return JsonUtils::successResponse("{}");
-    }
-    catch (const std::exception& e) {
+    } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
     }
 }
 
-std::string IPCHandler::handleTestConnection(const std::string& params) {
-    try {
-        simdjson::dom::parser parser;
-        simdjson::dom::element doc = parser.parse(params);
-
-        std::string server = std::string(doc["server"].get_string().value());
-        std::string database = std::string(doc["database"].get_string().value());
-
-        std::string username;
-        auto username_result = doc["username"].get_string();
-        if (!username_result.error()) {
-            username = std::string(username_result.value());
-        }
-
-        std::string password;
-        auto password_result = doc["password"].get_string();
-        if (!password_result.error()) {
-            password = std::string(password_result.value());
-        }
-
-        bool useWindowsAuth = true;
-        auto auth_result = doc["useWindowsAuth"].get_bool();
-        if (!auth_result.error()) {
-            useWindowsAuth = auth_result.value();
-        }
-
-        std::string connStr = buildConnectionString(server, database, username, password, useWindowsAuth);
-
-        SQLServerDriver driver;
-        if (driver.connect(connStr)) {
-            driver.disconnect();
-            return JsonUtils::successResponse("{\"success\":true,\"message\":\"Connection successful\"}");
-        } else {
-            return JsonUtils::successResponse("{\"success\":false,\"message\":\"" +
-                JsonUtils::escapeString(driver.getLastError()) + "\"}");
-        }
+std::string IPCHandler::verifyDatabaseConnection(std::string_view params) {
+    auto connectionParams = extractConnectionParams(params);
+    if (!connectionParams) {
+        return JsonUtils::errorResponse(connectionParams.error());
     }
-    catch (const std::exception& e) {
-        return JsonUtils::errorResponse(e.what());
+
+    auto odbcString = buildODBCConnectionString(*connectionParams);
+
+    SQLServerDriver driver;
+    if (driver.connect(odbcString)) {
+        driver.disconnect();
+        return JsonUtils::successResponse(R"({"success":true,"message":"Connection successful"})");
     }
+
+    return JsonUtils::successResponse(
+        std::format(R"({{"success":false,"message":"{}"}})", JsonUtils::escapeString(driver.getLastError())));
 }
 
-std::string IPCHandler::handleExecuteQuery(const std::string& params) {
+std::string IPCHandler::executeSQL(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         simdjson::dom::element doc = parser.parse(params);
 
         std::string connectionId = std::string(doc["connectionId"].get_string().value());
-        std::string sql = std::string(doc["sql"].get_string().value());
+        std::string sqlQuery = std::string(doc["sql"].get_string().value());
 
-        auto it = m_connections.find(connectionId);
-        if (it == m_connections.end()) {
-            return JsonUtils::errorResponse("Connection not found: " + connectionId);
+        auto connection = m_activeConnections.find(connectionId);
+        if (connection == m_activeConnections.end()) [[unlikely]] {
+            return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
         }
 
-        auto& driver = it->second;
-        ResultSet result = driver->execute(sql);
+        auto& driver = connection->second;
+        ResultSet queryResult = driver->execute(sqlQuery);
 
-        // Build JSON response
-        std::ostringstream json;
-        json << "{";
+        std::string jsonResponse = "{";
 
-        // Columns
-        json << "\"columns\":[";
-        for (size_t i = 0; i < result.columns.size(); ++i) {
-            if (i > 0) json << ",";
-            json << "{\"name\":\"" << JsonUtils::escapeString(result.columns[i].name) << "\","
-                 << "\"type\":\"" << result.columns[i].type << "\"}";
+        // Build columns array
+        jsonResponse += R"("columns":[)";
+        for (size_t i = 0; i < queryResult.columns.size(); ++i) {
+            if (i > 0)
+                jsonResponse += ',';
+            jsonResponse +=
+                std::format(R"({{"name":"{}","type":"{}"}})", JsonUtils::escapeString(queryResult.columns[i].name),
+                            queryResult.columns[i].type);
         }
-        json << "],";
+        jsonResponse += "],";
 
-        // Rows
-        json << "\"rows\":[";
-        for (size_t i = 0; i < result.rows.size(); ++i) {
-            if (i > 0) json << ",";
-            json << "[";
-            for (size_t j = 0; j < result.rows[i].values.size(); ++j) {
-                if (j > 0) json << ",";
-                json << "\"" << JsonUtils::escapeString(result.rows[i].values[j]) << "\"";
+        // Build rows array
+        jsonResponse += R"("rows":[)";
+        for (size_t rowIndex = 0; rowIndex < queryResult.rows.size(); ++rowIndex) {
+            if (rowIndex > 0)
+                jsonResponse += ',';
+            jsonResponse += '[';
+            for (size_t colIndex = 0; colIndex < queryResult.rows[rowIndex].values.size(); ++colIndex) {
+                if (colIndex > 0)
+                    jsonResponse += ',';
+                jsonResponse +=
+                    std::format(R"("{}")", JsonUtils::escapeString(queryResult.rows[rowIndex].values[colIndex]));
             }
-            json << "]";
+            jsonResponse += ']';
         }
-        json << "],";
+        jsonResponse += "],";
 
-        // Metadata
-        json << "\"affectedRows\":" << result.affectedRows << ",";
-        json << "\"executionTimeMs\":" << result.executionTimeMs;
-        json << "}";
+        jsonResponse += std::format(R"("affectedRows":{},"executionTimeMs":{}}})", queryResult.affectedRows,
+                                    queryResult.executionTimeMs);
 
-        // Add to history
-        HistoryItem historyItem;
-        historyItem.id = "hist_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
-        historyItem.sql = sql;
-        historyItem.executionTimeMs = result.executionTimeMs;
-        historyItem.success = true;
-        historyItem.affectedRows = static_cast<int>(result.affectedRows);
-        historyItem.isFavorite = false;
-        m_queryHistory->add(historyItem);
+        // Record in query history
+        HistoryItem historyEntry{
+            .id = std::format("hist_{}", std::chrono::system_clock::now().time_since_epoch().count()),
+            .sql = sqlQuery,
+            .executionTimeMs = queryResult.executionTimeMs,
+            .success = true,
+            .affectedRows = static_cast<int64_t>(queryResult.affectedRows),
+            .isFavorite = false};
+        m_queryHistory->add(historyEntry);
 
-        return JsonUtils::successResponse(json.str());
-    }
-    catch (const std::exception& e) {
+        return JsonUtils::successResponse(jsonResponse);
+    } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
     }
 }
 
-std::string IPCHandler::handleGetTables(const std::string& params) {
+std::string IPCHandler::cancelRunningQuery(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
-        simdjson::dom::element doc = parser.parse(params);
+        auto connectionId = extractConnectionId(params);
 
-        std::string connectionId = std::string(doc["connectionId"].get_string().value());
-
-        auto it = m_connections.find(connectionId);
-        if (it == m_connections.end()) {
-            return JsonUtils::errorResponse("Connection not found: " + connectionId);
+        if (auto connection = m_activeConnections.find(connectionId); connection != m_activeConnections.end()) {
+            connection->second->cancel();
         }
 
-        auto& driver = it->second;
+        return JsonUtils::successResponse("{}");
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
 
-        // Query for tables
-        std::string sql = R"(
+std::string IPCHandler::fetchTableList(std::string_view params) {
+    try {
+        auto connectionId = extractConnectionId(params);
+
+        auto connection = m_activeConnections.find(connectionId);
+        if (connection == m_activeConnections.end()) [[unlikely]] {
+            return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
+        }
+
+        auto& driver = connection->second;
+
+        constexpr auto tableListQuery = R"(
             SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE
             FROM INFORMATION_SCHEMA.TABLES
             ORDER BY TABLE_SCHEMA, TABLE_NAME
         )";
 
-        ResultSet result = driver->execute(sql);
+        ResultSet queryResult = driver->execute(tableListQuery);
 
-        std::ostringstream json;
-        json << "[";
-        for (size_t i = 0; i < result.rows.size(); ++i) {
-            if (i > 0) json << ",";
-            json << "{\"schema\":\"" << JsonUtils::escapeString(result.rows[i].values[0]) << "\","
-                 << "\"name\":\"" << JsonUtils::escapeString(result.rows[i].values[1]) << "\","
-                 << "\"type\":\"" << JsonUtils::escapeString(result.rows[i].values[2]) << "\"}";
+        std::string jsonResponse = "[";
+        for (size_t i = 0; i < queryResult.rows.size(); ++i) {
+            if (i > 0)
+                jsonResponse += ',';
+            jsonResponse += std::format(R"({{"schema":"{}","name":"{}","type":"{}"}})",
+                                        JsonUtils::escapeString(queryResult.rows[i].values[0]),
+                                        JsonUtils::escapeString(queryResult.rows[i].values[1]),
+                                        JsonUtils::escapeString(queryResult.rows[i].values[2]));
         }
-        json << "]";
+        jsonResponse += ']';
 
-        return JsonUtils::successResponse(json.str());
-    }
-    catch (const std::exception& e) {
+        return JsonUtils::successResponse(jsonResponse);
+    } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
     }
 }
 
-std::string IPCHandler::handleGetColumns(const std::string& params) {
+std::string IPCHandler::fetchColumnDefinitions(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         simdjson::dom::element doc = parser.parse(params);
 
         std::string connectionId = std::string(doc["connectionId"].get_string().value());
-        std::string table = std::string(doc["table"].get_string().value());
+        std::string tableName = std::string(doc["table"].get_string().value());
 
-        auto it = m_connections.find(connectionId);
-        if (it == m_connections.end()) {
-            return JsonUtils::errorResponse("Connection not found: " + connectionId);
+        auto connection = m_activeConnections.find(connectionId);
+        if (connection == m_activeConnections.end()) [[unlikely]] {
+            return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
         }
 
-        auto& driver = it->second;
+        auto& driver = connection->second;
 
-        std::string sql = R"(
+        auto columnQuery = std::format(R"(
             SELECT
                 c.COLUMN_NAME,
                 c.DATA_TYPE,
@@ -337,135 +326,128 @@ std::string IPCHandler::handleGetColumns(const std::string& params) {
                     ON tc.CONSTRAINT_NAME = ku.CONSTRAINT_NAME
                 WHERE tc.CONSTRAINT_TYPE = 'PRIMARY KEY'
             ) pk ON c.TABLE_NAME = pk.TABLE_NAME AND c.COLUMN_NAME = pk.COLUMN_NAME
-            WHERE c.TABLE_NAME = ')" + table + R"('
+            WHERE c.TABLE_NAME = '{}'
             ORDER BY c.ORDINAL_POSITION
-        )";
+        )",
+                                       tableName);
 
-        ResultSet result = driver->execute(sql);
+        ResultSet queryResult = driver->execute(columnQuery);
 
-        std::ostringstream json;
-        json << "[";
-        for (size_t i = 0; i < result.rows.size(); ++i) {
-            if (i > 0) json << ",";
-            json << "{\"name\":\"" << JsonUtils::escapeString(result.rows[i].values[0]) << "\","
-                 << "\"type\":\"" << JsonUtils::escapeString(result.rows[i].values[1]) << "\","
-                 << "\"size\":" << result.rows[i].values[2] << ","
-                 << "\"nullable\":" << (result.rows[i].values[3] == "1" ? "true" : "false") << ","
-                 << "\"isPrimaryKey\":" << (result.rows[i].values[4] == "1" ? "true" : "false") << "}";
+        std::string jsonResponse = "[";
+        for (size_t i = 0; i < queryResult.rows.size(); ++i) {
+            if (i > 0)
+                jsonResponse += ',';
+            jsonResponse +=
+                std::format(R"({{"name":"{}","type":"{}","size":{},"nullable":{},"isPrimaryKey":{}}})",
+                            JsonUtils::escapeString(queryResult.rows[i].values[0]),
+                            JsonUtils::escapeString(queryResult.rows[i].values[1]), queryResult.rows[i].values[2],
+                            queryResult.rows[i].values[3] == "1" ? "true" : "false",
+                            queryResult.rows[i].values[4] == "1" ? "true" : "false");
         }
-        json << "]";
+        jsonResponse += ']';
 
-        return JsonUtils::successResponse(json.str());
-    }
-    catch (const std::exception& e) {
+        return JsonUtils::successResponse(jsonResponse);
+    } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
     }
 }
 
-std::string IPCHandler::handleGetDatabases(const std::string& params) {
+std::string IPCHandler::fetchDatabaseList(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
-        simdjson::dom::element doc = parser.parse(params);
+        auto connectionId = extractConnectionId(params);
 
-        std::string connectionId = std::string(doc["connectionId"].get_string().value());
-
-        auto it = m_connections.find(connectionId);
-        if (it == m_connections.end()) {
-            return JsonUtils::errorResponse("Connection not found: " + connectionId);
+        auto connection = m_activeConnections.find(connectionId);
+        if (connection == m_activeConnections.end()) [[unlikely]] {
+            return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
         }
 
-        auto& driver = it->second;
+        auto& driver = connection->second;
+        ResultSet queryResult = driver->execute("SELECT name FROM sys.databases ORDER BY name");
 
-        std::string sql = "SELECT name FROM sys.databases ORDER BY name";
-        ResultSet result = driver->execute(sql);
-
-        std::ostringstream json;
-        json << "[";
-        for (size_t i = 0; i < result.rows.size(); ++i) {
-            if (i > 0) json << ",";
-            json << "\"" << JsonUtils::escapeString(result.rows[i].values[0]) << "\"";
+        std::string jsonResponse = "[";
+        for (size_t i = 0; i < queryResult.rows.size(); ++i) {
+            if (i > 0)
+                jsonResponse += ',';
+            jsonResponse += std::format(R"("{}")", JsonUtils::escapeString(queryResult.rows[i].values[0]));
         }
-        json << "]";
+        jsonResponse += ']';
 
-        return JsonUtils::successResponse(json.str());
-    }
-    catch (const std::exception& e) {
+        return JsonUtils::successResponse(jsonResponse);
+    } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
     }
 }
 
-std::string IPCHandler::handleBeginTransaction(const std::string& params) {
+std::string IPCHandler::startTransaction(std::string_view) {
     m_transactionManager->begin();
     return JsonUtils::successResponse("{}");
 }
 
-std::string IPCHandler::handleCommit(const std::string& params) {
+std::string IPCHandler::commitTransaction(std::string_view) {
     m_transactionManager->commit();
     return JsonUtils::successResponse("{}");
 }
 
-std::string IPCHandler::handleRollback(const std::string& params) {
+std::string IPCHandler::rollbackTransaction(std::string_view) {
     m_transactionManager->rollback();
     return JsonUtils::successResponse("{}");
 }
 
-std::string IPCHandler::handleExportCSV(const std::string& params) {
+std::string IPCHandler::exportToCSV(std::string_view) {
     // TODO: Implement CSV export
     return JsonUtils::successResponse("{}");
 }
 
-std::string IPCHandler::handleExportJSON(const std::string& params) {
+std::string IPCHandler::exportToJSON(std::string_view) {
     // TODO: Implement JSON export
     return JsonUtils::successResponse("{}");
 }
 
-std::string IPCHandler::handleExportExcel(const std::string& params) {
+std::string IPCHandler::exportToExcel(std::string_view) {
     // TODO: Implement Excel export
     return JsonUtils::successResponse("{}");
 }
 
-std::string IPCHandler::handleFormatSQL(const std::string& params) {
+std::string IPCHandler::formatSQLQuery(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         simdjson::dom::element doc = parser.parse(params);
 
-        auto sql_result = doc["sql"].get_string();
-        if (sql_result.error()) {
+        auto sqlResult = doc["sql"].get_string();
+        if (sqlResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing sql field");
         }
-        std::string sql = std::string(sql_result.value());
+        std::string sqlQuery = std::string(sqlResult.value());
 
         SQLFormatter::FormatOptions options;
-        auto formatted = m_sqlFormatter->format(sql, options);
-        return JsonUtils::successResponse("{\"sql\":\"" + JsonUtils::escapeString(formatted) + "\"}");
-    }
-    catch (const std::exception& e) {
+        auto formattedSQL = m_sqlFormatter->format(sqlQuery, options);
+        return JsonUtils::successResponse(std::format(R"({{"sql":"{}"}})", JsonUtils::escapeString(formattedSQL)));
+    } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
     }
 }
 
-std::string IPCHandler::handleParseA5ER(const std::string& params) {
+std::string IPCHandler::parseA5ERFile(std::string_view) {
     // TODO: Implement A5:ER parsing
     return JsonUtils::successResponse("{}");
 }
 
-std::string IPCHandler::handleGetQueryHistory(const std::string& params) {
-    auto history = m_queryHistory->getAll();
+std::string IPCHandler::retrieveQueryHistory(std::string_view) {
+    auto historyEntries = m_queryHistory->getAll();
 
-    std::ostringstream json;
-    json << "[";
-    for (size_t i = 0; i < history.size(); ++i) {
-        if (i > 0) json << ",";
-        json << "{\"id\":\"" << history[i].id << "\","
-             << "\"sql\":\"" << JsonUtils::escapeString(history[i].sql) << "\","
-             << "\"executionTimeMs\":" << history[i].executionTimeMs << ","
-             << "\"success\":" << (history[i].success ? "true" : "false") << ","
-             << "\"affectedRows\":" << history[i].affectedRows << ","
-             << "\"isFavorite\":" << (history[i].isFavorite ? "true" : "false") << "}";
+    std::string jsonResponse = "[";
+    for (size_t i = 0; i < historyEntries.size(); ++i) {
+        if (i > 0)
+            jsonResponse += ',';
+        jsonResponse += std::format(
+            R"({{"id":"{}","sql":"{}","executionTimeMs":{},"success":{},"affectedRows":{},"isFavorite":{}}})",
+            historyEntries[i].id, JsonUtils::escapeString(historyEntries[i].sql), historyEntries[i].executionTimeMs,
+            historyEntries[i].success ? "true" : "false", historyEntries[i].affectedRows,
+            historyEntries[i].isFavorite ? "true" : "false");
     }
-    json << "]";
+    jsonResponse += ']';
 
-    return JsonUtils::successResponse(json.str());
+    return JsonUtils::successResponse(jsonResponse);
 }
 
 }  // namespace predategrip

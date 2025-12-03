@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+﻿import { useState, useCallback, useEffect } from 'react'
 import { defaultSettings, type AppSettings } from './settingsUtils'
 import styles from './SettingsDialog.module.css'
 
@@ -56,8 +56,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
         <div className={styles.header}>
           <h2>Settings</h2>
           <button className={styles.closeButton} onClick={onClose}>
-            ×
-          </button>
+            ﾃ・          </button>
         </div>
 
         <div className={styles.content}>

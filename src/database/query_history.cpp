@@ -1,49 +1,46 @@
-#include "query_history.h"
+﻿#include "query_history.h"
+
 #include <algorithm>
+#include <format>
 #include <fstream>
-#include <sstream>
-#include <iomanip>
+#include <ranges>
 
 namespace predategrip {
 
-QueryHistory::QueryHistory(size_t maxItems)
-    : m_maxItems(maxItems)
-{
-}
-
 void QueryHistory::add(const HistoryItem& item) {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard lock(m_mutex);
 
     m_history.insert(m_history.begin(), item);
 
-    // Remove oldest items if exceeding max
     while (m_history.size() > m_maxItems) {
-        // Don't remove favorites
-        auto it = std::find_if(m_history.rbegin(), m_history.rend(),
-            [](const HistoryItem& h) { return !h.isFavorite; });
-        if (it != m_history.rend()) {
+        auto it =
+            std::ranges::find_if(m_history | std::views::reverse, [](const HistoryItem& h) { return !h.isFavorite; });
+
+        if (it != (m_history | std::views::reverse).end()) {
             m_history.erase(std::next(it).base());
         } else {
-            break;  // All items are favorites
+            break;
         }
     }
 }
 
 std::vector<HistoryItem> QueryHistory::getAll() const {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard lock(m_mutex);
     return m_history;
 }
 
-std::vector<HistoryItem> QueryHistory::search(const std::string& keyword) const {
-    std::lock_guard<std::mutex> lock(m_mutex);
+std::vector<HistoryItem> QueryHistory::search(std::string_view keyword) const {
+    std::lock_guard lock(m_mutex);
+
+    std::string lowerKeyword(keyword);
+    std::ranges::transform(lowerKeyword, lowerKeyword.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
     std::vector<HistoryItem> results;
-    std::string lowerKeyword = keyword;
-    std::transform(lowerKeyword.begin(), lowerKeyword.end(), lowerKeyword.begin(), ::tolower);
-
     for (const auto& item : m_history) {
         std::string lowerSql = item.sql;
-        std::transform(lowerSql.begin(), lowerSql.end(), lowerSql.begin(), ::tolower);
+        std::ranges::transform(lowerSql, lowerSql.begin(),
+                               [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
         if (lowerSql.find(lowerKeyword) != std::string::npos) {
             results.push_back(item);
@@ -53,92 +50,77 @@ std::vector<HistoryItem> QueryHistory::search(const std::string& keyword) const 
     return results;
 }
 
-std::vector<HistoryItem> QueryHistory::getByDate(
-    std::chrono::system_clock::time_point from,
-    std::chrono::system_clock::time_point to) const
-{
-    std::lock_guard<std::mutex> lock(m_mutex);
+std::vector<HistoryItem> QueryHistory::getByDate(std::chrono::system_clock::time_point from,
+                                                 std::chrono::system_clock::time_point to) const {
+    std::lock_guard lock(m_mutex);
 
     std::vector<HistoryItem> results;
-    for (const auto& item : m_history) {
-        if (item.timestamp >= from && item.timestamp <= to) {
-            results.push_back(item);
-        }
-    }
+    std::ranges::copy_if(m_history, std::back_inserter(results), [from, to](const HistoryItem& item) {
+        return item.timestamp >= from && item.timestamp <= to;
+    });
 
     return results;
 }
 
-void QueryHistory::setFavorite(const std::string& id, bool favorite) {
-    std::lock_guard<std::mutex> lock(m_mutex);
+void QueryHistory::setFavorite(std::string_view id, bool favorite) {
+    std::lock_guard lock(m_mutex);
 
-    auto it = std::find_if(m_history.begin(), m_history.end(),
-        [&id](const HistoryItem& h) { return h.id == id; });
-
-    if (it != m_history.end()) {
+    if (auto it = std::ranges::find_if(m_history, [id](const HistoryItem& h) { return h.id == id; });
+        it != m_history.end()) {
         it->isFavorite = favorite;
     }
 }
 
 std::vector<HistoryItem> QueryHistory::getFavorites() const {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard lock(m_mutex);
 
     std::vector<HistoryItem> results;
-    for (const auto& item : m_history) {
-        if (item.isFavorite) {
-            results.push_back(item);
-        }
-    }
+    std::ranges::copy_if(m_history, std::back_inserter(results),
+                         [](const HistoryItem& item) { return item.isFavorite; });
 
     return results;
 }
 
-void QueryHistory::remove(const std::string& id) {
-    std::lock_guard<std::mutex> lock(m_mutex);
+void QueryHistory::remove(std::string_view id) {
+    std::lock_guard lock(m_mutex);
 
-    m_history.erase(
-        std::remove_if(m_history.begin(), m_history.end(),
-            [&id](const HistoryItem& h) { return h.id == id; }),
-        m_history.end()
-    );
+    std::erase_if(m_history, [id](const HistoryItem& h) { return h.id == id; });
 }
 
 void QueryHistory::clear() {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard lock(m_mutex);
 
-    // Keep favorites
-    m_history.erase(
-        std::remove_if(m_history.begin(), m_history.end(),
-            [](const HistoryItem& h) { return !h.isFavorite; }),
-        m_history.end()
-    );
+    std::erase_if(m_history, [](const HistoryItem& h) { return !h.isFavorite; });
 }
 
-bool QueryHistory::save(const std::string& filepath) const {
-    std::lock_guard<std::mutex> lock(m_mutex);
+bool QueryHistory::save(std::string_view filepath) const {
+    std::lock_guard lock(m_mutex);
 
-    std::ofstream file(filepath);
-    if (!file.is_open()) {
+    std::ofstream file(std::string(filepath));
+    if (!file.is_open()) [[unlikely]] {
         return false;
     }
 
-    // Simple JSON format
     file << "[\n";
     for (size_t i = 0; i < m_history.size(); ++i) {
         const auto& item = m_history[i];
         auto time = std::chrono::system_clock::to_time_t(item.timestamp);
 
-        file << "  {\n";
-        file << "    \"id\": \"" << item.id << "\",\n";
-        file << "    \"sql\": \"" << item.sql << "\",\n";  // TODO: escape
-        file << "    \"connectionId\": \"" << item.connectionId << "\",\n";
-        file << "    \"timestamp\": " << time << ",\n";
-        file << "    \"executionTimeMs\": " << item.executionTimeMs << ",\n";
-        file << "    \"success\": " << (item.success ? "true" : "false") << ",\n";
-        file << "    \"errorMessage\": \"" << item.errorMessage << "\",\n";
-        file << "    \"affectedRows\": " << item.affectedRows << ",\n";
-        file << "    \"isFavorite\": " << (item.isFavorite ? "true" : "false") << "\n";
-        file << "  }";
+        file << std::format(R"(  {{
+    "id": "{}",
+    "sql": "{}",
+    "connectionId": "{}",
+    "timestamp": {},
+    "executionTimeMs": {},
+    "success": {},
+    "errorMessage": "{}",
+    "affectedRows": {},
+    "isFavorite": {}
+  }})",
+                            item.id, item.sql, item.connectionId, time, item.executionTimeMs,
+                            item.success ? "true" : "false", item.errorMessage, item.affectedRows,
+                            item.isFavorite ? "true" : "false");
+
         if (i < m_history.size() - 1) {
             file << ",";
         }
@@ -149,7 +131,7 @@ bool QueryHistory::save(const std::string& filepath) const {
     return true;
 }
 
-bool QueryHistory::load(const std::string& filepath) {
+bool QueryHistory::load(std::string_view) {
     // TODO: Implement JSON parsing with simdjson
     return false;
 }

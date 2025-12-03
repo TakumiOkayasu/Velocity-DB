@@ -1,4 +1,4 @@
-#include "excel_exporter.h"
+﻿#include "excel_exporter.h"
 
 // Note: Full Excel export requires xlsxwriter library
 // This is a placeholder implementation

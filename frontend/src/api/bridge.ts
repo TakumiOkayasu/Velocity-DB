@@ -1,9 +1,44 @@
-import type { IPCRequest, IPCResponse } from '../types'
+﻿import type { IPCRequest, IPCResponse } from '../types'
 
 declare global {
   interface Window {
     invoke?: (request: string) => Promise<string>;
   }
+}
+
+// Development mode mock data
+const mockData: Record<string, unknown> = {
+  connect: { connectionId: 'mock-conn-1' },
+  disconnect: undefined,
+  testConnection: { success: true, message: 'Mock connection successful' },
+  executeQuery: {
+    columns: [
+      { name: 'id', type: 'int' },
+      { name: 'name', type: 'nvarchar' },
+      { name: 'created_at', type: 'datetime' },
+    ],
+    rows: [
+      ['1', 'Test Item 1', '2024-01-01 00:00:00'],
+      ['2', 'Test Item 2', '2024-01-02 00:00:00'],
+      ['3', 'Test Item 3', '2024-01-03 00:00:00'],
+    ],
+    affectedRows: 0,
+    executionTimeMs: 15,
+  },
+  getDatabases: ['master', 'tempdb', 'model', 'msdb'],
+  getTables: [
+    { schema: 'dbo', name: 'Users', type: 'TABLE' },
+    { schema: 'dbo', name: 'Orders', type: 'TABLE' },
+    { schema: 'dbo', name: 'Products', type: 'TABLE' },
+  ],
+  getColumns: [
+    { name: 'id', type: 'int', size: 4, nullable: false, isPrimaryKey: true },
+    { name: 'name', type: 'nvarchar', size: 255, nullable: false, isPrimaryKey: false },
+    { name: 'created_at', type: 'datetime', size: 8, nullable: true, isPrimaryKey: false },
+  ],
+  formatSQL: { sql: 'SELECT\n    *\nFROM\n    users\nWHERE\n    id = 1;' },
+  getQueryHistory: [],
+  parseA5ER: { tables: [], relations: [] },
 }
 
 class Bridge {
@@ -24,9 +59,14 @@ class Bridge {
       return response.data as T
     }
 
-    // Development mode: mock responses
-    console.warn(`Bridge call in development mode: ${method}`, params)
-    return {} as T
+    // Development mode: return mock data
+    if (import.meta.env.DEV) {
+      // Small delay to simulate network
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      return (mockData[method] ?? {}) as T
+    }
+
+    throw new Error('Backend not available')
   }
 
   // Connection methods

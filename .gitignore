@@ -80,3 +80,19 @@ logs/
 *.temp
 tmp/
 temp/
+
+# Windows special device names
+nul
+NUL
+con
+CON
+aux
+AUX
+prn
+PRN
+
+# clang-tidy build directory
+build-tidy/
+
+# CMake system information
+__cmake_systeminformation/

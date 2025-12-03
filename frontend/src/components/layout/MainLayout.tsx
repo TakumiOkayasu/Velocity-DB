@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+﻿import { useState, useEffect, useCallback } from 'react'
 import { LeftPanel } from './LeftPanel'
 import { CenterPanel } from './CenterPanel'
 import { BottomPanel } from './BottomPanel'
@@ -147,7 +147,7 @@ export function MainLayout() {
             title="Execute (Ctrl+Enter)"
             className={styles.executeButton}
           >
-            {isExecuting ? '⏳' : '▶'} Execute
+            {isExecuting ? '竢ｳ' : '笆ｶ'} Execute
           </button>
         </div>
         <div className={styles.toolbarGroup}>
@@ -164,13 +164,13 @@ export function MainLayout() {
             onClick={() => setIsLeftPanelVisible(!isLeftPanelVisible)}
             title="Toggle Object Explorer"
           >
-            {isLeftPanelVisible ? '◀' : '▶'} Objects
+            {isLeftPanelVisible ? '笳' : '笆ｶ'} Objects
           </button>
           <button
             onClick={() => setIsBottomPanelVisible(!isBottomPanelVisible)}
             title="Toggle Results Panel"
           >
-            {isBottomPanelVisible ? '▼' : '▲'} Results
+            {isBottomPanelVisible ? '笆ｼ' : '笆ｲ'} Results
           </button>
         </div>
         <div className={styles.toolbarGroup}>
@@ -178,13 +178,13 @@ export function MainLayout() {
             onClick={handleOpenSearch}
             title="Search (Ctrl+Shift+P)"
           >
-            🔍 Search
+            剥 Search
           </button>
           <button
             onClick={handleOpenSettings}
             title="Settings (Ctrl+,)"
           >
-            ⚙️ Settings
+            笞呻ｸ・Settings
           </button>
         </div>
       </header>

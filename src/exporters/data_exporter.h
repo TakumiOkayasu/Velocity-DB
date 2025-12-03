@@ -1,6 +1,7 @@
-#pragma once
+﻿#pragma once
 
 #include "../database/sqlserver_driver.h"
+
 #include <string>
 
 namespace predategrip {

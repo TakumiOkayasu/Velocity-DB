@@ -1,10 +1,10 @@
-#include "transaction_manager.h"
+﻿#include "transaction_manager.h"
+
 #include "sqlserver_driver.h"
+
 #include <stdexcept>
 
 namespace predategrip {
-
-TransactionManager::TransactionManager() = default;
 
 TransactionManager::~TransactionManager() {
     if (m_state == TransactionState::Active && m_driver) {
@@ -16,16 +16,12 @@ TransactionManager::~TransactionManager() {
     }
 }
 
-void TransactionManager::setDriver(std::shared_ptr<SQLServerDriver> driver) {
-    m_driver = driver;
-}
-
 void TransactionManager::begin() {
-    if (!m_driver || !m_driver->isConnected()) {
+    if (!m_driver || !m_driver->isConnected()) [[unlikely]] {
         throw std::runtime_error("Not connected to database");
     }
 
-    if (m_state == TransactionState::Active) {
+    if (m_state == TransactionState::Active) [[unlikely]] {
         throw std::runtime_error("Transaction already active");
     }
 
@@ -34,11 +30,11 @@ void TransactionManager::begin() {
 }
 
 void TransactionManager::commit() {
-    if (!m_driver || !m_driver->isConnected()) {
+    if (!m_driver || !m_driver->isConnected()) [[unlikely]] {
         throw std::runtime_error("Not connected to database");
     }
 
-    if (m_state != TransactionState::Active) {
+    if (m_state != TransactionState::Active) [[unlikely]] {
         throw std::runtime_error("No active transaction");
     }
 
@@ -47,32 +43,16 @@ void TransactionManager::commit() {
 }
 
 void TransactionManager::rollback() {
-    if (!m_driver || !m_driver->isConnected()) {
+    if (!m_driver || !m_driver->isConnected()) [[unlikely]] {
         throw std::runtime_error("Not connected to database");
     }
 
-    if (m_state != TransactionState::Active) {
+    if (m_state != TransactionState::Active) [[unlikely]] {
         throw std::runtime_error("No active transaction");
     }
 
     m_driver->execute("ROLLBACK TRANSACTION");
     m_state = TransactionState::RolledBack;
-}
-
-bool TransactionManager::isInTransaction() const {
-    return m_state == TransactionState::Active;
-}
-
-TransactionState TransactionManager::getState() const {
-    return m_state;
-}
-
-void TransactionManager::setAutoCommit(bool autoCommit) {
-    m_autoCommit = autoCommit;
-}
-
-bool TransactionManager::isAutoCommit() const {
-    return m_autoCommit;
 }
 
 }  // namespace predategrip

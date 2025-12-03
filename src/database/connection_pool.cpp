@@ -1,28 +1,27 @@
-#include "connection_pool.h"
+﻿#include "connection_pool.h"
+
 #include "sqlserver_driver.h"
+
+#include <algorithm>
+#include <format>
+#include <ranges>
 
 namespace predategrip {
 
-ConnectionPool::ConnectionPool(size_t poolSize)
-    : m_poolSize(poolSize)
-{
-}
-
 ConnectionPool::~ConnectionPool() {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard lock(m_mutex);
     while (!m_available.empty()) {
         m_available.pop();
     }
 }
 
 bool ConnectionPool::addConnection(const ConnectionInfo& info) {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard lock(m_mutex);
 
-    // Test connection first
     auto driver = std::make_shared<SQLServerDriver>();
     std::string connStr = buildConnectionString(info);
 
-    if (!driver->connect(connStr)) {
+    if (!driver->connect(connStr)) [[unlikely]] {
         return false;
     }
 
@@ -31,31 +30,25 @@ bool ConnectionPool::addConnection(const ConnectionInfo& info) {
     return true;
 }
 
-void ConnectionPool::removeConnection(const std::string& id) {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_connections.erase(
-        std::remove_if(m_connections.begin(), m_connections.end(),
-            [&id](const ConnectionInfo& info) { return info.id == id; }),
-        m_connections.end()
-    );
+void ConnectionPool::removeConnection(std::string_view id) {
+    std::lock_guard lock(m_mutex);
+    std::erase_if(m_connections, [id](const ConnectionInfo& info) { return info.id == id; });
 }
 
-std::shared_ptr<SQLServerDriver> ConnectionPool::acquire(const std::string& connectionId) {
-    std::unique_lock<std::mutex> lock(m_mutex);
+std::shared_ptr<SQLServerDriver> ConnectionPool::acquire(std::string_view connectionId) {
+    std::unique_lock lock(m_mutex);
 
-    // Find connection info
-    auto it = std::find_if(m_connections.begin(), m_connections.end(),
-        [&connectionId](const ConnectionInfo& info) { return info.id == connectionId; });
+    auto it = std::ranges::find_if(m_connections,
+                                   [connectionId](const ConnectionInfo& info) { return info.id == connectionId; });
 
-    if (it == m_connections.end()) {
+    if (it == m_connections.end()) [[unlikely]] {
         return nullptr;
     }
 
-    // Create new connection
     auto driver = std::make_shared<SQLServerDriver>();
     std::string connStr = buildConnectionString(*it);
 
-    if (!driver->connect(connStr)) {
+    if (!driver->connect(connStr)) [[unlikely]] {
         return nullptr;
     }
 
@@ -69,7 +62,7 @@ void ConnectionPool::release(std::shared_ptr<SQLServerDriver> connection) {
 }
 
 std::vector<ConnectionInfo> ConnectionPool::getConnections() const {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard lock(m_mutex);
     return m_connections;
 }
 
@@ -86,15 +79,13 @@ bool ConnectionPool::testConnection(const ConnectionInfo& info) {
 }
 
 std::string ConnectionPool::buildConnectionString(const ConnectionInfo& info) const {
-    std::string connStr = "Driver={ODBC Driver 17 for SQL Server};";
-    connStr += "Server=" + info.server + ";";
-    connStr += "Database=" + info.database + ";";
+    auto connStr =
+        std::format("Driver={{ODBC Driver 17 for SQL Server}};Server={};Database={};", info.server, info.database);
 
     if (info.useWindowsAuth) {
         connStr += "Trusted_Connection=yes;";
     } else {
-        connStr += "UID=" + info.username + ";";
-        connStr += "PWD=" + info.password + ";";
+        connStr += std::format("UID={};PWD={};", info.username, info.password);
     }
 
     return connStr;

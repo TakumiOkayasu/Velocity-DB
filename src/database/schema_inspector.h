@@ -1,24 +1,26 @@
-#pragma once
+﻿#pragma once
 
 #include "sqlserver_driver.h"
-#include <string>
-#include <vector>
+
 #include <memory>
+#include <string>
+#include <string_view>
+#include <vector>
 
 namespace predategrip {
 
 struct TableInfo {
     std::string schema;
     std::string name;
-    std::string type;  // TABLE, VIEW
+    std::string type;
 };
 
 struct IndexInfo {
     std::string name;
     std::string type;
     std::vector<std::string> columns;
-    bool isUnique;
-    bool isPrimaryKey;
+    bool isUnique = false;
+    bool isPrimaryKey = false;
 };
 
 struct ForeignKeyInfo {
@@ -46,21 +48,21 @@ public:
     SchemaInspector() = default;
     ~SchemaInspector() = default;
 
-    void setDriver(std::shared_ptr<SQLServerDriver> driver);
+    void setDriver(std::shared_ptr<SQLServerDriver> driver) { m_driver = std::move(driver); }
 
-    std::vector<std::string> getDatabases();
-    std::vector<TableInfo> getTables(const std::string& database);
-    std::vector<ColumnInfo> getColumns(const std::string& table);
-    std::vector<IndexInfo> getIndexes(const std::string& table);
-    std::vector<ForeignKeyInfo> getForeignKeys(const std::string& table);
-    std::vector<StoredProcedureInfo> getStoredProcedures(const std::string& database);
-    std::vector<FunctionInfo> getFunctions(const std::string& database);
+    [[nodiscard]] std::vector<std::string> getDatabases();
+    [[nodiscard]] std::vector<TableInfo> getTables(std::string_view database);
+    [[nodiscard]] std::vector<ColumnInfo> getColumns(std::string_view table);
+    [[nodiscard]] std::vector<IndexInfo> getIndexes(std::string_view table);
+    [[nodiscard]] std::vector<ForeignKeyInfo> getForeignKeys(std::string_view table);
+    [[nodiscard]] std::vector<StoredProcedureInfo> getStoredProcedures(std::string_view database);
+    [[nodiscard]] std::vector<FunctionInfo> getFunctions(std::string_view database);
 
-    std::string generateDDL(const std::string& table);
-    std::string generateSelectStatement(const std::string& table);
-    std::string generateInsertStatement(const std::string& table);
-    std::string generateUpdateStatement(const std::string& table);
-    std::string generateDeleteStatement(const std::string& table);
+    [[nodiscard]] std::string generateDDL(std::string_view table);
+    [[nodiscard]] std::string generateSelectStatement(std::string_view table);
+    [[nodiscard]] std::string generateInsertStatement(std::string_view table);
+    [[nodiscard]] std::string generateUpdateStatement(std::string_view table);
+    [[nodiscard]] std::string generateDeleteStatement(std::string_view table);
 
 private:
     std::shared_ptr<SQLServerDriver> m_driver;

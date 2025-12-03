@@ -1,4 +1,4 @@
-// Settings utility functions - separated from component for Fast Refresh compatibility
+﻿// Settings utility functions - separated from component for Fast Refresh compatibility
 
 export interface AppSettings {
   editor: {

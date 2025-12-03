@@ -1,4 +1,4 @@
-import Editor from '@monaco-editor/react'
+﻿import Editor from '@monaco-editor/react'
 import { useQueryStore } from '../../store/queryStore'
 import { useConnectionStore } from '../../store/connectionStore'
 import styles from './SqlEditor.module.css'

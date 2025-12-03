@@ -1,8 +1,10 @@
-#pragma once
+﻿#pragma once
 
-#include <string>
-#include <memory>
+#include <expected>
 #include <functional>
+#include <memory>
+#include <string>
+#include <string_view>
 #include <unordered_map>
 
 namespace predategrip {
@@ -16,6 +18,7 @@ class DataExporter;
 class A5ERParser;
 class SQLFormatter;
 
+/// Dispatches IPC requests from the frontend to appropriate backend operations
 class IPCHandler {
 public:
     IPCHandler();
@@ -23,32 +26,46 @@ public:
 
     IPCHandler(const IPCHandler&) = delete;
     IPCHandler& operator=(const IPCHandler&) = delete;
+    IPCHandler(IPCHandler&&) = delete;
+    IPCHandler& operator=(IPCHandler&&) = delete;
 
-    std::string handle(const std::string& request);
+    /// Parses and dispatches an IPC request, returning a JSON response
+    [[nodiscard]] std::string dispatchRequest(std::string_view request);
 
 private:
-    void registerHandlers();
+    void registerRequestRoutes();
 
-    // Handler methods
-    std::string handleConnect(const std::string& params);
-    std::string handleDisconnect(const std::string& params);
-    std::string handleTestConnection(const std::string& params);
-    std::string handleExecuteQuery(const std::string& params);
-    std::string handleGetTables(const std::string& params);
-    std::string handleGetColumns(const std::string& params);
-    std::string handleGetDatabases(const std::string& params);
-    std::string handleBeginTransaction(const std::string& params);
-    std::string handleCommit(const std::string& params);
-    std::string handleRollback(const std::string& params);
-    std::string handleExportCSV(const std::string& params);
-    std::string handleExportJSON(const std::string& params);
-    std::string handleExportExcel(const std::string& params);
-    std::string handleFormatSQL(const std::string& params);
-    std::string handleParseA5ER(const std::string& params);
-    std::string handleGetQueryHistory(const std::string& params);
+    using RequestProcessor = std::function<std::string(std::string_view)>;
+    std::unordered_map<std::string, RequestProcessor> m_requestRoutes;
 
-    using Handler = std::function<std::string(const std::string&)>;
-    std::unordered_map<std::string, Handler> m_handlers;
+    // Database connection operations
+    [[nodiscard]] std::string openDatabaseConnection(std::string_view params);
+    [[nodiscard]] std::string closeDatabaseConnection(std::string_view params);
+    [[nodiscard]] std::string verifyDatabaseConnection(std::string_view params);
+
+    // Query execution operations
+    [[nodiscard]] std::string executeSQL(std::string_view params);
+    [[nodiscard]] std::string cancelRunningQuery(std::string_view params);
+
+    // Schema retrieval operations
+    [[nodiscard]] std::string fetchTableList(std::string_view params);
+    [[nodiscard]] std::string fetchColumnDefinitions(std::string_view params);
+    [[nodiscard]] std::string fetchDatabaseList(std::string_view params);
+
+    // Transaction control operations
+    [[nodiscard]] std::string startTransaction(std::string_view params);
+    [[nodiscard]] std::string commitTransaction(std::string_view params);
+    [[nodiscard]] std::string rollbackTransaction(std::string_view params);
+
+    // Export operations
+    [[nodiscard]] std::string exportToCSV(std::string_view params);
+    [[nodiscard]] std::string exportToJSON(std::string_view params);
+    [[nodiscard]] std::string exportToExcel(std::string_view params);
+
+    // Utility operations
+    [[nodiscard]] std::string formatSQLQuery(std::string_view params);
+    [[nodiscard]] std::string parseA5ERFile(std::string_view params);
+    [[nodiscard]] std::string retrieveQueryHistory(std::string_view params);
 
     std::unique_ptr<ConnectionPool> m_connectionPool;
     std::unique_ptr<SchemaInspector> m_schemaInspector;
@@ -57,9 +74,8 @@ private:
     std::unique_ptr<SQLFormatter> m_sqlFormatter;
     std::unique_ptr<A5ERParser> m_a5erParser;
 
-    // Active connections
-    std::unordered_map<std::string, std::unique_ptr<SQLServerDriver>> m_connections;
-    int m_nextConnectionId = 1;
+    std::unordered_map<std::string, std::unique_ptr<SQLServerDriver>> m_activeConnections;
+    int m_connectionIdCounter = 1;
 };
 
 }  // namespace predategrip

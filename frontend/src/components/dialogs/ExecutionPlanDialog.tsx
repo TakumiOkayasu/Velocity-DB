@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+﻿import { useState, useCallback } from 'react'
 import { bridge } from '../../api/bridge'
 import { useConnectionStore } from '../../store/connectionStore'
 import styles from './ExecutionPlanDialog.module.css'
@@ -62,8 +62,7 @@ export function ExecutionPlanDialog({ isOpen, onClose, sql }: ExecutionPlanDialo
         <div className={styles.header}>
           <h2>Execution Plan</h2>
           <button className={styles.closeButton} onClick={onClose}>
-            ×
-          </button>
+            ﾃ・          </button>
         </div>
 
         <div className={styles.toolbar}>

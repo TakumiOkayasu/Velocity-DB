@@ -1,8 +1,10 @@
-import { useMemo, useCallback, useRef, useState, useEffect } from 'react'
+﻿import { useMemo, useCallback, useRef, useState, useEffect } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import type { ColDef, GridReadyEvent, CellClassParams, CellValueChangedEvent, GridApi } from 'ag-grid-community'
 import { useQueryStore } from '../../store/queryStore'
 import { useEditStore } from '../../store/editStore'
+import { useConnectionStore } from '../../store/connectionStore'
+import { bridge } from '../../api/bridge'
 import { ExportDialog } from '../export/ExportDialog'
 import 'ag-grid-community/styles/ag-grid.css'
 import 'ag-grid-community/styles/ag-theme-alpine.css'
@@ -10,6 +12,7 @@ import styles from './ResultGrid.module.css'
 
 export function ResultGrid() {
   const { activeQueryId, results, isExecuting, error } = useQueryStore()
+  const activeConnectionId = useConnectionStore((state) => state.activeConnectionId)
   const {
     isEditMode,
     setEditMode,
@@ -20,10 +23,15 @@ export function ResultGrid() {
     isRowDeleted,
     markRowDeleted,
     unmarkRowDeleted,
+    generateUpdateSQL,
+    generateInsertSQL,
+    generateDeleteSQL,
   } = useEditStore()
   const gridRef = useRef<AgGridReact>(null)
   const [gridApi, setGridApi] = useState<GridApi | null>(null)
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
+  const [isApplying, setIsApplying] = useState(false)
+  const [applyError, setApplyError] = useState<string | null>(null)
 
   const resultSet = activeQueryId ? results.get(activeQueryId) : null
 
@@ -90,8 +98,9 @@ export function ResultGrid() {
     const columnName = event.colDef.field ?? ''
     const originalValue = event.oldValue
     const newValue = event.newValue
+    const rowData = event.node.data as Record<string, string | null>
 
-    updateCell(rowIndex, columnName, originalValue, newValue)
+    updateCell(rowIndex, columnName, originalValue, newValue, rowData)
 
     // Refresh the cell to update styling
     if (gridApi) {
@@ -117,7 +126,8 @@ export function ResultGrid() {
         if (isRowDeleted(rowIndex)) {
           unmarkRowDeleted(rowIndex)
         } else {
-          markRowDeleted(rowIndex)
+          const rowData = node.data as Record<string, string | null>
+          markRowDeleted(rowIndex, rowData)
         }
       }
     })
@@ -130,6 +140,46 @@ export function ResultGrid() {
       gridApi.refreshCells({ force: true })
     }
   }, [revertAll, gridApi])
+
+  const handleApplyChanges = useCallback(async () => {
+    if (!activeConnectionId) {
+      setApplyError('No active connection')
+      return
+    }
+
+    setIsApplying(true)
+    setApplyError(null)
+
+    try {
+      // Generate all SQL statements
+      const deleteStatements = generateDeleteSQL()
+      const updateStatements = generateUpdateSQL()
+      const insertStatements = generateInsertSQL()
+
+      const allStatements = [...deleteStatements, ...updateStatements, ...insertStatements]
+
+      if (allStatements.length === 0) {
+        setIsApplying(false)
+        return
+      }
+
+      // Execute each statement
+      for (const sql of allStatements) {
+        await bridge.executeQuery(activeConnectionId, sql)
+      }
+
+      // Clear pending changes on success
+      revertAll()
+
+      if (gridApi) {
+        gridApi.refreshCells({ force: true })
+      }
+    } catch (error) {
+      setApplyError(error instanceof Error ? error.message : 'Failed to apply changes')
+    } finally {
+      setIsApplying(false)
+    }
+  }, [activeConnectionId, generateDeleteSQL, generateUpdateSQL, generateInsertSQL, revertAll, gridApi])
 
   const handleCopySelection = useCallback(() => {
     if (!gridApi) return
@@ -238,7 +288,7 @@ export function ResultGrid() {
   if (isExecuting) {
     return (
       <div className={styles.message}>
-        <span className={styles.spinner}>⏳</span>
+        <span className={styles.spinner}>竢ｳ</span>
         <span>Executing query...</span>
       </div>
     )
@@ -288,20 +338,20 @@ export function ResultGrid() {
               Revert
             </button>
             <button
-              onClick={() => {
-                // TODO: Apply changes
-                alert('Apply changes: Not implemented yet')
-              }}
+              onClick={handleApplyChanges}
               className={`${styles.toolbarButton} ${styles.applyButton}`}
-              disabled={!hasChanges()}
+              disabled={!hasChanges() || isApplying}
               title="Apply Changes to Database"
             >
-              Apply
+              {isApplying ? 'Applying...' : 'Apply'}
             </button>
           </>
         )}
         {hasChanges() && (
           <span className={styles.changesIndicator}>Unsaved changes</span>
+        )}
+        {applyError && (
+          <span className={styles.errorIndicator}>{applyError}</span>
         )}
         <div className={styles.toolbarSpacer} />
         <button

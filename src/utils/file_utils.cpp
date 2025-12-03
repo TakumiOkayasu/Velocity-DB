@@ -1,9 +1,12 @@
-#include "file_utils.h"
+﻿#include "file_utils.h"
+
 #include <Windows.h>
-#include <ShlObj.h>
+
+#include <filesystem>
 #include <fstream>
 #include <sstream>
-#include <filesystem>
+
+#include <ShlObj.h>
 
 namespace predategrip {
 

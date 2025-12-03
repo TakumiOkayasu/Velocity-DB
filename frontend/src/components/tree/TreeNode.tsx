@@ -1,4 +1,4 @@
-import { memo } from 'react'
+﻿import { memo } from 'react'
 import type { DatabaseObject } from '../../types'
 import styles from './TreeNode.module.css'
 
@@ -13,23 +13,23 @@ interface TreeNodeProps {
 const getIcon = (type: DatabaseObject['type'] | 'folder'): string => {
   switch (type) {
     case 'database':
-      return '🗄️'
+      return '淀・・
     case 'folder':
-      return '📁'
+      return '刀'
     case 'table':
-      return '📋'
+      return '搭'
     case 'view':
-      return '👁️'
+      return '早・・
     case 'procedure':
-      return '⚙️'
+      return '笞呻ｸ・
     case 'function':
-      return 'ƒ'
+      return 'ﾆ・
     case 'column':
-      return '│'
+      return '笏・
     case 'index':
-      return '📑'
+      return '淘'
     default:
-      return '📄'
+      return '塘'
   }
 }
 
@@ -57,8 +57,8 @@ export const TreeNode = memo(function TreeNode({ node, level, expandedNodes, loa
   }
 
   const getExpander = () => {
-    if (isLoading) return '⏳'
-    if (canExpand) return isExpanded ? '▼' : '▶'
+    if (isLoading) return '竢ｳ'
+    if (canExpand) return isExpanded ? '笆ｼ' : '笆ｶ'
     return ' '
   }
 

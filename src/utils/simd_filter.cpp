@@ -1,9 +1,10 @@
-#include "simd_filter.h"
+﻿#include "simd_filter.h"
+
 #include <algorithm>
 #include <numeric>
 
 #ifdef _MSC_VER
-#include <intrin.h>
+    #include <intrin.h>
 #endif
 
 namespace predategrip {
@@ -22,11 +23,8 @@ bool SIMDFilter::isAVX2Available() {
     return false;
 }
 
-std::vector<size_t> SIMDFilter::filterEquals(
-    const ResultSet& data,
-    size_t columnIndex,
-    const std::string& value) const
-{
+std::vector<size_t> SIMDFilter::filterEquals(const ResultSet& data, size_t columnIndex,
+                                             const std::string& value) const {
     std::vector<size_t> result;
     result.reserve(data.rows.size() / 4);  // Estimate 25% match rate
 
@@ -42,11 +40,8 @@ std::vector<size_t> SIMDFilter::filterEquals(
     return result;
 }
 
-std::vector<size_t> SIMDFilter::filterContains(
-    const ResultSet& data,
-    size_t columnIndex,
-    const std::string& substring) const
-{
+std::vector<size_t> SIMDFilter::filterContains(const ResultSet& data, size_t columnIndex,
+                                               const std::string& substring) const {
     std::vector<size_t> result;
     result.reserve(data.rows.size() / 4);
 
@@ -62,12 +57,8 @@ std::vector<size_t> SIMDFilter::filterContains(
     return result;
 }
 
-std::vector<size_t> SIMDFilter::filterRange(
-    const ResultSet& data,
-    size_t columnIndex,
-    const std::string& minValue,
-    const std::string& maxValue) const
-{
+std::vector<size_t> SIMDFilter::filterRange(const ResultSet& data, size_t columnIndex, const std::string& minValue,
+                                            const std::string& maxValue) const {
     std::vector<size_t> result;
     result.reserve(data.rows.size() / 4);
 
@@ -83,11 +74,7 @@ std::vector<size_t> SIMDFilter::filterRange(
     return result;
 }
 
-std::vector<size_t> SIMDFilter::sortByColumn(
-    const ResultSet& data,
-    size_t columnIndex,
-    bool ascending) const
-{
+std::vector<size_t> SIMDFilter::sortByColumn(const ResultSet& data, size_t columnIndex, bool ascending) const {
     std::vector<size_t> indices(data.rows.size());
     std::iota(indices.begin(), indices.end(), 0);
 
@@ -115,11 +102,10 @@ bool SIMDFilter::simdStringEquals(const char* a, const char* b, size_t len) cons
     return std::memcmp(a, b, len) == 0;
 }
 
-bool SIMDFilter::simdStringContains(const char* haystack, size_t haystackLen,
-                                    const char* needle, size_t needleLen) const {
+bool SIMDFilter::simdStringContains(const char* haystack, size_t haystackLen, const char* needle,
+                                    size_t needleLen) const {
     // TODO: Implement AVX2 optimized search
-    return std::string_view(haystack, haystackLen).find(std::string_view(needle, needleLen))
-           != std::string_view::npos;
+    return std::string_view(haystack, haystackLen).find(std::string_view(needle, needleLen)) != std::string_view::npos;
 }
 
 }  // namespace predategrip

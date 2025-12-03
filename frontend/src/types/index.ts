@@ -1,4 +1,4 @@
-// Connection types
+﻿// Connection types
 export interface Connection {
   id: string;
   name: string;

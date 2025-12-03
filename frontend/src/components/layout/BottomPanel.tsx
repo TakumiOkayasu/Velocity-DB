@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { ResultGrid } from '../grid/ResultGrid'
 import { QueryHistory } from '../history/QueryHistory'
 import styles from './BottomPanel.module.css'

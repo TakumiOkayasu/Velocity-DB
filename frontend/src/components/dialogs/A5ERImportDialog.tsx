@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+﻿import { useState, useCallback } from 'react'
 import styles from './A5ERImportDialog.module.css'
 
 interface A5ERImportDialogProps {
@@ -81,8 +81,7 @@ export function A5ERImportDialog({ isOpen, onClose, onImport }: A5ERImportDialog
         <div className={styles.header}>
           <h2>Import A5:ER File</h2>
           <button className={styles.closeButton} onClick={onClose}>
-            ×
-          </button>
+            ﾃ・          </button>
         </div>
 
         <div className={styles.content}>

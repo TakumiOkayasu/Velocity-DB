@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+﻿import { useState, useCallback } from 'react'
 import type { ResultSet } from '../../types'
 import styles from './ExportDialog.module.css'
 
@@ -138,8 +138,7 @@ export function ExportDialog({ isOpen, onClose, resultSet }: ExportDialogProps) 
         <div className={styles.header}>
           <h2>Export Data</h2>
           <button className={styles.closeButton} onClick={onClose}>
-            ×
-          </button>
+            ﾃ・          </button>
         </div>
 
         <div className={styles.content}>

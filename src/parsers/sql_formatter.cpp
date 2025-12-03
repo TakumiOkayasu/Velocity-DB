@@ -1,41 +1,40 @@
-#include "sql_formatter.h"
-#include <sstream>
+﻿#include "sql_formatter.h"
+
 #include <algorithm>
 #include <cctype>
+#include <ranges>
 #include <unordered_set>
 
 namespace predategrip {
 
 namespace {
-    const std::unordered_set<std::string> SQL_KEYWORDS = {
-        "SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "IN", "EXISTS",
-        "JOIN", "INNER", "LEFT", "RIGHT", "OUTER", "FULL", "CROSS", "ON",
-        "GROUP", "BY", "HAVING", "ORDER", "ASC", "DESC", "NULLS", "FIRST", "LAST",
-        "INSERT", "INTO", "VALUES", "UPDATE", "SET", "DELETE",
-        "CREATE", "TABLE", "INDEX", "VIEW", "DROP", "ALTER", "ADD", "COLUMN",
-        "PRIMARY", "KEY", "FOREIGN", "REFERENCES", "UNIQUE", "CHECK", "DEFAULT",
-        "NULL", "NOT", "CONSTRAINT", "CASCADE", "RESTRICT",
-        "UNION", "ALL", "INTERSECT", "EXCEPT",
-        "CASE", "WHEN", "THEN", "ELSE", "END",
-        "AS", "DISTINCT", "TOP", "LIMIT", "OFFSET", "FETCH", "NEXT", "ROWS", "ONLY",
-        "BEGIN", "COMMIT", "ROLLBACK", "TRANSACTION", "SAVEPOINT",
-        "DECLARE", "CURSOR", "OPEN", "CLOSE", "DEALLOCATE",
-        "IF", "WHILE", "RETURN", "EXEC", "EXECUTE", "PROCEDURE", "FUNCTION",
-        "WITH", "RECURSIVE", "CTE",
-        "LIKE", "BETWEEN", "IS", "SOME", "ANY",
-        "COUNT", "SUM", "AVG", "MIN", "MAX", "COALESCE", "NULLIF",
-        "CAST", "CONVERT", "OVER", "PARTITION", "ROW_NUMBER", "RANK", "DENSE_RANK"
-    };
 
-    const std::unordered_set<std::string> BLOCK_START_KEYWORDS = {
-        "SELECT", "FROM", "WHERE", "GROUP", "HAVING", "ORDER",
-        "JOIN", "INNER", "LEFT", "RIGHT", "FULL", "CROSS",
-        "SET", "VALUES"
-    };
-}
+const std::unordered_set<std::string> SQL_KEYWORDS = {
+    "SELECT",     "FROM",     "WHERE",      "AND",       "OR",        "NOT",        "IN",        "EXISTS",
+    "JOIN",       "INNER",    "LEFT",       "RIGHT",     "OUTER",     "FULL",       "CROSS",     "ON",
+    "GROUP",      "BY",       "HAVING",     "ORDER",     "ASC",       "DESC",       "NULLS",     "FIRST",
+    "LAST",       "INSERT",   "INTO",       "VALUES",    "UPDATE",    "SET",        "DELETE",    "CREATE",
+    "TABLE",      "INDEX",    "VIEW",       "DROP",      "ALTER",     "ADD",        "COLUMN",    "PRIMARY",
+    "KEY",        "FOREIGN",  "REFERENCES", "UNIQUE",    "CHECK",     "DEFAULT",    "NULL",      "CONSTRAINT",
+    "CASCADE",    "RESTRICT", "UNION",      "ALL",       "INTERSECT", "EXCEPT",     "CASE",      "WHEN",
+    "THEN",       "ELSE",     "END",        "AS",        "DISTINCT",  "TOP",        "LIMIT",     "OFFSET",
+    "FETCH",      "NEXT",     "ROWS",       "ONLY",      "BEGIN",     "COMMIT",     "ROLLBACK",  "TRANSACTION",
+    "SAVEPOINT",  "DECLARE",  "CURSOR",     "OPEN",      "CLOSE",     "DEALLOCATE", "IF",        "WHILE",
+    "RETURN",     "EXEC",     "EXECUTE",    "PROCEDURE", "FUNCTION",  "WITH",       "RECURSIVE", "CTE",
+    "LIKE",       "BETWEEN",  "IS",         "SOME",      "ANY",       "COUNT",      "SUM",       "AVG",
+    "MIN",        "MAX",      "COALESCE",   "NULLIF",    "CAST",      "CONVERT",    "OVER",      "PARTITION",
+    "ROW_NUMBER", "RANK",     "DENSE_RANK"};
 
-std::string SQLFormatter::format(const std::string& sql, const FormatOptions& options) {
-    std::ostringstream result;
+const std::unordered_set<std::string> BLOCK_START_KEYWORDS = {"SELECT", "FROM",  "WHERE", "GROUP", "HAVING",
+                                                              "ORDER",  "JOIN",  "INNER", "LEFT",  "RIGHT",
+                                                              "FULL",   "CROSS", "SET",   "VALUES"};
+
+}  // namespace
+
+std::string SQLFormatter::format(std::string_view sql, const FormatOptions& options) {
+    std::string result;
+    result.reserve(sql.size() * 2);
+
     std::string token;
     int indentLevel = 0;
     bool newLine = true;
@@ -43,24 +42,25 @@ std::string SQLFormatter::format(const std::string& sql, const FormatOptions& op
     char stringChar = 0;
 
     auto flushToken = [&]() {
-        if (token.empty()) return;
+        if (token.empty())
+            return;
 
         std::string upperToken = token;
-        std::transform(upperToken.begin(), upperToken.end(), upperToken.begin(), ::toupper);
+        std::ranges::transform(upperToken, upperToken.begin(),
+                               [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
 
         if (isKeyword(upperToken)) {
-            // Check if we need a new line before this keyword
-            if (BLOCK_START_KEYWORDS.count(upperToken) && !newLine) {
-                result << "\n" << getIndent(indentLevel, options);
+            if (BLOCK_START_KEYWORDS.contains(upperToken) && !newLine) {
+                result += '\n';
+                result += getIndent(indentLevel, options);
                 newLine = true;
             }
-
-            result << applyKeywordCase(token, options.keywordCase);
+            result += applyKeywordCase(token, options.keywordCase);
         } else {
-            result << token;
+            result += token;
         }
 
-        result << " ";
+        result += ' ';
         token.clear();
         newLine = false;
     };
@@ -68,21 +68,19 @@ std::string SQLFormatter::format(const std::string& sql, const FormatOptions& op
     for (size_t i = 0; i < sql.length(); ++i) {
         char c = sql[i];
 
-        // Handle strings
         if ((c == '\'' || c == '"') && !inString) {
             flushToken();
             inString = true;
             stringChar = c;
-            result << c;
+            result += c;
             continue;
         }
 
         if (inString) {
-            result << c;
+            result += c;
             if (c == stringChar) {
-                // Check for escaped quote
                 if (i + 1 < sql.length() && sql[i + 1] == stringChar) {
-                    result << sql[++i];
+                    result += sql[++i];
                 } else {
                     inString = false;
                 }
@@ -90,67 +88,64 @@ std::string SQLFormatter::format(const std::string& sql, const FormatOptions& op
             continue;
         }
 
-        // Handle parentheses
         if (c == '(') {
             flushToken();
-            result << c;
-            indentLevel++;
+            result += c;
+            ++indentLevel;
             continue;
         }
 
         if (c == ')') {
             flushToken();
             indentLevel = std::max(0, indentLevel - 1);
-            result << c;
+            result += c;
             continue;
         }
 
-        // Handle commas
         if (c == ',') {
             flushToken();
             if (options.breakBeforeComma) {
-                result << "\n" << getIndent(indentLevel, options) << c << " ";
+                result += '\n';
+                result += getIndent(indentLevel, options);
+                result += ", ";
             } else if (options.breakAfterComma) {
-                result << c << "\n" << getIndent(indentLevel, options);
+                result += ",\n";
+                result += getIndent(indentLevel, options);
             } else {
-                result << c << " ";
+                result += ", ";
             }
             newLine = options.breakAfterComma;
             continue;
         }
 
-        // Handle whitespace
-        if (std::isspace(c)) {
+        if (std::isspace(static_cast<unsigned char>(c))) {
             if (!token.empty()) {
                 flushToken();
             }
             continue;
         }
 
-        // Handle operators
         if (c == '=' || c == '<' || c == '>' || c == '+' || c == '-' || c == '*' || c == '/') {
             flushToken();
-            result << " " << c;
+            result += ' ';
+            result += c;
 
-            // Handle multi-character operators
             if (i + 1 < sql.length()) {
                 char next = sql[i + 1];
-                if ((c == '<' && (next == '=' || next == '>')) ||
-                    (c == '>' && next == '=') ||
+                if ((c == '<' && (next == '=' || next == '>')) || (c == '>' && next == '=') ||
                     (c == '!' && next == '=')) {
-                    result << next;
+                    result += next;
                     ++i;
                 }
             }
 
-            result << " ";
+            result += ' ';
             continue;
         }
 
-        // Handle semicolon
         if (c == ';') {
             flushToken();
-            result << c << "\n\n";
+            result += ";\n\n";
             indentLevel = 0;
             newLine = true;
             continue;
@@ -161,24 +156,24 @@ std::string SQLFormatter::format(const std::string& sql, const FormatOptions& op
 
     flushToken();
 
-    // Trim trailing whitespace
-    std::string formatted = result.str();
-    while (!formatted.empty() && std::isspace(formatted.back())) {
-        formatted.pop_back();
+    while (!result.empty() && std::isspace(static_cast<unsigned char>(result.back()))) {
+        result.pop_back();
     }
 
-    return formatted;
+    return result;
 }
 
-std::string SQLFormatter::applyKeywordCase(const std::string& word, KeywordCase keywordCase) const {
-    std::string result = word;
+std::string SQLFormatter::applyKeywordCase(std::string_view word, KeywordCase keywordCase) const {
+    std::string result(word);
 
     switch (keywordCase) {
         case KeywordCase::Upper:
-            std::transform(result.begin(), result.end(), result.begin(), ::toupper);
+            std::ranges::transform(result, result.begin(),
+                                   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
             break;
         case KeywordCase::Lower:
-            std::transform(result.begin(), result.end(), result.begin(), ::tolower);
+            std::ranges::transform(result, result.begin(),
+                                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             break;
         case KeywordCase::Unchanged:
             break;
@@ -187,17 +182,17 @@ std::string SQLFormatter::applyKeywordCase(const std::string& word, KeywordCase 
     return result;
 }
 
-bool SQLFormatter::isKeyword(const std::string& word) const {
-    std::string upper = word;
-    std::transform(upper.begin(), upper.end(), upper.begin(), ::toupper);
-    return SQL_KEYWORDS.count(upper) > 0;
+bool SQLFormatter::isKeyword(std::string_view word) {
+    std::string upper(word);
+    std::ranges::transform(upper, upper.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+    return SQL_KEYWORDS.contains(upper);
 }
 
-std::string SQLFormatter::getIndent(int level, const FormatOptions& options) const {
+std::string SQLFormatter::getIndent(int level, const FormatOptions& options) {
     if (options.useTab) {
-        return std::string(level, '\t');
+        return std::string(static_cast<size_t>(level), '\t');
     }
-    return std::string(level * options.indentSize, ' ');
+    return std::string(static_cast<size_t>(level * options.indentSize), ' ');
 }
 
 }  // namespace predategrip

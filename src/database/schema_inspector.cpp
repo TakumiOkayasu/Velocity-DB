@@ -1,20 +1,18 @@
-#include "schema_inspector.h"
-#include <sstream>
+﻿#include "schema_inspector.h"
+
+#include <format>
 
 namespace predategrip {
-
-void SchemaInspector::setDriver(std::shared_ptr<SQLServerDriver> driver) {
-    m_driver = driver;
-}
 
 std::vector<std::string> SchemaInspector::getDatabases() {
     std::vector<std::string> databases;
 
-    if (!m_driver || !m_driver->isConnected()) {
+    if (!m_driver || !m_driver->isConnected()) [[unlikely]] {
         return databases;
     }
 
     auto result = m_driver->execute("SELECT name FROM sys.databases ORDER BY name");
+    databases.reserve(result.rows.size());
     for (const auto& row : result.rows) {
         if (!row.values.empty()) {
             databases.push_back(row.values[0]);
@@ -24,14 +22,14 @@ std::vector<std::string> SchemaInspector::getDatabases() {
     return databases;
 }
 
-std::vector<TableInfo> SchemaInspector::getTables(const std::string& database) {
+std::vector<TableInfo> SchemaInspector::getTables(std::string_view) {
     std::vector<TableInfo> tables;
 
-    if (!m_driver || !m_driver->isConnected()) {
+    if (!m_driver || !m_driver->isConnected()) [[unlikely]] {
         return tables;
     }
 
-    std::string sql = R"(
+    constexpr auto sql = R"(
         SELECT
             s.name AS schema_name,
             t.name AS table_name,
@@ -49,27 +47,24 @@ std::vector<TableInfo> SchemaInspector::getTables(const std::string& database) {
     )";
 
     auto result = m_driver->execute(sql);
+    tables.reserve(result.rows.size());
     for (const auto& row : result.rows) {
         if (row.values.size() >= 3) {
-            TableInfo info;
-            info.schema = row.values[0];
-            info.name = row.values[1];
-            info.type = row.values[2];
-            tables.push_back(info);
+            tables.push_back({.schema = row.values[0], .name = row.values[1], .type = row.values[2]});
         }
     }
 
     return tables;
 }
 
-std::vector<ColumnInfo> SchemaInspector::getColumns(const std::string& table) {
+std::vector<ColumnInfo> SchemaInspector::getColumns(std::string_view table) {
     std::vector<ColumnInfo> columns;
 
-    if (!m_driver || !m_driver->isConnected()) {
+    if (!m_driver || !m_driver->isConnected()) [[unlikely]] {
         return columns;
     }
 
-    std::string sql = R"(
+    auto sql = std::format(R"(
         SELECT
             c.name AS column_name,
             t.name AS data_type,
@@ -85,34 +80,34 @@ std::vector<ColumnInfo> SchemaInspector::getColumns(const std::string& table) {
             INNER JOIN sys.indexes i ON ic.object_id = i.object_id AND ic.index_id = i.index_id
             WHERE i.is_primary_key = 1
         ) pk ON c.object_id = pk.object_id AND c.column_id = pk.column_id
-        WHERE o.name = ')" + table + R"('
+        WHERE o.name = '{}'
         ORDER BY c.column_id
-    )";
+    )",
+                           table);
 
     auto result = m_driver->execute(sql);
+    columns.reserve(result.rows.size());
     for (const auto& row : result.rows) {
         if (row.values.size() >= 5) {
-            ColumnInfo info;
-            info.name = row.values[0];
-            info.type = row.values[1];
-            info.size = std::stoi(row.values[2]);
-            info.nullable = (row.values[3] == "1");
-            info.isPrimaryKey = (row.values[4] == "1");
-            columns.push_back(info);
+            columns.push_back({.name = row.values[0],
+                               .type = row.values[1],
+                               .size = std::stoi(row.values[2]),
+                               .nullable = (row.values[3] == "1"),
+                               .isPrimaryKey = (row.values[4] == "1")});
         }
     }
 
     return columns;
 }
 
-std::vector<IndexInfo> SchemaInspector::getIndexes(const std::string& table) {
+std::vector<IndexInfo> SchemaInspector::getIndexes(std::string_view table) {
     std::vector<IndexInfo> indexes;
 
-    if (!m_driver || !m_driver->isConnected()) {
+    if (!m_driver || !m_driver->isConnected()) [[unlikely]] {
         return indexes;
     }
 
-    std::string sql = R"(
+    auto sql = std::format(R"(
         SELECT
             i.name AS index_name,
             i.type_desc AS index_type,
@@ -123,9 +118,10 @@ std::vector<IndexInfo> SchemaInspector::getIndexes(const std::string& table) {
         INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
         INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
         INNER JOIN sys.objects o ON i.object_id = o.object_id
-        WHERE o.name = ')" + table + R"(' AND i.name IS NOT NULL
+        WHERE o.name = '{}' AND i.name IS NOT NULL
         ORDER BY i.name, ic.key_ordinal
-    )";
+    )",
+                           table);
 
     auto result = m_driver->execute(sql);
     std::string currentIndex;
@@ -134,12 +130,10 @@ std::vector<IndexInfo> SchemaInspector::getIndexes(const std::string& table) {
     for (const auto& row : result.rows) {
         if (row.values.size() >= 5) {
             if (row.values[0] != currentIndex) {
-                IndexInfo info;
-                info.name = row.values[0];
-                info.type = row.values[1];
-                info.isUnique = (row.values[2] == "1");
-                info.isPrimaryKey = (row.values[3] == "1");
-                indexes.push_back(info);
+                indexes.push_back({.name = row.values[0],
+                                   .type = row.values[1],
+                                   .isUnique = (row.values[2] == "1"),
+                                   .isPrimaryKey = (row.values[3] == "1")});
                 currentIndex = row.values[0];
                 currentInfo = &indexes.back();
             }
@@ -152,14 +146,14 @@ std::vector<IndexInfo> SchemaInspector::getIndexes(const std::string& table) {
     return indexes;
 }
 
-std::vector<ForeignKeyInfo> SchemaInspector::getForeignKeys(const std::string& table) {
+std::vector<ForeignKeyInfo> SchemaInspector::getForeignKeys(std::string_view table) {
     std::vector<ForeignKeyInfo> fks;
 
-    if (!m_driver || !m_driver->isConnected()) {
+    if (!m_driver || !m_driver->isConnected()) [[unlikely]] {
         return fks;
     }
 
-    std::string sql = R"(
+    auto sql = std::format(R"(
         SELECT
             fk.name AS fk_name,
             c.name AS column_name,
@@ -171,32 +165,32 @@ std::vector<ForeignKeyInfo> SchemaInspector::getForeignKeys(const std::string& t
         INNER JOIN sys.tables rt ON fkc.referenced_object_id = rt.object_id
         INNER JOIN sys.columns rc ON fkc.referenced_object_id = rc.object_id AND fkc.referenced_column_id = rc.column_id
         INNER JOIN sys.objects o ON fk.parent_object_id = o.object_id
-        WHERE o.name = ')" + table + R"('
-    )";
+        WHERE o.name = '{}'
+    )",
+                           table);
 
     auto result = m_driver->execute(sql);
+    fks.reserve(result.rows.size());
     for (const auto& row : result.rows) {
         if (row.values.size() >= 4) {
-            ForeignKeyInfo info;
-            info.name = row.values[0];
-            info.column = row.values[1];
-            info.referencedTable = row.values[2];
-            info.referencedColumn = row.values[3];
-            fks.push_back(info);
+            fks.push_back({.name = row.values[0],
+                           .column = row.values[1],
+                           .referencedTable = row.values[2],
+                           .referencedColumn = row.values[3]});
         }
     }
 
     return fks;
 }
 
-std::vector<StoredProcedureInfo> SchemaInspector::getStoredProcedures(const std::string& database) {
+std::vector<StoredProcedureInfo> SchemaInspector::getStoredProcedures(std::string_view) {
     std::vector<StoredProcedureInfo> procs;
 
-    if (!m_driver || !m_driver->isConnected()) {
+    if (!m_driver || !m_driver->isConnected()) [[unlikely]] {
         return procs;
     }
 
-    std::string sql = R"(
+    constexpr auto sql = R"(
         SELECT
             s.name AS schema_name,
             p.name AS proc_name,
@@ -208,27 +202,24 @@ std::vector<StoredProcedureInfo> SchemaInspector::getStoredProcedures(const std:
     )";
 
     auto result = m_driver->execute(sql);
+    procs.reserve(result.rows.size());
     for (const auto& row : result.rows) {
         if (row.values.size() >= 3) {
-            StoredProcedureInfo info;
-            info.schema = row.values[0];
-            info.name = row.values[1];
-            info.definition = row.values[2];
-            procs.push_back(info);
+            procs.push_back({.schema = row.values[0], .name = row.values[1], .definition = row.values[2]});
         }
     }
 
     return procs;
 }
 
-std::vector<FunctionInfo> SchemaInspector::getFunctions(const std::string& database) {
+std::vector<FunctionInfo> SchemaInspector::getFunctions(std::string_view) {
     std::vector<FunctionInfo> funcs;
 
-    if (!m_driver || !m_driver->isConnected()) {
+    if (!m_driver || !m_driver->isConnected()) [[unlikely]] {
         return funcs;
     }
 
-    std::string sql = R"(
+    constexpr auto sql = R"(
         SELECT
             s.name AS schema_name,
             o.name AS func_name,
@@ -243,150 +234,134 @@ std::vector<FunctionInfo> SchemaInspector::getFunctions(const std::string& datab
     )";
 
     auto result = m_driver->execute(sql);
+    funcs.reserve(result.rows.size());
     for (const auto& row : result.rows) {
         if (row.values.size() >= 4) {
-            FunctionInfo info;
-            info.schema = row.values[0];
-            info.name = row.values[1];
-            info.returnType = row.values[2];
-            info.definition = row.values[3];
-            funcs.push_back(info);
+            funcs.push_back({.schema = row.values[0],
+                             .name = row.values[1],
+                             .returnType = row.values[2],
+                             .definition = row.values[3]});
         }
     }
 
     return funcs;
 }
 
-std::string SchemaInspector::generateDDL(const std::string& table) {
+std::string SchemaInspector::generateDDL(std::string_view table) {
     auto columns = getColumns(table);
-    auto indexes = getIndexes(table);
-    auto fks = getForeignKeys(table);
 
-    std::ostringstream ddl;
-    ddl << "CREATE TABLE [" << table << "] (\n";
+    std::string ddl = std::format("CREATE TABLE [{}] (\n", table);
 
     for (size_t i = 0; i < columns.size(); ++i) {
         const auto& col = columns[i];
-        ddl << "    [" << col.name << "] " << col.type;
+        ddl += std::format("    [{}] {}", col.name, col.type);
 
         if (col.type == "VARCHAR" || col.type == "NVARCHAR" || col.type == "CHAR") {
             if (col.size == -1) {
-                ddl << "(MAX)";
+                ddl += "(MAX)";
             } else {
-                ddl << "(" << col.size << ")";
+                ddl += std::format("({})", col.size);
             }
         }
 
         if (!col.nullable) {
-            ddl << " NOT NULL";
+            ddl += " NOT NULL";
         }
 
         if (i < columns.size() - 1) {
-            ddl << ",";
+            ddl += ",";
         }
-        ddl << "\n";
+        ddl += "\n";
     }
 
-    ddl << ");\n";
-
-    return ddl.str();
+    ddl += ");\n";
+    return ddl;
 }
 
-std::string SchemaInspector::generateSelectStatement(const std::string& table) {
+std::string SchemaInspector::generateSelectStatement(std::string_view table) {
     auto columns = getColumns(table);
 
-    std::ostringstream sql;
-    sql << "SELECT\n";
-
+    std::string sql = "SELECT\n";
     for (size_t i = 0; i < columns.size(); ++i) {
-        sql << "    [" << columns[i].name << "]";
+        sql += std::format("    [{}]", columns[i].name);
         if (i < columns.size() - 1) {
-            sql << ",";
+            sql += ",";
         }
-        sql << "\n";
+        sql += "\n";
     }
-
-    sql << "FROM [" << table << "]";
-    return sql.str();
+    sql += std::format("FROM [{}]", table);
+    return sql;
 }
 
-std::string SchemaInspector::generateInsertStatement(const std::string& table) {
+std::string SchemaInspector::generateInsertStatement(std::string_view table) {
     auto columns = getColumns(table);
 
-    std::ostringstream sql;
-    sql << "INSERT INTO [" << table << "] (\n";
-
+    std::string sql = std::format("INSERT INTO [{}] (\n", table);
     for (size_t i = 0; i < columns.size(); ++i) {
-        sql << "    [" << columns[i].name << "]";
+        sql += std::format("    [{}]", columns[i].name);
         if (i < columns.size() - 1) {
-            sql << ",";
+            sql += ",";
         }
-        sql << "\n";
+        sql += "\n";
     }
-
-    sql << ") VALUES (\n";
-
+    sql += ") VALUES (\n";
     for (size_t i = 0; i < columns.size(); ++i) {
-        sql << "    @" << columns[i].name;
+        sql += std::format("    @{}", columns[i].name);
         if (i < columns.size() - 1) {
-            sql << ",";
+            sql += ",";
         }
-        sql << "\n";
+        sql += "\n";
     }
-
-    sql << ")";
-    return sql.str();
+    sql += ")";
+    return sql;
 }
 
-std::string SchemaInspector::generateUpdateStatement(const std::string& table) {
+std::string SchemaInspector::generateUpdateStatement(std::string_view table) {
     auto columns = getColumns(table);
 
-    std::ostringstream sql;
-    sql << "UPDATE [" << table << "]\nSET\n";
-
-    bool first = true;
+    std::string sql = std::format("UPDATE [{}]\nSET\n", table);
     std::string whereClause;
+    bool first = true;
 
     for (const auto& col : columns) {
         if (col.isPrimaryKey) {
             if (!whereClause.empty()) {
                 whereClause += " AND ";
             }
-            whereClause += "[" + col.name + "] = @" + col.name;
+            whereClause += std::format("[{}] = @{}", col.name, col.name);
         } else {
             if (!first) {
-                sql << ",\n";
+                sql += ",\n";
             }
-            sql << "    [" << col.name << "] = @" << col.name;
+            sql += std::format("    [{}] = @{}", col.name, col.name);
             first = false;
         }
     }
 
     if (!whereClause.empty()) {
-        sql << "\nWHERE " << whereClause;
+        sql += std::format("\nWHERE {}", whereClause);
     }
 
-    return sql.str();
+    return sql;
 }
 
-std::string SchemaInspector::generateDeleteStatement(const std::string& table) {
+std::string SchemaInspector::generateDeleteStatement(std::string_view table) {
     auto columns = getColumns(table);
 
-    std::ostringstream sql;
-    sql << "DELETE FROM [" << table << "]\nWHERE ";
-
+    std::string sql = std::format("DELETE FROM [{}]\nWHERE ", table);
     bool first = true;
+
     for (const auto& col : columns) {
         if (col.isPrimaryKey) {
             if (!first) {
-                sql << " AND ";
+                sql += " AND ";
             }
-            sql << "[" << col.name << "] = @" << col.name;
+            sql += std::format("[{}] = @{}", col.name, col.name);
             first = false;
         }
     }
 
-    return sql.str();
+    return sql;
 }
 
 }  // namespace predategrip

@@ -1,7 +1,8 @@
-#include "json_exporter.h"
+﻿#include "json_exporter.h"
+
 #include <fstream>
-#include <sstream>
 #include <iomanip>
+#include <sstream>
 
 namespace predategrip {
 
@@ -84,13 +85,27 @@ std::string JSONExporter::escapeJSON(const std::string& value) const {
     std::ostringstream result;
     for (char c : value) {
         switch (c) {
-            case '"':  result << "\\\""; break;
-            case '\\': result << "\\\\"; break;
-            case '\b': result << "\\b"; break;
-            case '\f': result << "\\f"; break;
-            case '\n': result << "\\n"; break;
-            case '\r': result << "\\r"; break;
-            case '\t': result << "\\t"; break;
+            case '"':
+                result << "\\\"";
+                break;
+            case '\\':
+                result << "\\\\";
+                break;
+            case '\b':
+                result << "\\b";
+                break;
+            case '\f':
+                result << "\\f";
+                break;
+            case '\n':
+                result << "\\n";
+                break;
+            case '\r':
+                result << "\\r";
+                break;
+            case '\t':
+                result << "\\t";
+                break;
             default:
                 if (static_cast<unsigned char>(c) < 0x20) {
                     result << "\\u" << std::hex << std::setfill('0') << std::setw(4) << static_cast<int>(c);

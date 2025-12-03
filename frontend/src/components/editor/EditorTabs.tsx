@@ -1,4 +1,4 @@
-import { useQueryStore } from '../../store/queryStore'
+﻿import { useQueryStore } from '../../store/queryStore'
 import styles from './EditorTabs.module.css'
 
 export function EditorTabs() {
@@ -14,7 +14,7 @@ export function EditorTabs() {
             onClick={() => setActive(query.id)}
           >
             <span className={styles.tabName}>
-              {query.isDirty && <span className={styles.dirty}>●</span>}
+              {query.isDirty && <span className={styles.dirty}>笳・/span>}
               {query.name}
             </span>
             <button
@@ -25,8 +25,7 @@ export function EditorTabs() {
               }}
               title="Close tab"
             >
-              ×
-            </button>
+              ﾃ・            </button>
           </div>
         ))}
       </div>

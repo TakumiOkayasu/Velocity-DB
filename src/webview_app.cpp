@@ -1,76 +1,64 @@
-#include "webview_app.h"
+﻿#include "webview_app.h"
+
 #include "ipc_handler.h"
 #include "webview.h"
-#include <filesystem>
+
+#include <array>
+#include <format>
 
 namespace predategrip {
 
 WebViewApp::WebViewApp(HINSTANCE hInstance)
-    : m_hInstance(hInstance)
-    , m_ipcHandler(std::make_unique<IPCHandler>())
-{
-}
+    : m_hInstance(hInstance), m_ipcHandler(std::make_unique<IPCHandler>()), m_webview(nullptr) {}
 
-WebViewApp::~WebViewApp() {
-    if (m_webview) {
-        delete static_cast<webview::webview*>(m_webview);
-    }
-}
+WebViewApp::~WebViewApp() = default;
 
 int WebViewApp::run() {
-    initializeWebView();
-
-    auto* wv = static_cast<webview::webview*>(m_webview);
-    wv->run();
-
+    createAndConfigureWebView();
+    m_webview->run();
     return 0;
 }
 
-void WebViewApp::initializeWebView() {
-    auto* wv = new webview::webview(true, nullptr);
-    m_webview = wv;
+std::filesystem::path WebViewApp::computeExecutablePath() const {
+    std::array<wchar_t, MAX_PATH> pathBuffer{};
+    GetModuleFileNameW(m_hInstance, pathBuffer.data(), MAX_PATH);
+    return std::filesystem::path(pathBuffer.data());
+}
 
-    wv->set_title("Pre-DateGrip");
-    wv->set_size(1280, 800, WEBVIEW_HINT_NONE);
+std::expected<std::filesystem::path, std::string> WebViewApp::locateFrontendDirectory() const {
+    const auto executableDirectory = computeExecutablePath().parent_path();
 
-    // Bind IPC handler
-    wv->bind("invoke", [this](const std::string& request) -> std::string {
-        return m_ipcHandler->handle(request);
-    });
-
-    // Load frontend
-    auto exePath = getExecutablePath();
-    auto exeDir = std::filesystem::path(exePath).parent_path();
-
-    // Try multiple paths in order:
-    // 1. Built distribution: exe_dir/frontend/index.html (packaged app)
-    // 2. Development build: project_root/frontend/dist/index.html
-    std::vector<std::filesystem::path> searchPaths = {
-        exeDir / "frontend" / "index.html",
-        exeDir.parent_path().parent_path().parent_path() / "frontend" / "dist" / "index.html",  // Debug/Release build
-        exeDir.parent_path().parent_path() / "frontend" / "dist" / "index.html",
+    constexpr std::array<const wchar_t*, 3> searchPaths = {
+        L"frontend/index.html",
+        L"../../../frontend/dist/index.html",
+        L"../../frontend/dist/index.html",
     };
 
-    std::filesystem::path frontendPath;
-    for (const auto& path : searchPaths) {
-        if (std::filesystem::exists(path)) {
-            frontendPath = path;
-            break;
+    for (const auto* searchPath : searchPaths) {
+        auto candidatePath = executableDirectory / searchPath;
+        if (std::filesystem::exists(candidatePath)) {
+            return candidatePath;
         }
     }
 
-    if (!frontendPath.empty()) {
-        wv->navigate("file:///" + frontendPath.generic_string());
-    } else {
-        // Development mode: load from Vite dev server
-        wv->navigate("http://localhost:5173");
-    }
+    return std::unexpected("Frontend files not found");
 }
 
-std::wstring WebViewApp::getExecutablePath() const {
-    wchar_t path[MAX_PATH];
-    GetModuleFileNameW(m_hInstance, path, MAX_PATH);
-    return std::wstring(path);
+void WebViewApp::createAndConfigureWebView() {
+    m_webview = std::make_unique<webview::webview>(true, nullptr);
+
+    m_webview->set_title("Pre-DateGrip");
+    m_webview->set_size(1280, 800, WEBVIEW_HINT_NONE);
+
+    m_webview->bind(
+        "invoke", [this](const std::string& request) -> std::string { return m_ipcHandler->dispatchRequest(request); });
+
+    if (auto frontendPath = locateFrontendDirectory()) {
+        auto url = std::format("file:///{}", frontendPath->generic_string());
+        m_webview->navigate(url);
+    } else {
+        m_webview->navigate("http://localhost:5173");
+    }
 }
 
 }  // namespace predategrip

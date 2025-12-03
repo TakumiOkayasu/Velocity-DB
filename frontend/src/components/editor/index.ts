@@ -1,3 +1,3 @@
-// Barrel exports for editor components
+﻿// Barrel exports for editor components
 export { SqlEditor } from './SqlEditor'
 export { EditorTabs } from './EditorTabs'

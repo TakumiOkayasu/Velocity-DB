@@ -1,4 +1,4 @@
-import { create } from 'zustand'
+﻿import { create } from 'zustand'
 
 export interface CellChange {
   rowIndex: number
@@ -10,7 +10,7 @@ export interface CellChange {
 export interface RowChange {
   type: 'update' | 'insert' | 'delete'
   rowIndex: number
-  originalData?: Record<string, string | null>
+  originalData: Record<string, string | null>
   changes: Record<string, CellChange>
 }
 
@@ -22,7 +22,7 @@ interface EditState {
 
   // Pending changes
   pendingChanges: Map<number, RowChange>
-  deletedRows: Set<number>
+  deletedRows: Map<number, Record<string, string | null>>
   insertedRows: Map<number, Record<string, string | null>>
 
   // Edit mode
@@ -32,12 +32,12 @@ interface EditState {
   setTableContext: (tableName: string, schemaName: string, primaryKeyColumns: string[]) => void
   clearTableContext: () => void
 
-  updateCell: (rowIndex: number, columnName: string, originalValue: string | null, newValue: string | null) => void
+  updateCell: (rowIndex: number, columnName: string, originalValue: string | null, newValue: string | null, rowData?: Record<string, string | null>) => void
   revertCell: (rowIndex: number, columnName: string) => void
   revertRow: (rowIndex: number) => void
   revertAll: () => void
 
-  markRowDeleted: (rowIndex: number) => void
+  markRowDeleted: (rowIndex: number, rowData: Record<string, string | null>) => void
   unmarkRowDeleted: (rowIndex: number) => void
 
   addNewRow: (rowData: Record<string, string | null>) => number
@@ -65,7 +65,7 @@ export const useEditStore = create<EditState>((set, get) => ({
   schemaName: null,
   primaryKeyColumns: [],
   pendingChanges: new Map(),
-  deletedRows: new Set(),
+  deletedRows: new Map(),
   insertedRows: new Map(),
   isEditMode: false,
 
@@ -75,7 +75,7 @@ export const useEditStore = create<EditState>((set, get) => ({
       schemaName,
       primaryKeyColumns,
       pendingChanges: new Map(),
-      deletedRows: new Set(),
+      deletedRows: new Map(),
       insertedRows: new Map(),
     })
   },
@@ -86,12 +86,12 @@ export const useEditStore = create<EditState>((set, get) => ({
       schemaName: null,
       primaryKeyColumns: [],
       pendingChanges: new Map(),
-      deletedRows: new Set(),
+      deletedRows: new Map(),
       insertedRows: new Map(),
     })
   },
 
-  updateCell: (rowIndex, columnName, originalValue, newValue) => {
+  updateCell: (rowIndex, columnName, originalValue, newValue, rowData = {}) => {
     const { pendingChanges, insertedRows } = get()
 
     // Handle inserted rows separately
@@ -109,6 +109,7 @@ export const useEditStore = create<EditState>((set, get) => ({
       rowChange = {
         type: 'update',
         rowIndex,
+        originalData: { ...rowData },
         changes: {},
       }
     }
@@ -153,7 +154,7 @@ export const useEditStore = create<EditState>((set, get) => ({
   revertRow: (rowIndex) => {
     const { pendingChanges, deletedRows, insertedRows } = get()
     const newChanges = new Map(pendingChanges)
-    const newDeleted = new Set(deletedRows)
+    const newDeleted = new Map(deletedRows)
     const newInserted = new Map(insertedRows)
 
     newChanges.delete(rowIndex)
@@ -170,17 +171,17 @@ export const useEditStore = create<EditState>((set, get) => ({
   revertAll: () => {
     set({
       pendingChanges: new Map(),
-      deletedRows: new Set(),
+      deletedRows: new Map(),
       insertedRows: new Map(),
     })
   },
 
-  markRowDeleted: (rowIndex) => {
+  markRowDeleted: (rowIndex, rowData) => {
     const { deletedRows, pendingChanges } = get()
-    const newDeleted = new Set(deletedRows)
+    const newDeleted = new Map(deletedRows)
     const newChanges = new Map(pendingChanges)
 
-    newDeleted.add(rowIndex)
+    newDeleted.set(rowIndex, { ...rowData })
     newChanges.delete(rowIndex) // Remove any pending edits for deleted row
 
     set({ deletedRows: newDeleted, pendingChanges: newChanges })
@@ -188,7 +189,7 @@ export const useEditStore = create<EditState>((set, get) => ({
 
   unmarkRowDeleted: (rowIndex) => {
     const { deletedRows } = get()
-    const newDeleted = new Set(deletedRows)
+    const newDeleted = new Map(deletedRows)
     newDeleted.delete(rowIndex)
     set({ deletedRows: newDeleted })
   },
@@ -254,16 +255,26 @@ export const useEditStore = create<EditState>((set, get) => ({
         })
         .join(', ')
 
-      // Build WHERE clause using primary keys (simplified - needs original row data)
-      const whereClauses = primaryKeyColumns
-        .map((pk) => {
-          const change = rowChange.changes[pk]
-          const value = change?.originalValue ?? null
-          return value === null ? `[${pk}] IS NULL` : `[${pk}] = N'${value.replace(/'/g, "''")}'`
+      // Build WHERE clause using primary keys or all original data columns
+      const whereColumns = primaryKeyColumns.length > 0
+        ? primaryKeyColumns
+        : Object.keys(rowChange.originalData).filter((k) => !k.startsWith('__'))
+
+      const whereClauses = whereColumns
+        .map((col) => {
+          // First check if column was changed, use original value
+          const change = rowChange.changes[col]
+          const value = change?.originalValue ?? rowChange.originalData[col] ?? null
+          if (value === null) {
+            return `[${col}] IS NULL`
+          }
+          return `[${col}] = N'${String(value).replace(/'/g, "''")}'`
         })
         .join(' AND ')
 
-      statements.push(`UPDATE ${fullTableName} SET ${setClauses} WHERE ${whereClauses};`)
+      if (whereClauses) {
+        statements.push(`UPDATE ${fullTableName} SET ${setClauses} WHERE ${whereClauses};`)
+      }
     })
 
     return statements
@@ -290,15 +301,31 @@ export const useEditStore = create<EditState>((set, get) => ({
   },
 
   generateDeleteSQL: () => {
-    const { tableName, schemaName, deletedRows } = get()
+    const { tableName, schemaName, primaryKeyColumns, deletedRows } = get()
     if (!tableName) return []
 
     const fullTableName = schemaName ? `[${schemaName}].[${tableName}]` : `[${tableName}]`
     const statements: string[] = []
 
-    deletedRows.forEach((rowIndex) => {
-      // This is simplified - in a real implementation, we'd need the original row data
-      statements.push(`-- DELETE FROM ${fullTableName} WHERE (row index: ${rowIndex});`)
+    deletedRows.forEach((rowData) => {
+      // Build WHERE clause using primary key columns or all columns if no PK
+      const whereColumns = primaryKeyColumns.length > 0
+        ? primaryKeyColumns
+        : Object.keys(rowData).filter((k) => !k.startsWith('__'))
+
+      const whereClauses = whereColumns
+        .map((col) => {
+          const value = rowData[col]
+          if (value === null || value === undefined) {
+            return `[${col}] IS NULL`
+          }
+          return `[${col}] = N'${String(value).replace(/'/g, "''")}'`
+        })
+        .join(' AND ')
+
+      if (whereClauses) {
+        statements.push(`DELETE FROM ${fullTableName} WHERE ${whereClauses};`)
+      }
     })
 
     return statements

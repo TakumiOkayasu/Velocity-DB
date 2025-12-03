@@ -1,4 +1,4 @@
-import { memo } from 'react'
+﻿import { memo } from 'react'
 import { Handle, Position } from '@xyflow/react'
 import type { Column } from '../../types'
 import styles from './TableNode.module.css'
@@ -24,14 +24,14 @@ export const TableNode = memo(function TableNode({ data, selected }: TableNodePr
       <Handle type="target" position={Position.Left} className={styles.handle} />
 
       <div className={styles.header}>
-        <span className={styles.icon}>📋</span>
+        <span className={styles.icon}>搭</span>
         <span className={styles.tableName}>{tableName}</span>
       </div>
 
       <div className={styles.columns}>
         {primaryKeys.map((col) => (
           <div key={col.name} className={`${styles.column} ${styles.primaryKey}`}>
-            <span className={styles.keyIcon}>🔑</span>
+            <span className={styles.keyIcon}>泊</span>
             <span className={styles.columnName}>{col.name}</span>
             <span className={styles.columnType}>{col.type}</span>
           </div>

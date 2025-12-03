@@ -1,14 +1,15 @@
-#pragma once
+﻿#pragma once
 
 #include <string>
+#include <string_view>
 
 namespace predategrip {
 
 class JsonUtils {
 public:
-    static std::string successResponse(const std::string& data);
-    static std::string errorResponse(const std::string& message);
-    static std::string escapeString(const std::string& str);
+    [[nodiscard]] static std::string successResponse(std::string_view data);
+    [[nodiscard]] static std::string errorResponse(std::string_view message);
+    [[nodiscard]] static std::string escapeString(std::string_view str);
 };
 
 }  // namespace predategrip

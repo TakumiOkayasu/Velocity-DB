@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, useDeferredValue } from 'react'
+﻿import { useState, useCallback, useEffect, useRef, useDeferredValue } from 'react'
 import { useConnectionStore } from '../../store/connectionStore'
 import { bridge } from '../../api/bridge'
 import styles from './SearchDialog.module.css'
@@ -104,7 +104,7 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
         <div className={styles.searchContainer}>
-          <span className={styles.searchIcon}>🔍</span>
+          <span className={styles.searchIcon}>剥</span>
           <input
             ref={inputRef}
             type="text"
@@ -114,7 +114,7 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
             placeholder="Search tables, views, procedures..."
             className={styles.searchInput}
           />
-          {(isSearching || isStale) && <span className={styles.spinner}>⏳</span>}
+          {(isSearching || isStale) && <span className={styles.spinner}>竢ｳ</span>}
         </div>
 
         <div className={styles.results}>
@@ -151,7 +151,7 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
 
         <div className={styles.footer}>
           <span className={styles.hint}>
-            ↑↓ to navigate, Enter to select, Esc to close
+            竊鯛・ to navigate, Enter to select, Esc to close
           </span>
           {activeConnection && (
             <span className={styles.connectionInfo}>
@@ -167,17 +167,17 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
 function getIcon(type: SearchResult['type']): string {
   switch (type) {
     case 'table':
-      return '📋'
+      return '搭'
     case 'view':
-      return '👁'
+      return '早'
     case 'procedure':
-      return '⚙️'
+      return '笞呻ｸ・
     case 'function':
-      return 'ƒ'
+      return 'ﾆ・
     case 'column':
-      return '│'
+      return '笏・
     default:
-      return '📄'
+      return '塘'
   }
 }
 

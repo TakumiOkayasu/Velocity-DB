@@ -1,4 +1,4 @@
-.container {
+﻿.container {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -95,6 +95,12 @@
 .changesIndicator {
   color: #dcdcaa;
   font-size: 11px;
+}
+
+.errorIndicator {
+  color: #f44747;
+  font-size: 11px;
+  margin-left: 8px;
 }
 
 .toolbarSpacer {

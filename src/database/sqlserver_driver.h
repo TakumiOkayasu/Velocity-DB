@@ -1,20 +1,22 @@
-#pragma once
+﻿#pragma once
 
-#include <string>
-#include <vector>
-#include <memory>
 #include <Windows.h>
 #include <sql.h>
 #include <sqlext.h>
+
+#include <expected>
+#include <string>
+#include <string_view>
+#include <vector>
 
 namespace predategrip {
 
 struct ColumnInfo {
     std::string name;
     std::string type;
-    int size;
-    bool nullable;
-    bool isPrimaryKey;
+    int size = 0;
+    bool nullable = true;
+    bool isPrimaryKey = false;
 };
 
 struct ResultRow {
@@ -24,8 +26,8 @@ struct ResultRow {
 struct ResultSet {
     std::vector<ColumnInfo> columns;
     std::vector<ResultRow> rows;
-    int64_t affectedRows;
-    double executionTimeMs;
+    int64_t affectedRows = 0;
+    double executionTimeMs = 0.0;
 };
 
 class SQLServerDriver {
@@ -35,18 +37,21 @@ public:
 
     SQLServerDriver(const SQLServerDriver&) = delete;
     SQLServerDriver& operator=(const SQLServerDriver&) = delete;
+    SQLServerDriver(SQLServerDriver&&) = delete;
+    SQLServerDriver& operator=(SQLServerDriver&&) = delete;
 
-    bool connect(const std::string& connectionString);
+    [[nodiscard]] bool connect(std::string_view connectionString);
     void disconnect();
-    bool isConnected() const;
+    [[nodiscard]] bool isConnected() const noexcept { return m_connected; }
 
-    ResultSet execute(const std::string& sql);
+    [[nodiscard]] ResultSet execute(std::string_view sql);
     void cancel();
 
-    std::string getLastError() const;
+    [[nodiscard]] std::string_view getLastError() const noexcept { return m_lastError; }
 
 private:
-    void checkError(SQLRETURN ret, SQLSMALLINT handleType, SQLHANDLE handle);
+    void storeODBCDiagnosticMessage(SQLRETURN returnCode, SQLSMALLINT odbcHandleType, SQLHANDLE odbcHandle);
+    [[nodiscard]] static std::string convertSQLTypeToDisplayName(SQLSMALLINT dataType);
 
     SQLHENV m_env = SQL_NULL_HENV;
     SQLHDBC m_dbc = SQL_NULL_HDBC;
