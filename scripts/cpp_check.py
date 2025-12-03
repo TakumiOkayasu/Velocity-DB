@@ -163,6 +163,36 @@ def run_lint(src_dir: Path, build_type: str, env: dict) -> int:
     return 0
 
 
+def get_cached_generator(build_dir: Path) -> str | None:
+    """Get the generator used in existing CMake cache."""
+    cmake_cache = build_dir / "CMakeCache.txt"
+    if not cmake_cache.exists():
+        return None
+
+    try:
+        content = cmake_cache.read_text(encoding='utf-8', errors='replace')
+        for line in content.splitlines():
+            if line.startswith("CMAKE_GENERATOR:"):
+                return line.split("=", 1)[1].strip()
+    except Exception:
+        pass
+    return None
+
+
+def clear_build_cache(build_dir: Path) -> None:
+    """Clear CMake cache files."""
+    cache_file = build_dir / "CMakeCache.txt"
+    cmake_files = build_dir / "CMakeFiles"
+
+    if cache_file.exists():
+        cache_file.unlink()
+        print(f"  Removed: {cache_file}")
+
+    if cmake_files.exists():
+        shutil.rmtree(cmake_files)
+        print(f"  Removed: {cmake_files}")
+
+
 def run_build(project_root: Path, build_type: str, env: dict) -> int:
     """Build the C++ project."""
     print("\n" + "=" * 60)
@@ -180,6 +210,15 @@ def run_build(project_root: Path, build_type: str, env: dict) -> int:
     else:
         generator = "Visual Studio 17 2022"
         print("Using generator: Visual Studio 17 2022")
+
+    # Check for generator mismatch
+    cached_generator = get_cached_generator(build_dir)
+    if cached_generator and cached_generator != generator:
+        print(f"\n[!] Generator mismatch detected:")
+        print(f"    Cached: {cached_generator}")
+        print(f"    Current: {generator}")
+        print("    Clearing CMake cache...")
+        clear_build_cache(build_dir)
 
     # Configure
     if ninja:

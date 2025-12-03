@@ -159,6 +159,38 @@ def check_tools(env: dict[str, str]) -> bool:
     return True
 
 
+def get_cached_generator(build_dir: Path) -> str | None:
+    """Get the generator used in existing CMake cache."""
+    cmake_cache = build_dir / "CMakeCache.txt"
+    if not cmake_cache.exists():
+        return None
+
+    try:
+        content = cmake_cache.read_text(encoding='utf-8', errors='replace')
+        for line in content.splitlines():
+            if line.startswith("CMAKE_GENERATOR:"):
+                return line.split("=", 1)[1].strip()
+    except Exception:
+        pass
+    return None
+
+
+def clear_build_cache(build_dir: Path) -> None:
+    """Clear CMake cache files."""
+    import shutil
+
+    cache_file = build_dir / "CMakeCache.txt"
+    cmake_files = build_dir / "CMakeFiles"
+
+    if cache_file.exists():
+        cache_file.unlink()
+        print(f"  Removed: {cache_file}")
+
+    if cmake_files.exists():
+        shutil.rmtree(cmake_files)
+        print(f"  Removed: {cmake_files}")
+
+
 def find_executable(build_dir: Path, build_type: str) -> Path | None:
     """Find the built executable."""
     # Possible locations
@@ -223,21 +255,33 @@ def main():
     # Create build directory
     build_dir.mkdir(exist_ok=True)
 
-    # Configure with CMake
-    print("\n[3/4] Configuring with CMake...")
+    # Determine generator
     if ninja_available:
+        generator = "Ninja"
         cmake_cmd = [
             "cmake", "-B", "build",
             "-G", "Ninja",
             f"-DCMAKE_BUILD_TYPE={build_type}"
         ]
     else:
+        generator = "Visual Studio 17 2022"
         cmake_cmd = [
             "cmake", "-B", "build",
             "-G", "Visual Studio 17 2022",
             "-A", "x64"
         ]
 
+    # Check for generator mismatch
+    cached_generator = get_cached_generator(build_dir)
+    if cached_generator and cached_generator != generator:
+        print(f"\n[!] Generator mismatch detected:")
+        print(f"    Cached: {cached_generator}")
+        print(f"    Current: {generator}")
+        print("    Clearing CMake cache...")
+        clear_build_cache(build_dir)
+
+    # Configure with CMake
+    print("\n[3/4] Configuring with CMake...")
     if not run_command(cmake_cmd, "CMake Configure", env):
         print("\nERROR: CMake configuration failed!")
         sys.exit(1)
