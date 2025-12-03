@@ -83,7 +83,7 @@
 }
 
 .checkboxLabel {
-  display: flex !important;
+  display: flex;
   align-items: center;
   gap: 8px;
   cursor: pointer;
@@ -136,7 +136,7 @@
 
 .testButton {
   background: transparent;
-  border: 1px solid var(--border-color, #3c3f41) !important;
+  border: 1px solid var(--border-color, #3c3f41);
   color: var(--text-primary, #bbbbbb);
 }
 

@@ -248,8 +248,7 @@ export function ResultGrid() {
       if (!focusedCell) return;
 
       const startRow = focusedCell.rowIndex;
-      const startColIndex =
-        gridApi.getColumns()?.findIndex((col) => col === focusedCell.column) ?? 0;
+      const startColIndex = gridApi.getColumns()?.indexOf(focusedCell.column) ?? 0;
       const columns = gridApi.getColumns() ?? [];
 
       rows.forEach((row, rowOffset) => {

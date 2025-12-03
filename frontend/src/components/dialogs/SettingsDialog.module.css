@@ -188,6 +188,6 @@
 }
 
 .saveButton {
-  background-color: var(--accent-color) !important;
-  border-color: var(--accent-color) !important;
+  background-color: var(--accent-color);
+  border-color: var(--accent-color);
 }

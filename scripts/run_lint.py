@@ -40,15 +40,20 @@ def main():
     print("[Frontend] Running Biome lint...")
     print("=" * 60 + "\n")
 
-    if not (frontend_dir / "node_modules").exists():
-        print("Installing npm dependencies...")
-        if not run_command(["npm", "install"], cwd=frontend_dir):
-            print("ERROR: npm install failed")
-            sys.exit(1)
+    biome = shutil.which("biome")
+    if not biome:
+        print("ERROR: biome not found in PATH")
+        print("  Install: npm install -g @biomejs/biome")
+        print("  Or: winget install biomejs.biome")
+        sys.exit(1)
 
-    if not run_command(["npm", "run", "lint"], cwd=frontend_dir):
+    # Show version
+    subprocess.run([biome, "--version"], shell=True)
+    print()
+
+    if not run_command([biome, "check", str(frontend_dir / "src")], cwd=frontend_dir):
         print("\n[Frontend] Lint failed")
-        print("To auto-fix, run: cd frontend && npm run lint:fix")
+        print(f"To auto-fix, run: biome check --write {frontend_dir / 'src'}")
         errors += 1
     else:
         print("\n[Frontend] Lint passed")

@@ -45,7 +45,7 @@
 }
 
 .nullCell {
-  color: #888 !important;
+  color: #888;
   font-style: italic;
   background-color: rgba(128, 128, 128, 0.1);
 }
@@ -84,12 +84,12 @@
 }
 
 .applyButton {
-  background-color: #2d5a27 !important;
-  border-color: #3d7a37 !important;
+  background-color: #2d5a27;
+  border-color: #3d7a37;
 }
 
 .applyButton:hover:not(:disabled) {
-  background-color: #3d7a37 !important;
+  background-color: #3d7a37;
 }
 
 .changesIndicator {
@@ -108,19 +108,19 @@
 }
 
 .changedCell {
-  background-color: rgba(220, 220, 170, 0.2) !important;
-  border-left: 2px solid #dcdcaa !important;
+  background-color: rgba(220, 220, 170, 0.2);
+  border-left: 2px solid #dcdcaa;
 }
 
 .deletedRow {
-  background-color: rgba(244, 71, 71, 0.2) !important;
+  background-color: rgba(244, 71, 71, 0.2);
   text-decoration: line-through;
-  color: #888 !important;
+  color: #888;
 }
 
 .insertedRow {
-  background-color: rgba(106, 153, 85, 0.2) !important;
-  border-left: 2px solid #6a9955 !important;
+  background-color: rgba(106, 153, 85, 0.2);
+  border-left: 2px solid #6a9955;
 }
 
 .editModeIndicator {

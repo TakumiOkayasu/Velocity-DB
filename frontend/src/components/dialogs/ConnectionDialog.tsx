@@ -107,7 +107,7 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
             <input
               type="number"
               value={config.port}
-              onChange={(e) => handleChange('port', Number.parseInt(e.target.value) || 1433)}
+              onChange={(e) => handleChange('port', Number.parseInt(e.target.value, 10) || 1433)}
             />
           </div>
 

@@ -18,6 +18,7 @@ Steps:
 import subprocess
 import sys
 import os
+import shutil
 from pathlib import Path
 
 
@@ -94,36 +95,61 @@ def main():
     print("# Step 3: Frontend (React/TypeScript)")
     print("#" * 60)
 
-    # Install dependencies if needed
-    if not (frontend_dir / "node_modules").exists():
-        print("\nInstalling npm dependencies...")
-        if not run_command(["npm", "install"], "npm install", cwd=frontend_dir):
-            print("ERROR: npm install failed")
+    # Check for Biome in PATH
+    biome = shutil.which("biome")
+    if not biome:
+        print("ERROR: biome not found in PATH")
+        print("  Install: npm install -g @biomejs/biome")
+        print("  Or: winget install biomejs.biome")
+        total_errors += 1
+    else:
+        # Show version
+        subprocess.run([biome, "--version"], shell=True)
+
+        # Biome lint
+        print("\n[Frontend] Running Biome lint...")
+        if not run_command([biome, "check", str(frontend_dir / "src")], "Biome lint", cwd=frontend_dir):
+            print("WARNING: Biome lint found issues")
             total_errors += 1
+        else:
+            print("Biome lint passed.")
 
-    # Biome lint
-    print("\n[Frontend] Running Biome lint...")
-    if not run_command(["npm", "run", "lint"], "Biome lint", cwd=frontend_dir):
-        print("WARNING: Biome lint found issues")
-        total_errors += 1
-    else:
-        print("Biome lint passed.")
-
-    # TypeScript type check
+    # TypeScript type check (requires node_modules for tsc)
     print("\n[Frontend] Running TypeScript type check...")
-    if not run_command(["npm", "run", "typecheck"], "TypeScript", cwd=frontend_dir):
-        print("WARNING: TypeScript type check found issues")
-        total_errors += 1
+    tsc = frontend_dir / "node_modules" / ".bin" / "tsc"
+    if not tsc.exists():
+        # Fallback: try npx or npm run
+        if not run_command(["npm", "run", "typecheck"], "TypeScript", cwd=frontend_dir):
+            print("WARNING: TypeScript type check found issues")
+            total_errors += 1
+        else:
+            print("TypeScript type check passed.")
     else:
-        print("TypeScript type check passed.")
+        if not run_command([str(tsc), "--noEmit"], "TypeScript", cwd=frontend_dir):
+            print("WARNING: TypeScript type check found issues")
+            total_errors += 1
+        else:
+            print("TypeScript type check passed.")
 
-    # Build
+    # Build (requires node_modules for vite)
     print("\n[Frontend] Building frontend...")
-    if not run_command(["npm", "run", "build"], "Frontend build", cwd=frontend_dir):
-        print("ERROR: Frontend build failed")
-        total_errors += 1
+    vite = frontend_dir / "node_modules" / ".bin" / "vite"
+    if not vite.exists():
+        if not run_command(["npm", "run", "build"], "Frontend build", cwd=frontend_dir):
+            print("ERROR: Frontend build failed")
+            total_errors += 1
+        else:
+            print("Frontend build completed.")
     else:
-        print("Frontend build completed.")
+        # tsc && vite build
+        if not run_command([str(tsc)], "TypeScript compile", cwd=frontend_dir):
+            print("ERROR: TypeScript compile failed")
+            total_errors += 1
+        elif not run_command([str(vite), "build"], "Vite build", cwd=frontend_dir):
+            print("ERROR: Vite build failed")
+            total_errors += 1
+        else:
+            print("Frontend build completed.")
 
     # Summary
     print("\n" + "*" * 60)

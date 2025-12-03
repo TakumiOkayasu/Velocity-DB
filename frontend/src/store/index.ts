@@ -1,26 +1,23 @@
 // Barrel exports for stores
 export {
-  useConnectionStore,
-  useConnections,
   useActiveConnection,
   useConnectionActions,
+  useConnectionStore,
+  useConnections,
 } from './connectionStore';
-
-export {
-  useQueryStore,
-  useQueries,
-  useActiveQuery,
-  useQueryResult,
-  useQueryActions,
-} from './queryStore';
-
-export {
-  useHistoryStore,
-  useHistoryItems,
-  useHistorySearch,
-  useHistoryActions,
-} from './historyStore';
-
 export { useEditStore } from './editStore';
 export { useERDiagramStore } from './erDiagramStore';
+export {
+  useHistoryActions,
+  useHistoryItems,
+  useHistorySearch,
+  useHistoryStore,
+} from './historyStore';
+export {
+  useActiveQuery,
+  useQueries,
+  useQueryActions,
+  useQueryResult,
+  useQueryStore,
+} from './queryStore';
 export { useSessionStore } from './sessionStore';

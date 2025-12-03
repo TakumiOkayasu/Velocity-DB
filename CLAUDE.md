@@ -66,6 +66,7 @@ Phase 0 (CI/CD foundation) is complete. The project structure is implemented wit
 - **Linter/Formatter**: clang-format, clang-tidy
 
 ### Frontend (React + TypeScript)
+- **Node.js**: 24.x (see `.nvmrc`)
 - **Build**: Vite
 - **UI**: React 18
 - **Editor**: Monaco Editor
@@ -73,7 +74,7 @@ Phase 0 (CI/CD foundation) is complete. The project structure is implemented wit
 - **Styling**: CSS Modules + DataGrip dark theme
 - **State**: Zustand
 - **ER Diagram**: React Flow
-- **Linter/Formatter**: Biome (replaces ESLint + Prettier)
+- **Linter/Formatter**: Biome 2.3.8 (`winget install biomejs.biome`)
 
 ### Testing
 - **C++**: Google Test

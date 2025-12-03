@@ -39,12 +39,12 @@
 }
 
 .executeButton {
-  background-color: #2d5a27 !important;
-  border-color: #3d7a37 !important;
+  background-color: #2d5a27;
+  border-color: #3d7a37;
 }
 
 .executeButton:hover:not(:disabled) {
-  background-color: #3d7a37 !important;
+  background-color: #3d7a37;
 }
 
 .mainContent {

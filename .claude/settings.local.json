@@ -53,7 +53,8 @@
       "Bash(python:*)",
       "Bash(powershell -NoProfile -Command:*)",
       "Bash(find:*)",
-      "Bash(\"C:\\Program Files\\LLVM\\bin\\clang-format.exe\" -i -style=file \"D:\\prog\\Pre-DateGrip\\src\\ipc_handler.cpp\")"
+      "Bash(\"C:\\Program Files\\LLVM\\bin\\clang-format.exe\" -i -style=file \"D:\\prog\\Pre-DateGrip\\src\\ipc_handler.cpp\")",
+      "WebFetch(domain:apt.llvm.org)"
     ],
     "deny": [],
     "ask": []

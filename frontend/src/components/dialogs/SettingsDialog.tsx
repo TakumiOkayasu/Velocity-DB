@@ -102,7 +102,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                     type="number"
                     value={settings.editor.fontSize}
                     onChange={(e) =>
-                      updateSetting('editor', 'fontSize', Number.parseInt(e.target.value) || 14)
+                      updateSetting('editor', 'fontSize', Number.parseInt(e.target.value, 10) || 14)
                     }
                     min={8}
                     max={32}
@@ -113,7 +113,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                   <select
                     value={settings.editor.tabSize}
                     onChange={(e) =>
-                      updateSetting('editor', 'tabSize', Number.parseInt(e.target.value))
+                      updateSetting('editor', 'tabSize', Number.parseInt(e.target.value, 10))
                     }
                   >
                     <option value={2}>2 spaces</option>
@@ -162,7 +162,11 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                     type="number"
                     value={settings.query.timeout}
                     onChange={(e) =>
-                      updateSetting('query', 'timeout', Number.parseInt(e.target.value) || 30000)
+                      updateSetting(
+                        'query',
+                        'timeout',
+                        Number.parseInt(e.target.value, 10) || 30000
+                      )
                     }
                     min={1000}
                     max={600000}
@@ -175,7 +179,11 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                     type="number"
                     value={settings.query.maxRows}
                     onChange={(e) =>
-                      updateSetting('query', 'maxRows', Number.parseInt(e.target.value) || 10000)
+                      updateSetting(
+                        'query',
+                        'maxRows',
+                        Number.parseInt(e.target.value, 10) || 10000
+                      )
                     }
                     min={100}
                     max={1000000}
