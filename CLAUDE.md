@@ -66,7 +66,7 @@ Phase 0 (CI/CD foundation) is complete. The project structure is implemented wit
 - **Linter/Formatter**: clang-format, clang-tidy
 
 ### Frontend (React + TypeScript)
-- **Node.js**: 24.x (see `.nvmrc`)
+- **Node.js**: 22.x LTS (see `.nvmrc`)
 - **Build**: Vite
 - **UI**: React 18
 - **Editor**: Monaco Editor
