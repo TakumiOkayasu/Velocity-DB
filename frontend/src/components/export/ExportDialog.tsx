@@ -138,7 +138,7 @@ export function ExportDialog({ isOpen, onClose, resultSet }: ExportDialogProps) 
         <div className={styles.header}>
           <h2>Export Data</h2>
           <button className={styles.closeButton} onClick={onClose}>
-            ﾃ・{' '}
+            {'\u2715'}
           </button>
         </div>
 

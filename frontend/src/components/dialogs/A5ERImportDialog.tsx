@@ -81,7 +81,7 @@ export function A5ERImportDialog({ isOpen, onClose, onImport }: A5ERImportDialog
         <div className={styles.header}>
           <h2>Import A5:ER File</h2>
           <button className={styles.closeButton} onClick={onClose}>
-            ﾃ・{' '}
+            {'\u2715'}
           </button>
         </div>
 

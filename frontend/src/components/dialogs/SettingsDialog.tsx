@@ -61,7 +61,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
         <div className={styles.header}>
           <h2>Settings</h2>
           <button className={styles.closeButton} onClick={onClose}>
-            ﾃ・{' '}
+            {'\u2715'}
           </button>
         </div>
 

@@ -13,6 +13,12 @@ interface TableNodeProps {
   selected?: boolean;
 }
 
+// Unicode icons
+const icons = {
+  table: '\uD83D\uDCCB', // 📋
+  key: '\uD83D\uDD11',   // 🔑
+};
+
 export const TableNode = memo(function TableNode({ data, selected }: TableNodeProps) {
   const { tableName, columns } = data;
 
@@ -24,14 +30,14 @@ export const TableNode = memo(function TableNode({ data, selected }: TableNodePr
       <Handle type="target" position={Position.Left} className={styles.handle} />
 
       <div className={styles.header}>
-        <span className={styles.icon}>搭</span>
+        <span className={styles.icon}>{icons.table}</span>
         <span className={styles.tableName}>{tableName}</span>
       </div>
 
       <div className={styles.columns}>
         {primaryKeys.map((col) => (
           <div key={col.name} className={`${styles.column} ${styles.primaryKey}`}>
-            <span className={styles.keyIcon}>泊</span>
+            <span className={styles.keyIcon}>{icons.key}</span>
             <span className={styles.columnName}>{col.name}</span>
             <span className={styles.columnType}>{col.type}</span>
           </div>

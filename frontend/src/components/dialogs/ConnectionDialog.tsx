@@ -78,7 +78,7 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
         <div className={styles.header}>
           <h2>New Connection</h2>
           <button className={styles.closeButton} onClick={onClose}>
-            &times;
+            {'\u00D7'}
           </button>
         </div>
 

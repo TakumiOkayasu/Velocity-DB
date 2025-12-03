@@ -130,6 +130,18 @@ export function MainLayout() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleNewQuery, handleExecute, handleFormat, handleOpenSearch, handleOpenSettings]);
 
+  // Unicode icons (using HTML entities for reliability)
+  const icons = {
+    play: '\u25B6',      // ▶
+    hourglass: '\u23F3', // ⏳
+    left: '\u25C0',      // ◀
+    right: '\u25B6',     // ▶
+    up: '\u25B2',        // ▲
+    down: '\u25BC',      // ▼
+    search: '\uD83D\uDD0D', // 🔍
+    gear: '\u2699',      // ⚙
+  };
+
   return (
     <div className={styles.container}>
       <header className={styles.toolbar}>
@@ -150,7 +162,7 @@ export function MainLayout() {
             title="Execute (Ctrl+Enter)"
             className={styles.executeButton}
           >
-            {isExecuting ? '竢ｳ' : '笆ｶ'} Execute
+            {isExecuting ? `${icons.hourglass} Running...` : `${icons.play} Execute`}
           </button>
         </div>
         <div className={styles.toolbarGroup}>
@@ -167,21 +179,21 @@ export function MainLayout() {
             onClick={() => setIsLeftPanelVisible(!isLeftPanelVisible)}
             title="Toggle Object Explorer"
           >
-            {isLeftPanelVisible ? '笳' : '笆ｶ'} Objects
+            {isLeftPanelVisible ? icons.left : icons.right} Objects
           </button>
           <button
             onClick={() => setIsBottomPanelVisible(!isBottomPanelVisible)}
             title="Toggle Results Panel"
           >
-            {isBottomPanelVisible ? '笆ｼ' : '笆ｲ'} Results
+            {isBottomPanelVisible ? icons.down : icons.up} Results
           </button>
         </div>
         <div className={styles.toolbarGroup}>
           <button onClick={handleOpenSearch} title="Search (Ctrl+Shift+P)">
-            剥 Search
+            {icons.search} Search
           </button>
           <button onClick={handleOpenSettings} title="Settings (Ctrl+,)">
-            笞呻ｸ・Settings
+            {icons.gear} Settings
           </button>
         </div>
       </header>

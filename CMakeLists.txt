@@ -9,6 +9,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if(WIN32)
     add_definitions(-DUNICODE -D_UNICODE)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    # Define _DEBUG for Debug builds (MSVC normally does this, but ensure it for Ninja)
+    add_compile_definitions($<$<CONFIG:Debug>:_DEBUG>)
 endif()
 
 # Options

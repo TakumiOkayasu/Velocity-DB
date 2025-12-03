@@ -106,7 +106,7 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
         <div className={styles.searchContainer}>
-          <span className={styles.searchIcon}>🔍</span>
+          <span className={styles.searchIcon}>{'\uD83D\uDD0D'}</span>
           <input
             ref={inputRef}
             type="text"
@@ -116,7 +116,7 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
             placeholder="Search tables, views, procedures..."
             className={styles.searchInput}
           />
-          {(isSearching || isStale) && <span className={styles.spinner}>⏳</span>}
+          {(isSearching || isStale) && <span className={styles.spinner}>{'\u23F3'}</span>}
         </div>
 
         <div className={styles.results}>
@@ -163,17 +163,17 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
 function getIcon(type: SearchResult['type']): string {
   switch (type) {
     case 'table':
-      return '📋';
+      return '\uD83D\uDCCB'; // 📋
     case 'view':
-      return '👁';
+      return '\uD83D\uDC41'; // 👁
     case 'procedure':
-      return '⚙️';
+      return '\u2699\uFE0F'; // ⚙️
     case 'function':
-      return 'ƒ';
+      return '\u0192'; // ƒ
     case 'column':
-      return '│';
+      return '\u2502'; // │
     default:
-      return '📄';
+      return '\uD83D\uDCC4'; // 📄
   }
 }
 

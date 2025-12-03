@@ -55,8 +55,14 @@ void WebViewApp::createAndConfigureWebView() {
 
     if (auto frontendPath = locateFrontendDirectory()) {
         auto url = std::format("file:///{}", frontendPath->generic_string());
+#ifdef _DEBUG
+        MessageBoxA(nullptr, url.c_str(), "Navigating to URL", MB_OK);
+#endif
         m_webview->navigate(url);
     } else {
+#ifdef _DEBUG
+        MessageBoxA(nullptr, "Frontend not found, falling back to localhost:5173", "Debug Info", MB_OK);
+#endif
         m_webview->navigate("http://localhost:5173");
     }
 }

@@ -65,7 +65,7 @@ export function ExecutionPlanDialog({ isOpen, onClose, sql }: ExecutionPlanDialo
         <div className={styles.header}>
           <h2>Execution Plan</h2>
           <button className={styles.closeButton} onClick={onClose}>
-            ﾃ・{' '}
+            {'\u2715'}
           </button>
         </div>
 

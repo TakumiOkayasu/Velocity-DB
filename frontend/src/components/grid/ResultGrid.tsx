@@ -305,7 +305,7 @@ export function ResultGrid() {
   if (isExecuting) {
     return (
       <div className={styles.message}>
-        <span className={styles.spinner}>竢ｳ</span>
+        <span className={styles.spinner}>{'\u23F3'}</span>
         <span>Executing query...</span>
       </div>
     );
