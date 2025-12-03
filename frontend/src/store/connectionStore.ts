@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useShallow } from 'zustand/react/shallow'
 import type { Connection } from '../types'
 import { bridge } from '../api/bridge'
 
@@ -98,3 +99,24 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     set({ error: null })
   },
 }))
+
+// Optimized selectors to prevent unnecessary re-renders
+export const useConnections = () =>
+  useConnectionStore(useShallow((state) => state.connections))
+
+export const useActiveConnection = () =>
+  useConnectionStore((state) => {
+    const connection = state.connections.find((c) => c.id === state.activeConnectionId)
+    return connection ?? null
+  })
+
+export const useConnectionActions = () =>
+  useConnectionStore(
+    useShallow((state) => ({
+      addConnection: state.addConnection,
+      removeConnection: state.removeConnection,
+      setActive: state.setActive,
+      testConnection: state.testConnection,
+      clearError: state.clearError,
+    }))
+  )

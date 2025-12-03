@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useShallow } from 'zustand/react/shallow'
 import type { Query, ResultSet } from '../types'
 import { bridge } from '../api/bridge'
 
@@ -193,3 +194,32 @@ export const useQueryStore = create<QueryState>((set, get) => ({
     set({ error: null })
   },
 }))
+
+// Optimized selectors to prevent unnecessary re-renders
+export const useQueries = () =>
+  useQueryStore(useShallow((state) => state.queries))
+
+export const useActiveQuery = () =>
+  useQueryStore((state) => {
+    const query = state.queries.find((q) => q.id === state.activeQueryId)
+    return query ?? null
+  })
+
+export const useQueryResult = (queryId: string | null) =>
+  useQueryStore((state) => (queryId ? state.results.get(queryId) ?? null : null))
+
+export const useQueryActions = () =>
+  useQueryStore(
+    useShallow((state) => ({
+      addQuery: state.addQuery,
+      removeQuery: state.removeQuery,
+      updateQuery: state.updateQuery,
+      renameQuery: state.renameQuery,
+      setActive: state.setActive,
+      executeQuery: state.executeQuery,
+      executeSelectedText: state.executeSelectedText,
+      cancelQuery: state.cancelQuery,
+      formatQuery: state.formatQuery,
+      clearError: state.clearError,
+    }))
+  )

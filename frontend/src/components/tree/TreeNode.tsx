@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { DatabaseObject } from '../../types'
 import styles from './TreeNode.module.css'
 
@@ -32,7 +33,7 @@ const getIcon = (type: DatabaseObject['type'] | 'folder'): string => {
   }
 }
 
-export function TreeNode({ node, level, expandedNodes, loadingNodes, onToggle }: TreeNodeProps) {
+export const TreeNode = memo(function TreeNode({ node, level, expandedNodes, loadingNodes, onToggle }: TreeNodeProps) {
   const hasChildren = node.children && node.children.length > 0
   const canExpand = hasChildren || node.type === 'table' // Tables can lazy-load columns
   const isExpanded = expandedNodes.has(node.id)
@@ -93,4 +94,4 @@ export function TreeNode({ node, level, expandedNodes, loadingNodes, onToggle }:
       )}
     </div>
   )
-}
+})

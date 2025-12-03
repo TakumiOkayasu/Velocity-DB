@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useDeferredValue } from 'react'
 import { useConnectionStore } from '../../store/connectionStore'
 import { bridge } from '../../api/bridge'
 import styles from './SearchDialog.module.css'
@@ -20,12 +20,14 @@ interface SearchResult {
 export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogProps) {
   const { activeConnectionId, connections } = useConnectionStore()
   const [searchQuery, setSearchQuery] = useState('')
+  const deferredSearchQuery = useDeferredValue(searchQuery)
   const [results, setResults] = useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const activeConnection = connections.find((c) => c.id === activeConnectionId)
+  const isStale = searchQuery !== deferredSearchQuery
 
   // Focus input when dialog opens
   useEffect(() => {
@@ -37,29 +39,37 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
     }
   }, [isOpen])
 
-  // Search when query changes
+  // Search when deferred query changes (prevents blocking UI during typing)
   useEffect(() => {
-    if (!searchQuery.trim() || !activeConnectionId) {
+    if (!deferredSearchQuery.trim() || !activeConnectionId) {
       setResults([])
       return
     }
 
-    const searchTimeout = setTimeout(async () => {
+    let cancelled = false
+    const doSearch = async () => {
       setIsSearching(true)
       try {
-        const searchResults = await searchObjects(activeConnectionId, searchQuery)
-        setResults(searchResults)
-        setSelectedIndex(0)
+        const searchResults = await searchObjects(activeConnectionId, deferredSearchQuery)
+        if (!cancelled) {
+          setResults(searchResults)
+          setSelectedIndex(0)
+        }
       } catch (err) {
         console.error('Search failed:', err)
-        setResults([])
+        if (!cancelled) {
+          setResults([])
+        }
       } finally {
-        setIsSearching(false)
+        if (!cancelled) {
+          setIsSearching(false)
+        }
       }
-    }, 300) // Debounce
+    }
 
-    return () => clearTimeout(searchTimeout)
-  }, [searchQuery, activeConnectionId])
+    doSearch()
+    return () => { cancelled = true }
+  }, [deferredSearchQuery, activeConnectionId])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -104,7 +114,7 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
             placeholder="Search tables, views, procedures..."
             className={styles.searchInput}
           />
-          {isSearching && <span className={styles.spinner}>⏳</span>}
+          {(isSearching || isStale) && <span className={styles.spinner}>⏳</span>}
         </div>
 
         <div className={styles.results}>
@@ -114,7 +124,7 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
             </div>
           ) : results.length === 0 && searchQuery.trim() ? (
             <div className={styles.noResults}>
-              {isSearching ? 'Searching...' : 'No results found'}
+              {isSearching || isStale ? 'Searching...' : 'No results found'}
             </div>
           ) : (
             results.map((result, index) => (

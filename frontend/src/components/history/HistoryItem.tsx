@@ -1,3 +1,4 @@
+import { memo, useCallback } from 'react'
 import type { HistoryItem as HistoryItemType } from '../../types'
 import { useHistoryStore } from '../../store/historyStore'
 import { useQueryStore } from '../../store/queryStore'
@@ -7,7 +8,7 @@ interface HistoryItemProps {
   item: HistoryItemType;
 }
 
-export function HistoryItem({ item }: HistoryItemProps) {
+export const HistoryItem = memo(function HistoryItem({ item }: HistoryItemProps) {
   const { setFavorite, removeHistory } = useHistoryStore()
   const { addQuery, queries, updateQuery } = useQueryStore()
 
@@ -26,7 +27,7 @@ export function HistoryItem({ item }: HistoryItemProps) {
     return singleLine.substring(0, maxLength) + '...'
   }
 
-  const handleClick = () => {
+  const handleClick = useCallback(() => {
     // Add query to new tab or update active tab
     if (queries.length === 0) {
       addQuery()
@@ -35,13 +36,13 @@ export function HistoryItem({ item }: HistoryItemProps) {
     if (activeId) {
       updateQuery(activeId, item.sql)
     }
-  }
+  }, [queries.length, addQuery, updateQuery, item.sql])
 
-  const handleDoubleClick = () => {
+  const handleDoubleClick = useCallback(() => {
     // Execute the query
     handleClick()
     // TODO: Execute
-  }
+  }, [handleClick])
 
   return (
     <div
@@ -82,4 +83,4 @@ export function HistoryItem({ item }: HistoryItemProps) {
       )}
     </div>
   )
-}
+})

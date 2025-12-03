@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { useShallow } from 'zustand/react/shallow'
 import type { HistoryItem } from '../types'
 
 interface HistoryState {
@@ -123,3 +124,25 @@ export const useHistoryStore = create<HistoryState>()(
     }
   )
 )
+
+// Optimized selectors to prevent unnecessary re-renders
+export const useHistoryItems = () =>
+  useHistoryStore(useShallow((state) => state.history))
+
+export const useHistorySearch = () =>
+  useHistoryStore((state) => state.searchKeyword)
+
+export const useHistoryActions = () =>
+  useHistoryStore(
+    useShallow((state) => ({
+      addHistory: state.addHistory,
+      removeHistory: state.removeHistory,
+      clearHistory: state.clearHistory,
+      setFavorite: state.setFavorite,
+      setSearchKeyword: state.setSearchKeyword,
+      getFilteredHistory: state.getFilteredHistory,
+      getFavorites: state.getFavorites,
+      exportHistory: state.exportHistory,
+      importHistory: state.importHistory,
+    }))
+  )
