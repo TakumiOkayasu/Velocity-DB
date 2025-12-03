@@ -2,6 +2,7 @@
 #include "ipc_handler.h"
 #include "webview.h"
 #include <filesystem>
+#include <algorithm>
 
 namespace predategrip {
 
@@ -43,7 +44,10 @@ void WebViewApp::initializeWebView() {
     auto frontendPath = std::filesystem::path(exePath).parent_path() / "frontend" / "index.html";
 
     if (std::filesystem::exists(frontendPath)) {
-        wv->navigate("file:///" + frontendPath.string());
+        // Convert Windows path to file:// URL
+        std::string pathStr = frontendPath.string();
+        std::replace(pathStr.begin(), pathStr.end(), '\', '/');
+        wv->navigate("file:///" + pathStr);
     } else {
         // Development mode: load from Vite dev server
         wv->navigate("http://localhost:5173");
