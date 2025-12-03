@@ -13,6 +13,18 @@
     "package": "scripts\\package.bat"
   },
   "devDependencies": {
-    "husky": "^9.1.7"
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7"
+  },
+  "lint-staged": {
+    "frontend/src/**/*.{ts,tsx,js,jsx}": [
+      "npx biome check --write --config-path=frontend"
+    ],
+    "frontend/src/**/*.css": [
+      "npx biome check --write --config-path=frontend"
+    ],
+    "src/**/*.{cpp,h}": [
+      "clang-format -i --style=file"
+    ]
   }
 }

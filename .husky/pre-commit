@@ -1,14 +1,4 @@
 #!/bin/sh
 
-# Normalize line endings to CRLF before commit
-powershell.exe -ExecutionPolicy Bypass -File "scripts\\convert-eol.ps1" -EolType crlf
-
-# Run lint + format (auto-fix)
-cmd.exe //c "scripts\\run-lint.bat"
-if [ $? -ne 0 ]; then
-    echo "Lint/format failed"
-    exit 1
-fi
-
-# Stage any modified files (EOL conversion + lint fixes)
-git add -u
+# Run lint-staged (only staged files)
+npx lint-staged

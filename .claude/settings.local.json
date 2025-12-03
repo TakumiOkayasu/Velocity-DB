@@ -40,7 +40,10 @@
       "Bash(git -C:*)",
       "WebSearch",
       "Bash(npx biome:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(Select-String -Pattern \"error|ERROR|Build|SUCCESS\")",
+      "Bash(Select-Object -First 30)",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []

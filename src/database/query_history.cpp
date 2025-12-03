@@ -96,17 +96,19 @@ void QueryHistory::clear() {
 bool QueryHistory::save(std::string_view filepath) const {
     std::lock_guard lock(m_mutex);
 
-    std::ofstream ofs(std::string(filepath));
-    if (!ofs.is_open()) [[unlikely]] {
+    auto path = std::string(filepath);
+    std::ofstream outFile;
+    outFile.open(path);
+    if (!outFile.is_open()) [[unlikely]] {
         return false;
     }
 
-    ofs << "[\n";
+    outFile << "[\n";
     for (size_t i = 0; i < m_history.size(); ++i) {
         const auto& item = m_history[i];
         auto time = std::chrono::system_clock::to_time_t(item.timestamp);
 
-        ofs << std::format(R"(  {{
+        auto jsonEntry = std::format(R"(  {{
     "id": "{}",
     "sql": "{}",
     "connectionId": "{}",
@@ -117,16 +119,17 @@ bool QueryHistory::save(std::string_view filepath) const {
     "affectedRows": {},
     "isFavorite": {}
   }})",
-                           item.id, item.sql, item.connectionId, time, item.executionTimeMs,
-                           item.success ? "true" : "false", item.errorMessage, item.affectedRows,
-                           item.isFavorite ? "true" : "false");
+                                     item.id, item.sql, item.connectionId, time, item.executionTimeMs,
+                                     item.success ? "true" : "false", item.errorMessage, item.affectedRows,
+                                     item.isFavorite ? "true" : "false");
+        outFile << jsonEntry;
 
         if (i < m_history.size() - 1) {
-            ofs << ",";
+            outFile << ",";
         }
-        ofs << "\n";
+        outFile << "\n";
     }
-    ofs << "]\n";
+    outFile << "]\n";
 
     return true;
 }
