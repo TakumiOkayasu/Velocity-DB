@@ -33,11 +33,27 @@ jobs:
       - name: Build Backend
         run: cmake --build build --config Release
 
+      - name: List build output
+        run: |
+          echo "Listing build directory..."
+          if (Test-Path build\Release) { Get-ChildItem -Recurse build\Release } else { echo "build\Release not found" }
+          if (Test-Path build\src\Release) { Get-ChildItem build\src\Release } else { echo "build\src\Release not found" }
+        shell: pwsh
+
       - name: Package
         run: |
           mkdir dist
-          copy build\Release\PreDateGrip.exe dist\
+          # Check multiple possible locations for the exe
+          if (Test-Path build\Release\PreDateGrip.exe) {
+            copy build\Release\PreDateGrip.exe dist\
+          } elseif (Test-Path build\src\Release\PreDateGrip.exe) {
+            copy build\src\Release\PreDateGrip.exe dist\
+          } else {
+            echo "ERROR: PreDateGrip.exe not found"
+            exit 1
+          }
           xcopy /E /I frontend\dist dist\web
+        shell: pwsh
 
       - name: Create ZIP
         run: Compress-Archive -Path dist\* -DestinationPath PreDateGrip-${{ github.ref_name }}.zip
