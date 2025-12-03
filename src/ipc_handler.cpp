@@ -514,9 +514,92 @@ std::string IPCHandler::formatSQLQuery(std::string_view params) {
     }
 }
 
-std::string IPCHandler::parseA5ERFile(std::string_view) {
-    // TODO: Implement A5:ER parsing
-    return JsonUtils::successResponse("{}");
+std::string IPCHandler::parseA5ERFile(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        simdjson::dom::element doc = parser.parse(params);
+
+        auto filepathResult = doc["filepath"].get_string();
+        if (filepathResult.error()) [[unlikely]] {
+            return JsonUtils::errorResponse("Missing filepath field");
+        }
+        std::string filepath = std::string(filepathResult.value());
+
+        A5ERModel model = m_a5erParser->parse(filepath);
+
+        // Build tables array
+        std::string tablesJson = "[";
+        for (size_t i = 0; i < model.tables.size(); ++i) {
+            const auto& table = model.tables[i];
+            if (i > 0)
+                tablesJson += ',';
+
+            // Build columns array for this table
+            std::string columnsJson = "[";
+            for (size_t j = 0; j < table.columns.size(); ++j) {
+                const auto& col = table.columns[j];
+                if (j > 0)
+                    columnsJson += ',';
+                columnsJson += std::format(
+                    R"({{"name":"{}","logicalName":"{}","type":"{}","size":{},"scale":{},"nullable":{},"isPrimaryKey":{},"defaultValue":"{}","comment":"{}"}})",
+                    JsonUtils::escapeString(col.name), JsonUtils::escapeString(col.logicalName),
+                    JsonUtils::escapeString(col.type), col.size, col.scale, col.nullable ? "true" : "false",
+                    col.isPrimaryKey ? "true" : "false", JsonUtils::escapeString(col.defaultValue),
+                    JsonUtils::escapeString(col.comment));
+            }
+            columnsJson += "]";
+
+            // Build indexes array for this table
+            std::string indexesJson = "[";
+            for (size_t j = 0; j < table.indexes.size(); ++j) {
+                const auto& idx = table.indexes[j];
+                if (j > 0)
+                    indexesJson += ',';
+
+                std::string idxColumnsJson = "[";
+                for (size_t k = 0; k < idx.columns.size(); ++k) {
+                    if (k > 0)
+                        idxColumnsJson += ',';
+                    idxColumnsJson += std::format(R"("{}")", JsonUtils::escapeString(idx.columns[k]));
+                }
+                idxColumnsJson += "]";
+
+                indexesJson +=
+                    std::format(R"({{"name":"{}","columns":{},"isUnique":{}}})", JsonUtils::escapeString(idx.name),
+                                idxColumnsJson, idx.isUnique ? "true" : "false");
+            }
+            indexesJson += "]";
+
+            tablesJson += std::format(
+                R"({{"name":"{}","logicalName":"{}","comment":"{}","columns":{},"indexes":{},"posX":{},"posY":{}}})",
+                JsonUtils::escapeString(table.name), JsonUtils::escapeString(table.logicalName),
+                JsonUtils::escapeString(table.comment), columnsJson, indexesJson, table.posX, table.posY);
+        }
+        tablesJson += "]";
+
+        // Build relations array
+        std::string relationsJson = "[";
+        for (size_t i = 0; i < model.relations.size(); ++i) {
+            const auto& rel = model.relations[i];
+            if (i > 0)
+                relationsJson += ',';
+            relationsJson += std::format(
+                R"({{"name":"{}","parentTable":"{}","childTable":"{}","parentColumn":"{}","childColumn":"{}","cardinality":"{}"}})",
+                JsonUtils::escapeString(rel.name), JsonUtils::escapeString(rel.parentTable),
+                JsonUtils::escapeString(rel.childTable), JsonUtils::escapeString(rel.parentColumn),
+                JsonUtils::escapeString(rel.childColumn), JsonUtils::escapeString(rel.cardinality));
+        }
+        relationsJson += "]";
+
+        // Build final response
+        std::string jsonResponse = std::format(
+            R"({{"name":"{}","databaseType":"{}","tables":{},"relations":{}}})",
+            JsonUtils::escapeString(model.name), JsonUtils::escapeString(model.databaseType), tablesJson, relationsJson);
+
+        return JsonUtils::successResponse(jsonResponse);
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
 }
 
 std::string IPCHandler::retrieveQueryHistory(std::string_view) {
@@ -579,8 +662,9 @@ std::string IPCHandler::getExecutionPlan(std::string_view params) {
             }
         }
 
-        return JsonUtils::successResponse(
-            std::format(R"({{"plan":"{}","actual":{}}})", JsonUtils::escapeString(planText), actualPlan ? "true" : "false"));
+        return JsonUtils::successResponse(std::format(R"({{"plan":"{}","actual":{}}})",
+                                                       JsonUtils::escapeString(planText),
+                                                       actualPlan ? "true" : "false"));
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
     }

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useConnectionStore } from '../../store/connectionStore';
+import { useERDiagramStore } from '../../store/erDiagramStore';
 import { useQueryStore } from '../../store/queryStore';
 import { useSessionStore } from '../../store/sessionStore';
+import { A5ERImportDialog } from '../dialogs/A5ERImportDialog';
 import { type ConnectionConfig, ConnectionDialog } from '../dialogs/ConnectionDialog';
 import { SearchDialog } from '../dialogs/SearchDialog';
 import { SettingsDialog } from '../dialogs/SettingsDialog';
@@ -30,10 +32,12 @@ export function MainLayout() {
   const [isConnectionDialogOpen, setIsConnectionDialogOpen] = useState(false);
   const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
+  const [isA5ERImportDialogOpen, setIsA5ERImportDialogOpen] = useState(false);
 
   const { connections, activeConnectionId, addConnection } = useConnectionStore();
   const { queries, activeQueryId, addQuery, executeQuery, formatQuery, isExecuting } =
     useQueryStore();
+  const { importFromA5ER } = useERDiagramStore();
   const activeConnection = connections.find((c) => c.id === activeConnectionId);
   const activeQuery = queries.find((q) => q.id === activeQueryId);
 
@@ -175,6 +179,11 @@ export function MainLayout() {
           </button>
         </div>
         <div className={styles.toolbarGroup}>
+          <button onClick={() => setIsA5ERImportDialogOpen(true)} title="Import A5:ER File">
+            Import A5:ER
+          </button>
+        </div>
+        <div className={styles.toolbarGroup}>
           <button
             onClick={() => setIsLeftPanelVisible(!isLeftPanelVisible)}
             title="Toggle Object Explorer"
@@ -289,6 +298,30 @@ export function MainLayout() {
       <SettingsDialog
         isOpen={isSettingsDialogOpen}
         onClose={() => setIsSettingsDialogOpen(false)}
+      />
+
+      <A5ERImportDialog
+        isOpen={isA5ERImportDialogOpen}
+        onClose={() => setIsA5ERImportDialogOpen(false)}
+        onImport={(tables, relations) => {
+          importFromA5ER(
+            tables.map((t) => ({
+              name: t.name,
+              schema: t.schema,
+              columns: t.columns.map((c) => ({
+                name: c.name,
+                type: c.type,
+                nullable: c.nullable,
+                isPrimaryKey: c.isPrimaryKey,
+              })),
+            })),
+            relations.map((r) => ({
+              sourceTable: r.sourceTable,
+              targetTable: r.targetTable,
+              cardinality: r.cardinality,
+            }))
+          );
+        }}
       />
     </div>
   );

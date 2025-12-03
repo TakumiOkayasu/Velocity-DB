@@ -19,7 +19,10 @@ interface ERDiagramState {
   // Reverse engineering
   loadFromDatabase: (connectionId: string, database: string) => Promise<void>;
 
-  // Import from A5:ER
+  // Import from A5:ER file
+  loadFromA5ERFile: (filepath: string) => Promise<void>;
+
+  // Import from A5:ER (legacy)
   importFromA5ER: (
     tables: {
       name: string;
@@ -61,6 +64,54 @@ export const useERDiagramStore = create<ERDiagramState>((set) => ({
 
   clearDiagram: () => {
     set({ tables: [], relations: [] });
+  },
+
+  loadFromA5ERFile: async (filepath) => {
+    set({ isLoading: true, error: null });
+
+    try {
+      const model = await bridge.parseA5ER(filepath);
+
+      // Convert A5ER model to ERTableNode format
+      const erTables: ERTableNode[] = model.tables.map((table) => ({
+        id: table.name,
+        type: 'table',
+        data: {
+          tableName: table.name,
+          columns: table.columns.map((c) => ({
+            name: c.name,
+            type: c.type,
+            size: c.size,
+            nullable: c.nullable,
+            isPrimaryKey: c.isPrimaryKey,
+          })),
+        },
+        position: {
+          x: table.posX || 0,
+          y: table.posY || 0,
+        },
+      }));
+
+      // Convert A5ER relations to ERRelationEdge format
+      const erRelations: ERRelationEdge[] = model.relations.map((rel, i) => ({
+        id: `rel-${i}-${rel.name}`,
+        source: rel.parentTable,
+        target: rel.childTable,
+        type: 'relation',
+        data: {
+          cardinality: (rel.cardinality as '1:1' | '1:N' | 'N:M') || '1:N',
+          sourceColumn: rel.parentColumn,
+          targetColumn: rel.childColumn,
+        },
+      }));
+
+      set({ tables: erTables, relations: erRelations, isLoading: false });
+    } catch (err) {
+      set({
+        isLoading: false,
+        error: err instanceof Error ? err.message : 'Failed to load A5:ER file',
+      });
+    }
   },
 
   loadFromDatabase: async (connectionId, database) => {

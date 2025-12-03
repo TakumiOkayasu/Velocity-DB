@@ -38,7 +38,7 @@ const mockData: Record<string, unknown> = {
   ],
   formatSQL: { sql: 'SELECT\n    *\nFROM\n    users\nWHERE\n    id = 1;' },
   getQueryHistory: [],
-  parseA5ER: { tables: [], relations: [] },
+  parseA5ER: { name: '', databaseType: '', tables: [], relations: [] },
   getExecutionPlan: { plan: 'Mock execution plan text', actual: false },
 };
 
@@ -191,8 +191,39 @@ class Bridge {
 
   // A5:ER methods
   async parseA5ER(filepath: string): Promise<{
-    tables: { name: string; columns: { name: string; type: string }[] }[];
-    relations: { source: string; target: string; cardinality: string }[];
+    name: string;
+    databaseType: string;
+    tables: {
+      name: string;
+      logicalName: string;
+      comment: string;
+      columns: {
+        name: string;
+        logicalName: string;
+        type: string;
+        size: number;
+        scale: number;
+        nullable: boolean;
+        isPrimaryKey: boolean;
+        defaultValue: string;
+        comment: string;
+      }[];
+      indexes: {
+        name: string;
+        columns: string[];
+        isUnique: boolean;
+      }[];
+      posX: number;
+      posY: number;
+    }[];
+    relations: {
+      name: string;
+      parentTable: string;
+      childTable: string;
+      parentColumn: string;
+      childColumn: string;
+      cardinality: string;
+    }[];
   }> {
     return this.call('parseA5ER', { filepath });
   }
@@ -201,7 +232,7 @@ class Bridge {
   async getExecutionPlan(
     connectionId: string,
     sql: string,
-    actual: boolean = false
+    actual = false
   ): Promise<{ plan: string; actual: boolean }> {
     return this.call('getExecutionPlan', { connectionId, sql, actual });
   }

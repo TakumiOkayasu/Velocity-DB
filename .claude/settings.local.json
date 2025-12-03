@@ -52,7 +52,8 @@
       "Bash(dir /b \"C:\\prog\\Pre-DateGrip\\scripts\")",
       "Bash(python:*)",
       "Bash(powershell -NoProfile -Command:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(\"C:\\Program Files\\LLVM\\bin\\clang-format.exe\" -i -style=file \"D:\\prog\\Pre-DateGrip\\src\\ipc_handler.cpp\")"
     ],
     "deny": [],
     "ask": []
