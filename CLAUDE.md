@@ -8,16 +8,17 @@ Pre-DateGrip is a Windows-only high-performance RDBMS management tool with DataG
 
 ## Build Commands
 
-```bash
-# Backend (C++ with CMake + Ninja)
-# Run from Developer Command Prompt (MSVC required)
-scripts\build.bat Debug       # Debug build
-scripts\build.bat Release     # Release build
-scripts\test.bat              # Run C++ tests
+All build scripts are Python-based (requires Python 3.14+) and auto-detect MSVC environment.
+Scripts use [uv](https://docs.astral.sh/uv/) for execution (install: `winget install astral-sh.uv`).
 
-# Or manually with CMake
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
+```bash
+# Backend (C++ with CMake)
+uv run scripts/build.py Debug       # Debug build
+uv run scripts/build.py Release     # Release build
+
+# Run tests
+uv run scripts/test.py Debug
+uv run scripts/test.py Release
 
 # Frontend (React)
 cd frontend
@@ -29,12 +30,19 @@ npm run lint                  # Lint code (Biome)
 npm run lint:fix              # Auto-fix lint issues
 
 # Full project checks
-scripts\check-all.bat         # Run all checks (EOL, format, lint, build)
-scripts\run-lint.bat          # Run lint only (frontend + C++)
-scripts\cpp-check.bat all     # C++ only (format, lint, build)
+uv run scripts/check_all.py Release   # All checks (EOL, format, lint, build)
+uv run scripts/run_lint.py            # Lint only (frontend + C++)
+uv run scripts/cpp_check.py all       # C++ only (format, lint, build)
+uv run scripts/cpp_check.py format    # C++ format only
+uv run scripts/cpp_check.py lint      # C++ lint only
+uv run scripts/cpp_check.py build     # C++ build only
+
+# EOL conversion
+uv run scripts/convert_eol.py lf frontend/src   # Convert frontend to LF
+uv run scripts/convert_eol.py crlf src          # Convert C++ to CRLF
 
 # Package for distribution
-scripts\package.bat
+uv run scripts/package.py
 ```
 
 ## Current Status
