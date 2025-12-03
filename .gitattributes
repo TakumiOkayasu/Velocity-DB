@@ -7,24 +7,28 @@
 *.bat text eol=crlf
 *.cmd text eol=crlf
 
-# Source code files - use LF
+# C++ source files - use CRLF for Windows (MSVC)
 *.cpp text eol=crlf
 *.h text eol=crlf
 *.hpp text eol=crlf
 *.c text eol=crlf
-*.ts text eol=crlf
-*.tsx text eol=crlf
-*.js text eol=crlf
-*.jsx text eol=crlf
-*.json text eol=crlf
-*.css text eol=crlf
-*.html text eol=crlf
-*.md text eol=crlf
-*.yml text eol=crlf
-*.yaml text eol=crlf
-*.xml text eol=crlf
-*.cmake text eol=crlf
-CMakeLists.txt text eol=crlf
+
+# Frontend source files - use LF (Biome expects LF)
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+frontend/*.json text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+
+# Config files - use LF
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.xml text eol=lf
+*.cmake text eol=lf
+CMakeLists.txt text eol=lf
 
 # Binary files
 *.exe binary
