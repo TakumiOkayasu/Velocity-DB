@@ -11,38 +11,27 @@ echo.
 echo [Frontend] Running Biome lint and format...
 cd /d "%PROJECT_DIR%\frontend"
 
-REM First, auto-fix all issues
-call npm run lint:fix
+REM Check mode (same as CI) - no auto-fix
+call npm run lint
 if !ERRORLEVEL! neq 0 (
-    echo [Frontend] Biome auto-fix failed
-    exit /b 1
-)
-
-REM Then verify no issues remain
-call npm run lint -- --error-on-warnings
-if !ERRORLEVEL! neq 0 (
-    echo [Frontend] Lint failed - unfixable errors or warnings found
+    echo [Frontend] Lint failed
+    echo.
+    echo To auto-fix, run: cd frontend ^&^& npm run lint:fix
     exit /b 1
 )
 echo [Frontend] Lint and format passed
 
-REM C++ format (clang-format)
+REM C++ format (clang-format) - check only, no auto-fix
 echo.
-echo [C++] Running clang-format...
+echo [C++] Running clang-format check...
 cd /d "%PROJECT_DIR%"
 where clang-format >nul 2>&1
 if %ERRORLEVEL% neq 0 (
-    echo [C++] clang-format not found, skipping C++ format
+    echo [C++] clang-format not found, skipping C++ format check
     goto :done
 )
 
-REM Auto-format C++ files
-for /r src %%f in (*.cpp *.h) do (
-    clang-format -i --style=file "%%f"
-)
-echo [C++] Format applied
-
-REM Verify formatting (should pass after auto-format)
+REM Check formatting (same as CI)
 set CPP_FORMAT_ERROR=0
 for /r src %%f in (*.cpp *.h) do (
     clang-format --style=file --dry-run --Werror "%%f" >nul 2>&1
@@ -53,6 +42,8 @@ for /r src %%f in (*.cpp *.h) do (
 )
 if %CPP_FORMAT_ERROR% neq 0 (
     echo [C++] Format check failed
+    echo.
+    echo To auto-fix, run: for /r src %%%%f in ^(*.cpp *.h^) do clang-format -i "%%%%f"
     exit /b 1
 )
 echo [C++] Format check passed
