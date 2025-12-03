@@ -1,7 +1,8 @@
 // Barrel exports for dialog components
 export { ConnectionDialog, type ConnectionConfig } from './ConnectionDialog'
 export { SearchDialog } from './SearchDialog'
-export { SettingsDialog, getSettings } from './SettingsDialog'
+export { SettingsDialog } from './SettingsDialog'
+export { getSettings, type AppSettings } from './settingsUtils'
 export { ExportDialog } from './ExportDialog'
 export { ExecutionPlanDialog } from './ExecutionPlanDialog'
 export { A5ERImportDialog } from './A5ERImportDialog'

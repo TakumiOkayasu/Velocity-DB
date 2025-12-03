@@ -1,55 +1,10 @@
 import { useState, useCallback, useEffect } from 'react'
+import { defaultSettings, type AppSettings } from './settingsUtils'
 import styles from './SettingsDialog.module.css'
 
 interface SettingsDialogProps {
   isOpen: boolean
   onClose: () => void
-}
-
-interface AppSettings {
-  editor: {
-    fontSize: number
-    tabSize: number
-    wordWrap: boolean
-    minimap: boolean
-  }
-  query: {
-    autoCommit: boolean
-    timeout: number
-    maxRows: number
-  }
-  appearance: {
-    theme: 'dark' | 'light'
-  }
-  shortcuts: {
-    execute: string
-    newQuery: string
-    format: string
-    search: string
-  }
-}
-
-const defaultSettings: AppSettings = {
-  editor: {
-    fontSize: 14,
-    tabSize: 4,
-    wordWrap: true,
-    minimap: false,
-  },
-  query: {
-    autoCommit: true,
-    timeout: 30000,
-    maxRows: 10000,
-  },
-  appearance: {
-    theme: 'dark',
-  },
-  shortcuts: {
-    execute: 'Ctrl+Enter',
-    newQuery: 'Ctrl+N',
-    format: 'Ctrl+Shift+F',
-    search: 'Ctrl+Shift+P',
-  },
 }
 
 export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
@@ -272,17 +227,4 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
       </div>
     </div>
   )
-}
-
-// Export settings getter for other components
-export function getSettings(): AppSettings {
-  const saved = localStorage.getItem('app-settings')
-  if (saved) {
-    try {
-      return { ...defaultSettings, ...JSON.parse(saved) }
-    } catch {
-      return defaultSettings
-    }
-  }
-  return defaultSettings
 }
