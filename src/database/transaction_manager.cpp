@@ -25,7 +25,10 @@ void TransactionManager::begin() {
         throw std::runtime_error("Transaction already active");
     }
 
-    m_driver->execute("BEGIN TRANSACTION");
+    auto result = m_driver->execute("BEGIN TRANSACTION");
+    if (!m_driver->getLastError().empty()) [[unlikely]] {
+        throw std::runtime_error(std::string(m_driver->getLastError()));
+    }
     m_state = TransactionState::Active;
 }
 
@@ -38,7 +41,10 @@ void TransactionManager::commit() {
         throw std::runtime_error("No active transaction");
     }
 
-    m_driver->execute("COMMIT TRANSACTION");
+    auto result = m_driver->execute("COMMIT TRANSACTION");
+    if (!m_driver->getLastError().empty()) [[unlikely]] {
+        throw std::runtime_error(std::string(m_driver->getLastError()));
+    }
     m_state = TransactionState::Committed;
 }
 
@@ -51,7 +57,10 @@ void TransactionManager::rollback() {
         throw std::runtime_error("No active transaction");
     }
 
-    m_driver->execute("ROLLBACK TRANSACTION");
+    auto result = m_driver->execute("ROLLBACK TRANSACTION");
+    if (!m_driver->getLastError().empty()) [[unlikely]] {
+        throw std::runtime_error(std::string(m_driver->getLastError()));
+    }
     m_state = TransactionState::RolledBack;
 }
 

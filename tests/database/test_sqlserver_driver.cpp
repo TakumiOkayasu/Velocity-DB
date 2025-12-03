@@ -52,7 +52,7 @@ TEST_F(SQLServerDriverTest, DISABLED_ExecutesSimpleQuery) {
         "Database=master;"
         "Trusted_Connection=yes;";
 
-    driver.connect(connectionString);
+    ASSERT_TRUE(driver.connect(connectionString));
 
     auto result = driver.execute("SELECT 1 AS Value");
 
