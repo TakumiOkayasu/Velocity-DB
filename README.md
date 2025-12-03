@@ -5,11 +5,13 @@ Windows向け高性能RDBMSマネジメントツール。DataGripライクなUI/
 ## 特徴
 
 - **DataGripライクなUI** - 3ペインレイアウト（オブジェクトエクスプローラー、エディタ、結果）
-- **高速なクエリ実行** - 100万行のSELECTを500ms以内で処理
+- **高速なクエリ実行** - 非同期実行、結果キャッシュ、AVX2 SIMDフィルタリング
 - **インライン編集** - AG Gridによるセル編集とUPDATE/INSERT/DELETE SQL自動生成
 - **Monaco Editor** - VS Code同等のSQL編集体験
-- **ER図表示** - React Flowによるテーブル関連の可視化
-- **クエリ履歴** - localStorageによる永続化
+- **ER図表示** - React Flowによるテーブル関連の可視化、A5:ERファイルインポート対応
+- **エクスポート** - CSV/JSON/Excel形式でのデータ出力
+- **セッション管理** - ウィンドウ状態、開いているタブ、接続プロファイルの永続化
+- **グローバル検索** - テーブル、ビュー、プロシージャ、カラムの横断検索
 
 ## スクリーンショット
 
@@ -32,9 +34,11 @@ Windows向け高性能RDBMSマネジメントツール。DataGripライクなUI/
 #### 必要なツール
 
 - Visual Studio 2022（C++ワークロード）
-- Node.js 20以上
+- Node.js 22 LTS（`winget install OpenJS.NodeJS.LTS`）
 - CMake 3.20以上
 - Ninja（`winget install Ninja-build.Ninja`）
+- Python 3.14+（ビルドスクリプト用）
+- uv（`winget install astral-sh.uv`）
 
 #### ビルド手順
 
@@ -69,10 +73,10 @@ uv run scripts/package.py
 ```
 Pre-DateGrip/
 ├── src/                    # C++バックエンド
-│   ├── database/           # DB接続、スキーマ取得、トランザクション管理
+│   ├── database/           # DB接続、接続プール、結果キャッシュ、非同期実行
 │   ├── parsers/            # SQLフォーマッター、A5:ERパーサー
 │   ├── exporters/          # CSV/JSON/Excelエクスポーター
-│   └── utils/              # JSON処理、SIMDフィルタ、ファイルユーティリティ
+│   └── utils/              # SIMDフィルタ、設定管理、セッション管理、検索
 ├── frontend/               # Reactフロントエンド
 │   └── src/
 │       ├── api/            # IPCブリッジ（開発用モックデータ付き）
@@ -134,28 +138,33 @@ uv run scripts/check_all.py Release
 | Linter/Formatter | Biome |
 | テスト | Vitest |
 
-### パフォーマンス目標
+### パフォーマンス目標と実装
 
-| 操作 | 目標 |
-|------|------|
-| アプリ起動 | < 0.3秒 |
-| SQL Server接続 | < 50ms |
-| SELECT（100万行） | < 500ms |
-| 結果表示開始 | < 100ms |
-| 仮想スクロール | 60fps安定 |
-| SQLフォーマット | < 50ms |
-| CSVエクスポート（10万行） | < 2秒 |
+| 操作 | 目標 | 実装技術 |
+|------|------|----------|
+| アプリ起動 | < 0.3秒 | WebView2軽量初期化 |
+| SQL Server接続 | < 50ms | ODBC直接接続、接続プール |
+| SELECT（100万行） | < 500ms | 非同期クエリ実行、ストリーミング |
+| 結果表示開始 | < 100ms | AG Grid仮想スクロール |
+| 仮想スクロール | 60fps安定 | AG Grid仮想化 |
+| SQLフォーマット | < 50ms | 軽量カスタムパーサー |
+| CSVエクスポート（10万行） | < 2秒 | ストリーム書き込み |
+| A5:ERロード（100テーブル） | < 1秒 | pugixml高速XMLパース |
+| ER図レンダリング（50テーブル） | < 500ms | React Flow最適化レンダリング |
+| クエリ履歴検索（1万件） | < 100ms | インメモリ検索 |
+| 結果フィルタリング | 高速 | AVX2 SIMDベクトル化 |
+| 繰り返しクエリ | 高速 | LRU結果キャッシュ（100MB） |
 
 ## 実装状況
 
-- [x] Phase 0: CI/CD基盤
-- [x] Phase 1: 基本SQL実行
-- [x] Phase 2: DataGripライクUI
-- [x] Phase 3: データ編集
-- [ ] Phase 4: 高度な機能（SQLフォーマッター、エクスポート、実行計画）
-- [ ] Phase 5: A5:ER連携
-- [ ] Phase 6: パフォーマンス最適化
-- [ ] Phase 7: 追加機能（検索、設定、セッション管理）
+- [x] Phase 0: CI/CD基盤（GitHub Actions、ビルドスクリプト、テスト基盤）
+- [x] Phase 1: 基本SQL実行（接続、クエリ、トランザクション）
+- [x] Phase 2: DataGripライクUI（3ペインレイアウト、Monaco Editor、タブ）
+- [x] Phase 3: データ編集（インラインセル編集、CRUD操作）
+- [x] Phase 4: 高度な機能（SQLフォーマッター、CSV/JSON/Excelエクスポート、実行計画）
+- [x] Phase 5: A5:ER連携（.a5erファイルインポート、React Flow ER図）
+- [x] Phase 6: パフォーマンス最適化（結果キャッシュ、非同期クエリ、AVX2 SIMDフィルタ）
+- [x] Phase 7: 追加機能（グローバル検索、設定管理、セッション永続化）
 
 ## ライセンス
 
