@@ -1,16 +1,50 @@
 #!/bin/sh
 
-echo "Running pre-push checks (full build)..."
+echo "Running pre-push checks..."
 
-# Run full check including C++ build
-cmd.exe //c "scripts\\check-all.bat"
+# Run lint + format first (fast)
+cmd.exe //c "scripts\\run-lint.bat"
 if [ $? -ne 0 ]; then
     echo ""
     echo "=========================================="
-    echo "Pre-push check failed!"
+    echo "Lint/format failed!"
     echo "Fix the errors above before pushing."
     echo "=========================================="
     exit 1
 fi
 
+# Run frontend typecheck and build
+echo ""
+echo "[Frontend] Running typecheck..."
+cd frontend
+npm run typecheck
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "=========================================="
+    echo "Frontend typecheck failed!"
+    echo "Fix the errors above before pushing."
+    echo "=========================================="
+    exit 1
+fi
+
+echo ""
+echo "[Frontend] Running build..."
+npm run build
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "=========================================="
+    echo "Frontend build failed!"
+    echo "Fix the errors above before pushing."
+    echo "=========================================="
+    exit 1
+fi
+cd ..
+
+# C++ build is optional (requires Developer Command Prompt)
+# Run manually: scripts\cpp-check.bat build Release
+echo ""
+echo "NOTE: C++ build check skipped (requires Developer Command Prompt)"
+echo "      Run manually before push: scripts\\cpp-check.bat build Release"
+
+echo ""
 echo "Pre-push checks passed!"

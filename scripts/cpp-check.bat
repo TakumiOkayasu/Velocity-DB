@@ -103,11 +103,7 @@ if errorlevel 1 (
     goto check_build
 )
 
-for /f "tokens=*" %%i in ('clang-tidy --version 2^>^&1') do (
-    echo %%i
-    goto :done_version
-)
-:done_version
+clang-tidy --version 2>nul | findstr /i "LLVM version" || echo clang-tidy available
 
 REM Check if compile_commands.json exists (use separate directory for clang-tidy)
 set TIDY_BUILD_DIR=build-tidy
