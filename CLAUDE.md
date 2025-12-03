@@ -81,7 +81,7 @@ Phase 0 (CI/CD foundation) is complete. The project structure is implemented wit
 
 ### Development Tools
 - **Git Hooks**: Husky (pre-commit)
-- **EOL Normalization**: convert-eol.ps1 (CRLF for Windows)
+- **EOL Normalization**: convert_eol.py (CRLF for Windows)
 
 ## Project Structure
 
@@ -245,7 +245,7 @@ cd frontend && npm run lint
 clang-format --style=file --dry-run --Werror src/**/*.cpp src/**/*.h
 
 # または一括チェック
-scripts\run-lint.bat
+uv run scripts/run_lint.py
 ```
 
 ### コーディング規約
@@ -264,8 +264,8 @@ scripts\run-lint.bat
 
 ### 改行コード
 - **CRLF (Windows)** で統一
-- コミット前にHuskyが自動でconvert-eol.ps1を実行
-- 手動変換: `powershell -File scripts\convert-eol.ps1 -EolType crlf`
+- コミット前にHuskyが自動でconvert_eol.pyを実行
+- 手動変換: `uv run scripts/convert_eol.py crlf`
 
 ### ビルドシステム
 - **Ninja**を使用（Visual Studio generatorは使用しない）
