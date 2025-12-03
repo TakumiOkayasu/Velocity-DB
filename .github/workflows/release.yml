@@ -6,57 +6,87 @@ on:
       - 'v*'
 
 jobs:
-  build:
-    name: Build Release
-    runs-on: windows-latest
-
+  # Build frontend first (faster, can fail fast)
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup MSVC
-        uses: microsoft/setup-msbuild@v1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Build Frontend
+      - name: Install and Build
         working-directory: frontend
         run: |
           npm ci
           npm run build
 
-      - name: Configure CMake
-        run: cmake -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+      - name: Upload frontend
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 1
 
-      - name: Build Backend
-        run: cmake --build build --config Release
+  # Build backend in parallel
+  build-backend:
+    name: Build Backend
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: List build output
+      - name: Setup MSVC
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Cache CMake build
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/_deps
+            build/third_party
+          key: cmake-release-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'src/CMakeLists.txt', 'third_party/CMakeLists.txt') }}
+          restore-keys: |
+            cmake-release-${{ runner.os }}-
+
+      - name: Configure and Build
         run: |
-          echo "Listing build directory..."
-          if (Test-Path build\Release) { Get-ChildItem -Recurse build\Release } else { echo "build\Release not found" }
-          if (Test-Path build\src\Release) { Get-ChildItem build\src\Release } else { echo "build\src\Release not found" }
-        shell: pwsh
+          cmake -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF
+          cmake --build build --config Release --parallel
 
-      - name: Package
-        run: |
-          mkdir dist
-          # Check multiple possible locations for the exe
-          if (Test-Path build\Release\PreDateGrip.exe) {
-            copy build\Release\PreDateGrip.exe dist\
-          } elseif (Test-Path build\src\Release\PreDateGrip.exe) {
-            copy build\src\Release\PreDateGrip.exe dist\
-          } else {
-            echo "ERROR: PreDateGrip.exe not found"
-            exit 1
-          }
-          xcopy /E /I frontend\dist dist\web
-        shell: pwsh
+      - name: Upload backend
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-exe
+          path: build/src/Release/PreDateGrip.exe
+          retention-days: 1
+
+  # Package and release
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build-frontend, build-backend]
+    steps:
+      - name: Download frontend
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist/web
+
+      - name: Download backend
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-exe
+          path: dist
 
       - name: Create ZIP
-        run: Compress-Archive -Path dist\* -DestinationPath PreDateGrip-${{ github.ref_name }}.zip
+        run: |
+          cd dist
+          zip -r ../PreDateGrip-${{ github.ref_name }}.zip .
 
       - name: Create Release
         uses: softprops/action-gh-release@v1

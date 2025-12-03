@@ -17,7 +17,8 @@
       "Bash(cmd /c \"cd /d D:\\prog\\Pre-DateGrip\\frontend && C:\\nvm4w\\nodejs\\npm.cmd run lint\")",
       "Bash(D:progPre-DateGripscriptsrun-lint.bat)",
       "Bash(cmd /c:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(C:nvm4wnodejsnpm.cmd run build --prefix D:progPre-DateGripfrontend)"
     ],
     "deny": [],
     "ask": []
