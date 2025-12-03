@@ -24,7 +24,14 @@ const mockData: Record<string, unknown> = {
     ],
     affectedRows: 0,
     executionTimeMs: 15,
+    cached: false,
   },
+  getCacheStats: {
+    currentSizeBytes: 0,
+    maxSizeBytes: 104857600,
+    usagePercent: 0,
+  },
+  clearCache: { cleared: true },
   getDatabases: ['master', 'tempdb', 'model', 'msdb'],
   getTables: [
     { schema: 'dbo', name: 'Users', type: 'TABLE' },
@@ -98,14 +105,16 @@ class Bridge {
   // Query methods
   async executeQuery(
     connectionId: string,
-    sql: string
+    sql: string,
+    useCache = true
   ): Promise<{
     columns: { name: string; type: string }[];
     rows: string[][];
     affectedRows: number;
     executionTimeMs: number;
+    cached: boolean;
   }> {
-    return this.call('executeQuery', { connectionId, sql });
+    return this.call('executeQuery', { connectionId, sql, useCache });
   }
 
   async cancelQuery(connectionId: string): Promise<void> {
@@ -235,6 +244,19 @@ class Bridge {
     actual = false
   ): Promise<{ plan: string; actual: boolean }> {
     return this.call('getExecutionPlan', { connectionId, sql, actual });
+  }
+
+  // Cache methods
+  async getCacheStats(): Promise<{
+    currentSizeBytes: number;
+    maxSizeBytes: number;
+    usagePercent: number;
+  }> {
+    return this.call('getCacheStats', {});
+  }
+
+  async clearCache(): Promise<{ cleared: boolean }> {
+    return this.call('clearCache', {});
   }
 }
 

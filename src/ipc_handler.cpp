@@ -2,6 +2,7 @@
 
 #include "database/connection_pool.h"
 #include "database/query_history.h"
+#include "database/result_cache.h"
 #include "database/schema_inspector.h"
 #include "database/sqlserver_driver.h"
 #include "database/transaction_manager.h"
@@ -80,6 +81,7 @@ IPCHandler::IPCHandler()
     , m_schemaInspector(std::make_unique<SchemaInspector>())
     , m_transactionManager(std::make_unique<TransactionManager>())
     , m_queryHistory(std::make_unique<QueryHistory>())
+    , m_resultCache(std::make_unique<ResultCache>())
     , m_sqlFormatter(std::make_unique<SQLFormatter>())
     , m_a5erParser(std::make_unique<A5ERParser>()) {
     registerRequestRoutes();
@@ -106,6 +108,8 @@ void IPCHandler::registerRequestRoutes() {
     m_requestRoutes["parseA5ER"] = [this](std::string_view p) { return parseA5ERFile(p); };
     m_requestRoutes["getQueryHistory"] = [this](std::string_view p) { return retrieveQueryHistory(p); };
     m_requestRoutes["getExecutionPlan"] = [this](std::string_view p) { return getExecutionPlan(p); };
+    m_requestRoutes["getCacheStats"] = [this](std::string_view p) { return getCacheStats(p); };
+    m_requestRoutes["clearCache"] = [this](std::string_view p) { return clearCache(p); };
 }
 
 std::string IPCHandler::dispatchRequest(std::string_view request) {
@@ -194,13 +198,67 @@ std::string IPCHandler::executeSQL(std::string_view params) {
         std::string connectionId = std::string(doc["connectionId"].get_string().value());
         std::string sqlQuery = std::string(doc["sql"].get_string().value());
 
+        // Check if cache should be used (default: true for SELECT queries)
+        bool useCache = true;
+        if (auto useCacheOpt = doc["useCache"].get_bool(); !useCacheOpt.error()) {
+            useCache = useCacheOpt.value();
+        }
+
         auto connection = m_activeConnections.find(connectionId);
         if (connection == m_activeConnections.end()) [[unlikely]] {
             return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
         }
 
+        // Generate cache key from connection + query
+        std::string cacheKey = connectionId + ":" + sqlQuery;
+
+        // Check cache for SELECT queries
+        bool isSelectQuery = sqlQuery.find("SELECT") != std::string::npos || sqlQuery.find("select") != std::string::npos;
+        if (useCache && isSelectQuery) {
+            if (auto cachedResult = m_resultCache->get(cacheKey); cachedResult.has_value()) {
+                // Return cached result
+                auto& queryResult = *cachedResult;
+
+                std::string jsonResponse = "{";
+                jsonResponse += R"("columns":[)";
+                for (size_t i = 0; i < queryResult.columns.size(); ++i) {
+                    if (i > 0)
+                        jsonResponse += ',';
+                    jsonResponse += std::format(R"({{"name":"{}","type":"{}"}})",
+                                                JsonUtils::escapeString(queryResult.columns[i].name),
+                                                queryResult.columns[i].type);
+                }
+                jsonResponse += "],";
+
+                jsonResponse += R"("rows":[)";
+                for (size_t rowIndex = 0; rowIndex < queryResult.rows.size(); ++rowIndex) {
+                    if (rowIndex > 0)
+                        jsonResponse += ',';
+                    jsonResponse += '[';
+                    for (size_t colIndex = 0; colIndex < queryResult.rows[rowIndex].values.size(); ++colIndex) {
+                        if (colIndex > 0)
+                            jsonResponse += ',';
+                        jsonResponse += std::format(R"("{}")",
+                                                    JsonUtils::escapeString(queryResult.rows[rowIndex].values[colIndex]));
+                    }
+                    jsonResponse += ']';
+                }
+                jsonResponse += "],";
+
+                jsonResponse += std::format(R"("affectedRows":{},"executionTimeMs":{},"cached":true}})",
+                                            queryResult.affectedRows, queryResult.executionTimeMs);
+
+                return JsonUtils::successResponse(jsonResponse);
+            }
+        }
+
         auto& driver = connection->second;
         ResultSet queryResult = driver->execute(sqlQuery);
+
+        // Store in cache for SELECT queries
+        if (useCache && isSelectQuery) {
+            m_resultCache->put(cacheKey, queryResult);
+        }
 
         std::string jsonResponse = "{";
 
@@ -231,7 +289,7 @@ std::string IPCHandler::executeSQL(std::string_view params) {
         }
         jsonResponse += "],";
 
-        jsonResponse += std::format(R"("affectedRows":{},"executionTimeMs":{}}})", queryResult.affectedRows,
+        jsonResponse += std::format(R"("affectedRows":{},"executionTimeMs":{},"cached":false}})", queryResult.affectedRows,
                                     queryResult.executionTimeMs);
 
         // Record in query history
@@ -670,6 +728,22 @@ std::string IPCHandler::getExecutionPlan(std::string_view params) {
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
     }
+}
+
+std::string IPCHandler::getCacheStats(std::string_view) {
+    auto currentSize = m_resultCache->getCurrentSize();
+    auto maxSize = m_resultCache->getMaxSize();
+
+    std::string jsonResponse = std::format(
+        R"({{"currentSizeBytes":{},"maxSizeBytes":{},"usagePercent":{:.1f}}})", currentSize, maxSize,
+        maxSize > 0 ? (static_cast<double>(currentSize) / static_cast<double>(maxSize)) * 100.0 : 0.0);
+
+    return JsonUtils::successResponse(jsonResponse);
+}
+
+std::string IPCHandler::clearCache(std::string_view) {
+    m_resultCache->clear();
+    return JsonUtils::successResponse(R"({"cleared":true})");
 }
 
 }  // namespace predategrip

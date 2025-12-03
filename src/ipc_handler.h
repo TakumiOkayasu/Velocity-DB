@@ -14,6 +14,7 @@ class ConnectionPool;
 class SchemaInspector;
 class TransactionManager;
 class QueryHistory;
+class ResultCache;
 class DataExporter;
 class A5ERParser;
 class SQLFormatter;
@@ -68,10 +69,15 @@ private:
     [[nodiscard]] std::string retrieveQueryHistory(std::string_view params);
     [[nodiscard]] std::string getExecutionPlan(std::string_view params);
 
+    // Cache operations
+    [[nodiscard]] std::string getCacheStats(std::string_view params);
+    [[nodiscard]] std::string clearCache(std::string_view params);
+
     std::unique_ptr<ConnectionPool> m_connectionPool;
     std::unique_ptr<SchemaInspector> m_schemaInspector;
     std::unique_ptr<TransactionManager> m_transactionManager;
     std::unique_ptr<QueryHistory> m_queryHistory;
+    std::unique_ptr<ResultCache> m_resultCache;
     std::unique_ptr<SQLFormatter> m_sqlFormatter;
     std::unique_ptr<A5ERParser> m_a5erParser;
 
