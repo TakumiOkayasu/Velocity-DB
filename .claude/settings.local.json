@@ -45,7 +45,8 @@
       "Bash(Select-Object -First 30)",
       "Bash(npm install:*)",
       "Bash(Select-String -Pattern \"warning|error|SUCCESS|completed\")",
-      "Bash(Select-Object -First 20)"
+      "Bash(Select-Object -First 20)",
+      "Bash(C:nvm4wnodejsnpm.cmd run build --prefix C:progPre-DateGripfrontend)"
     ],
     "deny": [],
     "ask": []
