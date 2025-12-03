@@ -16,7 +16,8 @@
       "Bash(cmd /c \"set PATH=C:\\nvm4w\\nodejs;%PATH% && cd /d D:\\prog\\Pre-DateGrip\\frontend && call npm run lint\")",
       "Bash(cmd /c \"cd /d D:\\prog\\Pre-DateGrip\\frontend && C:\\nvm4w\\nodejs\\npm.cmd run lint\")",
       "Bash(D:progPre-DateGripscriptsrun-lint.bat)",
-      "Bash(cmd /c:*)"
+      "Bash(cmd /c:*)",
+      "Bash(cd:*)"
     ],
     "deny": [],
     "ask": []
