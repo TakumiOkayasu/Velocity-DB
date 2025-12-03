@@ -8,8 +8,8 @@ import ReactFlow, {
   useEdgesState,
   BackgroundVariant,
   MarkerType,
-} from 'reactflow'
-import 'reactflow/dist/style.css'
+} from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
 import { TableNode } from './TableNode'
 import type { ERTableNode, ERRelationEdge } from '../../types'
 import styles from './ERDiagram.module.css'
