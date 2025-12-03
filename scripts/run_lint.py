@@ -18,7 +18,8 @@ from pathlib import Path
 
 def run_command(cmd: list[str], cwd: Path | None = None) -> bool:
     """Run a command and return success status."""
-    result = subprocess.run(cmd, cwd=cwd)
+    # On Windows, use shell=True for commands like npm that are batch scripts
+    result = subprocess.run(cmd, cwd=cwd, shell=True)
     return result.returncode == 0
 
 
