@@ -16,7 +16,7 @@ interface TableNodeProps {
 // Unicode icons
 const icons = {
   table: '\uD83D\uDCCB', // 📋
-  key: '\uD83D\uDD11',   // 🔑
+  key: '\uD83D\uDD11', // 🔑
 };
 
 export const TableNode = memo(function TableNode({ data, selected }: TableNodeProps) {

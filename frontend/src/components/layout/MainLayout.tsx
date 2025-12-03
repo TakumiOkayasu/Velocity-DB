@@ -132,14 +132,14 @@ export function MainLayout() {
 
   // Unicode icons (using HTML entities for reliability)
   const icons = {
-    play: '\u25B6',      // ▶
+    play: '\u25B6', // ▶
     hourglass: '\u23F3', // ⏳
-    left: '\u25C0',      // ◀
-    right: '\u25B6',     // ▶
-    up: '\u25B2',        // ▲
-    down: '\u25BC',      // ▼
+    left: '\u25C0', // ◀
+    right: '\u25B6', // ▶
+    up: '\u25B2', // ▲
+    down: '\u25BC', // ▼
     search: '\uD83D\uDD0D', // 🔍
-    gear: '\u2699',      // ⚙
+    gear: '\u2699', // ⚙
   };
 
   return (
