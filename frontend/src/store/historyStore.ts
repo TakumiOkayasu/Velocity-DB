@@ -1,7 +1,7 @@
-﻿import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import { useShallow } from 'zustand/react/shallow'
-import type { HistoryItem } from '../types'
+﻿import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { useShallow } from 'zustand/react/shallow';
+import type { HistoryItem } from '../types';
 
 interface HistoryState {
   history: HistoryItem[];
@@ -18,7 +18,7 @@ interface HistoryState {
   importHistory: (json: string) => void;
 }
 
-let historyCounter = 0
+let historyCounter = 0;
 
 export const useHistoryStore = create<HistoryState>()(
   persist(
@@ -26,83 +26,79 @@ export const useHistoryStore = create<HistoryState>()(
       history: [],
       searchKeyword: '',
 
-  addHistory: (item) => {
-    const id = `history-${++historyCounter}`
-    const newItem: HistoryItem = {
-      ...item,
-      id,
-    }
+      addHistory: (item) => {
+        const id = `history-${++historyCounter}`;
+        const newItem: HistoryItem = {
+          ...item,
+          id,
+        };
 
-    set((state) => ({
-      history: [newItem, ...state.history].slice(0, 10000), // Keep max 10000 items
-    }))
-  },
+        set((state) => ({
+          history: [newItem, ...state.history].slice(0, 10000), // Keep max 10000 items
+        }));
+      },
 
-  removeHistory: (id) => {
-    set((state) => ({
-      history: state.history.filter((h) => h.id !== id),
-    }))
-  },
+      removeHistory: (id) => {
+        set((state) => ({
+          history: state.history.filter((h) => h.id !== id),
+        }));
+      },
 
-  clearHistory: () => {
-    // Keep favorites
-    set((state) => ({
-      history: state.history.filter((h) => h.isFavorite),
-    }))
-  },
+      clearHistory: () => {
+        // Keep favorites
+        set((state) => ({
+          history: state.history.filter((h) => h.isFavorite),
+        }));
+      },
 
-  setFavorite: (id, isFavorite) => {
-    set((state) => ({
-      history: state.history.map((h) =>
-        h.id === id ? { ...h, isFavorite } : h
-      ),
-    }))
-  },
+      setFavorite: (id, isFavorite) => {
+        set((state) => ({
+          history: state.history.map((h) => (h.id === id ? { ...h, isFavorite } : h)),
+        }));
+      },
 
-  setSearchKeyword: (keyword) => {
-    set({ searchKeyword: keyword })
-  },
+      setSearchKeyword: (keyword) => {
+        set({ searchKeyword: keyword });
+      },
 
-  getFilteredHistory: () => {
-    const { history, searchKeyword } = get()
-    if (!searchKeyword.trim()) {
-      return history
-    }
-
-    const lowerKeyword = searchKeyword.toLowerCase()
-    return history.filter((h) =>
-      h.sql.toLowerCase().includes(lowerKeyword)
-    )
-  },
-
-  getFavorites: () => {
-    const { history } = get()
-    return history.filter((h) => h.isFavorite)
-  },
-
-  exportHistory: () => {
-    const { history } = get()
-    return JSON.stringify(history, null, 2)
-  },
-
-  importHistory: (json: string) => {
-    try {
-      const imported = JSON.parse(json) as HistoryItem[]
-      if (!Array.isArray(imported)) {
-        throw new Error('Invalid format')
-      }
-      // Merge with existing, avoiding duplicates by SQL content
-      set((state) => {
-        const existingSql = new Set(state.history.map((h) => h.sql))
-        const newItems = imported.filter((h) => !existingSql.has(h.sql))
-        return {
-          history: [...state.history, ...newItems].slice(0, 10000),
+      getFilteredHistory: () => {
+        const { history, searchKeyword } = get();
+        if (!searchKeyword.trim()) {
+          return history;
         }
-      })
-    } catch (error) {
-      console.error('Failed to import history:', error)
-    }
-  },
+
+        const lowerKeyword = searchKeyword.toLowerCase();
+        return history.filter((h) => h.sql.toLowerCase().includes(lowerKeyword));
+      },
+
+      getFavorites: () => {
+        const { history } = get();
+        return history.filter((h) => h.isFavorite);
+      },
+
+      exportHistory: () => {
+        const { history } = get();
+        return JSON.stringify(history, null, 2);
+      },
+
+      importHistory: (json: string) => {
+        try {
+          const imported = JSON.parse(json) as HistoryItem[];
+          if (!Array.isArray(imported)) {
+            throw new Error('Invalid format');
+          }
+          // Merge with existing, avoiding duplicates by SQL content
+          set((state) => {
+            const existingSql = new Set(state.history.map((h) => h.sql));
+            const newItems = imported.filter((h) => !existingSql.has(h.sql));
+            return {
+              history: [...state.history, ...newItems].slice(0, 10000),
+            };
+          });
+        } catch (error) {
+          console.error('Failed to import history:', error);
+        }
+      },
     }),
     {
       name: 'query-history',
@@ -114,23 +110,21 @@ export const useHistoryStore = create<HistoryState>()(
           if (state?.history) {
             // Update historyCounter to avoid ID collisions
             const maxId = state.history.reduce((max, h) => {
-              const num = parseInt(h.id.replace('history-', ''), 10)
-              return isNaN(num) ? max : Math.max(max, num)
-            }, 0)
-            historyCounter = maxId
+              const num = Number.parseInt(h.id.replace('history-', ''), 10);
+              return Number.isNaN(num) ? max : Math.max(max, num);
+            }, 0);
+            historyCounter = maxId;
           }
-        }
+        };
       },
     }
   )
-)
+);
 
 // Optimized selectors to prevent unnecessary re-renders
-export const useHistoryItems = () =>
-  useHistoryStore(useShallow((state) => state.history))
+export const useHistoryItems = () => useHistoryStore(useShallow((state) => state.history));
 
-export const useHistorySearch = () =>
-  useHistoryStore((state) => state.searchKeyword)
+export const useHistorySearch = () => useHistoryStore((state) => state.searchKeyword);
 
 export const useHistoryActions = () =>
   useHistoryStore(
@@ -145,4 +139,4 @@ export const useHistoryActions = () =>
       exportHistory: state.exportHistory,
       importHistory: state.importHistory,
     }))
-  )
+  );

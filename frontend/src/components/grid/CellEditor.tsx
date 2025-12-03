@@ -1,52 +1,55 @@
-﻿import { useState, useEffect, useRef, useCallback } from 'react'
-import type { ICellEditorParams } from 'ag-grid-community'
-import styles from './CellEditor.module.css'
+﻿import type { ICellEditorParams } from 'ag-grid-community';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import styles from './CellEditor.module.css';
 
 interface CellEditorProps extends ICellEditorParams {
-  onValueChange?: (value: string | null) => void
+  onValueChange?: (value: string | null) => void;
 }
 
 export function CellEditor(props: CellEditorProps) {
-  const { value, onValueChange } = props
-  const [currentValue, setCurrentValue] = useState<string>(value ?? '')
-  const [isNull, setIsNull] = useState<boolean>(value === null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const { value, onValueChange } = props;
+  const [currentValue, setCurrentValue] = useState<string>(value ?? '');
+  const [isNull, setIsNull] = useState<boolean>(value === null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (inputRef.current) {
-      inputRef.current.focus()
-      inputRef.current.select()
+      inputRef.current.focus();
+      inputRef.current.select();
     }
-  }, [])
+  }, []);
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setCurrentValue(e.target.value)
-    setIsNull(false)
-    onValueChange?.(e.target.value)
-  }, [onValueChange])
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setCurrentValue(e.target.value);
+      setIsNull(false);
+      onValueChange?.(e.target.value);
+    },
+    [onValueChange]
+  );
 
   const handleSetNull = useCallback(() => {
-    setIsNull(true)
-    setCurrentValue('')
-    onValueChange?.(null)
-  }, [onValueChange])
+    setIsNull(true);
+    setCurrentValue('');
+    onValueChange?.(null);
+  }, [onValueChange]);
 
   const handleClearNull = useCallback(() => {
-    setIsNull(false)
-    inputRef.current?.focus()
-  }, [])
+    setIsNull(false);
+    inputRef.current?.focus();
+  }, []);
 
   const getValue = useCallback(() => {
-    return isNull ? null : currentValue
-  }, [isNull, currentValue])
+    return isNull ? null : currentValue;
+  }, [isNull, currentValue]);
 
   const isCancelBeforeStart = useCallback(() => {
-    return false
-  }, [])
+    return false;
+  }, []);
 
   const isCancelAfterEnd = useCallback(() => {
-    return false
-  }, [])
+    return false;
+  }, []);
 
   // Expose methods for AG Grid
   useEffect(() => {
@@ -54,9 +57,9 @@ export function CellEditor(props: CellEditorProps) {
       getValue,
       isCancelBeforeStart,
       isCancelAfterEnd,
-    }
-    Object.assign(props, api)
-  }, [props, getValue, isCancelBeforeStart, isCancelAfterEnd])
+    };
+    Object.assign(props, api);
+  }, [props, getValue, isCancelBeforeStart, isCancelAfterEnd]);
 
   return (
     <div className={styles.container}>
@@ -93,5 +96,5 @@ export function CellEditor(props: CellEditorProps) {
         )}
       </div>
     </div>
-  )
+  );
 }

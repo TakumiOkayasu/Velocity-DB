@@ -1,7 +1,7 @@
-﻿import { create } from 'zustand'
-import { useShallow } from 'zustand/react/shallow'
-import type { Connection } from '../types'
-import { bridge } from '../api/bridge'
+﻿import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
+import { bridge } from '../api/bridge';
+import type { Connection } from '../types';
 
 interface ConnectionState {
   connections: Connection[];
@@ -23,7 +23,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
   error: null,
 
   addConnection: async (connection) => {
-    set({ isConnecting: true, error: null })
+    set({ isConnecting: true, error: null });
 
     try {
       const result = await bridge.connect({
@@ -32,32 +32,32 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         username: connection.username,
         password: connection.password,
         useWindowsAuth: connection.useWindowsAuth,
-      })
+      });
 
       const newConnection: Connection = {
         ...connection,
         id: result.connectionId,
-      }
+      };
 
       set((state) => ({
         connections: [...state.connections, newConnection],
         activeConnectionId: result.connectionId,
         isConnecting: false,
-      }))
+      }));
     } catch (error) {
       set({
         isConnecting: false,
         error: error instanceof Error ? error.message : 'Connection failed',
-      })
-      throw error
+      });
+      throw error;
     }
   },
 
   removeConnection: async (id) => {
-    const { activeConnectionId } = get()
+    const { activeConnectionId } = get();
 
     try {
-      await bridge.disconnect(id)
+      await bridge.disconnect(id);
     } catch {
       // Ignore disconnect errors
     }
@@ -65,15 +65,15 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     set((state) => ({
       connections: state.connections.filter((c) => c.id !== id),
       activeConnectionId: activeConnectionId === id ? null : activeConnectionId,
-    }))
+    }));
   },
 
   setActive: (id) => {
-    set({ activeConnectionId: id })
+    set({ activeConnectionId: id });
   },
 
   testConnection: async (connection) => {
-    set({ isConnecting: true, error: null })
+    set({ isConnecting: true, error: null });
 
     try {
       const result = await bridge.testConnection({
@@ -82,33 +82,32 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         username: connection.username,
         password: connection.password,
         useWindowsAuth: connection.useWindowsAuth,
-      })
+      });
 
-      set({ isConnecting: false })
-      return result.success
+      set({ isConnecting: false });
+      return result.success;
     } catch (error) {
       set({
         isConnecting: false,
         error: error instanceof Error ? error.message : 'Connection test failed',
-      })
-      return false
+      });
+      return false;
     }
   },
 
   clearError: () => {
-    set({ error: null })
+    set({ error: null });
   },
-}))
+}));
 
 // Optimized selectors to prevent unnecessary re-renders
-export const useConnections = () =>
-  useConnectionStore(useShallow((state) => state.connections))
+export const useConnections = () => useConnectionStore(useShallow((state) => state.connections));
 
 export const useActiveConnection = () =>
   useConnectionStore((state) => {
-    const connection = state.connections.find((c) => c.id === state.activeConnectionId)
-    return connection ?? null
-  })
+    const connection = state.connections.find((c) => c.id === state.activeConnectionId);
+    return connection ?? null;
+  });
 
 export const useConnectionActions = () =>
   useConnectionStore(
@@ -119,4 +118,4 @@ export const useConnectionActions = () =>
       testConnection: state.testConnection,
       clearError: state.clearError,
     }))
-  )
+  );

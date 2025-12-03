@@ -1,6 +1,6 @@
-﻿import { memo } from 'react'
-import type { DatabaseObject } from '../../types'
-import styles from './TreeNode.module.css'
+import { memo } from 'react';
+import type { DatabaseObject } from '../../types';
+import styles from './TreeNode.module.css';
 
 interface TreeNodeProps {
   node: DatabaseObject;
@@ -13,54 +13,60 @@ interface TreeNodeProps {
 const getIcon = (type: DatabaseObject['type'] | 'folder'): string => {
   switch (type) {
     case 'database':
-      return '淀・・
+      return '🗄';
     case 'folder':
-      return '刀'
+      return '📁';
     case 'table':
-      return '搭'
+      return '📋';
     case 'view':
-      return '早・・
+      return '👁';
     case 'procedure':
-      return '笞呻ｸ・
+      return '⚙️';
     case 'function':
-      return 'ﾆ・
+      return 'ƒ';
     case 'column':
-      return '笏・
+      return '│';
     case 'index':
-      return '淘'
+      return '🔑';
     default:
-      return '塘'
+      return '📄';
   }
-}
+};
 
-export const TreeNode = memo(function TreeNode({ node, level, expandedNodes, loadingNodes, onToggle }: TreeNodeProps) {
-  const hasChildren = node.children && node.children.length > 0
-  const canExpand = hasChildren || node.type === 'table' // Tables can lazy-load columns
-  const isExpanded = expandedNodes.has(node.id)
-  const isLoading = loadingNodes?.has(node.id)
+export const TreeNode = memo(function TreeNode({
+  node,
+  level,
+  expandedNodes,
+  loadingNodes,
+  onToggle,
+}: TreeNodeProps) {
+  const hasChildren = node.children && node.children.length > 0;
+  const canExpand = hasChildren || node.type === 'table'; // Tables can lazy-load columns
+  const isExpanded = expandedNodes.has(node.id);
+  const isLoading = loadingNodes?.has(node.id);
 
   const handleClick = () => {
     if (canExpand) {
-      onToggle(node.id)
+      onToggle(node.id);
     }
-  }
+  };
 
   const handleDoubleClick = () => {
     // TODO: Open table data or definition
-    console.log('Double click:', node)
-  }
+    console.log('Double click:', node);
+  };
 
   const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     // TODO: Show context menu
-    console.log('Context menu:', node)
-  }
+    console.log('Context menu:', node);
+  };
 
   const getExpander = () => {
-    if (isLoading) return '竢ｳ'
-    if (canExpand) return isExpanded ? '笆ｼ' : '笆ｶ'
-    return ' '
-  }
+    if (isLoading) return '⏳';
+    if (canExpand) return isExpanded ? '▼' : '▶';
+    return ' ';
+  };
 
   return (
     <div className={styles.container}>
@@ -71,16 +77,14 @@ export const TreeNode = memo(function TreeNode({ node, level, expandedNodes, loa
         onDoubleClick={handleDoubleClick}
         onContextMenu={handleContextMenu}
       >
-        <span className={styles.expander}>
-          {getExpander()}
-        </span>
+        <span className={styles.expander}>{getExpander()}</span>
         <span className={styles.icon}>{getIcon(node.type)}</span>
         <span className={styles.name}>{node.name}</span>
       </div>
 
       {hasChildren && isExpanded && (
         <div className={styles.children}>
-          {node.children!.map((child) => (
+          {node.children?.map((child) => (
             <TreeNode
               key={child.id}
               node={child}
@@ -93,5 +97,5 @@ export const TreeNode = memo(function TreeNode({ node, level, expandedNodes, loa
         </div>
       )}
     </div>
-  )
-})
+  );
+});

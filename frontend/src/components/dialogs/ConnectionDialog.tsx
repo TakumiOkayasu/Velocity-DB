@@ -35,7 +35,7 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
   if (!isOpen) return null;
 
   const handleChange = (field: keyof ConnectionConfig, value: string | number | boolean) => {
-    setConfig(prev => ({ ...prev, [field]: value }));
+    setConfig((prev) => ({ ...prev, [field]: value }));
     setTestResult(null);
   };
 
@@ -58,7 +58,10 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
         setTestResult({ success: false, message: response.message || 'Connection failed' });
       }
     } catch (error) {
-      setTestResult({ success: false, message: error instanceof Error ? error.message : String(error) });
+      setTestResult({
+        success: false,
+        message: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       setTesting(false);
     }
@@ -74,7 +77,9 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
       <div className={styles.dialog}>
         <div className={styles.header}>
           <h2>New Connection</h2>
-          <button className={styles.closeButton} onClick={onClose}>&times;</button>
+          <button className={styles.closeButton} onClick={onClose}>
+            &times;
+          </button>
         </div>
 
         <div className={styles.content}>
@@ -83,7 +88,7 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
             <input
               type="text"
               value={config.name}
-              onChange={e => handleChange('name', e.target.value)}
+              onChange={(e) => handleChange('name', e.target.value)}
             />
           </div>
 
@@ -92,7 +97,7 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
             <input
               type="text"
               value={config.server}
-              onChange={e => handleChange('server', e.target.value)}
+              onChange={(e) => handleChange('server', e.target.value)}
               placeholder="localhost or hostname"
             />
           </div>
@@ -102,7 +107,7 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
             <input
               type="number"
               value={config.port}
-              onChange={e => handleChange('port', parseInt(e.target.value) || 1433)}
+              onChange={(e) => handleChange('port', Number.parseInt(e.target.value) || 1433)}
             />
           </div>
 
@@ -111,7 +116,7 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
             <input
               type="text"
               value={config.database}
-              onChange={e => handleChange('database', e.target.value)}
+              onChange={(e) => handleChange('database', e.target.value)}
               placeholder="master"
             />
           </div>
@@ -121,7 +126,7 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
               <input
                 type="checkbox"
                 checked={config.useWindowsAuth}
-                onChange={e => handleChange('useWindowsAuth', e.target.checked)}
+                onChange={(e) => handleChange('useWindowsAuth', e.target.checked)}
               />
               Use Windows Authentication
             </label>
@@ -134,7 +139,7 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
                 <input
                   type="text"
                   value={config.username}
-                  onChange={e => handleChange('username', e.target.value)}
+                  onChange={(e) => handleChange('username', e.target.value)}
                 />
               </div>
 
@@ -143,25 +148,23 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
                 <input
                   type="password"
                   value={config.password}
-                  onChange={e => handleChange('password', e.target.value)}
+                  onChange={(e) => handleChange('password', e.target.value)}
                 />
               </div>
             </>
           )}
 
           {testResult && (
-            <div className={`${styles.testResult} ${testResult.success ? styles.success : styles.error}`}>
+            <div
+              className={`${styles.testResult} ${testResult.success ? styles.success : styles.error}`}
+            >
               {testResult.message}
             </div>
           )}
         </div>
 
         <div className={styles.footer}>
-          <button
-            className={styles.testButton}
-            onClick={handleTestConnection}
-            disabled={testing}
-          >
+          <button className={styles.testButton} onClick={handleTestConnection} disabled={testing}>
             {testing ? 'Testing...' : 'Test Connection'}
           </button>
           <div className={styles.spacer} />

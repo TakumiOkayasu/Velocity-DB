@@ -1,54 +1,59 @@
-﻿import { useState, useCallback, useEffect } from 'react'
-import { defaultSettings, type AppSettings } from './settingsUtils'
-import styles from './SettingsDialog.module.css'
+﻿import { useCallback, useEffect, useState } from 'react';
+import styles from './SettingsDialog.module.css';
+import { type AppSettings, defaultSettings } from './settingsUtils';
 
 interface SettingsDialogProps {
-  isOpen: boolean
-  onClose: () => void
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
-  const [settings, setSettings] = useState<AppSettings>(defaultSettings)
-  const [activeTab, setActiveTab] = useState<'editor' | 'query' | 'appearance' | 'shortcuts'>('editor')
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
+  const [activeTab, setActiveTab] = useState<'editor' | 'query' | 'appearance' | 'shortcuts'>(
+    'editor'
+  );
 
   // Load settings from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('app-settings')
+    const saved = localStorage.getItem('app-settings');
     if (saved) {
       try {
-        setSettings({ ...defaultSettings, ...JSON.parse(saved) })
+        setSettings({ ...defaultSettings, ...JSON.parse(saved) });
       } catch (err) {
-        console.error('Failed to load settings:', err)
+        console.error('Failed to load settings:', err);
       }
     }
-  }, [])
+  }, []);
 
   const handleSave = useCallback(() => {
-    localStorage.setItem('app-settings', JSON.stringify(settings))
-    onClose()
+    localStorage.setItem('app-settings', JSON.stringify(settings));
+    onClose();
     // Trigger reload to apply settings
-    window.dispatchEvent(new CustomEvent('settings-changed', { detail: settings }))
-  }, [settings, onClose])
+    window.dispatchEvent(new CustomEvent('settings-changed', { detail: settings }));
+  }, [settings, onClose]);
 
   const handleReset = useCallback(() => {
-    setSettings(defaultSettings)
-  }, [])
+    setSettings(defaultSettings);
+  }, []);
 
-  const updateSetting = useCallback(<K extends keyof AppSettings>(
-    category: K,
-    key: keyof AppSettings[K],
-    value: AppSettings[K][keyof AppSettings[K]]
-  ) => {
-    setSettings((prev) => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        [key]: value,
-      },
-    }))
-  }, [])
+  const updateSetting = useCallback(
+    <K extends keyof AppSettings>(
+      category: K,
+      key: keyof AppSettings[K],
+      value: AppSettings[K][keyof AppSettings[K]]
+    ) => {
+      setSettings((prev) => ({
+        ...prev,
+        [category]: {
+          ...prev[category],
+          [key]: value,
+        },
+      }));
+    },
+    []
+  );
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -56,7 +61,8 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
         <div className={styles.header}>
           <h2>Settings</h2>
           <button className={styles.closeButton} onClick={onClose}>
-            ﾃ・          </button>
+            ﾃ・{' '}
+          </button>
         </div>
 
         <div className={styles.content}>
@@ -95,7 +101,9 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                   <input
                     type="number"
                     value={settings.editor.fontSize}
-                    onChange={(e) => updateSetting('editor', 'fontSize', parseInt(e.target.value) || 14)}
+                    onChange={(e) =>
+                      updateSetting('editor', 'fontSize', Number.parseInt(e.target.value) || 14)
+                    }
                     min={8}
                     max={32}
                   />
@@ -104,7 +112,9 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                   <label>Tab Size</label>
                   <select
                     value={settings.editor.tabSize}
-                    onChange={(e) => updateSetting('editor', 'tabSize', parseInt(e.target.value))}
+                    onChange={(e) =>
+                      updateSetting('editor', 'tabSize', Number.parseInt(e.target.value))
+                    }
                   >
                     <option value={2}>2 spaces</option>
                     <option value={4}>4 spaces</option>
@@ -151,7 +161,9 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                   <input
                     type="number"
                     value={settings.query.timeout}
-                    onChange={(e) => updateSetting('query', 'timeout', parseInt(e.target.value) || 30000)}
+                    onChange={(e) =>
+                      updateSetting('query', 'timeout', Number.parseInt(e.target.value) || 30000)
+                    }
                     min={1000}
                     max={600000}
                     step={1000}
@@ -162,7 +174,9 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                   <input
                     type="number"
                     value={settings.query.maxRows}
-                    onChange={(e) => updateSetting('query', 'maxRows', parseInt(e.target.value) || 10000)}
+                    onChange={(e) =>
+                      updateSetting('query', 'maxRows', Number.parseInt(e.target.value) || 10000)
+                    }
                     min={100}
                     max={1000000}
                     step={1000}
@@ -177,7 +191,9 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                   <label>Theme</label>
                   <select
                     value={settings.appearance.theme}
-                    onChange={(e) => updateSetting('appearance', 'theme', e.target.value as 'dark' | 'light')}
+                    onChange={(e) =>
+                      updateSetting('appearance', 'theme', e.target.value as 'dark' | 'light')
+                    }
                   >
                     <option value="dark">Dark</option>
                     <option value="light">Light (Coming Soon)</option>
@@ -225,5 +241,5 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }

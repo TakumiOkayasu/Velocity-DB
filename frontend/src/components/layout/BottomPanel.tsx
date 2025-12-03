@@ -1,16 +1,16 @@
-﻿import { useState } from 'react'
-import { ResultGrid } from '../grid/ResultGrid'
-import { QueryHistory } from '../history/QueryHistory'
-import styles from './BottomPanel.module.css'
+﻿import { useState } from 'react';
+import { ResultGrid } from '../grid/ResultGrid';
+import { QueryHistory } from '../history/QueryHistory';
+import styles from './BottomPanel.module.css';
 
 interface BottomPanelProps {
   height: number;
 }
 
-type TabType = 'results' | 'history'
+type TabType = 'results' | 'history';
 
 export function BottomPanel({ height }: BottomPanelProps) {
-  const [activeTab, setActiveTab] = useState<TabType>('results')
+  const [activeTab, setActiveTab] = useState<TabType>('results');
 
   return (
     <div className={styles.container} style={{ height }}>
@@ -34,5 +34,5 @@ export function BottomPanel({ height }: BottomPanelProps) {
         {activeTab === 'history' && <QueryHistory />}
       </div>
     </div>
-  )
+  );
 }

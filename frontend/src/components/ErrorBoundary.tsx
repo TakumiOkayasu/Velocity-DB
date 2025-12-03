@@ -1,4 +1,4 @@
-import { Component, type ReactNode, type ErrorInfo } from 'react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
@@ -38,14 +38,16 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div style={{
-          padding: '20px',
-          margin: '20px',
-          backgroundColor: '#2d1f1f',
-          border: '1px solid #5c3c3c',
-          borderRadius: '4px',
-          color: '#ff6b6b',
-        }}>
+        <div
+          style={{
+            padding: '20px',
+            margin: '20px',
+            backgroundColor: '#2d1f1f',
+            border: '1px solid #5c3c3c',
+            borderRadius: '4px',
+            color: '#ff6b6b',
+          }}
+        >
           <h3 style={{ margin: '0 0 10px 0' }}>Something went wrong</h3>
           <p style={{ margin: '0 0 10px 0', color: '#ccc' }}>
             {this.state.error?.message || 'An unexpected error occurred'}

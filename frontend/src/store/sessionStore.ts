@@ -1,28 +1,28 @@
-﻿import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+﻿import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 interface SessionState {
   // Layout state
-  leftPanelWidth: number
-  bottomPanelHeight: number
-  isLeftPanelVisible: boolean
-  isBottomPanelVisible: boolean
+  leftPanelWidth: number;
+  bottomPanelHeight: number;
+  isLeftPanelVisible: boolean;
+  isBottomPanelVisible: boolean;
 
   // Last used connection
-  lastConnectionId: string | null
+  lastConnectionId: string | null;
 
   // Open tabs (query IDs)
-  openTabs: string[]
-  activeTabId: string | null
+  openTabs: string[];
+  activeTabId: string | null;
 
   // Actions
-  setLeftPanelWidth: (width: number) => void
-  setBottomPanelHeight: (height: number) => void
-  setLeftPanelVisible: (visible: boolean) => void
-  setBottomPanelVisible: (visible: boolean) => void
-  setLastConnectionId: (id: string | null) => void
-  setOpenTabs: (tabs: string[]) => void
-  setActiveTabId: (id: string | null) => void
+  setLeftPanelWidth: (width: number) => void;
+  setBottomPanelHeight: (height: number) => void;
+  setLeftPanelVisible: (visible: boolean) => void;
+  setBottomPanelVisible: (visible: boolean) => void;
+  setLastConnectionId: (id: string | null) => void;
+  setOpenTabs: (tabs: string[]) => void;
+  setActiveTabId: (id: string | null) => void;
 }
 
 export const useSessionStore = create<SessionState>()(
@@ -48,4 +48,4 @@ export const useSessionStore = create<SessionState>()(
       name: 'session-state',
     }
   )
-)
+);

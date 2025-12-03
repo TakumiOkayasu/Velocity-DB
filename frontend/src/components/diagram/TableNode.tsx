@@ -1,23 +1,23 @@
-﻿import { memo } from 'react'
-import { Handle, Position } from '@xyflow/react'
-import type { Column } from '../../types'
-import styles from './TableNode.module.css'
+﻿import { Handle, Position } from '@xyflow/react';
+import { memo } from 'react';
+import type { Column } from '../../types';
+import styles from './TableNode.module.css';
 
 interface TableNodeData {
-  tableName: string
-  columns: Column[]
+  tableName: string;
+  columns: Column[];
 }
 
 interface TableNodeProps {
-  data: TableNodeData
-  selected?: boolean
+  data: TableNodeData;
+  selected?: boolean;
 }
 
 export const TableNode = memo(function TableNode({ data, selected }: TableNodeProps) {
-  const { tableName, columns } = data
+  const { tableName, columns } = data;
 
-  const primaryKeys = columns.filter((c) => c.isPrimaryKey)
-  const regularColumns = columns.filter((c) => !c.isPrimaryKey)
+  const primaryKeys = columns.filter((c) => c.isPrimaryKey);
+  const regularColumns = columns.filter((c) => !c.isPrimaryKey);
 
   return (
     <div className={`${styles.container} ${selected ? styles.selected : ''}`}>
@@ -37,27 +37,24 @@ export const TableNode = memo(function TableNode({ data, selected }: TableNodePr
           </div>
         ))}
 
-        {primaryKeys.length > 0 && regularColumns.length > 0 && (
-          <div className={styles.divider} />
-        )}
+        {primaryKeys.length > 0 && regularColumns.length > 0 && <div className={styles.divider} />}
 
         {regularColumns.slice(0, 10).map((col) => (
           <div key={col.name} className={styles.column}>
             <span className={styles.columnName}>
-              {col.nullable ? '' : '*'}{col.name}
+              {col.nullable ? '' : '*'}
+              {col.name}
             </span>
             <span className={styles.columnType}>{col.type}</span>
           </div>
         ))}
 
         {regularColumns.length > 10 && (
-          <div className={styles.moreColumns}>
-            +{regularColumns.length - 10} more columns
-          </div>
+          <div className={styles.moreColumns}>+{regularColumns.length - 10} more columns</div>
         )}
       </div>
 
       <Handle type="source" position={Position.Right} className={styles.handle} />
     </div>
-  )
-})
+  );
+});

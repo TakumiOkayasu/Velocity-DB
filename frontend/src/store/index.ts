@@ -4,7 +4,7 @@ export {
   useConnections,
   useActiveConnection,
   useConnectionActions,
-} from './connectionStore'
+} from './connectionStore';
 
 export {
   useQueryStore,
@@ -12,15 +12,15 @@ export {
   useActiveQuery,
   useQueryResult,
   useQueryActions,
-} from './queryStore'
+} from './queryStore';
 
 export {
   useHistoryStore,
   useHistoryItems,
   useHistorySearch,
   useHistoryActions,
-} from './historyStore'
+} from './historyStore';
 
-export { useEditStore } from './editStore'
-export { useERDiagramStore } from './erDiagramStore'
-export { useSessionStore } from './sessionStore'
+export { useEditStore } from './editStore';
+export { useERDiagramStore } from './erDiagramStore';
+export { useSessionStore } from './sessionStore';

@@ -1,60 +1,63 @@
-﻿import { useState, useCallback } from 'react'
-import { bridge } from '../../api/bridge'
-import { useConnectionStore } from '../../store/connectionStore'
-import styles from './ExecutionPlanDialog.module.css'
+﻿import { useCallback, useState } from 'react';
+import { bridge } from '../../api/bridge';
+import { useConnectionStore } from '../../store/connectionStore';
+import styles from './ExecutionPlanDialog.module.css';
 
 interface ExecutionPlanDialogProps {
-  isOpen: boolean
-  onClose: () => void
-  sql: string
+  isOpen: boolean;
+  onClose: () => void;
+  sql: string;
 }
 
 export function ExecutionPlanDialog({ isOpen, onClose, sql }: ExecutionPlanDialogProps) {
-  const { activeConnectionId } = useConnectionStore()
-  const [planText, setPlanText] = useState<string>('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [showActual, setShowActual] = useState(false)
+  const { activeConnectionId } = useConnectionStore();
+  const [planText, setPlanText] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showActual, setShowActual] = useState(false);
 
-  const fetchPlan = useCallback(async (includeActual: boolean) => {
-    if (!activeConnectionId || !sql.trim()) return
+  const fetchPlan = useCallback(
+    async (includeActual: boolean) => {
+      if (!activeConnectionId || !sql.trim()) return;
 
-    setIsLoading(true)
-    setError(null)
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      // SQL Server execution plan query
-      const planQuery = includeActual
-        ? `SET STATISTICS XML ON;\n${sql}\nSET STATISTICS XML OFF;`
-        : `SET SHOWPLAN_TEXT ON;\n${sql}\nSET SHOWPLAN_TEXT OFF;`
+      try {
+        // SQL Server execution plan query
+        const planQuery = includeActual
+          ? `SET STATISTICS XML ON;\n${sql}\nSET STATISTICS XML OFF;`
+          : `SET SHOWPLAN_TEXT ON;\n${sql}\nSET SHOWPLAN_TEXT OFF;`;
 
-      const result = await bridge.executeQuery(activeConnectionId, planQuery)
+        const result = await bridge.executeQuery(activeConnectionId, planQuery);
 
-      if (result.rows.length > 0) {
-        // Combine all plan text rows
-        const plan = result.rows.map((row) => row.join(' ')).join('\n')
-        setPlanText(plan)
-      } else {
-        setPlanText('No execution plan available')
+        if (result.rows.length > 0) {
+          // Combine all plan text rows
+          const plan = result.rows.map((row) => row.join(' ')).join('\n');
+          setPlanText(plan);
+        } else {
+          setPlanText('No execution plan available');
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to get execution plan');
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to get execution plan')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [activeConnectionId, sql])
+    },
+    [activeConnectionId, sql]
+  );
 
   const handleGetPlan = useCallback(() => {
-    setShowActual(false)
-    fetchPlan(false)
-  }, [fetchPlan])
+    setShowActual(false);
+    fetchPlan(false);
+  }, [fetchPlan]);
 
   const handleGetActualPlan = useCallback(() => {
-    setShowActual(true)
-    fetchPlan(true)
-  }, [fetchPlan])
+    setShowActual(true);
+    fetchPlan(true);
+  }, [fetchPlan]);
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -62,7 +65,8 @@ export function ExecutionPlanDialog({ isOpen, onClose, sql }: ExecutionPlanDialo
         <div className={styles.header}>
           <h2>Execution Plan</h2>
           <button className={styles.closeButton} onClick={onClose}>
-            ﾃ・          </button>
+            ﾃ・{' '}
+          </button>
         </div>
 
         <div className={styles.toolbar}>
@@ -112,5 +116,5 @@ export function ExecutionPlanDialog({ isOpen, onClose, sql }: ExecutionPlanDialo
         </div>
       </div>
     </div>
-  )
+  );
 }

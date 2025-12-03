@@ -1,4 +1,4 @@
-﻿import type { IPCRequest, IPCResponse } from '../types'
+﻿import type { IPCRequest, IPCResponse } from '../types';
 
 declare global {
   interface Window {
@@ -39,34 +39,34 @@ const mockData: Record<string, unknown> = {
   formatSQL: { sql: 'SELECT\n    *\nFROM\n    users\nWHERE\n    id = 1;' },
   getQueryHistory: [],
   parseA5ER: { tables: [], relations: [] },
-}
+};
 
 class Bridge {
   private async call<T>(method: string, params: Record<string, unknown> = {}): Promise<T> {
     const request: IPCRequest = {
       method,
       params: JSON.stringify(params),
-    }
+    };
 
     if (window.invoke) {
-      const responseStr = await window.invoke(JSON.stringify(request))
-      const response: IPCResponse<T> = JSON.parse(responseStr)
+      const responseStr = await window.invoke(JSON.stringify(request));
+      const response: IPCResponse<T> = JSON.parse(responseStr);
 
       if (!response.success) {
-        throw new Error(response.error || 'Unknown error')
+        throw new Error(response.error || 'Unknown error');
       }
 
-      return response.data as T
+      return response.data as T;
     }
 
     // Development mode: return mock data
     if (import.meta.env.DEV) {
       // Small delay to simulate network
-      await new Promise((resolve) => setTimeout(resolve, 50))
-      return (mockData[method] ?? {}) as T
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      return (mockData[method] ?? {}) as T;
     }
 
-    throw new Error('Backend not available')
+    throw new Error('Backend not available');
   }
 
   // Connection methods
@@ -77,11 +77,11 @@ class Bridge {
     password?: string;
     useWindowsAuth: boolean;
   }): Promise<{ connectionId: string }> {
-    return this.call('connect', connectionInfo)
+    return this.call('connect', connectionInfo);
   }
 
   async disconnect(connectionId: string): Promise<void> {
-    return this.call('disconnect', { connectionId })
+    return this.call('disconnect', { connectionId });
   }
 
   async testConnection(connectionInfo: {
@@ -91,86 +91,101 @@ class Bridge {
     password?: string;
     useWindowsAuth: boolean;
   }): Promise<{ success: boolean; message: string }> {
-    return this.call('testConnection', connectionInfo)
+    return this.call('testConnection', connectionInfo);
   }
 
   // Query methods
-  async executeQuery(connectionId: string, sql: string): Promise<{
+  async executeQuery(
+    connectionId: string,
+    sql: string
+  ): Promise<{
     columns: { name: string; type: string }[];
     rows: string[][];
     affectedRows: number;
     executionTimeMs: number;
   }> {
-    return this.call('executeQuery', { connectionId, sql })
+    return this.call('executeQuery', { connectionId, sql });
   }
 
   async cancelQuery(connectionId: string): Promise<void> {
-    return this.call('cancelQuery', { connectionId })
+    return this.call('cancelQuery', { connectionId });
   }
 
   // Schema methods
   async getDatabases(connectionId: string): Promise<string[]> {
-    return this.call('getDatabases', { connectionId })
+    return this.call('getDatabases', { connectionId });
   }
 
-  async getTables(connectionId: string, database: string): Promise<{
-    schema: string;
-    name: string;
-    type: string;
-  }[]> {
-    return this.call('getTables', { connectionId, database })
+  async getTables(
+    connectionId: string,
+    database: string
+  ): Promise<
+    {
+      schema: string;
+      name: string;
+      type: string;
+    }[]
+  > {
+    return this.call('getTables', { connectionId, database });
   }
 
-  async getColumns(connectionId: string, table: string): Promise<{
-    name: string;
-    type: string;
-    size: number;
-    nullable: boolean;
-    isPrimaryKey: boolean;
-  }[]> {
-    return this.call('getColumns', { connectionId, table })
+  async getColumns(
+    connectionId: string,
+    table: string
+  ): Promise<
+    {
+      name: string;
+      type: string;
+      size: number;
+      nullable: boolean;
+      isPrimaryKey: boolean;
+    }[]
+  > {
+    return this.call('getColumns', { connectionId, table });
   }
 
   // Transaction methods
   async beginTransaction(connectionId: string): Promise<void> {
-    return this.call('beginTransaction', { connectionId })
+    return this.call('beginTransaction', { connectionId });
   }
 
   async commit(connectionId: string): Promise<void> {
-    return this.call('commit', { connectionId })
+    return this.call('commit', { connectionId });
   }
 
   async rollback(connectionId: string): Promise<void> {
-    return this.call('rollback', { connectionId })
+    return this.call('rollback', { connectionId });
   }
 
   // Export methods
   async exportCSV(data: unknown, filepath: string): Promise<void> {
-    return this.call('exportCSV', { data, filepath })
+    return this.call('exportCSV', { data, filepath });
   }
 
   async exportJSON(data: unknown, filepath: string): Promise<void> {
-    return this.call('exportJSON', { data, filepath })
+    return this.call('exportJSON', { data, filepath });
   }
 
   async exportExcel(data: unknown, filepath: string): Promise<void> {
-    return this.call('exportExcel', { data, filepath })
+    return this.call('exportExcel', { data, filepath });
   }
 
   // SQL methods
   async formatSQL(sql: string): Promise<{ sql: string }> {
-    return this.call('formatSQL', { sql })
+    return this.call('formatSQL', { sql });
   }
 
   // History methods
-  async getQueryHistory(): Promise<{
-    id: string;
-    sql: string;
-    timestamp: number;
-    executionTimeMs: number;
-    success: boolean;
-  }[]> {
-    return this.call('getQueryHistory', {})
+  async getQueryHistory(): Promise<
+    {
+      id: string;
+      sql: string;
+      timestamp: number;
+      executionTimeMs: number;
+      success: boolean;
+    }[]
+  > {
+    return this.call('getQueryHistory', {});
   }
 
   // A5:ER methods
@@ -178,8 +193,8 @@ class Bridge {
     tables: { name: string; columns: { name: string; type: string }[] }[];
     relations: { source: string; target: string; cardinality: string }[];
   }> {
-    return this.call('parseA5ER', { filepath })
+    return this.call('parseA5ER', { filepath });
   }
 }
 
-export const bridge = new Bridge()
+export const bridge = new Bridge();

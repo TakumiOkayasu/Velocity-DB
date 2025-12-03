@@ -37,7 +37,9 @@
       "Bash(git -C \"C:\\prog\\Pre-DateGrip\" diff --stat)",
       "Bash(powershell -ExecutionPolicy Bypass -Command:*)",
       "Bash(git -C \"C:\\prog\\Pre-DateGrip\" checkout HEAD -- CLAUDE.md .gitignore)",
-      "Bash(git -C:*)"
+      "Bash(git -C:*)",
+      "WebSearch",
+      "Bash(npx biome:*)"
     ],
     "deny": [],
     "ask": []

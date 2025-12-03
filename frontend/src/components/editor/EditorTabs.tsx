@@ -1,8 +1,8 @@
-﻿import { useQueryStore } from '../../store/queryStore'
-import styles from './EditorTabs.module.css'
+import { useQueryStore } from '../../store/queryStore';
+import styles from './EditorTabs.module.css';
 
 export function EditorTabs() {
-  const { queries, activeQueryId, addQuery, removeQuery, setActive } = useQueryStore()
+  const { queries, activeQueryId, addQuery, removeQuery, setActive } = useQueryStore();
 
   return (
     <div className={styles.container}>
@@ -14,28 +14,25 @@ export function EditorTabs() {
             onClick={() => setActive(query.id)}
           >
             <span className={styles.tabName}>
-              {query.isDirty && <span className={styles.dirty}>笳・/span>}
+              {query.isDirty && <span className={styles.dirty}>●</span>}
               {query.name}
             </span>
             <button
               className={styles.closeButton}
               onClick={(e) => {
-                e.stopPropagation()
-                removeQuery(query.id)
+                e.stopPropagation();
+                removeQuery(query.id);
               }}
               title="Close tab"
             >
-              ﾃ・            </button>
+              ×
+            </button>
           </div>
         ))}
       </div>
-      <button
-        className={styles.addButton}
-        onClick={() => addQuery()}
-        title="New Query (Ctrl+N)"
-      >
+      <button className={styles.addButton} onClick={() => addQuery()} title="New Query (Ctrl+N)">
         +
       </button>
     </div>
-  )
+  );
 }

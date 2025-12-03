@@ -134,7 +134,7 @@
   max-height: 400px;
   overflow: auto;
   white-space: pre-wrap;
-  font-family: 'Consolas', 'Monaco', monospace;
+  font-family: "Consolas", "Monaco", monospace;
 }
 
 .loading,

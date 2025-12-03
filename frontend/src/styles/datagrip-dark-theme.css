@@ -1,17 +1,24 @@
-﻿/* Additional DataGrip Dark Theme Styles */
-
-/* Monaco Editor customizations */
-.monaco-editor {
+﻿/* Additional DataGrip Dark Theme Styles */ /* Monaco Editor customizations */ .monaco-editor {
   --vscode-editor-background: var(--bg-primary);
   --vscode-editor-foreground: var(--text-primary);
 }
 
 /* SQL syntax highlighting colors (matching DataGrip) */
-.monaco-editor .mtk1 { color: #bbbbbb; }  /* default */
-.monaco-editor .mtk3 { color: #629755; }  /* comments */
-.monaco-editor .mtk5 { color: #cc7832; }  /* keywords */
-.monaco-editor .mtk6 { color: #6a8759; }  /* strings */
-.monaco-editor .mtk7 { color: #6897bb; }  /* numbers */
+.monaco-editor .mtk1 {
+  color: #bbbbbb;
+} /* default */
+.monaco-editor .mtk3 {
+  color: #629755;
+} /* comments */
+.monaco-editor .mtk5 {
+  color: #cc7832;
+} /* keywords */
+.monaco-editor .mtk6 {
+  color: #6a8759;
+} /* strings */
+.monaco-editor .mtk7 {
+  color: #6897bb;
+} /* numbers */
 
 /* Table and column highlighting */
 .sql-table-name {

@@ -1,29 +1,33 @@
-﻿import { create } from 'zustand'
-import type { ERTableNode, ERRelationEdge } from '../types'
-import { bridge } from '../api/bridge'
+﻿import { create } from 'zustand';
+import { bridge } from '../api/bridge';
+import type { ERRelationEdge, ERTableNode } from '../types';
 
 interface ERDiagramState {
-  tables: ERTableNode[]
-  relations: ERRelationEdge[]
-  isLoading: boolean
-  error: string | null
+  tables: ERTableNode[];
+  relations: ERRelationEdge[];
+  isLoading: boolean;
+  error: string | null;
 
   // Actions
-  setTables: (tables: ERTableNode[]) => void
-  setRelations: (relations: ERRelationEdge[]) => void
-  addTable: (table: ERTableNode) => void
-  updateTablePosition: (id: string, position: { x: number; y: number }) => void
-  removeTable: (id: string) => void
-  clearDiagram: () => void
+  setTables: (tables: ERTableNode[]) => void;
+  setRelations: (relations: ERRelationEdge[]) => void;
+  addTable: (table: ERTableNode) => void;
+  updateTablePosition: (id: string, position: { x: number; y: number }) => void;
+  removeTable: (id: string) => void;
+  clearDiagram: () => void;
 
   // Reverse engineering
-  loadFromDatabase: (connectionId: string, database: string) => Promise<void>
+  loadFromDatabase: (connectionId: string, database: string) => Promise<void>;
 
   // Import from A5:ER
   importFromA5ER: (
-    tables: { name: string; schema: string; columns: { name: string; type: string; nullable: boolean; isPrimaryKey: boolean }[] }[],
+    tables: {
+      name: string;
+      schema: string;
+      columns: { name: string; type: string; nullable: boolean; isPrimaryKey: boolean }[];
+    }[],
     relations: { sourceTable: string; targetTable: string; cardinality: '1:1' | '1:N' | 'N:M' }[]
-  ) => void
+  ) => void;
 }
 
 export const useERDiagramStore = create<ERDiagramState>((set) => ({
@@ -39,58 +43,56 @@ export const useERDiagramStore = create<ERDiagramState>((set) => ({
   addTable: (table) => {
     set((state) => ({
       tables: [...state.tables, table],
-    }))
+    }));
   },
 
   updateTablePosition: (id, position) => {
     set((state) => ({
-      tables: state.tables.map((t) =>
-        t.id === id ? { ...t, position } : t
-      ),
-    }))
+      tables: state.tables.map((t) => (t.id === id ? { ...t, position } : t)),
+    }));
   },
 
   removeTable: (id) => {
     set((state) => ({
       tables: state.tables.filter((t) => t.id !== id),
       relations: state.relations.filter((r) => r.source !== id && r.target !== id),
-    }))
+    }));
   },
 
   clearDiagram: () => {
-    set({ tables: [], relations: [] })
+    set({ tables: [], relations: [] });
   },
 
   loadFromDatabase: async (connectionId, database) => {
-    set({ isLoading: true, error: null })
+    set({ isLoading: true, error: null });
 
     try {
       // Get tables
-      const tablesData = await bridge.getTables(connectionId, database)
-      const tables: ERTableNode[] = []
-      const relations: ERRelationEdge[] = []
+      const tablesData = await bridge.getTables(connectionId, database);
+      const tables: ERTableNode[] = [];
+      const relations: ERRelationEdge[] = [];
 
       // Layout configuration
-      const nodeWidth = 200
-      const nodeHeight = 150
-      const horizontalGap = 80
-      const verticalGap = 80
-      const columns = 4
+      const nodeWidth = 200;
+      const nodeHeight = 150;
+      const horizontalGap = 80;
+      const verticalGap = 80;
+      const columns = 4;
 
       // Load columns for each table
       for (let i = 0; i < tablesData.length; i++) {
-        const tableInfo = tablesData[i]
-        if (tableInfo.type !== 'TABLE' && tableInfo.type !== 'VIEW') continue
+        const tableInfo = tablesData[i];
+        if (tableInfo.type !== 'TABLE' && tableInfo.type !== 'VIEW') continue;
 
         const fullTableName = tableInfo.schema
           ? `${tableInfo.schema}.${tableInfo.name}`
-          : tableInfo.name
+          : tableInfo.name;
 
         try {
-          const columnsData = await bridge.getColumns(connectionId, fullTableName)
+          const columnsData = await bridge.getColumns(connectionId, fullTableName);
 
-          const col = i % columns
-          const row = Math.floor(i / columns)
+          const col = i % columns;
+          const row = Math.floor(i / columns);
 
           tables.push({
             id: fullTableName,
@@ -109,9 +111,9 @@ export const useERDiagramStore = create<ERDiagramState>((set) => ({
               x: col * (nodeWidth + horizontalGap),
               y: row * (nodeHeight + verticalGap),
             },
-          })
+          });
         } catch (err) {
-          console.warn(`Failed to load columns for ${fullTableName}:`, err)
+          console.warn(`Failed to load columns for ${fullTableName}:`, err);
         }
       }
 
@@ -121,14 +123,14 @@ export const useERDiagramStore = create<ERDiagramState>((set) => ({
         sourceTable.data.columns.forEach((col) => {
           // Check for columns ending with _id
           if (col.name.toLowerCase().endsWith('_id') && !col.isPrimaryKey) {
-            const potentialTableName = col.name.slice(0, -3) // Remove _id
+            const potentialTableName = col.name.slice(0, -3); // Remove _id
 
             // Find target table
             const targetTable = tables.find(
               (t) =>
                 t.data.tableName.toLowerCase() === potentialTableName.toLowerCase() ||
-                t.data.tableName.toLowerCase() === potentialTableName.toLowerCase() + 's'
-            )
+                t.data.tableName.toLowerCase() === `${potentialTableName.toLowerCase()}s`
+            );
 
             if (targetTable) {
               relations.push({
@@ -141,31 +143,31 @@ export const useERDiagramStore = create<ERDiagramState>((set) => ({
                   sourceColumn: 'id',
                   targetColumn: col.name,
                 },
-              })
+              });
             }
           }
-        })
-      })
+        });
+      });
 
-      set({ tables, relations, isLoading: false })
+      set({ tables, relations, isLoading: false });
     } catch (err) {
       set({
         isLoading: false,
         error: err instanceof Error ? err.message : 'Failed to load database schema',
-      })
+      });
     }
   },
 
   importFromA5ER: (tables, relations) => {
-    const nodeWidth = 200
-    const nodeHeight = 150
-    const horizontalGap = 80
-    const verticalGap = 80
-    const columns = 4
+    const nodeWidth = 200;
+    const nodeHeight = 150;
+    const horizontalGap = 80;
+    const verticalGap = 80;
+    const columns = 4;
 
     const erTables: ERTableNode[] = tables.map((table, i) => {
-      const col = i % columns
-      const row = Math.floor(i / columns)
+      const col = i % columns;
+      const row = Math.floor(i / columns);
 
       return {
         id: table.schema ? `${table.schema}.${table.name}` : table.name,
@@ -184,8 +186,8 @@ export const useERDiagramStore = create<ERDiagramState>((set) => ({
           x: col * (nodeWidth + horizontalGap),
           y: row * (nodeHeight + verticalGap),
         },
-      }
-    })
+      };
+    });
 
     const erRelations: ERRelationEdge[] = relations.map((rel, i) => ({
       id: `rel-${i}`,
@@ -197,8 +199,8 @@ export const useERDiagramStore = create<ERDiagramState>((set) => ({
         sourceColumn: 'id',
         targetColumn: `${rel.sourceTable.toLowerCase()}_id`,
       },
-    }))
+    }));
 
-    set({ tables: erTables, relations: erRelations })
+    set({ tables: erTables, relations: erRelations });
   },
-}))
+}));

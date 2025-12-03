@@ -1,110 +1,112 @@
-﻿import { useState, useCallback, useEffect, useRef, useDeferredValue } from 'react'
-import { useConnectionStore } from '../../store/connectionStore'
-import { bridge } from '../../api/bridge'
-import styles from './SearchDialog.module.css'
+import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
+import { bridge } from '../../api/bridge';
+import { useConnectionStore } from '../../store/connectionStore';
+import styles from './SearchDialog.module.css';
 
 interface SearchDialogProps {
-  isOpen: boolean
-  onClose: () => void
-  onResultSelect: (result: SearchResult) => void
+  isOpen: boolean;
+  onClose: () => void;
+  onResultSelect: (result: SearchResult) => void;
 }
 
 interface SearchResult {
-  type: 'table' | 'view' | 'procedure' | 'function' | 'column'
-  name: string
-  schema: string
-  parentName?: string
-  database: string
+  type: 'table' | 'view' | 'procedure' | 'function' | 'column';
+  name: string;
+  schema: string;
+  parentName?: string;
+  database: string;
 }
 
 export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogProps) {
-  const { activeConnectionId, connections } = useConnectionStore()
-  const [searchQuery, setSearchQuery] = useState('')
-  const deferredSearchQuery = useDeferredValue(searchQuery)
-  const [results, setResults] = useState<SearchResult[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [selectedIndex, setSelectedIndex] = useState(0)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const { activeConnectionId, connections } = useConnectionStore();
+  const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const activeConnection = connections.find((c) => c.id === activeConnectionId)
-  const isStale = searchQuery !== deferredSearchQuery
+  const activeConnection = connections.find((c) => c.id === activeConnectionId);
+  const isStale = searchQuery !== deferredSearchQuery;
 
   // Focus input when dialog opens
   useEffect(() => {
     if (isOpen && inputRef.current) {
-      inputRef.current.focus()
-      setSearchQuery('')
-      setResults([])
-      setSelectedIndex(0)
+      inputRef.current.focus();
+      setSearchQuery('');
+      setResults([]);
+      setSelectedIndex(0);
     }
-  }, [isOpen])
+  }, [isOpen]);
 
   // Search when deferred query changes (prevents blocking UI during typing)
   useEffect(() => {
     if (!deferredSearchQuery.trim() || !activeConnectionId) {
-      setResults([])
-      return
+      setResults([]);
+      return;
     }
 
-    let cancelled = false
+    let cancelled = false;
     const doSearch = async () => {
-      setIsSearching(true)
+      setIsSearching(true);
       try {
-        const searchResults = await searchObjects(activeConnectionId, deferredSearchQuery)
+        const searchResults = await searchObjects(activeConnectionId, deferredSearchQuery);
         if (!cancelled) {
-          setResults(searchResults)
-          setSelectedIndex(0)
+          setResults(searchResults);
+          setSelectedIndex(0);
         }
       } catch (err) {
-        console.error('Search failed:', err)
+        console.error('Search failed:', err);
         if (!cancelled) {
-          setResults([])
+          setResults([]);
         }
       } finally {
         if (!cancelled) {
-          setIsSearching(false)
+          setIsSearching(false);
         }
       }
-    }
+    };
 
-    doSearch()
-    return () => { cancelled = true }
-  }, [deferredSearchQuery, activeConnectionId])
+    doSearch();
+    return () => {
+      cancelled = true;
+    };
+  }, [deferredSearchQuery, activeConnectionId]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === 'ArrowDown') {
-        e.preventDefault()
-        setSelectedIndex((i) => Math.min(i + 1, results.length - 1))
+        e.preventDefault();
+        setSelectedIndex((i) => Math.min(i + 1, results.length - 1));
       } else if (e.key === 'ArrowUp') {
-        e.preventDefault()
-        setSelectedIndex((i) => Math.max(i - 1, 0))
+        e.preventDefault();
+        setSelectedIndex((i) => Math.max(i - 1, 0));
       } else if (e.key === 'Enter' && results.length > 0) {
-        e.preventDefault()
-        onResultSelect(results[selectedIndex])
-        onClose()
+        e.preventDefault();
+        onResultSelect(results[selectedIndex]);
+        onClose();
       } else if (e.key === 'Escape') {
-        onClose()
+        onClose();
       }
     },
     [results, selectedIndex, onResultSelect, onClose]
-  )
+  );
 
   const handleResultClick = useCallback(
     (result: SearchResult) => {
-      onResultSelect(result)
-      onClose()
+      onResultSelect(result);
+      onClose();
     },
     [onResultSelect, onClose]
-  )
+  );
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
         <div className={styles.searchContainer}>
-          <span className={styles.searchIcon}>剥</span>
+          <span className={styles.searchIcon}>🔍</span>
           <input
             ref={inputRef}
             type="text"
@@ -114,14 +116,12 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
             placeholder="Search tables, views, procedures..."
             className={styles.searchInput}
           />
-          {(isSearching || isStale) && <span className={styles.spinner}>竢ｳ</span>}
+          {(isSearching || isStale) && <span className={styles.spinner}>⏳</span>}
         </div>
 
         <div className={styles.results}>
           {!activeConnectionId ? (
-            <div className={styles.noConnection}>
-              Connect to a database to search
-            </div>
+            <div className={styles.noConnection}>Connect to a database to search</div>
           ) : results.length === 0 && searchQuery.trim() ? (
             <div className={styles.noResults}>
               {isSearching || isStale ? 'Searching...' : 'No results found'}
@@ -150,64 +150,57 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
         </div>
 
         <div className={styles.footer}>
-          <span className={styles.hint}>
-            竊鯛・ to navigate, Enter to select, Esc to close
-          </span>
+          <span className={styles.hint}>↑↓ to navigate, Enter to select, Esc to close</span>
           {activeConnection && (
-            <span className={styles.connectionInfo}>
-              {activeConnection.database}
-            </span>
+            <span className={styles.connectionInfo}>{activeConnection.database}</span>
           )}
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function getIcon(type: SearchResult['type']): string {
   switch (type) {
     case 'table':
-      return '搭'
+      return '📋';
     case 'view':
-      return '早'
+      return '👁';
     case 'procedure':
-      return '笞呻ｸ・
+      return '⚙️';
     case 'function':
-      return 'ﾆ・
+      return 'ƒ';
     case 'column':
-      return '笏・
+      return '│';
     default:
-      return '塘'
+      return '📄';
   }
 }
 
-async function searchObjects(
-  connectionId: string,
-  query: string
-): Promise<SearchResult[]> {
-  const results: SearchResult[] = []
-  const lowerQuery = query.toLowerCase()
+async function searchObjects(connectionId: string, query: string): Promise<SearchResult[]> {
+  const results: SearchResult[] = [];
+  const lowerQuery = query.toLowerCase();
 
   try {
     // Get tables and filter locally (simplified approach)
     // In a real implementation, this would be a server-side search
-    const tables = await bridge.getTables(connectionId, '')
+    const tables = await bridge.getTables(connectionId, '');
 
-    tables.forEach((table) => {
+    for (const table of tables) {
       if (table.name.toLowerCase().includes(lowerQuery)) {
         results.push({
           type: table.type === 'VIEW' ? 'view' : 'table',
           name: table.name,
           schema: table.schema,
           database: '',
-        })
+        });
       }
-    })
+    }
 
     // Limit results
-    return results.slice(0, 50)
+    return results.slice(0, 50);
   } catch (err) {
-    console.error('Search error:', err)
-    return []
+    console.error('Search error:', err);
+    return [];
   }
 }

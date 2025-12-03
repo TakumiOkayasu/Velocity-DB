@@ -2,25 +2,25 @@
 
 export interface AppSettings {
   editor: {
-    fontSize: number
-    tabSize: number
-    wordWrap: boolean
-    minimap: boolean
-  }
+    fontSize: number;
+    tabSize: number;
+    wordWrap: boolean;
+    minimap: boolean;
+  };
   query: {
-    autoCommit: boolean
-    timeout: number
-    maxRows: number
-  }
+    autoCommit: boolean;
+    timeout: number;
+    maxRows: number;
+  };
   appearance: {
-    theme: 'dark' | 'light'
-  }
+    theme: 'dark' | 'light';
+  };
   shortcuts: {
-    execute: string
-    newQuery: string
-    format: string
-    search: string
-  }
+    execute: string;
+    newQuery: string;
+    format: string;
+    search: string;
+  };
 }
 
 export const defaultSettings: AppSettings = {
@@ -44,16 +44,16 @@ export const defaultSettings: AppSettings = {
     format: 'Ctrl+Shift+F',
     search: 'Ctrl+Shift+P',
   },
-}
+};
 
 export function getSettings(): AppSettings {
-  const saved = localStorage.getItem('app-settings')
+  const saved = localStorage.getItem('app-settings');
   if (saved) {
     try {
-      return { ...defaultSettings, ...JSON.parse(saved) }
+      return { ...defaultSettings, ...JSON.parse(saved) };
     } catch {
-      return defaultSettings
+      return defaultSettings;
     }
   }
-  return defaultSettings
+  return defaultSettings;
 }

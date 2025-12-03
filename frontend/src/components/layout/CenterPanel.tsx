@@ -1,6 +1,6 @@
-﻿import { SqlEditor } from '../editor/SqlEditor'
-import { EditorTabs } from '../editor/EditorTabs'
-import styles from './CenterPanel.module.css'
+﻿import { EditorTabs } from '../editor/EditorTabs';
+import { SqlEditor } from '../editor/SqlEditor';
+import styles from './CenterPanel.module.css';
 
 export function CenterPanel() {
   return (
@@ -10,5 +10,5 @@ export function CenterPanel() {
         <SqlEditor />
       </div>
     </div>
-  )
+  );
 }

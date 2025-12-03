@@ -1,13 +1,13 @@
-﻿import { useState } from 'react'
-import { ObjectTree } from '../tree/ObjectTree'
-import styles from './LeftPanel.module.css'
+﻿import { useState } from 'react';
+import { ObjectTree } from '../tree/ObjectTree';
+import styles from './LeftPanel.module.css';
 
 interface LeftPanelProps {
   width: number;
 }
 
 export function LeftPanel({ width }: LeftPanelProps) {
-  const [searchFilter, setSearchFilter] = useState('')
+  const [searchFilter, setSearchFilter] = useState('');
 
   return (
     <div className={styles.container} style={{ width }}>
@@ -28,5 +28,5 @@ export function LeftPanel({ width }: LeftPanelProps) {
         <ObjectTree filter={searchFilter} />
       </div>
     </div>
-  )
+  );
 }

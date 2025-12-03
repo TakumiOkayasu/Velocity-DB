@@ -1,10 +1,10 @@
-﻿import { useHistoryStore } from '../../store/historyStore'
-import { HistoryItem } from './HistoryItem'
-import styles from './QueryHistory.module.css'
+﻿import { useHistoryStore } from '../../store/historyStore';
+import { HistoryItem } from './HistoryItem';
+import styles from './QueryHistory.module.css';
 
 export function QueryHistory() {
-  const { searchKeyword, setSearchKeyword, getFilteredHistory, clearHistory } = useHistoryStore()
-  const history = getFilteredHistory()
+  const { searchKeyword, setSearchKeyword, getFilteredHistory, clearHistory } = useHistoryStore();
+  const history = getFilteredHistory();
 
   return (
     <div className={styles.container}>
@@ -31,11 +31,9 @@ export function QueryHistory() {
             {searchKeyword ? 'No matching queries' : 'No query history'}
           </div>
         ) : (
-          history.map((item) => (
-            <HistoryItem key={item.id} item={item} />
-          ))
+          history.map((item) => <HistoryItem key={item.id} item={item} />)
         )}
       </div>
     </div>
-  )
+  );
 }

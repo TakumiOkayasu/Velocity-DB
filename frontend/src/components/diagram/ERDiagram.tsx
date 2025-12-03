@@ -1,29 +1,29 @@
-﻿import { useCallback, useMemo } from 'react'
-import {
-  ReactFlow,
-  Controls,
+﻿import {
   Background,
-  useNodesState,
-  useEdgesState,
   BackgroundVariant,
+  Controls,
+  type Edge,
   MarkerType,
   type Node,
-  type Edge,
-} from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
-import { TableNode } from './TableNode'
-import type { ERTableNode, ERRelationEdge } from '../../types'
-import styles from './ERDiagram.module.css'
+  ReactFlow,
+  useEdgesState,
+  useNodesState,
+} from '@xyflow/react';
+import { useCallback, useMemo } from 'react';
+import '@xyflow/react/dist/style.css';
+import type { ERRelationEdge, ERTableNode } from '../../types';
+import styles from './ERDiagram.module.css';
+import { TableNode } from './TableNode';
 
 interface ERDiagramProps {
-  tables: ERTableNode[]
-  relations: ERRelationEdge[]
-  onTableClick?: (tableId: string) => void
+  tables: ERTableNode[];
+  relations: ERRelationEdge[];
+  onTableClick?: (tableId: string) => void;
 }
 
 const nodeTypes = {
   table: TableNode,
-}
+};
 
 export function ERDiagram({ tables, relations, onTableClick }: ERDiagramProps) {
   const initialNodes: Node[] = useMemo(() => {
@@ -32,8 +32,8 @@ export function ERDiagram({ tables, relations, onTableClick }: ERDiagramProps) {
       type: 'table',
       position: table.position,
       data: table.data,
-    }))
-  }, [tables])
+    }));
+  }, [tables]);
 
   const initialEdges: Edge[] = useMemo(() => {
     return relations.map((rel) => ({
@@ -52,18 +52,18 @@ export function ERDiagram({ tables, relations, onTableClick }: ERDiagramProps) {
         color: '#888',
       },
       style: { stroke: '#888', strokeWidth: 1 },
-    }))
-  }, [relations])
+    }));
+  }, [relations]);
 
-  const [nodes, , onNodesChange] = useNodesState(initialNodes)
-  const [edges, , onEdgesChange] = useEdgesState(initialEdges)
+  const [nodes, , onNodesChange] = useNodesState(initialNodes);
+  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
-      onTableClick?.(node.id)
+      onTableClick?.(node.id);
     },
     [onTableClick]
-  )
+  );
 
   return (
     <div className={styles.container}>
@@ -83,5 +83,5 @@ export function ERDiagram({ tables, relations, onTableClick }: ERDiagramProps) {
         <Controls />
       </ReactFlow>
     </div>
-  )
+  );
 }

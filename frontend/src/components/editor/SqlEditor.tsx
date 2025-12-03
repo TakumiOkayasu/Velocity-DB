@@ -1,27 +1,27 @@
-﻿import Editor from '@monaco-editor/react'
-import { useQueryStore } from '../../store/queryStore'
-import { useConnectionStore } from '../../store/connectionStore'
-import styles from './SqlEditor.module.css'
+﻿import Editor from '@monaco-editor/react';
+import { useConnectionStore } from '../../store/connectionStore';
+import { useQueryStore } from '../../store/queryStore';
+import styles from './SqlEditor.module.css';
 
 export function SqlEditor() {
-  const { queries, activeQueryId, updateQuery, executeQuery } = useQueryStore()
-  const { activeConnectionId } = useConnectionStore()
+  const { queries, activeQueryId, updateQuery, executeQuery } = useQueryStore();
+  const { activeConnectionId } = useConnectionStore();
 
-  const activeQuery = queries.find((q) => q.id === activeQueryId)
+  const activeQuery = queries.find((q) => q.id === activeQueryId);
 
   const handleEditorChange = (value: string | undefined) => {
     if (activeQueryId && value !== undefined) {
-      updateQuery(activeQueryId, value)
+      updateQuery(activeQueryId, value);
     }
-  }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Ctrl+Enter to execute
     if (e.ctrlKey && e.key === 'Enter' && activeQueryId && activeConnectionId) {
-      e.preventDefault()
-      executeQuery(activeQueryId, activeConnectionId)
+      e.preventDefault();
+      executeQuery(activeQueryId, activeConnectionId);
     }
-  }
+  };
 
   if (!activeQuery) {
     return (
@@ -29,7 +29,7 @@ export function SqlEditor() {
         <p>No query tab open</p>
         <p>Press Ctrl+N to create a new query</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -55,5 +55,5 @@ export function SqlEditor() {
         }}
       />
     </div>
-  )
+  );
 }

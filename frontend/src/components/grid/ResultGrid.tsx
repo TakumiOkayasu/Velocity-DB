@@ -1,18 +1,24 @@
-﻿import { useMemo, useCallback, useRef, useState, useEffect } from 'react'
-import { AgGridReact } from 'ag-grid-react'
-import type { ColDef, GridReadyEvent, CellClassParams, CellValueChangedEvent, GridApi } from 'ag-grid-community'
-import { useQueryStore } from '../../store/queryStore'
-import { useEditStore } from '../../store/editStore'
-import { useConnectionStore } from '../../store/connectionStore'
-import { bridge } from '../../api/bridge'
-import { ExportDialog } from '../export/ExportDialog'
-import 'ag-grid-community/styles/ag-grid.css'
-import 'ag-grid-community/styles/ag-theme-alpine.css'
-import styles from './ResultGrid.module.css'
+﻿import type {
+  CellClassParams,
+  CellValueChangedEvent,
+  ColDef,
+  GridApi,
+  GridReadyEvent,
+} from 'ag-grid-community';
+import { AgGridReact } from 'ag-grid-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { bridge } from '../../api/bridge';
+import { useConnectionStore } from '../../store/connectionStore';
+import { useEditStore } from '../../store/editStore';
+import { useQueryStore } from '../../store/queryStore';
+import { ExportDialog } from '../export/ExportDialog';
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
+import styles from './ResultGrid.module.css';
 
 export function ResultGrid() {
-  const { activeQueryId, results, isExecuting, error } = useQueryStore()
-  const activeConnectionId = useConnectionStore((state) => state.activeConnectionId)
+  const { activeQueryId, results, isExecuting, error } = useQueryStore();
+  const activeConnectionId = useConnectionStore((state) => state.activeConnectionId);
   const {
     isEditMode,
     setEditMode,
@@ -26,17 +32,17 @@ export function ResultGrid() {
     generateUpdateSQL,
     generateInsertSQL,
     generateDeleteSQL,
-  } = useEditStore()
-  const gridRef = useRef<AgGridReact>(null)
-  const [gridApi, setGridApi] = useState<GridApi | null>(null)
-  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
-  const [isApplying, setIsApplying] = useState(false)
-  const [applyError, setApplyError] = useState<string | null>(null)
+  } = useEditStore();
+  const gridRef = useRef<AgGridReact>(null);
+  const [gridApi, setGridApi] = useState<GridApi | null>(null);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
 
-  const resultSet = activeQueryId ? results.get(activeQueryId) : null
+  const resultSet = activeQueryId ? results.get(activeQueryId) : null;
 
   const columnDefs = useMemo<ColDef[]>(() => {
-    if (!resultSet) return []
+    if (!resultSet) return [];
     return resultSet.columns.map((col) => ({
       field: col.name,
       headerName: col.name,
@@ -46,244 +52,255 @@ export function ResultGrid() {
       resizable: true,
       editable: isEditMode,
       cellClass: (params: CellClassParams) => {
-        const classes: string[] = []
-        const rowIndex = params.node?.rowIndex ?? -1
+        const classes: string[] = [];
+        const rowIndex = params.node?.rowIndex ?? -1;
 
         // NULL styling
         if (params.value === null || params.value === '') {
-          classes.push(styles.nullCell)
+          classes.push(styles.nullCell);
         }
 
         // Changed cell styling
-        const change = getCellChange(rowIndex, col.name)
+        const change = getCellChange(rowIndex, col.name);
         if (change) {
-          classes.push(styles.changedCell)
+          classes.push(styles.changedCell);
         }
 
         // Deleted row styling
         if (isRowDeleted(rowIndex)) {
-          classes.push(styles.deletedRow)
+          classes.push(styles.deletedRow);
         }
 
-        return classes.join(' ')
+        return classes.join(' ');
       },
       valueFormatter: (params) => {
         if (params.value === null || params.value === undefined) {
-          return 'NULL'
+          return 'NULL';
         }
-        return params.value
+        return params.value;
       },
-    }))
-  }, [resultSet, isEditMode, getCellChange, isRowDeleted])
+    }));
+  }, [resultSet, isEditMode, getCellChange, isRowDeleted]);
 
   const rowData = useMemo(() => {
-    if (!resultSet) return []
+    if (!resultSet) return [];
     return resultSet.rows.map((row, rowIndex) => {
-      const obj: Record<string, string | null> = { __rowIndex: String(rowIndex + 1) }
+      const obj: Record<string, string | null> = { __rowIndex: String(rowIndex + 1) };
       resultSet.columns.forEach((col, idx) => {
-        const value = row[idx]
-        obj[col.name] = value === '' || value === undefined ? null : value
-      })
-      return obj
-    })
-  }, [resultSet])
+        const value = row[idx];
+        obj[col.name] = value === '' || value === undefined ? null : value;
+      });
+      return obj;
+    });
+  }, [resultSet]);
 
   const onGridReady = useCallback((params: GridReadyEvent) => {
-    params.api.sizeColumnsToFit()
-    setGridApi(params.api)
-  }, [])
+    params.api.sizeColumnsToFit();
+    setGridApi(params.api);
+  }, []);
 
-  const onCellValueChanged = useCallback((event: CellValueChangedEvent) => {
-    const rowIndex = event.node.rowIndex ?? -1
-    const columnName = event.colDef.field ?? ''
-    const originalValue = event.oldValue
-    const newValue = event.newValue
-    const rowData = event.node.data as Record<string, string | null>
+  const onCellValueChanged = useCallback(
+    (event: CellValueChangedEvent) => {
+      const rowIndex = event.node.rowIndex ?? -1;
+      const columnName = event.colDef.field ?? '';
+      const originalValue = event.oldValue;
+      const newValue = event.newValue;
+      const rowData = event.node.data as Record<string, string | null>;
 
-    updateCell(rowIndex, columnName, originalValue, newValue, rowData)
+      updateCell(rowIndex, columnName, originalValue, newValue, rowData);
 
-    // Refresh the cell to update styling
-    if (gridApi) {
-      gridApi.refreshCells({ rowNodes: [event.node], force: true })
-    }
-  }, [updateCell, gridApi])
+      // Refresh the cell to update styling
+      if (gridApi) {
+        gridApi.refreshCells({ rowNodes: [event.node], force: true });
+      }
+    },
+    [updateCell, gridApi]
+  );
 
   const handleToggleEditMode = useCallback(() => {
     if (isEditMode && hasChanges()) {
-      const confirmed = window.confirm('You have unsaved changes. Discard them?')
-      if (!confirmed) return
-      revertAll()
+      const confirmed = window.confirm('You have unsaved changes. Discard them?');
+      if (!confirmed) return;
+      revertAll();
     }
-    setEditMode(!isEditMode)
-  }, [isEditMode, hasChanges, revertAll, setEditMode])
+    setEditMode(!isEditMode);
+  }, [isEditMode, hasChanges, revertAll, setEditMode]);
 
   const handleDeleteRow = useCallback(() => {
-    if (!gridApi) return
-    const selectedNodes = gridApi.getSelectedNodes()
+    if (!gridApi) return;
+    const selectedNodes = gridApi.getSelectedNodes();
     selectedNodes.forEach((node) => {
-      const rowIndex = node.rowIndex
+      const rowIndex = node.rowIndex;
       if (rowIndex !== null && rowIndex !== undefined) {
         if (isRowDeleted(rowIndex)) {
-          unmarkRowDeleted(rowIndex)
+          unmarkRowDeleted(rowIndex);
         } else {
-          const rowData = node.data as Record<string, string | null>
-          markRowDeleted(rowIndex, rowData)
+          const rowData = node.data as Record<string, string | null>;
+          markRowDeleted(rowIndex, rowData);
         }
       }
-    })
-    gridApi.refreshCells({ force: true })
-  }, [gridApi, isRowDeleted, markRowDeleted, unmarkRowDeleted])
+    });
+    gridApi.refreshCells({ force: true });
+  }, [gridApi, isRowDeleted, markRowDeleted, unmarkRowDeleted]);
 
   const handleRevertChanges = useCallback(() => {
-    revertAll()
+    revertAll();
     if (gridApi) {
-      gridApi.refreshCells({ force: true })
+      gridApi.refreshCells({ force: true });
     }
-  }, [revertAll, gridApi])
+  }, [revertAll, gridApi]);
 
   const handleApplyChanges = useCallback(async () => {
     if (!activeConnectionId) {
-      setApplyError('No active connection')
-      return
+      setApplyError('No active connection');
+      return;
     }
 
-    setIsApplying(true)
-    setApplyError(null)
+    setIsApplying(true);
+    setApplyError(null);
 
     try {
       // Generate all SQL statements
-      const deleteStatements = generateDeleteSQL()
-      const updateStatements = generateUpdateSQL()
-      const insertStatements = generateInsertSQL()
+      const deleteStatements = generateDeleteSQL();
+      const updateStatements = generateUpdateSQL();
+      const insertStatements = generateInsertSQL();
 
-      const allStatements = [...deleteStatements, ...updateStatements, ...insertStatements]
+      const allStatements = [...deleteStatements, ...updateStatements, ...insertStatements];
 
       if (allStatements.length === 0) {
-        setIsApplying(false)
-        return
+        setIsApplying(false);
+        return;
       }
 
       // Execute each statement
       for (const sql of allStatements) {
-        await bridge.executeQuery(activeConnectionId, sql)
+        await bridge.executeQuery(activeConnectionId, sql);
       }
 
       // Clear pending changes on success
-      revertAll()
+      revertAll();
 
       if (gridApi) {
-        gridApi.refreshCells({ force: true })
+        gridApi.refreshCells({ force: true });
       }
     } catch (error) {
-      setApplyError(error instanceof Error ? error.message : 'Failed to apply changes')
+      setApplyError(error instanceof Error ? error.message : 'Failed to apply changes');
     } finally {
-      setIsApplying(false)
+      setIsApplying(false);
     }
-  }, [activeConnectionId, generateDeleteSQL, generateUpdateSQL, generateInsertSQL, revertAll, gridApi])
+  }, [
+    activeConnectionId,
+    generateDeleteSQL,
+    generateUpdateSQL,
+    generateInsertSQL,
+    revertAll,
+    gridApi,
+  ]);
 
   const handleCopySelection = useCallback(() => {
-    if (!gridApi) return
+    if (!gridApi) return;
 
-    const selectedCells = gridApi.getCellRanges()
+    const selectedCells = gridApi.getCellRanges();
     if (!selectedCells || selectedCells.length === 0) {
       // Fallback: copy selected rows
-      const selectedNodes = gridApi.getSelectedNodes()
-      if (selectedNodes.length === 0) return
+      const selectedNodes = gridApi.getSelectedNodes();
+      if (selectedNodes.length === 0) return;
 
       const rows = selectedNodes.map((node) => {
-        const data = node.data
+        const data = node.data;
         return Object.keys(data)
           .filter((key) => !key.startsWith('__'))
           .map((key) => data[key] ?? 'NULL')
-          .join('\t')
-      })
-      navigator.clipboard.writeText(rows.join('\n'))
-      return
+          .join('\t');
+      });
+      navigator.clipboard.writeText(rows.join('\n'));
+      return;
     }
 
     // Copy cell range
-    const range = selectedCells[0]
-    const startRow = Math.min(range.startRow?.rowIndex ?? 0, range.endRow?.rowIndex ?? 0)
-    const endRow = Math.max(range.startRow?.rowIndex ?? 0, range.endRow?.rowIndex ?? 0)
-    const columns = range.columns
+    const range = selectedCells[0];
+    const startRow = Math.min(range.startRow?.rowIndex ?? 0, range.endRow?.rowIndex ?? 0);
+    const endRow = Math.max(range.startRow?.rowIndex ?? 0, range.endRow?.rowIndex ?? 0);
+    const columns = range.columns;
 
-    const rows: string[] = []
+    const rows: string[] = [];
     for (let i = startRow; i <= endRow; i++) {
-      const node = gridApi.getDisplayedRowAtIndex(i)
-      if (!node) continue
+      const node = gridApi.getDisplayedRowAtIndex(i);
+      if (!node) continue;
       const row = columns.map((col) => {
-        const colId = col.getColId()
-        const value = node.data[colId]
-        return value === null || value === undefined ? 'NULL' : String(value)
-      })
-      rows.push(row.join('\t'))
+        const colId = col.getColId();
+        const value = node.data[colId];
+        return value === null || value === undefined ? 'NULL' : String(value);
+      });
+      rows.push(row.join('\t'));
     }
-    navigator.clipboard.writeText(rows.join('\n'))
-  }, [gridApi])
+    navigator.clipboard.writeText(rows.join('\n'));
+  }, [gridApi]);
 
   const handlePaste = useCallback(async () => {
-    if (!gridApi || !isEditMode) return
+    if (!gridApi || !isEditMode) return;
 
     try {
-      const text = await navigator.clipboard.readText()
-      const rows = text.split('\n').map((row) => row.split('\t'))
+      const text = await navigator.clipboard.readText();
+      const rows = text.split('\n').map((row) => row.split('\t'));
 
-      const focusedCell = gridApi.getFocusedCell()
-      if (!focusedCell) return
+      const focusedCell = gridApi.getFocusedCell();
+      if (!focusedCell) return;
 
-      const startRow = focusedCell.rowIndex
-      const startColIndex = gridApi.getColumns()?.findIndex((col) => col === focusedCell.column) ?? 0
-      const columns = gridApi.getColumns() ?? []
+      const startRow = focusedCell.rowIndex;
+      const startColIndex =
+        gridApi.getColumns()?.findIndex((col) => col === focusedCell.column) ?? 0;
+      const columns = gridApi.getColumns() ?? [];
 
       rows.forEach((row, rowOffset) => {
-        const node = gridApi.getDisplayedRowAtIndex(startRow + rowOffset)
-        if (!node) return
+        const node = gridApi.getDisplayedRowAtIndex(startRow + rowOffset);
+        if (!node) return;
 
         row.forEach((cellValue, colOffset) => {
-          const col = columns[startColIndex + colOffset]
-          if (!col) return
+          const col = columns[startColIndex + colOffset];
+          if (!col) return;
 
-          const field = col.getColDef().field
-          if (!field) return
+          const field = col.getColDef().field;
+          if (!field) return;
 
-          const oldValue = node.data[field]
-          const newValue = cellValue === 'NULL' ? null : cellValue
+          const oldValue = node.data[field];
+          const newValue = cellValue === 'NULL' ? null : cellValue;
 
-          node.setDataValue(field, newValue)
-          updateCell(startRow + rowOffset, field, oldValue, newValue)
-        })
-      })
+          node.setDataValue(field, newValue);
+          updateCell(startRow + rowOffset, field, oldValue, newValue);
+        });
+      });
 
-      gridApi.refreshCells({ force: true })
+      gridApi.refreshCells({ force: true });
     } catch (err) {
-      console.error('Failed to paste:', err)
+      console.error('Failed to paste:', err);
     }
-  }, [gridApi, isEditMode, updateCell])
+  }, [gridApi, isEditMode, updateCell]);
 
   // Keyboard shortcuts for copy/paste
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!gridApi) return
+      if (!gridApi) return;
 
       // Only handle when grid container is focused
-      const gridContainer = document.querySelector('.ag-theme-alpine-dark')
-      if (!gridContainer?.contains(document.activeElement)) return
+      const gridContainer = document.querySelector('.ag-theme-alpine-dark');
+      if (!gridContainer?.contains(document.activeElement)) return;
 
       if (e.ctrlKey && e.key === 'c') {
-        e.preventDefault()
-        handleCopySelection()
+        e.preventDefault();
+        handleCopySelection();
       } else if (e.ctrlKey && e.key === 'v' && isEditMode) {
-        e.preventDefault()
-        handlePaste()
+        e.preventDefault();
+        handlePaste();
       } else if (e.key === 'Delete' && isEditMode) {
-        e.preventDefault()
-        handleDeleteRow()
+        e.preventDefault();
+        handleDeleteRow();
       }
-    }
+    };
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [gridApi, isEditMode, handleCopySelection, handlePaste, handleDeleteRow])
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [gridApi, isEditMode, handleCopySelection, handlePaste, handleDeleteRow]);
 
   if (isExecuting) {
     return (
@@ -291,7 +308,7 @@ export function ResultGrid() {
         <span className={styles.spinner}>竢ｳ</span>
         <span>Executing query...</span>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -299,7 +316,7 @@ export function ResultGrid() {
       <div className={`${styles.message} ${styles.error}`}>
         <span>Error: {error}</span>
       </div>
-    )
+    );
   }
 
   if (!resultSet) {
@@ -307,7 +324,7 @@ export function ResultGrid() {
       <div className={styles.message}>
         <span>Execute a query to see results</span>
       </div>
-    )
+    );
   }
 
   return (
@@ -347,12 +364,8 @@ export function ResultGrid() {
             </button>
           </>
         )}
-        {hasChanges() && (
-          <span className={styles.changesIndicator}>Unsaved changes</span>
-        )}
-        {applyError && (
-          <span className={styles.errorIndicator}>{applyError}</span>
-        )}
+        {hasChanges() && <span className={styles.changesIndicator}>Unsaved changes</span>}
+        {applyError && <span className={styles.errorIndicator}>{applyError}</span>}
         <div className={styles.toolbarSpacer} />
         <button
           onClick={() => setIsExportDialogOpen(true)}
@@ -409,5 +422,5 @@ export function ResultGrid() {
         resultSet={resultSet}
       />
     </div>
-  )
+  );
 }

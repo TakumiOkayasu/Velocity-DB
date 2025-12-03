@@ -1,17 +1,17 @@
-﻿import { describe, it, expect } from 'vitest'
-import { render } from '@testing-library/react'
-import App from '../App'
+﻿import { render } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import App from '../App';
 
 describe('App', () => {
   it('renders without crashing', () => {
-    render(<App />)
+    render(<App />);
     // Check that the app renders
-    expect(document.querySelector('#root') || document.body).toBeTruthy()
-  })
+    expect(document.querySelector('#root') || document.body).toBeTruthy();
+  });
 
   it('contains main layout structure', () => {
-    const { container } = render(<App />)
+    const { container } = render(<App />);
     // App should render something
-    expect(container.firstChild).toBeTruthy()
-  })
-})
+    expect(container.firstChild).toBeTruthy();
+  });
+});

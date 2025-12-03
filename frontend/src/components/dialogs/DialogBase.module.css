@@ -1,6 +1,4 @@
-﻿/* Common dialog styles shared across all dialogs */
-
-.overlay {
+﻿/* Common dialog styles shared across all dialogs */ .overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -184,8 +182,12 @@
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Error message */
