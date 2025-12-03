@@ -8,15 +8,8 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
     (void)lpCmdLine;
     (void)nCmdShow;
 
-#ifdef _DEBUG
-    MessageBoxA(nullptr, "Application starting...", "Debug", MB_OK);
-#endif
-
     try {
         predategrip::WebViewApp app(hInstance);
-#ifdef _DEBUG
-        MessageBoxA(nullptr, "WebViewApp created, calling run()...", "Debug", MB_OK);
-#endif
         return app.run();
     } catch (const std::exception& e) {
         MessageBoxA(nullptr, e.what(), "Error", MB_OK | MB_ICONERROR);

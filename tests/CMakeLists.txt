@@ -1,12 +1,22 @@
 include(FetchContent)
 
-# Google Test
+# Google Test - must set options BEFORE FetchContent_MakeAvailable
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+set(BUILD_GMOCK ON CACHE BOOL "" FORCE)
+set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+
 FetchContent_Declare(
     googletest
     URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    EXCLUDE_FROM_ALL
 )
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+
+# For Ninja generator, ensure proper configuration
+if(CMAKE_GENERATOR MATCHES "Ninja")
+    set(CMAKE_POLICY_DEFAULT_CMP0091 NEW)
+endif()
+
 FetchContent_MakeAvailable(googletest)
 
 # Test sources

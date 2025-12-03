@@ -1,4 +1,8 @@
-﻿cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.20)
+
+# Must set policy before project() for MSVC runtime library
+cmake_policy(SET CMP0091 NEW)
+
 project(PreDateGrip VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)

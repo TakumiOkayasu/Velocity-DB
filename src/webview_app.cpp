@@ -54,13 +54,14 @@ void WebViewApp::createAndConfigureWebView() {
         "invoke", [this](const std::string& request) -> std::string { return m_ipcHandler->dispatchRequest(request); });
 
     if (auto frontendPath = locateFrontendDirectory()) {
-        auto url = std::format("file:///{}", frontendPath->generic_string());
-        // Always show URL for debugging WebView issues
-        MessageBoxA(nullptr, url.c_str(), "Navigating to URL", MB_OK);
-        m_webview->navigate(url);
+        // Get the directory containing index.html
+        auto frontendDir = std::filesystem::absolute(*frontendPath).parent_path();
+        m_webview->set_frontend_path(frontendDir.generic_string());
+
+        // Use virtual host to avoid CORS issues with file:// protocol
+        m_webview->navigate("https://app.local/index.html");
     } else {
-        // Always show fallback message for debugging
-        MessageBoxA(nullptr, "Frontend not found, falling back to localhost:5173", "Debug Info", MB_OK);
+        // Fallback to dev server
         m_webview->navigate("http://localhost:5173");
     }
 }
