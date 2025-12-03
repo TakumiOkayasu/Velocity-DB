@@ -6,7 +6,7 @@ echo "Running pre-push checks..."
 DIRTY_BEFORE=$(git status --porcelain)
 
 # Run lint + format first (fast)
-cmd.exe //c "scripts\\run-lint.bat"
+uv run scripts/run_lint.py
 if [ $? -ne 0 ]; then
     echo ""
     echo "=========================================="
@@ -58,10 +58,10 @@ if [ $? -ne 0 ]; then
 fi
 cd ..
 
-# Run C++ build (auto-detect Visual Studio)
+# Run C++ build
 echo ""
 echo "[C++] Running build..."
-cmd.exe //c "scripts\\cpp-build.bat"
+uv run scripts/build.py Release
 if [ $? -ne 0 ]; then
     echo ""
     echo "=========================================="
