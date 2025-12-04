@@ -4,6 +4,7 @@ import type {
   ColDef,
   GridApi,
   GridReadyEvent,
+  IRowNode,
 } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -15,6 +16,20 @@ import { ExportDialog } from '../export/ExportDialog';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import styles from './ResultGrid.module.css';
+
+type RowData = Record<string, string | null>;
+
+function isRowData(data: unknown): data is RowData {
+  if (data === null || typeof data !== 'object') return false;
+  return Object.values(data as object).every(
+    (v) => v === null || typeof v === 'string'
+  );
+}
+
+function getRowData(node: IRowNode): RowData | null {
+  if (isRowData(node.data)) return node.data;
+  return null;
+}
 
 export function ResultGrid() {
   const { activeQueryId, results, isExecuting, error } = useQueryStore();
@@ -34,12 +49,13 @@ export function ResultGrid() {
     generateDeleteSQL,
   } = useEditStore();
   const gridRef = useRef<AgGridReact>(null);
+  const gridContainerRef = useRef<HTMLDivElement>(null);
   const [gridApi, setGridApi] = useState<GridApi | null>(null);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
 
-  const resultSet = activeQueryId ? results.get(activeQueryId) : null;
+  const resultSet = activeQueryId ? results[activeQueryId] ?? null : null;
 
   const columnDefs = useMemo<ColDef[]>(() => {
     if (!resultSet) return [];
@@ -105,9 +121,11 @@ export function ResultGrid() {
       const columnName = event.colDef.field ?? '';
       const originalValue = event.oldValue;
       const newValue = event.newValue;
-      const rowData = event.node.data as Record<string, string | null>;
+      const rowDataValue = getRowData(event.node);
 
-      updateCell(rowIndex, columnName, originalValue, newValue, rowData);
+      if (rowDataValue) {
+        updateCell(rowIndex, columnName, originalValue, newValue, rowDataValue);
+      }
 
       // Refresh the cell to update styling
       if (gridApi) {
@@ -129,17 +147,19 @@ export function ResultGrid() {
   const handleDeleteRow = useCallback(() => {
     if (!gridApi) return;
     const selectedNodes = gridApi.getSelectedNodes();
-    selectedNodes.forEach((node) => {
+    for (const node of selectedNodes) {
       const rowIndex = node.rowIndex;
       if (rowIndex !== null && rowIndex !== undefined) {
         if (isRowDeleted(rowIndex)) {
           unmarkRowDeleted(rowIndex);
         } else {
-          const rowData = node.data as Record<string, string | null>;
-          markRowDeleted(rowIndex, rowData);
+          const rowDataValue = getRowData(node);
+          if (rowDataValue) {
+            markRowDeleted(rowIndex, rowDataValue);
+          }
         }
       }
-    });
+    }
     gridApi.refreshCells({ force: true });
   }, [gridApi, isRowDeleted, markRowDeleted, unmarkRowDeleted]);
 
@@ -302,20 +322,23 @@ export function ResultGrid() {
 
   // Keyboard shortcuts for copy/paste
   useEffect(() => {
+    const currentGridApi = gridApi;
+    const currentGridContainer = gridContainerRef.current;
+    const currentIsEditMode = isEditMode;
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!gridApi) return;
+      if (!currentGridApi) return;
 
       // Only handle when grid container is focused
-      const gridContainer = document.querySelector('.ag-theme-alpine-dark');
-      if (!gridContainer?.contains(document.activeElement)) return;
+      if (!currentGridContainer?.contains(document.activeElement)) return;
 
       if (e.ctrlKey && e.key === 'c') {
         e.preventDefault();
         handleCopySelection();
-      } else if (e.ctrlKey && e.key === 'v' && isEditMode) {
+      } else if (e.ctrlKey && e.key === 'v' && currentIsEditMode) {
         e.preventDefault();
         handlePaste();
-      } else if (e.key === 'Delete' && isEditMode) {
+      } else if (e.key === 'Delete' && currentIsEditMode) {
         e.preventDefault();
         handleDeleteRow();
       }
@@ -398,7 +421,7 @@ export function ResultGrid() {
           Export
         </button>
       </div>
-      <div className={`ag-theme-alpine-dark ${styles.grid}`}>
+      <div ref={gridContainerRef} className={`ag-theme-alpine-dark ${styles.grid}`}>
         <AgGridReact
           ref={gridRef}
           columnDefs={columnDefs}

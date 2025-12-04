@@ -6,7 +6,7 @@ import type { Query, ResultSet } from '../types';
 interface QueryState {
   queries: Query[];
   activeQueryId: string | null;
-  results: Map<string, ResultSet>;
+  results: Record<string, ResultSet>;
   isExecuting: boolean;
   error: string | null;
 
@@ -27,7 +27,7 @@ let queryCounter = 0;
 export const useQueryStore = create<QueryState>((set, get) => ({
   queries: [],
   activeQueryId: null,
-  results: new Map(),
+  results: {},
   isExecuting: false,
   error: null,
 
@@ -52,9 +52,8 @@ export const useQueryStore = create<QueryState>((set, get) => ({
     const index = queries.findIndex((q) => q.id === id);
     const newQueries = queries.filter((q) => q.id !== id);
 
-    // Update results map
-    const newResults = new Map(results);
-    newResults.delete(id);
+    // Update results (remove the entry for the deleted query)
+    const { [id]: _, ...newResults } = results;
 
     // Determine new active query
     let newActiveId: string | null = null;
@@ -110,11 +109,10 @@ export const useQueryStore = create<QueryState>((set, get) => ({
         executionTimeMs: result.executionTimeMs,
       };
 
-      set((state) => {
-        const newResults = new Map(state.results);
-        newResults.set(id, resultSet);
-        return { results: newResults, isExecuting: false };
-      });
+      set((state) => ({
+        results: { ...state.results, [id]: resultSet },
+        isExecuting: false,
+      }));
     } catch (error) {
       set({
         isExecuting: false,
@@ -144,11 +142,10 @@ export const useQueryStore = create<QueryState>((set, get) => ({
         executionTimeMs: result.executionTimeMs,
       };
 
-      set((state) => {
-        const newResults = new Map(state.results);
-        newResults.set(id, resultSet);
-        return { results: newResults, isExecuting: false };
-      });
+      set((state) => ({
+        results: { ...state.results, [id]: resultSet },
+        isExecuting: false,
+      }));
     } catch (error) {
       set({
         isExecuting: false,
@@ -201,7 +198,7 @@ export const useActiveQuery = () =>
   });
 
 export const useQueryResult = (queryId: string | null) =>
-  useQueryStore((state) => (queryId ? (state.results.get(queryId) ?? null) : null));
+  useQueryStore((state) => (queryId ? (state.results[queryId] ?? null) : null));
 
 export const useQueryActions = () =>
   useQueryStore(

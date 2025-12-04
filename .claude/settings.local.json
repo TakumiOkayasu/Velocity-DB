@@ -68,7 +68,8 @@
       "Bash(\"C:\\Program Files\\LLVM\\bin\\clang-format.exe\" -i -style=file \"D:\\prog\\Pre-DateGrip\\src\\database\\query_history.cpp\" \"D:\\prog\\Pre-DateGrip\\src\\exporters\\excel_exporter.cpp\")",
       "Bash(uv run:*)",
       "Bash(\"C:\\Program Files\\LLVM\\bin\\clang-format.exe\" --style=file --dry-run --Werror \"D:\\prog\\Pre-DateGrip\\src\\utils\\global_search.h\")",
-      "Bash(gh issue close:*)"
+      "Bash(gh issue close:*)",
+      "Bash(C:nvm4wnodejsnpx.cmd biome lint --error-on-warnings ./src)"
     ],
     "deny": [],
     "ask": []
