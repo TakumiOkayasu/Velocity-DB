@@ -1,4 +1,4 @@
-﻿#include "simd_filter.h"
+#include "simd_filter.h"
 
 #include <algorithm>
 #include <cstring>

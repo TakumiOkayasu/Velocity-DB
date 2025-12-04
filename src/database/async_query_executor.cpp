@@ -1,4 +1,4 @@
-﻿#include "async_query_executor.h"
+#include "async_query_executor.h"
 
 #include <format>
 

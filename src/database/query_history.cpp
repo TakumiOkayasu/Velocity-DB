@@ -1,4 +1,4 @@
-﻿#include "query_history.h"
+#include "query_history.h"
 
 #include "simdjson.h"
 

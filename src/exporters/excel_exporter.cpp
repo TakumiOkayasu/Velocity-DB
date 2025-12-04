@@ -1,4 +1,4 @@
-﻿#include "excel_exporter.h"
+#include "excel_exporter.h"
 
 #include <stdexcept>
 

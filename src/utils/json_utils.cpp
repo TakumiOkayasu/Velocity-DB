@@ -1,4 +1,4 @@
-﻿#include "json_utils.h"
+#include "json_utils.h"
 
 #include "database/sqlserver_driver.h"
 

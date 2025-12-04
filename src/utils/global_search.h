@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "../database/sqlserver_driver.h"
 
@@ -44,7 +44,8 @@ public:
                                                                const std::string& pattern, bool caseSensitive = false);
 
     /// Quick search for object names (autocomplete)
-    [[nodiscard]] std::vector<std::string> quickSearch(SQLServerDriver* driver, const std::string& prefix, int limit = 20);
+    [[nodiscard]] std::vector<std::string> quickSearch(SQLServerDriver* driver, const std::string& prefix,
+                                                       int limit = 20);
 
 private:
     [[nodiscard]] std::string buildSearchQuery(const std::string& pattern, const SearchOptions& options) const;

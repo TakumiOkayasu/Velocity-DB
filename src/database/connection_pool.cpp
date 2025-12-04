@@ -1,4 +1,4 @@
-﻿#include "connection_pool.h"
+#include "connection_pool.h"
 
 #include "odbc_driver_detector.h"
 #include "sqlserver_driver.h"

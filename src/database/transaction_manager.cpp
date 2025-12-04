@@ -1,4 +1,4 @@
-﻿#include "transaction_manager.h"
+#include "transaction_manager.h"
 
 #include "sqlserver_driver.h"
 

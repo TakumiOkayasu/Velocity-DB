@@ -1,4 +1,4 @@
-﻿#include "session_manager.h"
+#include "session_manager.h"
 
 #include "json_utils.h"
 #include "simdjson.h"

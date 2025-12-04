@@ -1,4 +1,4 @@
-﻿#include "credential_protector.h"
+#include "credential_protector.h"
 
 #include <Windows.h>
 

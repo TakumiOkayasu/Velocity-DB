@@ -1,4 +1,4 @@
-﻿#include "odbc_driver_detector.h"
+#include "odbc_driver_detector.h"
 
 #include <Windows.h>
 #include <sql.h>

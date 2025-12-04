@@ -1,4 +1,4 @@
-﻿#include "ipc_handler.h"
+#include "ipc_handler.h"
 
 #include "database/async_query_executor.h"
 #include "database/connection_pool.h"

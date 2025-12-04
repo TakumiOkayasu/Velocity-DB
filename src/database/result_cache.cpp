@@ -1,4 +1,4 @@
-﻿#include "result_cache.h"
+#include "result_cache.h"
 
 #include <ranges>
 

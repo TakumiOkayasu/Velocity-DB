@@ -1,4 +1,4 @@
-﻿#include "a5er_parser.h"
+#include "a5er_parser.h"
 
 #include <fstream>
 #include <sstream>

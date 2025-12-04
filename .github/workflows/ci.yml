@@ -31,6 +31,18 @@ jobs:
       - name: Check clang-format version
         run: clang-format --version
 
+      - name: Normalize line endings to LF
+        run: |
+          # Convert CRLF to LF for consistent formatting check
+          find src -name '*.cpp' -o -name '*.h' | xargs sed -i 's/\r$//'
+
+      - name: Remove BOM from files
+        run: |
+          # Remove UTF-8 BOM if present (causes clang-format differences)
+          find src -name '*.cpp' -o -name '*.h' | while read file; do
+            sed -i '1s/^\xEF\xBB\xBF//' "$file"
+          done
+
       - name: Check code formatting
         run: |
           # Find all C++ source files and check formatting

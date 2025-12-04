@@ -1,4 +1,4 @@
-﻿#include "sql_formatter.h"
+#include "sql_formatter.h"
 
 #include <algorithm>
 #include <cctype>

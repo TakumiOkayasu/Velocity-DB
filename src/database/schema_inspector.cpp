@@ -1,4 +1,4 @@
-﻿#include "schema_inspector.h"
+#include "schema_inspector.h"
 
 #include <format>
 

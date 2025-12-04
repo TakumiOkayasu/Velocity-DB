@@ -1,4 +1,4 @@
-﻿#include "webview_app.h"
+#include "webview_app.h"
 
 #include "ipc_handler.h"
 #include "webview.h"

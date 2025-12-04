@@ -61,6 +61,30 @@ def get_msvc_env() -> dict[str, str]:
     return env
 
 
+def normalize_line_endings(file_path: Path, to_lf: bool = True) -> None:
+    """Normalize line endings in a file.
+
+    Args:
+        file_path: Path to the file
+        to_lf: If True, convert to LF. If False, convert to CRLF.
+    """
+    try:
+        content = file_path.read_bytes()
+        # Remove BOM if present
+        if content.startswith(b'\xef\xbb\xbf'):
+            content = content[3:]
+
+        if to_lf:
+            content = content.replace(b'\r\n', b'\n')
+        else:
+            # First normalize to LF, then convert to CRLF
+            content = content.replace(b'\r\n', b'\n').replace(b'\n', b'\r\n')
+
+        file_path.write_bytes(content)
+    except Exception as e:
+        print(f"WARNING: Failed to normalize {file_path}: {e}")
+
+
 def run_format(src_dir: Path) -> int:
     """Run clang-format on C++ files."""
     print("\n" + "=" * 60)
@@ -69,9 +93,19 @@ def run_format(src_dir: Path) -> int:
 
     clang_format = shutil.which("clang-format")
     if not clang_format:
-        print("ERROR: clang-format not found in PATH")
-        print("  Install LLVM: winget install LLVM.LLVM")
-        return 1
+        # Try common LLVM installation paths on Windows
+        llvm_paths = [
+            Path(r"C:\Program Files\LLVM\bin\clang-format.exe"),
+            Path(r"C:\Program Files (x86)\LLVM\bin\clang-format.exe"),
+        ]
+        for path in llvm_paths:
+            if path.exists():
+                clang_format = str(path)
+                break
+        else:
+            print("ERROR: clang-format not found in PATH")
+            print("  Install LLVM: winget install LLVM.LLVM")
+            return 1
 
     # Show version
     try:
@@ -84,6 +118,11 @@ def run_format(src_dir: Path) -> int:
     cpp_files = list(src_dir.rglob("*.cpp")) + list(src_dir.rglob("*.h"))
     print(f"Formatting {len(cpp_files)} C++ files...")
 
+    # Normalize to LF before formatting (matches CI environment)
+    print("Normalizing line endings to LF...")
+    for cpp_file in cpp_files:
+        normalize_line_endings(cpp_file, to_lf=True)
+
     for cpp_file in cpp_files:
         try:
             result = subprocess.run([clang_format, "-i", "--style=file", str(cpp_file)], shell=True)
@@ -93,6 +132,11 @@ def run_format(src_dir: Path) -> int:
         except Exception as e:
             print(f"ERROR: Failed to format {cpp_file}: {e}")
             return 1
+
+    # Convert back to CRLF for Windows
+    print("Restoring line endings to CRLF...")
+    for cpp_file in cpp_files:
+        normalize_line_endings(cpp_file, to_lf=False)
 
     print("clang-format completed.")
     return 0

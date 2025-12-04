@@ -1,4 +1,4 @@
-﻿#include "csv_exporter.h"
+#include "csv_exporter.h"
 
 #include <fstream>
 #include <sstream>

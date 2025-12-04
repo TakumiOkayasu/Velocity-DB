@@ -1,4 +1,4 @@
-﻿#include "json_exporter.h"
+#include "json_exporter.h"
 
 #include <fstream>
 #include <iomanip>

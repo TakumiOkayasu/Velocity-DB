@@ -1,4 +1,4 @@
-﻿#include "settings_manager.h"
+#include "settings_manager.h"
 
 #include "credential_protector.h"
 #include "json_utils.h"

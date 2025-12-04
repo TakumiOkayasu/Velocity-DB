@@ -1,4 +1,4 @@
-﻿#include "global_search.h"
+#include "global_search.h"
 
 #include <algorithm>
 #include <format>

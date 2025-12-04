@@ -1,4 +1,4 @@
-﻿#include "sqlserver_driver.h"
+#include "sqlserver_driver.h"
 
 #include <algorithm>
 #include <array>
