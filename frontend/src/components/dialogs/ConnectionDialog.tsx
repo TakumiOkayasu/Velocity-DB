@@ -69,6 +69,33 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
     message: string;
   } | null>(null);
 
+  const loadProfile = useCallback((profile: SavedProfile) => {
+    setConfig({
+      name: profile.name,
+      server: profile.server,
+      port: profile.port,
+      database: profile.database,
+      username: profile.username,
+      password: '', // Password is not saved
+      useWindowsAuth: profile.useWindowsAuth,
+    });
+    setTestResult(null);
+  }, []);
+
+  const handleNewProfile = useCallback(() => {
+    setSelectedProfileId(null);
+    setConfig({
+      name: 'New Connection',
+      server: 'localhost',
+      port: 1433,
+      database: 'master',
+      username: '',
+      password: '',
+      useWindowsAuth: true,
+    });
+    setTestResult(null);
+  }, []);
+
   // Load profiles on mount
   useEffect(() => {
     if (isOpen) {
@@ -82,39 +109,12 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
     }
   }, [isOpen, loadProfile, selectedProfileId]);
 
-  const loadProfile = (profile: SavedProfile) => {
-    setConfig({
-      name: profile.name,
-      server: profile.server,
-      port: profile.port,
-      database: profile.database,
-      username: profile.username,
-      password: '', // Password is not saved
-      useWindowsAuth: profile.useWindowsAuth,
-    });
-    setTestResult(null);
-  };
-
   const handleProfileSelect = (profileId: string) => {
     setSelectedProfileId(profileId);
     const profile = profiles.find((p) => p.id === profileId);
     if (profile) {
       loadProfile(profile);
     }
-  };
-
-  const handleNewProfile = () => {
-    setSelectedProfileId(null);
-    setConfig({
-      name: 'New Connection',
-      server: 'localhost',
-      port: 1433,
-      database: 'master',
-      username: '',
-      password: '',
-      useWindowsAuth: true,
-    });
-    setTestResult(null);
   };
 
   const handleSaveProfile = useCallback(() => {
