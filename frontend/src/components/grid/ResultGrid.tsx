@@ -97,44 +97,72 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
       return Math.min(MAX_WIDTH, calculatedWidth);
     };
 
-    return resultSet.columns.map((col, colIndex) => ({
-      field: col.name,
-      headerName: col.name,
-      headerTooltip: `${col.name} (${col.type})`,
-      width: calculateColumnWidth(col.name, colIndex),
-      sortable: true,
-      filter: true,
-      resizable: false,
-      editable: isEditMode,
-      cellClass: (params: CellClassParams) => {
-        const classes: string[] = [];
-        const rowIndex = params.node?.rowIndex ?? -1;
+    // Helper function to check if a column type is numeric
+    const isNumericType = (typeName: string): boolean => {
+      const numericTypes = [
+        'int',
+        'integer',
+        'bigint',
+        'smallint',
+        'tinyint',
+        'decimal',
+        'numeric',
+        'money',
+        'smallmoney',
+        'float',
+        'real',
+        'double',
+        'number',
+        'bit',
+      ];
+      const lowerType = typeName.toLowerCase();
+      return numericTypes.some((t) => lowerType.includes(t));
+    };
 
-        // NULL styling
-        if (params.value === null || params.value === '') {
-          classes.push(styles.nullCell);
-        }
+    return resultSet.columns.map((col, colIndex) => {
+      const isNumeric = isNumericType(col.type);
 
-        // Changed cell styling
-        const change = getCellChange(rowIndex, col.name);
-        if (change) {
-          classes.push(styles.changedCell);
-        }
+      return {
+        field: col.name,
+        headerName: col.name,
+        headerTooltip: `${col.name} (${col.type})`,
+        width: calculateColumnWidth(col.name, colIndex),
+        sortable: true,
+        filter: true,
+        resizable: false,
+        editable: isEditMode,
+        // Right-align numeric columns, left-align others (headers stay centered)
+        cellStyle: isNumeric ? { textAlign: 'right' } : { textAlign: 'left' },
+        cellClass: (params: CellClassParams) => {
+          const classes: string[] = [];
+          const rowIndex = params.node?.rowIndex ?? -1;
 
-        // Deleted row styling
-        if (isRowDeleted(rowIndex)) {
-          classes.push(styles.deletedRow);
-        }
+          // NULL styling
+          if (params.value === null || params.value === '') {
+            classes.push(styles.nullCell);
+          }
 
-        return classes.join(' ');
-      },
-      valueFormatter: (params) => {
-        if (params.value === null || params.value === undefined) {
-          return 'NULL';
-        }
-        return params.value;
-      },
-    }));
+          // Changed cell styling
+          const change = getCellChange(rowIndex, col.name);
+          if (change) {
+            classes.push(styles.changedCell);
+          }
+
+          // Deleted row styling
+          if (isRowDeleted(rowIndex)) {
+            classes.push(styles.deletedRow);
+          }
+
+          return classes.join(' ');
+        },
+        valueFormatter: (params) => {
+          if (params.value === null || params.value === undefined) {
+            return 'NULL';
+          }
+          return params.value;
+        },
+      };
+    });
   }, [resultSet, isEditMode, getCellChange, isRowDeleted]);
 
   const rowData = useMemo(() => {

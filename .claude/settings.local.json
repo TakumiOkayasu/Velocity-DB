@@ -76,7 +76,9 @@
       "Bash(docker exec:*)",
       "Bash(C:nvm4wnodejsnpx.cmd biome lint --error-on-warnings \"D:\\prog\\Pre-DateGrip\\frontend\\src\\components\\dialogs\\ConnectionDialog.tsx\")",
       "Bash(bun run build)",
-      "Bash(bun run test:*)"
+      "Bash(bun run test:*)",
+      "Bash(bun run lint:*)",
+      "Bash(C:nvm4wnodejsnpx.cmd biome lint --error-on-warnings \"D:\\prog\\Pre-DateGrip\\frontend\\src\")"
     ],
     "deny": [],
     "ask": []
