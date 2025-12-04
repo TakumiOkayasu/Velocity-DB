@@ -76,20 +76,18 @@ jobs:
         working-directory: frontend
         run: biome check src
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          bun-version: latest
 
       - name: Install dependencies
         working-directory: frontend
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       - name: Type Check
         working-directory: frontend
-        run: npm run typecheck
+        run: bun run typecheck
 
   # Frontend build and test
   build-test-frontend:
@@ -99,24 +97,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          bun-version: latest
 
       - name: Install dependencies
         working-directory: frontend
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       - name: Build
         working-directory: frontend
-        run: npm run build
+        run: bun run build
 
       - name: Test
         working-directory: frontend
-        run: npm run test -- --run
+        run: bun run test --run
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

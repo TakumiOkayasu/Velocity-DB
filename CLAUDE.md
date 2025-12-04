@@ -20,14 +20,14 @@ uv run scripts/build.py Release     # Release build
 uv run scripts/test.py Debug
 uv run scripts/test.py Release
 
-# Frontend (React)
+# Frontend (React) - uses Bun
 cd frontend
-npm install                   # Install dependencies
-npm run dev                   # Development server (localhost:5173)
-npm run build                 # Production build
-npm run test                  # Run tests
-npm run lint                  # Lint code (Biome)
-npm run lint:fix              # Auto-fix lint issues
+bun install                   # Install dependencies
+bun run dev                   # Development server (localhost:5173)
+bun run build                 # Production build
+bun run test                  # Run tests
+bun run lint                  # Lint code (Biome)
+bun run lint:fix              # Auto-fix lint issues
 
 # Full project checks
 uv run scripts/check_all.py Release   # All checks (EOL, format, lint, build)
@@ -68,7 +68,7 @@ All phases (0-7) are complete. The project includes:
 - Complete API bridge to backend
 
 ### Infrastructure
-- GitHub Actions CI/CD (LLVM 21, Node.js 22, Biome 2.3.8)
+- GitHub Actions CI/CD (LLVM 21, Bun, Biome 2.3.8)
 - Google Test for C++, Vitest for frontend
 - Python build scripts with uv
 
@@ -85,7 +85,7 @@ All phases (0-7) are complete. The project includes:
 - **Linter/Formatter**: clang-format, clang-tidy
 
 ### Frontend (React + TypeScript)
-- **Node.js**: 22.x LTS (see `.nvmrc`)
+- **Runtime**: Bun (install: `powershell -c "irm bun.sh/install.ps1 | iex"`)
 - **Build**: Vite
 - **UI**: React 18
 - **Editor**: Monaco Editor
@@ -268,7 +268,7 @@ interface RelationEdge {
 
 ```bash
 # フロントエンド (Biome)
-cd frontend && npm run lint
+cd frontend && bun run lint
 
 # C++ (clang-format) - 全ファイルをチェック
 uv run scripts/cpp_check.py format
