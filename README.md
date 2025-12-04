@@ -86,7 +86,7 @@ CPUがAVX2に対応しているか確認するには：
 #### 必要なツール
 
 - Visual Studio 2022（C++ワークロード）
-- Node.js 22 LTS（`winget install OpenJS.NodeJS.LTS`）
+- Bun（`powershell -c "irm bun.sh/install.ps1 | iex"`）
 - CMake 3.20以上
 - Ninja（`winget install Ninja-build.Ninja`）
 - Python 3.14+（ビルドスクリプト用）
@@ -104,8 +104,8 @@ cd Pre-DateGrip
 
 # フロントエンドのビルド
 cd frontend
-npm install
-npm run build
+bun install
+bun run build
 cd ..
 
 # バックエンドのビルド（Ninja使用）
@@ -144,18 +144,18 @@ Pre-DateGrip/
 ```bash
 # フロントエンド開発サーバー（ホットリロード）
 cd frontend
-npm run dev
+bun run dev
 
 # Lint/Format
-npm run lint          # Biomeによるチェック
-npm run lint:fix      # 自動修正
-npm run format        # フォーマットのみ
+bun run lint          # Biomeによるチェック
+bun run lint:fix      # 自動修正
+bun run format        # フォーマットのみ
 
 # TypeScript型チェック
-npm run typecheck
+bun run typecheck
 
 # テスト
-npm run test
+bun run test
 
 # C++ Lint/Format/Build（一括）
 uv run scripts/cpp_check.py all Release
