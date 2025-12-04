@@ -167,6 +167,17 @@ uv run scripts/cpp_check.py all Release
 uv run scripts/check_all.py Release
 ```
 
+### 開発TODO
+
+- [ ] ボタン配置の汚さ
+- [ ] ウィンドウサイズの保持
+- [ ] テーブル作成時のSQL（読み取り専用）を作る
+- [ ] Ctrl+Wでタブを消す
+- [ ] F5で実行
+- [ ] a5er読み込み
+- [ ] 未実装部分を追加
+- [ ] issue対応
+
 ### 技術スタック
 
 #### バックエンド（C++23）
