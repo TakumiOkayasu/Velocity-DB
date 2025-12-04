@@ -21,9 +21,7 @@ type RowData = Record<string, string | null>;
 
 function isRowData(data: unknown): data is RowData {
   if (data === null || typeof data !== 'object') return false;
-  return Object.values(data as object).every(
-    (v) => v === null || typeof v === 'string'
-  );
+  return Object.values(data as object).every((v) => v === null || typeof v === 'string');
 }
 
 function getRowData(node: IRowNode): RowData | null {
@@ -55,7 +53,7 @@ export function ResultGrid() {
   const [isApplying, setIsApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
 
-  const resultSet = activeQueryId ? results[activeQueryId] ?? null : null;
+  const resultSet = activeQueryId ? (results[activeQueryId] ?? null) : null;
 
   const columnDefs = useMemo<ColDef[]>(() => {
     if (!resultSet) return [];

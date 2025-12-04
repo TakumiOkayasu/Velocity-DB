@@ -69,7 +69,10 @@
       "Bash(uv run:*)",
       "Bash(\"C:\\Program Files\\LLVM\\bin\\clang-format.exe\" --style=file --dry-run --Werror \"D:\\prog\\Pre-DateGrip\\src\\utils\\global_search.h\")",
       "Bash(gh issue close:*)",
-      "Bash(C:nvm4wnodejsnpx.cmd biome lint --error-on-warnings ./src)"
+      "Bash(C:nvm4wnodejsnpx.cmd biome lint --error-on-warnings ./src)",
+      "Bash(gh issue create:*)",
+      "Bash(gh label list:*)",
+      "Bash(gh label create:*)"
     ],
     "deny": [],
     "ask": []
