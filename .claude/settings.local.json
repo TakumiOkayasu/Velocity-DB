@@ -61,7 +61,11 @@
       "Bash(\"C:\\Program Files\\LLVM\\bin\\clang-format.exe\" --style=file --dry-run --Werror \"D:\\prog\\Pre-DateGrip\\src\\database\\transaction_manager.cpp\")",
       "Bash(\"C:\\Program Files\\LLVM\\bin\\clang-format.exe\" --style=file --dry-run --Werror \"D:\\prog\\Pre-DateGrip\\src\\utils\\simd_filter.cpp\")",
       "Bash(\"C:\\Program Files\\LLVM\\bin\\clang-format.exe\" --version)",
-      "Bash(\"C:\\Program Files\\LLVM\\bin\\clang-format.exe\" -i -style=file \"D:\\prog\\Pre-DateGrip\\src\\utils\\simd_filter.cpp\")"
+      "Bash(\"C:\\Program Files\\LLVM\\bin\\clang-format.exe\" -i -style=file \"D:\\prog\\Pre-DateGrip\\src\\utils\\simd_filter.cpp\")",
+      "Bash(gh issue list:*)",
+      "Bash(gh issue view:*)",
+      "Bash(\"C:\\Program Files\\LLVM\\bin\\clang-format.exe\" -i -style=file \"D:\\prog\\Pre-DateGrip\\src\\exporters\\excel_exporter.cpp\")",
+      "Bash(\"C:\\Program Files\\LLVM\\bin\\clang-format.exe\" -i -style=file \"D:\\prog\\Pre-DateGrip\\src\\database\\query_history.cpp\" \"D:\\prog\\Pre-DateGrip\\src\\exporters\\excel_exporter.cpp\")"
     ],
     "deny": [],
     "ask": []

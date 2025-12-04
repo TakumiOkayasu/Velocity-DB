@@ -38,12 +38,18 @@ class Bridge {
   // Connection methods
   async connect(connectionInfo: {
     server: string;
+    port?: number;
     database: string;
     username?: string;
     password?: string;
     useWindowsAuth: boolean;
   }): Promise<{ connectionId: string }> {
-    return this.call('connect', connectionInfo);
+    // Build server string with port if provided
+    const serverWithPort =
+      connectionInfo.port && connectionInfo.port !== 1433
+        ? `${connectionInfo.server},${connectionInfo.port}`
+        : connectionInfo.server;
+    return this.call('connect', { ...connectionInfo, server: serverWithPort });
   }
 
   async disconnect(connectionId: string): Promise<void> {
@@ -52,12 +58,18 @@ class Bridge {
 
   async testConnection(connectionInfo: {
     server: string;
+    port?: number;
     database: string;
     username?: string;
     password?: string;
     useWindowsAuth: boolean;
   }): Promise<{ success: boolean; message: string }> {
-    return this.call('testConnection', connectionInfo);
+    // Build server string with port if provided
+    const serverWithPort =
+      connectionInfo.port && connectionInfo.port !== 1433
+        ? `${connectionInfo.server},${connectionInfo.port}`
+        : connectionInfo.server;
+    return this.call('testConnection', { ...connectionInfo, server: serverWithPort });
   }
 
   // Query methods

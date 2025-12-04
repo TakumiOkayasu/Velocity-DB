@@ -45,7 +45,8 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
 
     try {
       const response = await bridge.testConnection({
-        server: `${config.server},${config.port}`,
+        server: config.server,
+        port: config.port,
         database: config.database,
         username: config.username,
         password: config.password,

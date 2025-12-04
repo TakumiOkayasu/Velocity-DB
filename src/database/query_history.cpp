@@ -35,17 +35,25 @@ std::vector<HistoryItem> QueryHistory::getAll() const {
 std::vector<HistoryItem> QueryHistory::search(std::string_view keyword) const {
     std::lock_guard lock(m_mutex);
 
-    std::string lowerKeyword(keyword);
-    std::ranges::transform(lowerKeyword, lowerKeyword.begin(),
-                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (keyword.empty()) {
+        return m_history;
+    }
+
+    // Case-insensitive search without creating lowercase copies of entire strings
+    auto caseInsensitiveFind = [](std::string_view haystack, std::string_view needle) -> bool {
+        if (needle.size() > haystack.size()) {
+            return false;
+        }
+        auto it = std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(),
+                              [](unsigned char a, unsigned char b) { return std::tolower(a) == std::tolower(b); });
+        return it != haystack.end();
+    };
 
     std::vector<HistoryItem> results;
-    for (const auto& item : m_history) {
-        std::string lowerSql = item.sql;
-        std::ranges::transform(lowerSql, lowerSql.begin(),
-                               [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    results.reserve(m_history.size() / 4);  // Estimate ~25% match rate
 
-        if (lowerSql.find(lowerKeyword) != std::string::npos) {
+    for (const auto& item : m_history) {
+        if (caseInsensitiveFind(item.sql, keyword)) {
             results.push_back(item);
         }
     }
