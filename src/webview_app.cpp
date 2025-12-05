@@ -38,8 +38,7 @@ std::string extractFirstArgument(const std::string& jsonArray) {
 
 }  // namespace
 
-WebViewApp::WebViewApp(HINSTANCE hInstance)
-    : m_hInstance(hInstance), m_ipcHandler(std::make_unique<IPCHandler>()), m_webview(nullptr) {}
+WebViewApp::WebViewApp(HINSTANCE hInstance) : m_hInstance(hInstance), m_ipcHandler(std::make_unique<IPCHandler>()), m_webview(nullptr) {}
 
 WebViewApp::~WebViewApp() = default;
 

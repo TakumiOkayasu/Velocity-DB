@@ -65,8 +65,7 @@ struct DatabaseConnectionParams {
     return connectionString;
 }
 
-[[nodiscard]] std::expected<DatabaseConnectionParams, std::string> extractConnectionParams(
-    std::string_view jsonParams) {
+[[nodiscard]] std::expected<DatabaseConnectionParams, std::string> extractConnectionParams(std::string_view jsonParams) {
     try {
         simdjson::dom::parser parser;
         simdjson::dom::element doc = parser.parse(jsonParams);
@@ -170,9 +169,7 @@ void IPCHandler::registerRequestRoutes() {
     m_requestRoutes["getIndexes"] = [this](std::string_view p) { return fetchIndexes(p); };
     m_requestRoutes["getConstraints"] = [this](std::string_view p) { return fetchConstraints(p); };
     m_requestRoutes["getForeignKeys"] = [this](std::string_view p) { return fetchForeignKeys(p); };
-    m_requestRoutes["getReferencingForeignKeys"] = [this](std::string_view p) {
-        return fetchReferencingForeignKeys(p);
-    };
+    m_requestRoutes["getReferencingForeignKeys"] = [this](std::string_view p) { return fetchReferencingForeignKeys(p); };
     m_requestRoutes["getTriggers"] = [this](std::string_view p) { return fetchTriggers(p); };
     m_requestRoutes["getTableMetadata"] = [this](std::string_view p) { return fetchTableMetadata(p); };
     m_requestRoutes["getTableDDL"] = [this](std::string_view p) { return fetchTableDDL(p); };
@@ -273,8 +270,7 @@ std::string IPCHandler::verifyDatabaseConnection(std::string_view params) {
         return JsonUtils::successResponse(R"({"success":true,"message":"Connection successful"})");
     }
 
-    return JsonUtils::successResponse(
-        std::format(R"({{"success":false,"message":"{}"}})", JsonUtils::escapeString(driver.getLastError())));
+    return JsonUtils::successResponse(std::format(R"({{"success":false,"message":"{}"}})", JsonUtils::escapeString(driver.getLastError())));
 }
 
 std::string IPCHandler::executeSQL(std::string_view params) {
@@ -305,8 +301,7 @@ std::string IPCHandler::executeSQL(std::string_view params) {
         std::string cacheKey = connectionId + ":" + sqlQuery;
 
         // Check cache for SELECT queries
-        bool isSelectQuery =
-            sqlQuery.find("SELECT") != std::string::npos || sqlQuery.find("select") != std::string::npos;
+        bool isSelectQuery = sqlQuery.find("SELECT") != std::string::npos || sqlQuery.find("select") != std::string::npos;
         if (useCache && isSelectQuery) {
             if (auto cachedResult = m_resultCache->get(cacheKey); cachedResult.has_value()) {
                 return JsonUtils::successResponse(JsonUtils::serializeResultSet(*cachedResult, true));
@@ -324,13 +319,12 @@ std::string IPCHandler::executeSQL(std::string_view params) {
         std::string jsonResponse = JsonUtils::serializeResultSet(queryResult, false);
 
         // Record in query history
-        HistoryItem historyEntry{
-            .id = std::format("hist_{}", std::chrono::system_clock::now().time_since_epoch().count()),
-            .sql = sqlQuery,
-            .executionTimeMs = queryResult.executionTimeMs,
-            .success = true,
-            .affectedRows = static_cast<int64_t>(queryResult.affectedRows),
-            .isFavorite = false};
+        HistoryItem historyEntry{.id = std::format("hist_{}", std::chrono::system_clock::now().time_since_epoch().count()),
+                                 .sql = sqlQuery,
+                                 .executionTimeMs = queryResult.executionTimeMs,
+                                 .success = true,
+                                 .affectedRows = static_cast<int64_t>(queryResult.affectedRows),
+                                 .isFavorite = false};
         m_queryHistory->add(historyEntry);
 
         return JsonUtils::successResponse(jsonResponse);
@@ -380,9 +374,7 @@ std::string IPCHandler::fetchTableList(std::string_view params) {
         for (size_t i = 0; i < queryResult.rows.size(); ++i) {
             if (i > 0)
                 jsonResponse += ',';
-            jsonResponse += std::format(R"({{"schema":"{}","name":"{}","type":"{}"}})",
-                                        JsonUtils::escapeString(queryResult.rows[i].values[0]),
-                                        JsonUtils::escapeString(queryResult.rows[i].values[1]),
+            jsonResponse += std::format(R"({{"schema":"{}","name":"{}","type":"{}"}})", JsonUtils::escapeString(queryResult.rows[i].values[0]), JsonUtils::escapeString(queryResult.rows[i].values[1]),
                                         JsonUtils::escapeString(queryResult.rows[i].values[2]));
         }
         jsonResponse += ']';
@@ -468,12 +460,9 @@ std::string IPCHandler::fetchColumnDefinitions(std::string_view params) {
         for (size_t i = 0; i < queryResult.rows.size(); ++i) {
             if (i > 0)
                 jsonResponse += ',';
-            jsonResponse +=
-                std::format(R"({{"name":"{}","type":"{}","size":{},"nullable":{},"isPrimaryKey":{}}})",
-                            JsonUtils::escapeString(queryResult.rows[i].values[0]),
-                            JsonUtils::escapeString(queryResult.rows[i].values[1]), queryResult.rows[i].values[2],
-                            queryResult.rows[i].values[3] == "1" ? "true" : "false",
-                            queryResult.rows[i].values[4] == "1" ? "true" : "false");
+            jsonResponse += std::format(R"({{"name":"{}","type":"{}","size":{},"nullable":{},"isPrimaryKey":{}}})", JsonUtils::escapeString(queryResult.rows[i].values[0]),
+                                        JsonUtils::escapeString(queryResult.rows[i].values[1]), queryResult.rows[i].values[2], queryResult.rows[i].values[3] == "1" ? "true" : "false",
+                                        queryResult.rows[i].values[4] == "1" ? "true" : "false");
         }
         jsonResponse += ']';
 
@@ -750,12 +739,9 @@ std::string IPCHandler::parseA5ERFile(std::string_view params) {
                 const auto& col = table.columns[j];
                 if (j > 0)
                     columnsJson += ',';
-                columnsJson += std::format(
-                    R"({{"name":"{}","logicalName":"{}","type":"{}","size":{},"scale":{},"nullable":{},"isPrimaryKey":{},"defaultValue":"{}","comment":"{}"}})",
-                    JsonUtils::escapeString(col.name), JsonUtils::escapeString(col.logicalName),
-                    JsonUtils::escapeString(col.type), col.size, col.scale, col.nullable ? "true" : "false",
-                    col.isPrimaryKey ? "true" : "false", JsonUtils::escapeString(col.defaultValue),
-                    JsonUtils::escapeString(col.comment));
+                columnsJson += std::format(R"({{"name":"{}","logicalName":"{}","type":"{}","size":{},"scale":{},"nullable":{},"isPrimaryKey":{},"defaultValue":"{}","comment":"{}"}})",
+                                           JsonUtils::escapeString(col.name), JsonUtils::escapeString(col.logicalName), JsonUtils::escapeString(col.type), col.size, col.scale,
+                                           col.nullable ? "true" : "false", col.isPrimaryKey ? "true" : "false", JsonUtils::escapeString(col.defaultValue), JsonUtils::escapeString(col.comment));
             }
             columnsJson += "]";
 
@@ -774,16 +760,12 @@ std::string IPCHandler::parseA5ERFile(std::string_view params) {
                 }
                 idxColumnsJson += "]";
 
-                indexesJson +=
-                    std::format(R"({{"name":"{}","columns":{},"isUnique":{}}})", JsonUtils::escapeString(idx.name),
-                                idxColumnsJson, idx.isUnique ? "true" : "false");
+                indexesJson += std::format(R"({{"name":"{}","columns":{},"isUnique":{}}})", JsonUtils::escapeString(idx.name), idxColumnsJson, idx.isUnique ? "true" : "false");
             }
             indexesJson += "]";
 
-            tablesJson += std::format(
-                R"({{"name":"{}","logicalName":"{}","comment":"{}","columns":{},"indexes":{},"posX":{},"posY":{}}})",
-                JsonUtils::escapeString(table.name), JsonUtils::escapeString(table.logicalName),
-                JsonUtils::escapeString(table.comment), columnsJson, indexesJson, table.posX, table.posY);
+            tablesJson += std::format(R"({{"name":"{}","logicalName":"{}","comment":"{}","columns":{},"indexes":{},"posX":{},"posY":{}}})", JsonUtils::escapeString(table.name),
+                                      JsonUtils::escapeString(table.logicalName), JsonUtils::escapeString(table.comment), columnsJson, indexesJson, table.posX, table.posY);
         }
         tablesJson += "]";
 
@@ -793,11 +775,9 @@ std::string IPCHandler::parseA5ERFile(std::string_view params) {
             const auto& rel = model.relations[i];
             if (i > 0)
                 relationsJson += ',';
-            relationsJson += std::format(
-                R"({{"name":"{}","parentTable":"{}","childTable":"{}","parentColumn":"{}","childColumn":"{}","cardinality":"{}"}})",
-                JsonUtils::escapeString(rel.name), JsonUtils::escapeString(rel.parentTable),
-                JsonUtils::escapeString(rel.childTable), JsonUtils::escapeString(rel.parentColumn),
-                JsonUtils::escapeString(rel.childColumn), JsonUtils::escapeString(rel.cardinality));
+            relationsJson += std::format(R"({{"name":"{}","parentTable":"{}","childTable":"{}","parentColumn":"{}","childColumn":"{}","cardinality":"{}"}})", JsonUtils::escapeString(rel.name),
+                                         JsonUtils::escapeString(rel.parentTable), JsonUtils::escapeString(rel.childTable), JsonUtils::escapeString(rel.parentColumn),
+                                         JsonUtils::escapeString(rel.childColumn), JsonUtils::escapeString(rel.cardinality));
         }
         relationsJson += "]";
 
@@ -821,11 +801,9 @@ std::string IPCHandler::retrieveQueryHistory(std::string_view) {
     for (size_t i = 0; i < historyEntries.size(); ++i) {
         if (i > 0)
             jsonResponse += ',';
-        jsonResponse += std::format(
-            R"({{"id":"{}","sql":"{}","executionTimeMs":{},"success":{},"affectedRows":{},"isFavorite":{}}})",
-            historyEntries[i].id, JsonUtils::escapeString(historyEntries[i].sql), historyEntries[i].executionTimeMs,
-            historyEntries[i].success ? "true" : "false", historyEntries[i].affectedRows,
-            historyEntries[i].isFavorite ? "true" : "false");
+        jsonResponse +=
+            std::format(R"({{"id":"{}","sql":"{}","executionTimeMs":{},"success":{},"affectedRows":{},"isFavorite":{}}})", historyEntries[i].id, JsonUtils::escapeString(historyEntries[i].sql),
+                        historyEntries[i].executionTimeMs, historyEntries[i].success ? "true" : "false", historyEntries[i].affectedRows, historyEntries[i].isFavorite ? "true" : "false");
     }
     jsonResponse += ']';
 
@@ -891,9 +869,8 @@ std::string IPCHandler::getCacheStats(std::string_view) {
     auto currentSize = m_resultCache->getCurrentSize();
     auto maxSize = m_resultCache->getMaxSize();
 
-    std::string jsonResponse =
-        std::format(R"({{"currentSizeBytes":{},"maxSizeBytes":{},"usagePercent":{:.1f}}})", currentSize, maxSize,
-                    maxSize > 0 ? (static_cast<double>(currentSize) / static_cast<double>(maxSize)) * 100.0 : 0.0);
+    std::string jsonResponse = std::format(R"({{"currentSizeBytes":{},"maxSizeBytes":{},"usagePercent":{:.1f}}})", currentSize, maxSize,
+                                           maxSize > 0 ? (static_cast<double>(currentSize) / static_cast<double>(maxSize)) * 100.0 : 0.0);
 
     return JsonUtils::successResponse(jsonResponse);
 }
@@ -976,9 +953,7 @@ std::string IPCHandler::getAsyncQueryResult(std::string_view params) {
             for (size_t i = 0; i < queryResult.columns.size(); ++i) {
                 if (i > 0)
                     jsonResponse += ',';
-                jsonResponse +=
-                    std::format(R"({{"name":"{}","type":"{}"}})", JsonUtils::escapeString(queryResult.columns[i].name),
-                                queryResult.columns[i].type);
+                jsonResponse += std::format(R"({{"name":"{}","type":"{}"}})", JsonUtils::escapeString(queryResult.columns[i].name), queryResult.columns[i].type);
             }
             jsonResponse += "],";
 
@@ -990,15 +965,13 @@ std::string IPCHandler::getAsyncQueryResult(std::string_view params) {
                 for (size_t colIndex = 0; colIndex < queryResult.rows[rowIndex].values.size(); ++colIndex) {
                     if (colIndex > 0)
                         jsonResponse += ',';
-                    jsonResponse +=
-                        std::format(R"("{}")", JsonUtils::escapeString(queryResult.rows[rowIndex].values[colIndex]));
+                    jsonResponse += std::format(R"("{}")", JsonUtils::escapeString(queryResult.rows[rowIndex].values[colIndex]));
                 }
                 jsonResponse += ']';
             }
             jsonResponse += "],";
 
-            jsonResponse += std::format(R"("affectedRows":{},"executionTimeMs":{})", queryResult.affectedRows,
-                                        queryResult.executionTimeMs);
+            jsonResponse += std::format(R"("affectedRows":{},"executionTimeMs":{})", queryResult.affectedRows, queryResult.executionTimeMs);
         }
 
         jsonResponse += "}";
@@ -1052,10 +1025,8 @@ std::string IPCHandler::filterResultSet(std::string_view params) {
         auto columnIndexResult = doc["columnIndex"].get_uint64();
         auto filterTypeResult = doc["filterType"].get_string();
         auto filterValueResult = doc["filterValue"].get_string();
-        if (connectionIdResult.error() || sqlQueryResult.error() || columnIndexResult.error() ||
-            filterTypeResult.error() || filterValueResult.error()) [[unlikely]] {
-            return JsonUtils::errorResponse(
-                "Missing required fields: connectionId, sql, columnIndex, filterType, or filterValue");
+        if (connectionIdResult.error() || sqlQueryResult.error() || columnIndexResult.error() || filterTypeResult.error() || filterValueResult.error()) [[unlikely]] {
+            return JsonUtils::errorResponse("Missing required fields: connectionId, sql, columnIndex, filterType, or filterValue");
         }
         auto connectionId = std::string(connectionIdResult.value());
         auto sqlQuery = std::string(sqlQueryResult.value());
@@ -1097,9 +1068,7 @@ std::string IPCHandler::filterResultSet(std::string_view params) {
         for (size_t i = 0; i < queryResult.columns.size(); ++i) {
             if (i > 0)
                 jsonResponse += ',';
-            jsonResponse +=
-                std::format(R"({{"name":"{}","type":"{}"}})", JsonUtils::escapeString(queryResult.columns[i].name),
-                            queryResult.columns[i].type);
+            jsonResponse += std::format(R"({{"name":"{}","type":"{}"}})", JsonUtils::escapeString(queryResult.columns[i].name), queryResult.columns[i].type);
         }
         jsonResponse += "],";
 
@@ -1119,8 +1088,7 @@ std::string IPCHandler::filterResultSet(std::string_view params) {
         }
         jsonResponse += "],";
 
-        jsonResponse += std::format(R"("totalRows":{},"filteredRows":{},"simdAvailable":{}}})", queryResult.rows.size(),
-                                    matchingIndices.size(), SIMDFilter::isAVX2Available() ? "true" : "false");
+        jsonResponse += std::format(R"("totalRows":{},"filteredRows":{},"simdAvailable":{}}})", queryResult.rows.size(), matchingIndices.size(), SIMDFilter::isAVX2Available() ? "true" : "false");
 
         return JsonUtils::successResponse(jsonResponse);
     } catch (const std::exception& e) {
@@ -1336,8 +1304,7 @@ std::string IPCHandler::getProfilePassword(std::string_view params) {
             return JsonUtils::errorResponse(passwordResult.error());
         }
 
-        return JsonUtils::successResponse(
-            std::format(R"({{"password":"{}"}})", JsonUtils::escapeString(passwordResult.value())));
+        return JsonUtils::successResponse(std::format(R"({{"password":"{}"}})", JsonUtils::escapeString(passwordResult.value())));
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
     }

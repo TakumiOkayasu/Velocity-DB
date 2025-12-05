@@ -32,8 +32,7 @@ public:
     void add(const HistoryItem& item);
     [[nodiscard]] std::vector<HistoryItem> getAll() const;
     [[nodiscard]] std::vector<HistoryItem> search(std::string_view keyword) const;
-    [[nodiscard]] std::vector<HistoryItem> getByDate(std::chrono::system_clock::time_point from,
-                                                     std::chrono::system_clock::time_point to) const;
+    [[nodiscard]] std::vector<HistoryItem> getByDate(std::chrono::system_clock::time_point from, std::chrono::system_clock::time_point to) const;
 
     void setFavorite(std::string_view id, bool favorite);
     [[nodiscard]] std::vector<HistoryItem> getFavorites() const;

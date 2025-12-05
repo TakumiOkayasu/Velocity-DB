@@ -72,12 +72,10 @@ std::string CredentialProtector::base64Encode(const std::vector<unsigned char>& 
     }
 
     DWORD encodedSize = 0;
-    CryptBinaryToStringA(data.data(), static_cast<DWORD>(data.size()), CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF,
-                         nullptr, &encodedSize);
+    CryptBinaryToStringA(data.data(), static_cast<DWORD>(data.size()), CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, nullptr, &encodedSize);
 
     std::string encoded(encodedSize, '\0');
-    CryptBinaryToStringA(data.data(), static_cast<DWORD>(data.size()), CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF,
-                         encoded.data(), &encodedSize);
+    CryptBinaryToStringA(data.data(), static_cast<DWORD>(data.size()), CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, encoded.data(), &encodedSize);
 
     // Remove trailing null if present
     while (!encoded.empty() && encoded.back() == '\0') {
@@ -93,14 +91,12 @@ std::expected<std::vector<unsigned char>, std::string> CredentialProtector::base
     }
 
     DWORD decodedSize = 0;
-    if (!CryptStringToBinaryA(encoded.data(), static_cast<DWORD>(encoded.size()), CRYPT_STRING_BASE64, nullptr,
-                              &decodedSize, nullptr, nullptr)) [[unlikely]] {
+    if (!CryptStringToBinaryA(encoded.data(), static_cast<DWORD>(encoded.size()), CRYPT_STRING_BASE64, nullptr, &decodedSize, nullptr, nullptr)) [[unlikely]] {
         return std::unexpected("Invalid base64 encoding");
     }
 
     std::vector<unsigned char> decoded(decodedSize);
-    if (!CryptStringToBinaryA(encoded.data(), static_cast<DWORD>(encoded.size()), CRYPT_STRING_BASE64, decoded.data(),
-                              &decodedSize, nullptr, nullptr)) [[unlikely]] {
+    if (!CryptStringToBinaryA(encoded.data(), static_cast<DWORD>(encoded.size()), CRYPT_STRING_BASE64, decoded.data(), &decodedSize, nullptr, nullptr)) [[unlikely]] {
         return std::unexpected("Failed to decode base64 data");
     }
 

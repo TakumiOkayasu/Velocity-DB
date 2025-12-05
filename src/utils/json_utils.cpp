@@ -75,8 +75,7 @@ std::string JsonUtils::serializeResultSet(const ResultSet& result, bool cached) 
     for (size_t i = 0; i < result.columns.size(); ++i) {
         if (i > 0)
             json += ',';
-        json +=
-            std::format(R"({{"name":"{}","type":"{}"}})", escapeString(result.columns[i].name), result.columns[i].type);
+        json += std::format(R"({{"name":"{}","type":"{}"}})", escapeString(result.columns[i].name), result.columns[i].type);
     }
     json += "],";
 
@@ -99,8 +98,7 @@ std::string JsonUtils::serializeResultSet(const ResultSet& result, bool cached) 
     json += "],";
 
     // Metadata
-    json += std::format(R"("affectedRows":{},"executionTimeMs":{},"cached":{}}})", result.affectedRows,
-                        result.executionTimeMs, cached ? "true" : "false");
+    json += std::format(R"("affectedRows":{},"executionTimeMs":{},"cached":{}}})", result.affectedRows, result.executionTimeMs, cached ? "true" : "false");
 
     return json;
 }
