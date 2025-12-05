@@ -104,7 +104,7 @@ def main():
         total_errors += 1
     else:
         # Show version
-        subprocess.run([biome, "--version"], shell=True)
+        subprocess.run([biome, "--version"])
 
         # Biome lint
         print("\n[Frontend] Running Biome lint...")

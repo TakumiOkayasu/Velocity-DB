@@ -18,8 +18,7 @@ from pathlib import Path
 
 def run_command(cmd: list[str], cwd: Path | None = None) -> bool:
     """Run a command and return success status."""
-    # On Windows, use shell=True for commands like npm that are batch scripts
-    result = subprocess.run(cmd, cwd=cwd, shell=True)
+    result = subprocess.run(cmd, cwd=cwd)
     return result.returncode == 0
 
 
@@ -48,7 +47,7 @@ def main():
         sys.exit(1)
 
     # Show version
-    subprocess.run([biome, "--version"], shell=True)
+    subprocess.run([biome, "--version"])
     print()
 
     if not run_command([biome, "check", str(frontend_dir / "src")], cwd=frontend_dir):

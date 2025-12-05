@@ -47,7 +47,9 @@ def get_msvc_env() -> dict[str, str]:
     if not vcvars:
         return os.environ.copy()
 
-    cmd = f'cmd /c ""{vcvars}" && set"'
+    # Note: shell=True is required here to properly execute vcvars64.bat
+    # and capture the environment variables it sets
+    cmd = f'"{vcvars}" && set'
     result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
 
     if result.returncode != 0:
@@ -109,7 +111,7 @@ def run_format(src_dir: Path) -> int:
 
     # Show version
     try:
-        subprocess.run([clang_format, "--version"], shell=True)
+        subprocess.run([clang_format, "--version"])
     except Exception as e:
         print(f"ERROR: Failed to run clang-format: {e}")
         return 1
@@ -125,7 +127,7 @@ def run_format(src_dir: Path) -> int:
 
     for cpp_file in cpp_files:
         try:
-            result = subprocess.run([clang_format, "-i", "--style=file", str(cpp_file)], shell=True)
+            result = subprocess.run([clang_format, "-i", "--style=file", str(cpp_file)])
             if result.returncode != 0:
                 print(f"ERROR: Failed to format {cpp_file}")
                 return 1
@@ -168,13 +170,17 @@ def run_lint(src_dir: Path, build_type: str, env: dict) -> int:
             return 0
 
         tidy_build_dir.mkdir(exist_ok=True)
+        cmake_path = shutil.which("cmake")
+        if not cmake_path:
+            print("WARNING: CMake not found in PATH. Skipping clang-tidy.")
+            return 0
         try:
             result = subprocess.run([
-                "cmake", "-B", str(tidy_build_dir),
+                cmake_path, "-B", str(tidy_build_dir),
                 "-G", "Ninja",
                 "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
                 f"-DCMAKE_BUILD_TYPE={build_type}"
-            ], env=env, shell=True)
+            ], env=env)
         except Exception as e:
             print(f"WARNING: Failed to run CMake for clang-tidy: {e}")
             return 0
@@ -192,7 +198,7 @@ def run_lint(src_dir: Path, build_type: str, env: dict) -> int:
         try:
             result = subprocess.run(
                 [clang_tidy, str(cpp_file), "-p", str(tidy_build_dir), "--quiet"],
-                capture_output=True, text=True, shell=True
+                capture_output=True, text=True
             )
             if "warning:" in result.stdout or "error:" in result.stderr:
                 warnings += 1
@@ -278,9 +284,16 @@ def run_build(project_root: Path, build_type: str, env: dict) -> int:
             "-A", "x64"
         ]
 
+    cmake_path = shutil.which("cmake")
+    if not cmake_path:
+        print("ERROR: CMake not found in PATH")
+        print("  Install CMake: winget install Kitware.CMake")
+        return 1
+
+    cmake_cmd[0] = cmake_path  # Replace "cmake" with full path
     print(f"\nRunning: {' '.join(cmake_cmd)}\n")
     try:
-        result = subprocess.run(cmake_cmd, env=env, shell=True)
+        result = subprocess.run(cmake_cmd, env=env)
         if result.returncode != 0:
             print("ERROR: CMake configuration failed")
             print(f"  Exit code: {result.returncode}")
@@ -295,13 +308,13 @@ def run_build(project_root: Path, build_type: str, env: dict) -> int:
 
     # Build
     build_cmd = [
-        "cmake", "--build", str(build_dir),
+        cmake_path, "--build", str(build_dir),
         "--config", build_type,
         "--parallel"
     ]
     print(f"\nRunning: {' '.join(build_cmd)}\n")
     try:
-        result = subprocess.run(build_cmd, env=env, shell=True)
+        result = subprocess.run(build_cmd, env=env)
         if result.returncode != 0:
             print("ERROR: Build failed")
             print(f"  Exit code: {result.returncode}")

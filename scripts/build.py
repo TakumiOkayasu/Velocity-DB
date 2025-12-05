@@ -29,7 +29,7 @@ def run_command(cmd: list[str], description: str, env: dict | None = None) -> bo
         merged_env.update(env)
 
     try:
-        result = subprocess.run(cmd, env=merged_env, shell=True)
+        result = subprocess.run(cmd, env=merged_env)
         return result.returncode == 0
     except FileNotFoundError as e:
         print(f"ERROR: Command not found: {cmd[0]}")
@@ -85,7 +85,9 @@ def get_msvc_env() -> dict[str, str]:
     print(f"Using MSVC from: {vcvars}")
 
     # Run vcvars64.bat and capture environment
-    cmd = f'cmd /c ""{vcvars}" && set"'
+    # Note: We must use shell=True here because vcvars64.bat sets environment
+    # variables that need to be captured, and cmd /c with quoted paths requires shell
+    cmd = f'"{vcvars}" && set'
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
     except Exception as e:
@@ -116,12 +118,18 @@ def get_msvc_env() -> dict[str, str]:
 def check_tools(env: dict[str, str]) -> bool:
     """Check if required tools are available."""
     # Check CMake
+    cmake_path = shutil.which("cmake")
+    if not cmake_path:
+        print("ERROR: CMake not found in PATH.")
+        print("  Install from: https://cmake.org/download/")
+        print("  Or run: winget install Kitware.CMake")
+        return False
+
     try:
         result = subprocess.run(
-            ["cmake", "--version"],
+            [cmake_path, "--version"],
             capture_output=True,
-            env=env,
-            shell=True  # Required on Windows for PATH resolution
+            env=env
         )
         if result.returncode != 0:
             print("ERROR: CMake not found.")
@@ -139,23 +147,23 @@ def check_tools(env: dict[str, str]) -> bool:
         return False
 
     # Check Ninja (optional but preferred)
-    try:
-        result = subprocess.run(
-            ["ninja", "--version"],
-            capture_output=True,
-            env=env,
-            shell=True
-        )
-        has_ninja = result.returncode == 0
-        if has_ninja:
-            print(f"Ninja: {result.stdout.decode().strip()}")
-        else:
-            print("Ninja: not found (will use Visual Studio generator)")
-    except FileNotFoundError:
+    ninja_path = shutil.which("ninja")
+    if ninja_path:
+        try:
+            result = subprocess.run(
+                [ninja_path, "--version"],
+                capture_output=True,
+                env=env
+            )
+            if result.returncode == 0:
+                print(f"Ninja: {result.stdout.decode().strip()}")
+            else:
+                print("Ninja: not found (will use Visual Studio generator)")
+        except Exception as e:
+            print(f"WARNING: Failed to check Ninja: {e}")
+            print("  Will use Visual Studio generator")
+    else:
         print("Ninja: not found (will use Visual Studio generator)")
-    except Exception as e:
-        print(f"WARNING: Failed to check Ninja: {e}")
-        print("  Will use Visual Studio generator")
 
     return True
 
@@ -250,15 +258,17 @@ def main():
         sys.exit(1)
 
     # Check if Ninja is available
-    try:
-        ninja_available = subprocess.run(
-            ["ninja", "--version"],
-            capture_output=True,
-            env=env,
-            shell=True
-        ).returncode == 0
-    except Exception:
-        ninja_available = False
+    ninja_path = shutil.which("ninja")
+    ninja_available = False
+    if ninja_path:
+        try:
+            ninja_available = subprocess.run(
+                [ninja_path, "--version"],
+                capture_output=True,
+                env=env
+            ).returncode == 0
+        except Exception:
+            ninja_available = False
 
     # Create build directory
     build_dir.mkdir(exist_ok=True)

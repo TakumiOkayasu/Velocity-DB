@@ -51,7 +51,9 @@ def get_msvc_env() -> dict[str, str]:
         print("Please install Visual Studio 2022 with C++ workload")
         sys.exit(1)
 
-    cmd = f'cmd /c ""{vcvars}" && set"'
+    # Note: shell=True is required here to properly execute vcvars64.bat
+    # and capture the environment variables it sets
+    cmd = f'"{vcvars}" && set'
     result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
 
     if result.returncode != 0:
