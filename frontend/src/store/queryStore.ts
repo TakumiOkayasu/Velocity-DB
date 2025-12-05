@@ -26,6 +26,29 @@ interface QueryState {
 
 let queryCounter = 0;
 
+// Default query timeout (5 minutes)
+const DEFAULT_QUERY_TIMEOUT_MS = 5 * 60 * 1000;
+
+// Helper function to execute with timeout
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  errorMessage: string
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(errorMessage)), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 export const useQueryStore = create<QueryState>((set, get) => ({
   queries: [],
   activeQueryId: null,
@@ -96,7 +119,11 @@ export const useQueryStore = create<QueryState>((set, get) => ({
     set({ isExecuting: true, error: null });
 
     try {
-      const result = await bridge.executeQuery(connectionId, query.content);
+      const result = await withTimeout(
+        bridge.executeQuery(connectionId, query.content),
+        DEFAULT_QUERY_TIMEOUT_MS,
+        'Query execution timed out after 5 minutes'
+      );
 
       const resultSet: ResultSet = {
         columns: result.columns.map((c) => ({
@@ -129,7 +156,11 @@ export const useQueryStore = create<QueryState>((set, get) => ({
     set({ isExecuting: true, error: null });
 
     try {
-      const result = await bridge.executeQuery(connectionId, selectedText);
+      const result = await withTimeout(
+        bridge.executeQuery(connectionId, selectedText),
+        DEFAULT_QUERY_TIMEOUT_MS,
+        'Query execution timed out after 5 minutes'
+      );
 
       const resultSet: ResultSet = {
         columns: result.columns.map((c) => ({
@@ -221,7 +252,11 @@ export const useQueryStore = create<QueryState>((set, get) => ({
     }));
 
     try {
-      const result = await bridge.executeQuery(connectionId, sql);
+      const result = await withTimeout(
+        bridge.executeQuery(connectionId, sql),
+        DEFAULT_QUERY_TIMEOUT_MS,
+        'Query execution timed out after 5 minutes'
+      );
 
       const resultSet: ResultSet = {
         columns: result.columns.map((c) => ({
@@ -263,7 +298,11 @@ export const useQueryStore = create<QueryState>((set, get) => ({
     }));
 
     try {
-      const result = await bridge.executeQuery(connectionId, sql);
+      const result = await withTimeout(
+        bridge.executeQuery(connectionId, sql),
+        DEFAULT_QUERY_TIMEOUT_MS,
+        'Query execution timed out after 5 minutes'
+      );
 
       const resultSet: ResultSet = {
         columns: result.columns.map((c) => ({

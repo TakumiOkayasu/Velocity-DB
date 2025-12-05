@@ -154,6 +154,10 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
             throw std::runtime_error(std::string("Failed to describe column: ") + m_lastError);
         }
 
+        // Ensure colNameLen doesn't exceed buffer size (SQLDescribeColA may truncate)
+        // Use (std::min) to avoid Windows min macro interference
+        colNameLen = (std::min)(colNameLen, static_cast<SQLSMALLINT>(colName.size() - 1));
+
         result.columns.push_back({.name = std::string(reinterpret_cast<char*>(colName.data()), colNameLen),
                                   .type = convertSQLTypeToDisplayName(dataType),
                                   .size = static_cast<int>(colSize),
