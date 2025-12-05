@@ -74,8 +74,7 @@ bool SIMDFilter::isAVX2Available() {
     return false;
 }
 
-std::vector<size_t> SIMDFilter::filterEquals(const ResultSet& data, size_t columnIndex,
-                                             const std::string& value) const {
+std::vector<size_t> SIMDFilter::filterEquals(const ResultSet& data, size_t columnIndex, const std::string& value) const {
     std::vector<size_t> result;
     result.reserve(data.rows.size() / 4);  // Estimate 25% match rate
 
@@ -91,8 +90,7 @@ std::vector<size_t> SIMDFilter::filterEquals(const ResultSet& data, size_t colum
     return result;
 }
 
-std::vector<size_t> SIMDFilter::filterContains(const ResultSet& data, size_t columnIndex,
-                                               const std::string& substring) const {
+std::vector<size_t> SIMDFilter::filterContains(const ResultSet& data, size_t columnIndex, const std::string& substring) const {
     std::vector<size_t> result;
     result.reserve(data.rows.size() / 4);
 
@@ -108,8 +106,7 @@ std::vector<size_t> SIMDFilter::filterContains(const ResultSet& data, size_t col
     return result;
 }
 
-std::vector<size_t> SIMDFilter::filterRange(const ResultSet& data, size_t columnIndex, const std::string& minValue,
-                                            const std::string& maxValue) const {
+std::vector<size_t> SIMDFilter::filterRange(const ResultSet& data, size_t columnIndex, const std::string& minValue, const std::string& maxValue) const {
     std::vector<size_t> result;
     result.reserve(data.rows.size() / 4);
 
@@ -169,8 +166,7 @@ bool SIMDFilter::simdStringEquals(const char* a, const char* b, size_t len) cons
     return std::memcmp(a, b, len) == 0;
 }
 
-bool SIMDFilter::simdStringContains(const char* haystack, size_t haystackLen, const char* needle,
-                                    size_t needleLen) const {
+bool SIMDFilter::simdStringContains(const char* haystack, size_t haystackLen, const char* needle, size_t needleLen) const {
     if (needleLen == 0)
         return true;
     if (needleLen > haystackLen)

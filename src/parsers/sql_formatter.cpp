@@ -10,24 +10,16 @@ namespace predategrip {
 namespace {
 
 const std::unordered_set<std::string> SQL_KEYWORDS = {
-    "SELECT",     "FROM",     "WHERE",      "AND",       "OR",        "NOT",        "IN",        "EXISTS",
-    "JOIN",       "INNER",    "LEFT",       "RIGHT",     "OUTER",     "FULL",       "CROSS",     "ON",
-    "GROUP",      "BY",       "HAVING",     "ORDER",     "ASC",       "DESC",       "NULLS",     "FIRST",
-    "LAST",       "INSERT",   "INTO",       "VALUES",    "UPDATE",    "SET",        "DELETE",    "CREATE",
-    "TABLE",      "INDEX",    "VIEW",       "DROP",      "ALTER",     "ADD",        "COLUMN",    "PRIMARY",
-    "KEY",        "FOREIGN",  "REFERENCES", "UNIQUE",    "CHECK",     "DEFAULT",    "NULL",      "CONSTRAINT",
-    "CASCADE",    "RESTRICT", "UNION",      "ALL",       "INTERSECT", "EXCEPT",     "CASE",      "WHEN",
-    "THEN",       "ELSE",     "END",        "AS",        "DISTINCT",  "TOP",        "LIMIT",     "OFFSET",
-    "FETCH",      "NEXT",     "ROWS",       "ONLY",      "BEGIN",     "COMMIT",     "ROLLBACK",  "TRANSACTION",
-    "SAVEPOINT",  "DECLARE",  "CURSOR",     "OPEN",      "CLOSE",     "DEALLOCATE", "IF",        "WHILE",
-    "RETURN",     "EXEC",     "EXECUTE",    "PROCEDURE", "FUNCTION",  "WITH",       "RECURSIVE", "CTE",
-    "LIKE",       "BETWEEN",  "IS",         "SOME",      "ANY",       "COUNT",      "SUM",       "AVG",
-    "MIN",        "MAX",      "COALESCE",   "NULLIF",    "CAST",      "CONVERT",    "OVER",      "PARTITION",
-    "ROW_NUMBER", "RANK",     "DENSE_RANK"};
+    "SELECT",     "FROM",        "WHERE",     "AND",     "OR",       "NOT",        "IN",         "EXISTS",     "JOIN",      "INNER", "LEFT",      "RIGHT",   "OUTER",   "FULL",
+    "CROSS",      "ON",          "GROUP",     "BY",      "HAVING",   "ORDER",      "ASC",        "DESC",       "NULLS",     "FIRST", "LAST",      "INSERT",  "INTO",    "VALUES",
+    "UPDATE",     "SET",         "DELETE",    "CREATE",  "TABLE",    "INDEX",      "VIEW",       "DROP",       "ALTER",     "ADD",   "COLUMN",    "PRIMARY", "KEY",     "FOREIGN",
+    "REFERENCES", "UNIQUE",      "CHECK",     "DEFAULT", "NULL",     "CONSTRAINT", "CASCADE",    "RESTRICT",   "UNION",     "ALL",   "INTERSECT", "EXCEPT",  "CASE",    "WHEN",
+    "THEN",       "ELSE",        "END",       "AS",      "DISTINCT", "TOP",        "LIMIT",      "OFFSET",     "FETCH",     "NEXT",  "ROWS",      "ONLY",    "BEGIN",   "COMMIT",
+    "ROLLBACK",   "TRANSACTION", "SAVEPOINT", "DECLARE", "CURSOR",   "OPEN",       "CLOSE",      "DEALLOCATE", "IF",        "WHILE", "RETURN",    "EXEC",    "EXECUTE", "PROCEDURE",
+    "FUNCTION",   "WITH",        "RECURSIVE", "CTE",     "LIKE",     "BETWEEN",    "IS",         "SOME",       "ANY",       "COUNT", "SUM",       "AVG",     "MIN",     "MAX",
+    "COALESCE",   "NULLIF",      "CAST",      "CONVERT", "OVER",     "PARTITION",  "ROW_NUMBER", "RANK",       "DENSE_RANK"};
 
-const std::unordered_set<std::string> BLOCK_START_KEYWORDS = {"SELECT", "FROM",  "WHERE", "GROUP", "HAVING",
-                                                              "ORDER",  "JOIN",  "INNER", "LEFT",  "RIGHT",
-                                                              "FULL",   "CROSS", "SET",   "VALUES"};
+const std::unordered_set<std::string> BLOCK_START_KEYWORDS = {"SELECT", "FROM", "WHERE", "GROUP", "HAVING", "ORDER", "JOIN", "INNER", "LEFT", "RIGHT", "FULL", "CROSS", "SET", "VALUES"};
 
 }  // namespace
 
@@ -46,8 +38,7 @@ std::string SQLFormatter::format(std::string_view sql, const FormatOptions& opti
             return;
 
         std::string upperToken = token;
-        std::ranges::transform(upperToken, upperToken.begin(),
-                               [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+        std::ranges::transform(upperToken, upperToken.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
 
         if (isKeyword(upperToken)) {
             if (BLOCK_START_KEYWORDS.contains(upperToken) && !newLine) {
@@ -132,8 +123,7 @@ std::string SQLFormatter::format(std::string_view sql, const FormatOptions& opti
 
             if (i + 1 < sql.length()) {
                 char next = sql[i + 1];
-                if ((c == '<' && (next == '=' || next == '>')) || (c == '>' && next == '=') ||
-                    (c == '!' && next == '=')) {
+                if ((c == '<' && (next == '=' || next == '>')) || (c == '>' && next == '=') || (c == '!' && next == '=')) {
                     result += next;
                     ++i;
                 }
@@ -168,12 +158,10 @@ std::string SQLFormatter::applyKeywordCase(std::string_view word, KeywordCase ke
 
     switch (keywordCase) {
         case KeywordCase::Upper:
-            std::ranges::transform(result, result.begin(),
-                                   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+            std::ranges::transform(result, result.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
             break;
         case KeywordCase::Lower:
-            std::ranges::transform(result, result.begin(),
-                                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            std::ranges::transform(result, result.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             break;
         case KeywordCase::Unchanged:
             break;

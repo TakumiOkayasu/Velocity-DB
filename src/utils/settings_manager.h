@@ -91,8 +91,7 @@ public:
     /// @param profileId The profile to set password for
     /// @param plainPassword The plaintext password to encrypt and store
     /// @return true on success, error message on failure
-    [[nodiscard]] std::expected<void, std::string> setProfilePassword(const std::string& profileId,
-                                                                      std::string_view plainPassword);
+    [[nodiscard]] std::expected<void, std::string> setProfilePassword(const std::string& profileId, std::string_view plainPassword);
 
     /// Get decrypted password for a connection profile
     /// @param profileId The profile to get password for

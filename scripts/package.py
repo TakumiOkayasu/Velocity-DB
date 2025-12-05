@@ -51,10 +51,18 @@ def get_msvc_env() -> dict[str, str]:
         print("Please install Visual Studio 2022 with C++ workload")
         sys.exit(1)
 
-    # Note: shell=True is required here to properly execute vcvars64.bat
-    # and capture the environment variables it sets
+    # Run vcvars64.bat and capture environment
+    # Security: Using shell=True here is intentional and safe because:
+    # 1. vcvars path comes from find_vcvars() which only returns hardcoded system paths
+    # 2. No user input is involved in command construction
     cmd = f'"{vcvars}" && set'
-    result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
+    # nosemgrep: python.lang.security.audit.subprocess-shell-true
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        shell=True  # Safe: vcvars path from find_vcvars() - hardcoded paths only
+    )
 
     if result.returncode != 0:
         print("ERROR: Failed to run vcvars64.bat")

@@ -36,16 +36,13 @@ public:
     GlobalSearch& operator=(const GlobalSearch&) = delete;
 
     /// Search database objects by name pattern
-    [[nodiscard]] std::vector<SearchResult> searchObjects(SQLServerDriver* driver, const std::string& pattern,
-                                                          const SearchOptions& options = {});
+    [[nodiscard]] std::vector<SearchResult> searchObjects(SQLServerDriver* driver, const std::string& pattern, const SearchOptions& options = {});
 
     /// Search within query history
-    [[nodiscard]] std::vector<SearchResult> searchQueryHistory(const std::vector<std::string>& history,
-                                                               const std::string& pattern, bool caseSensitive = false);
+    [[nodiscard]] std::vector<SearchResult> searchQueryHistory(const std::vector<std::string>& history, const std::string& pattern, bool caseSensitive = false);
 
     /// Quick search for object names (autocomplete)
-    [[nodiscard]] std::vector<std::string> quickSearch(SQLServerDriver* driver, const std::string& prefix,
-                                                       int limit = 20);
+    [[nodiscard]] std::vector<std::string> quickSearch(SQLServerDriver* driver, const std::string& prefix, int limit = 20);
 
 private:
     [[nodiscard]] std::string buildSearchQuery(const std::string& pattern, const SearchOptions& options) const;

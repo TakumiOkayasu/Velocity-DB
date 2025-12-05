@@ -62,16 +62,21 @@ jobs:
 
             console.log(`Found ${findings.length} issues`);
 
-            // Get existing open issues with semgrep label
-            const existingIssues = await github.rest.issues.listForRepo({
+            // Get existing issues with semgrep label (both open and closed to avoid duplicates)
+            const existingIssues = await github.paginate(github.rest.issues.listForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
-              state: 'open',
-              labels: 'security,semgrep',
+              state: 'all',
+              labels: 'semgrep',
               per_page: 100
             });
 
-            const existingTitles = new Set(existingIssues.data.map(i => i.title));
+            // Build set of existing issue identifiers (rule + file, without line number for stability)
+            const existingIdentifiers = new Set(existingIssues.map(i => {
+              // Extract rule and file from title: "[Semgrep] ruleName in path/file.ts:123"
+              const match = i.title.match(/\[Semgrep\] (.+) in (.+):\d+$/);
+              return match ? `${match[1]}:${match[2]}` : i.title;
+            }));
 
             // Filter to high/medium severity only to reduce noise
             const significantFindings = findings.filter(f => {
@@ -81,48 +86,61 @@ jobs:
 
             console.log(`${significantFindings.length} significant findings to process`);
 
+            // Limit to 10 issues per run to avoid rate limiting
+            const maxIssuesPerRun = 10;
+            let createdCount = 0;
+
             for (const finding of significantFindings) {
+              if (createdCount >= maxIssuesPerRun) {
+                console.log(`Reached limit of ${maxIssuesPerRun} issues per run`);
+                break;
+              }
+
               const ruleId = finding.check_id || 'unknown';
+              const ruleName = ruleId.split('.').pop();
               const filePath = finding.path || 'unknown';
               const line = finding.start?.line || 0;
 
-              // Create unique title for deduplication
-              const title = `[Semgrep] ${ruleId.split('.').pop()} in ${filePath}:${line}`;
+              // Create identifier for deduplication (without line number)
+              const identifier = `${ruleName}:${filePath}`;
 
-              // Skip if issue already exists
-              if (existingTitles.has(title)) {
-                console.log(`Skipping duplicate: ${title}`);
+              // Skip if issue already exists (same rule + file)
+              if (existingIdentifiers.has(identifier)) {
+                console.log(`Skipping duplicate: ${ruleName} in ${filePath}`);
                 continue;
               }
 
+              const title = `[Semgrep] ${ruleName} in ${filePath}:${line}`;
               const severity = (finding.extra?.severity || 'medium').toLowerCase();
               const message = finding.extra?.message || 'No description available';
               const codeSnippet = finding.extra?.lines || '';
+              const refs = finding.extra?.metadata?.references || [];
 
-              const body = `## Security Issue Detected by Semgrep
-
-            **Rule ID:** \`${ruleId}\`
-            **Severity:** ${severity}
-            **File:** \`${filePath}\`
-            **Line:** ${line}
-
-            ### Description
-            ${message}
-
-            ### Affected Code
-            \`\`\`
-            ${codeSnippet}
-            \`\`\`
-
-            ### References
-            ${(finding.extra?.metadata?.references || []).map(r => `- ${r}`).join('\n') || 'None'}
-
-            ---
-            *This issue was automatically created by the security scan workflow.*
-            `;
+              const body = [
+                '## Security Issue Detected by Semgrep',
+                '',
+                `**Rule ID:** \`${ruleId}\``,
+                `**Severity:** ${severity}`,
+                `**File:** \`${filePath}\``,
+                `**Line:** ${line}`,
+                '',
+                '### Description',
+                message,
+                '',
+                '### Affected Code',
+                '```',
+                codeSnippet,
+                '```',
+                '',
+                '### References',
+                refs.length > 0 ? refs.map(r => `- ${r}`).join('\n') : 'None',
+                '',
+                '---',
+                '*This issue was automatically created by the security scan workflow.*'
+              ].join('\n');
 
               // Determine priority label based on severity
-              const priorityLabel = severity === 'high' || severity === 'critical' || severity === 'error'
+              const priorityLabel = ['high', 'critical', 'error'].includes(severity)
                 ? 'priority:high'
                 : 'priority:medium';
 
@@ -132,13 +150,17 @@ jobs:
                   repo: context.repo.repo,
                   title: title,
                   body: body,
-                  labels: ['security', 'semgrep', priorityLabel]
+                  labels: ['semgrep', priorityLabel]
                 });
                 console.log(`Created issue: ${title}`);
+                existingIdentifiers.add(identifier);
+                createdCount++;
               } catch (error) {
                 console.error(`Failed to create issue: ${error.message}`);
               }
             }
+
+            console.log(`Created ${createdCount} new issues`)
 
   # CodeQL: Deep semantic analysis
   codeql:
@@ -183,8 +205,9 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"
-        # Allow workflow to continue even if upload fails (Code Scanning not enabled)
-        continue-on-error: true
+          # Disable upload since Code Scanning is not enabled for this repository
+          # To enable: Repository Settings -> Security -> Code security and analysis -> Code scanning
+          upload: false
 
   # Summary job
   security-summary:

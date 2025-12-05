@@ -309,6 +309,35 @@ uv run scripts/run_lint.py
 ### ビルドシステム
 - **Ninja**を使用（Visual Studio generatorは使用しない）
 - Developer Command Promptから実行（MSVCコンパイラが必要）
-- 毎日、JST 00:00:00, 03:00:00, 06:00:00, 09:00:00, 12:00:00 に自動で潜在的なバグを探し、issueを立ててください。プライオリティの設定も可能ならする。
-- issue対応が終わったらそのissueは自動的にcloseしてください。
 - 変数の型は基本的には`auto`を使用し、必要な時だけ特別に型を指定すること。
+
+### Issue対応ワークフロー
+
+#### 自動セキュリティスキャン
+- **毎日 JST 00:00 (UTC 15:00)** に自動実行
+- Semgrepがセキュリティ問題を検出すると自動でissueを作成
+- ラベル: `semgrep`, `priority:high` or `priority:medium`
+
+#### Issue対応の手順
+1. **issueの取得と優先度確認**
+   ```bash
+   gh issue list --state open --json number,title,labels
+   ```
+
+2. **優先度順に対応**
+   - `priority:critical` → 即座に対応
+   - `priority:high` → 次に対応
+   - `priority:medium` → 時間があれば対応
+   - `priority:low` → 将来の改善
+
+3. **修正完了後**
+   - 修正内容をコミットメッセージにまとめる
+   - issueをクローズ: `gh issue close <number> --comment "Fixed in commit <hash>"`
+
+4. **Semgrep警告の抑制**
+   - 意図的な`shell=True`使用など、安全が確認できる場合:
+     ```python
+     # nosemgrep: python.lang.security.audit.subprocess-shell-true
+     result = subprocess.run(cmd, shell=True)  # Safe: hardcoded paths only
+     ```
+   - セキュリティコメントで理由を明記すること

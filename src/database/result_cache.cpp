@@ -23,8 +23,7 @@ void ResultCache::put(std::string_view key, const ResultSet& result) {
 
     evictIfNeeded(resultSize);
 
-    m_cache[keyStr] =
-        CachedResult{.data = result, .timestamp = std::chrono::steady_clock::now(), .sizeBytes = resultSize};
+    m_cache[keyStr] = CachedResult{.data = result, .timestamp = std::chrono::steady_clock::now(), .sizeBytes = resultSize};
     m_currentSizeBytes += resultSize;
 }
 
@@ -63,8 +62,7 @@ size_t ResultCache::getCurrentSize() const {
 
 void ResultCache::evictIfNeeded(size_t requiredSize) {
     while (m_currentSizeBytes + requiredSize > m_maxSizeBytes && !m_cache.empty()) {
-        auto oldest = std::ranges::min_element(
-            m_cache, [](const auto& a, const auto& b) { return a.second.timestamp < b.second.timestamp; });
+        auto oldest = std::ranges::min_element(m_cache, [](const auto& a, const auto& b) { return a.second.timestamp < b.second.timestamp; });
 
         m_currentSizeBytes -= oldest->second.sizeBytes;
         m_cache.erase(oldest);

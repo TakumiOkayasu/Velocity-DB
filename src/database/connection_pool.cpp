@@ -57,8 +57,7 @@ void ConnectionPool::removeConnection(std::string_view id) {
 std::shared_ptr<SQLServerDriver> ConnectionPool::acquire(std::string_view connectionId) {
     std::unique_lock lock(m_mutex);
 
-    auto it = std::ranges::find_if(m_connections,
-                                   [connectionId](const ConnectionInfo& info) { return info.id == connectionId; });
+    auto it = std::ranges::find_if(m_connections, [connectionId](const ConnectionInfo& info) { return info.id == connectionId; });
 
     if (it == m_connections.end()) [[unlikely]] {
         return nullptr;

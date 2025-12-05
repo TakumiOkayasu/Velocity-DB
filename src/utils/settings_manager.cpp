@@ -88,9 +88,7 @@ void SettingsManager::updateConnectionProfile(const ConnectionProfile& profile) 
 void SettingsManager::removeConnectionProfile(const std::string& id) {
     std::lock_guard lock(m_mutex);
     auto& profiles = m_settings.connectionProfiles;
-    profiles.erase(
-        std::remove_if(profiles.begin(), profiles.end(), [&id](const ConnectionProfile& p) { return p.id == id; }),
-        profiles.end());
+    profiles.erase(std::remove_if(profiles.begin(), profiles.end(), [&id](const ConnectionProfile& p) { return p.id == id; }), profiles.end());
 }
 
 std::optional<ConnectionProfile> SettingsManager::getConnectionProfile(const std::string& id) const {
@@ -107,8 +105,7 @@ const std::vector<ConnectionProfile>& SettingsManager::getConnectionProfiles() c
     return m_settings.connectionProfiles;
 }
 
-std::expected<void, std::string> SettingsManager::setProfilePassword(const std::string& profileId,
-                                                                     std::string_view plainPassword) {
+std::expected<void, std::string> SettingsManager::setProfilePassword(const std::string& profileId, std::string_view plainPassword) {
     std::lock_guard lock(m_mutex);
 
     for (auto& profile : m_settings.connectionProfiles) {
@@ -159,8 +156,7 @@ std::string SettingsManager::serializeSettings() const {
     // General settings
     json += "  \"general\": {\n";
     json += std::format("    \"autoConnect\": {},\n", m_settings.general.autoConnect ? "true" : "false");
-    json += std::format("    \"lastConnectionId\": \"{}\",\n",
-                        JsonUtils::escapeString(m_settings.general.lastConnectionId));
+    json += std::format("    \"lastConnectionId\": \"{}\",\n", JsonUtils::escapeString(m_settings.general.lastConnectionId));
     json += std::format("    \"confirmOnExit\": {},\n", m_settings.general.confirmOnExit ? "true" : "false");
     json += std::format("    \"maxQueryHistory\": {},\n", m_settings.general.maxQueryHistory);
     json += std::format("    \"maxRecentConnections\": {},\n", m_settings.general.maxRecentConnections);
@@ -201,8 +197,7 @@ std::string SettingsManager::serializeSettings() const {
         json += std::format("      \"username\": \"{}\",\n", JsonUtils::escapeString(profile.username));
         json += std::format("      \"useWindowsAuth\": {},\n", profile.useWindowsAuth ? "true" : "false");
         json += std::format("      \"savePassword\": {},\n", profile.savePassword ? "true" : "false");
-        json +=
-            std::format("      \"encryptedPassword\": \"{}\"\n", JsonUtils::escapeString(profile.encryptedPassword));
+        json += std::format("      \"encryptedPassword\": \"{}\"\n", JsonUtils::escapeString(profile.encryptedPassword));
         json += i < m_settings.connectionProfiles.size() - 1 ? "    },\n" : "    }\n";
     }
     json += "  ]\n";

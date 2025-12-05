@@ -5,8 +5,7 @@
 
 namespace predategrip {
 
-std::vector<SearchResult> GlobalSearch::searchObjects(SQLServerDriver* driver, const std::string& pattern,
-                                                      const SearchOptions& options) {
+std::vector<SearchResult> GlobalSearch::searchObjects(SQLServerDriver* driver, const std::string& pattern, const SearchOptions& options) {
     std::vector<SearchResult> results;
 
     if (driver == nullptr || pattern.empty()) {
@@ -33,8 +32,7 @@ std::vector<SearchResult> GlobalSearch::searchObjects(SQLServerDriver* driver, c
     return results;
 }
 
-std::vector<SearchResult> GlobalSearch::searchQueryHistory(const std::vector<std::string>& history,
-                                                           const std::string& pattern, bool caseSensitive) {
+std::vector<SearchResult> GlobalSearch::searchQueryHistory(const std::vector<std::string>& history, const std::string& pattern, bool caseSensitive) {
     std::vector<SearchResult> results;
 
     for (size_t i = 0; i < history.size(); ++i) {

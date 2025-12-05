@@ -18,8 +18,7 @@ public:
 
     std::vector<size_t> filterContains(const ResultSet& data, size_t columnIndex, const std::string& substring) const;
 
-    std::vector<size_t> filterRange(const ResultSet& data, size_t columnIndex, const std::string& minValue,
-                                    const std::string& maxValue) const;
+    std::vector<size_t> filterRange(const ResultSet& data, size_t columnIndex, const std::string& minValue, const std::string& maxValue) const;
 
     // Sort rows by column
     std::vector<size_t> sortByColumn(const ResultSet& data, size_t columnIndex, bool ascending = true) const;

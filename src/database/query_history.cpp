@@ -16,8 +16,7 @@ void QueryHistory::add(const HistoryItem& item) {
     m_history.insert(m_history.begin(), item);
 
     while (m_history.size() > m_maxItems) {
-        auto it =
-            std::ranges::find_if(m_history | std::views::reverse, [](const HistoryItem& h) { return !h.isFavorite; });
+        auto it = std::ranges::find_if(m_history | std::views::reverse, [](const HistoryItem& h) { return !h.isFavorite; });
 
         if (it != (m_history | std::views::reverse).end()) {
             m_history.erase(std::next(it).base());
@@ -44,8 +43,7 @@ std::vector<HistoryItem> QueryHistory::search(std::string_view keyword) const {
         if (needle.size() > haystack.size()) {
             return false;
         }
-        auto it = std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(),
-                              [](unsigned char a, unsigned char b) { return std::tolower(a) == std::tolower(b); });
+        auto it = std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(), [](unsigned char a, unsigned char b) { return std::tolower(a) == std::tolower(b); });
         return it != haystack.end();
     };
 
@@ -61,14 +59,11 @@ std::vector<HistoryItem> QueryHistory::search(std::string_view keyword) const {
     return results;
 }
 
-std::vector<HistoryItem> QueryHistory::getByDate(std::chrono::system_clock::time_point from,
-                                                 std::chrono::system_clock::time_point to) const {
+std::vector<HistoryItem> QueryHistory::getByDate(std::chrono::system_clock::time_point from, std::chrono::system_clock::time_point to) const {
     std::lock_guard lock(m_mutex);
 
     std::vector<HistoryItem> results;
-    std::ranges::copy_if(m_history, std::back_inserter(results), [from, to](const HistoryItem& item) {
-        return item.timestamp >= from && item.timestamp <= to;
-    });
+    std::ranges::copy_if(m_history, std::back_inserter(results), [from, to](const HistoryItem& item) { return item.timestamp >= from && item.timestamp <= to; });
 
     return results;
 }
@@ -76,8 +71,7 @@ std::vector<HistoryItem> QueryHistory::getByDate(std::chrono::system_clock::time
 void QueryHistory::setFavorite(std::string_view id, bool favorite) {
     std::lock_guard lock(m_mutex);
 
-    if (auto it = std::ranges::find_if(m_history, [id](const HistoryItem& h) { return h.id == id; });
-        it != m_history.end()) {
+    if (auto it = std::ranges::find_if(m_history, [id](const HistoryItem& h) { return h.id == id; }); it != m_history.end()) {
         it->isFavorite = favorite;
     }
 }
@@ -86,8 +80,7 @@ std::vector<HistoryItem> QueryHistory::getFavorites() const {
     std::lock_guard lock(m_mutex);
 
     std::vector<HistoryItem> results;
-    std::ranges::copy_if(m_history, std::back_inserter(results),
-                         [](const HistoryItem& item) { return item.isFavorite; });
+    std::ranges::copy_if(m_history, std::back_inserter(results), [](const HistoryItem& item) { return item.isFavorite; });
 
     return results;
 }
@@ -119,7 +112,8 @@ bool QueryHistory::save(std::string_view filepath) const {
         const auto& item = m_history[i];
         auto time = std::chrono::system_clock::to_time_t(item.timestamp);
 
-        auto jsonEntry = std::format(R"(  {{
+        auto jsonEntry =
+            std::format(R"(  {{
     "id": "{}",
     "sql": "{}",
     "connectionId": "{}",
@@ -130,9 +124,7 @@ bool QueryHistory::save(std::string_view filepath) const {
     "affectedRows": {},
     "isFavorite": {}
   }})",
-                                     item.id, item.sql, item.connectionId, time, item.executionTimeMs,
-                                     item.success ? "true" : "false", item.errorMessage, item.affectedRows,
-                                     item.isFavorite ? "true" : "false");
+                        item.id, item.sql, item.connectionId, time, item.executionTimeMs, item.success ? "true" : "false", item.errorMessage, item.affectedRows, item.isFavorite ? "true" : "false");
         outFile << jsonEntry;
 
         if (i < m_history.size() - 1) {

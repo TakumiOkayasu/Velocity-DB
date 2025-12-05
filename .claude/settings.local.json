@@ -78,7 +78,9 @@
       "Bash(bun run build)",
       "Bash(bun run test:*)",
       "Bash(bun run lint:*)",
-      "Bash(C:nvm4wnodejsnpx.cmd biome lint --error-on-warnings \"D:\\prog\\Pre-DateGrip\\frontend\\src\")"
+      "Bash(C:nvm4wnodejsnpx.cmd biome lint --error-on-warnings \"D:\\prog\\Pre-DateGrip\\frontend\\src\")",
+      "Bash(Select-String -Pattern \"error|ERROR|Build|SUCCESS|SUCCESSFUL\")",
+      "Bash(Select-Object -First 10)"
     ],
     "deny": [],
     "ask": []

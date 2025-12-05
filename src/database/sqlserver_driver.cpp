@@ -46,8 +46,7 @@ bool SQLServerDriver::connect(std::string_view connectionString) {
     SQLSMALLINT outConnectionStringLen = 0;
 
     std::string connStr(connectionString);
-    SQLRETURN ret = SQLDriverConnectA(m_dbc, nullptr, reinterpret_cast<SQLCHAR*>(connStr.data()), SQL_NTS,
-                                      outConnectionString.data(), static_cast<SQLSMALLINT>(outConnectionString.size()),
+    SQLRETURN ret = SQLDriverConnectA(m_dbc, nullptr, reinterpret_cast<SQLCHAR*>(connStr.data()), SQL_NTS, outConnectionString.data(), static_cast<SQLSMALLINT>(outConnectionString.size()),
                                       &outConnectionStringLen, SQL_DRIVER_NOPROMPT);
 
     if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) [[unlikely]] {
@@ -147,8 +146,7 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
         SQLSMALLINT decimalDigits = 0;
         SQLSMALLINT nullable = 0;
 
-        ret = SQLDescribeColA(m_stmt, i, colName.data(), static_cast<SQLSMALLINT>(colName.size()), &colNameLen,
-                              &dataType, &colSize, &decimalDigits, &nullable);
+        ret = SQLDescribeColA(m_stmt, i, colName.data(), static_cast<SQLSMALLINT>(colName.size()), &colNameLen, &dataType, &colSize, &decimalDigits, &nullable);
         if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) [[unlikely]] {
             storeODBCDiagnosticMessage(ret, SQL_HANDLE_STMT, m_stmt);
             throw std::runtime_error(std::string("Failed to describe column: ") + m_lastError);
@@ -187,8 +185,7 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
                 // Get remaining data
                 SQLLEN remainingIndicator = 0;
                 size_t alreadyRead = buffer.size() - 1;
-                ret = SQLGetData(m_stmt, i, SQL_C_CHAR, largeBuffer.data() + alreadyRead, requiredSize - alreadyRead,
-                                 &remainingIndicator);
+                ret = SQLGetData(m_stmt, i, SQL_C_CHAR, largeBuffer.data() + alreadyRead, requiredSize - alreadyRead, &remainingIndicator);
                 row.values.emplace_back(reinterpret_cast<char*>(largeBuffer.data()));
             } else if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
                 row.values.emplace_back(reinterpret_cast<char*>(buffer.data()));
@@ -221,8 +218,7 @@ void SQLServerDriver::cancel() {
     }
 }
 
-void SQLServerDriver::storeODBCDiagnosticMessage(SQLRETURN returnCode, SQLSMALLINT odbcHandleType,
-                                                 SQLHANDLE odbcHandle) {
+void SQLServerDriver::storeODBCDiagnosticMessage(SQLRETURN returnCode, SQLSMALLINT odbcHandleType, SQLHANDLE odbcHandle) {
     if (returnCode == SQL_SUCCESS || returnCode == SQL_SUCCESS_WITH_INFO) [[likely]] {
         return;
     }
@@ -232,8 +228,7 @@ void SQLServerDriver::storeODBCDiagnosticMessage(SQLRETURN returnCode, SQLSMALLI
     std::array<SQLCHAR, 1024> diagnosticMessage{};
     SQLSMALLINT messageLength = 0;
 
-    SQLGetDiagRecA(odbcHandleType, odbcHandle, 1, sqlState.data(), &nativeErrorCode, diagnosticMessage.data(),
-                   static_cast<SQLSMALLINT>(diagnosticMessage.size()), &messageLength);
+    SQLGetDiagRecA(odbcHandleType, odbcHandle, 1, sqlState.data(), &nativeErrorCode, diagnosticMessage.data(), static_cast<SQLSMALLINT>(diagnosticMessage.size()), &messageLength);
 
     m_lastError = std::string(reinterpret_cast<char*>(diagnosticMessage.data()), messageLength);
 }

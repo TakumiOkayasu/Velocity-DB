@@ -81,8 +81,7 @@ void SessionManager::updateTab(const EditorTab& tab) {
 void SessionManager::removeTab(const std::string& tabId) {
     std::lock_guard lock(m_mutex);
     auto& tabs = m_state.openTabs;
-    tabs.erase(std::remove_if(tabs.begin(), tabs.end(), [&tabId](const EditorTab& t) { return t.id == tabId; }),
-               tabs.end());
+    tabs.erase(std::remove_if(tabs.begin(), tabs.end(), [&tabId](const EditorTab& t) { return t.id == tabId; }), tabs.end());
 }
 
 void SessionManager::setActiveTab(const std::string& tabId) {

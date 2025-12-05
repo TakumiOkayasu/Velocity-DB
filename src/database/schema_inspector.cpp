@@ -89,11 +89,7 @@ std::vector<ColumnInfo> SchemaInspector::getColumns(std::string_view table) {
     columns.reserve(result.rows.size());
     for (const auto& row : result.rows) {
         if (row.values.size() >= 5) {
-            columns.push_back({.name = row.values[0],
-                               .type = row.values[1],
-                               .size = std::stoi(row.values[2]),
-                               .nullable = (row.values[3] == "1"),
-                               .isPrimaryKey = (row.values[4] == "1")});
+            columns.push_back({.name = row.values[0], .type = row.values[1], .size = std::stoi(row.values[2]), .nullable = (row.values[3] == "1"), .isPrimaryKey = (row.values[4] == "1")});
         }
     }
 
@@ -130,10 +126,7 @@ std::vector<IndexInfo> SchemaInspector::getIndexes(std::string_view table) {
     for (const auto& row : result.rows) {
         if (row.values.size() >= 5) {
             if (row.values[0] != currentIndex) {
-                indexes.push_back({.name = row.values[0],
-                                   .type = row.values[1],
-                                   .isUnique = (row.values[2] == "1"),
-                                   .isPrimaryKey = (row.values[3] == "1")});
+                indexes.push_back({.name = row.values[0], .type = row.values[1], .isUnique = (row.values[2] == "1"), .isPrimaryKey = (row.values[3] == "1")});
                 currentIndex = row.values[0];
                 currentInfo = &indexes.back();
             }
@@ -173,10 +166,7 @@ std::vector<ForeignKeyInfo> SchemaInspector::getForeignKeys(std::string_view tab
     fks.reserve(result.rows.size());
     for (const auto& row : result.rows) {
         if (row.values.size() >= 4) {
-            fks.push_back({.name = row.values[0],
-                           .column = row.values[1],
-                           .referencedTable = row.values[2],
-                           .referencedColumn = row.values[3]});
+            fks.push_back({.name = row.values[0], .column = row.values[1], .referencedTable = row.values[2], .referencedColumn = row.values[3]});
         }
     }
 
@@ -237,10 +227,7 @@ std::vector<FunctionInfo> SchemaInspector::getFunctions(std::string_view) {
     funcs.reserve(result.rows.size());
     for (const auto& row : result.rows) {
         if (row.values.size() >= 4) {
-            funcs.push_back({.schema = row.values[0],
-                             .name = row.values[1],
-                             .returnType = row.values[2],
-                             .definition = row.values[3]});
+            funcs.push_back({.schema = row.values[0], .name = row.values[1], .returnType = row.values[2], .definition = row.values[3]});
         }
     }
 

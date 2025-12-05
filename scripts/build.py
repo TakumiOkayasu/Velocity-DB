@@ -85,11 +85,19 @@ def get_msvc_env() -> dict[str, str]:
     print(f"Using MSVC from: {vcvars}")
 
     # Run vcvars64.bat and capture environment
-    # Note: We must use shell=True here because vcvars64.bat sets environment
-    # variables that need to be captured, and cmd /c with quoted paths requires shell
+    # Security: Using shell=True here is intentional and safe because:
+    # 1. vcvars path comes from find_vcvars() which only returns hardcoded system paths
+    # 2. No user input is involved in command construction
+    # 3. This is required to properly chain vcvars64.bat with 'set' command
     cmd = f'"{vcvars}" && set'
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
+        # nosemgrep: python.lang.security.audit.subprocess-shell-true
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            shell=True  # Safe: vcvars path from find_vcvars() - hardcoded paths only
+        )
     except Exception as e:
         print(f"ERROR: Failed to execute vcvars64.bat: {e}")
         sys.exit(1)
