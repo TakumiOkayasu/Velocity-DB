@@ -36,13 +36,30 @@ struct DatabaseConnectionParams {
     bool useWindowsAuth = true;
 };
 
+/// Escapes special characters in ODBC connection string values.
+/// Wraps value in braces and escapes any closing braces by doubling them.
+/// This prevents connection string injection attacks with special characters.
+[[nodiscard]] std::string escapeOdbcValue(std::string_view value) {
+    std::string result = "{";
+    for (auto c : value) {
+        if (c == '}') {
+            result += "}}";  // Escape closing brace by doubling
+        } else {
+            result += c;
+        }
+    }
+    result += "}";
+    return result;
+}
+
 [[nodiscard]] std::string buildODBCConnectionString(const DatabaseConnectionParams& params) {
     auto connectionString = buildDriverConnectionPrefix(params.server, params.database);
 
     if (params.useWindowsAuth) {
         connectionString += "Trusted_Connection=yes;";
     } else {
-        connectionString += std::format("Uid={};Pwd={};", params.username, params.password);
+        // Escape username and password to prevent connection string injection
+        connectionString += std::format("Uid={};Pwd={};", escapeOdbcValue(params.username), escapeOdbcValue(params.password));
     }
 
     return connectionString;

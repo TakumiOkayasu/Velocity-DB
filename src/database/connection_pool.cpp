@@ -9,6 +9,24 @@
 
 namespace predategrip {
 
+namespace {
+/// Escapes special characters in ODBC connection string values.
+/// Wraps value in braces and escapes any closing braces by doubling them.
+/// This prevents connection string injection attacks with special characters.
+std::string escapeOdbcValue(std::string_view value) {
+    std::string result = "{";
+    for (auto c : value) {
+        if (c == '}') {
+            result += "}}";  // Escape closing brace by doubling
+        } else {
+            result += c;
+        }
+    }
+    result += "}";
+    return result;
+}
+}  // namespace
+
 ConnectionPool::~ConnectionPool() {
     std::lock_guard lock(m_mutex);
     while (!m_available.empty()) {
@@ -85,7 +103,9 @@ std::string ConnectionPool::buildConnectionString(const ConnectionInfo& info) co
     if (info.useWindowsAuth) {
         connStr += "Trusted_Connection=yes;";
     } else {
-        connStr += std::format("UID={};PWD={};", info.username, info.password);
+        // Escape username and password to prevent connection string injection
+        // Special characters like ; = { } in passwords can break parsing or allow injection
+        connStr += std::format("UID={};PWD={};", escapeOdbcValue(info.username), escapeOdbcValue(info.password));
     }
 
     return connStr;
