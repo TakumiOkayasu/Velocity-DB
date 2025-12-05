@@ -55,13 +55,25 @@ TEST_F(CSVExporterTest, ExportsBasicCSV) {
     if (line.substr(0, 3) == "\xEF\xBB\xBF") {
         line = line.substr(3);
     }
+    // Remove trailing \r if present (Windows line ending)
+    if (!line.empty() && line.back() == '\r') {
+        line.pop_back();
+    }
     EXPECT_EQ(line, "\"id\",\"name\"");
 
     std::getline(file, line);
+    if (!line.empty() && line.back() == '\r') {
+        line.pop_back();
+    }
     EXPECT_EQ(line, "\"1\",\"Alice\"");
 
     std::getline(file, line);
+    if (!line.empty() && line.back() == '\r') {
+        line.pop_back();
+    }
     EXPECT_EQ(line, "\"2\",\"Bob\"");
+
+    file.close();
 }
 
 TEST_F(CSVExporterTest, ExportsWithoutHeader) {
@@ -80,8 +92,14 @@ TEST_F(CSVExporterTest, ExportsWithoutHeader) {
     if (line.substr(0, 3) == "\xEF\xBB\xBF") {
         line = line.substr(3);
     }
+    // Remove trailing \r if present (Windows line ending)
+    if (!line.empty() && line.back() == '\r') {
+        line.pop_back();
+    }
     // First line should be data, not header
     EXPECT_EQ(line, "\"1\",\"Alice\"");
+
+    file.close();
 }
 
 TEST_F(CSVExporterTest, EscapesQuotes) {
@@ -102,6 +120,8 @@ TEST_F(CSVExporterTest, EscapesQuotes) {
                         std::istreambuf_iterator<char>());
 
     EXPECT_NE(content.find("\"\"Hello\"\""), std::string::npos);
+
+    file.close();
 }
 
 TEST_F(CSVExporterTest, HandlesNullValues) {
@@ -125,6 +145,8 @@ TEST_F(CSVExporterTest, HandlesNullValues) {
                         std::istreambuf_iterator<char>());
 
     EXPECT_NE(content.find("NULL"), std::string::npos);
+
+    file.close();
 }
 
 TEST_F(CSVExporterTest, HandlesCustomDelimiter) {
@@ -143,8 +165,14 @@ TEST_F(CSVExporterTest, HandlesCustomDelimiter) {
     if (line.substr(0, 3) == "\xEF\xBB\xBF") {
         line = line.substr(3);
     }
+    // Remove trailing \r if present (Windows line ending)
+    if (!line.empty() && line.back() == '\r') {
+        line.pop_back();
+    }
 
     EXPECT_NE(line.find(";"), std::string::npos);
+
+    file.close();
 }
 
 }  // namespace test

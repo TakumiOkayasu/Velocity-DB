@@ -60,7 +60,14 @@
     }
   },
   "files": {
-    "includes": ["**", "!**/dist", "!**/node_modules", "!**/*.min.js", "!**/coverage"]
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/node_modules",
+      "!**/*.min.js",
+      "!**/coverage",
+      "!**/.claude"
+    ]
   },
   "vcs": {
     "enabled": true,
