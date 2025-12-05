@@ -36,7 +36,8 @@ public:
     AsyncQueryExecutor& operator=(AsyncQueryExecutor&&) = delete;
 
     /// Submits a query for asynchronous execution, returns a unique query ID
-    [[nodiscard]] std::string submitQuery(SQLServerDriver* driver, std::string_view sql);
+    /// Uses shared_ptr to ensure driver lifetime extends through async execution
+    [[nodiscard]] std::string submitQuery(std::shared_ptr<SQLServerDriver> driver, std::string_view sql);
 
     /// Gets the current status and result of a query
     [[nodiscard]] AsyncQueryResult getQueryResult(std::string_view queryId);
@@ -58,7 +59,7 @@ private:
         std::future<ResultSet> future;
         std::optional<ResultSet> cachedResult;  // Cache result after first get()
         std::atomic<QueryStatus> status{QueryStatus::Pending};
-        SQLServerDriver* driver = nullptr;
+        std::shared_ptr<SQLServerDriver> driver;  // shared_ptr to prevent use-after-free
         std::string sql;
         std::string errorMessage;
         std::chrono::steady_clock::time_point startTime;

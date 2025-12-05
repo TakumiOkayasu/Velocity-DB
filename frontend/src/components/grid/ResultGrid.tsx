@@ -183,6 +183,15 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     setGridApi(params.api);
   }, []);
 
+  // Cleanup gridApi on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (gridApi) {
+        gridApi.destroy();
+      }
+    };
+  }, [gridApi]);
+
   const onCellValueChanged = useCallback(
     (event: CellValueChangedEvent) => {
       const rowIndex = event.node.rowIndex ?? -1;

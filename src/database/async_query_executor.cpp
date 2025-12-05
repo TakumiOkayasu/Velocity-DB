@@ -10,7 +10,7 @@ AsyncQueryExecutor::~AsyncQueryExecutor() {
     for (auto& [id, task] : m_queries) {
         if (task->future.valid()) {
             // Cancel if still running
-            if (task->status == QueryStatus::Running && task->driver != nullptr) {
+            if (task->status == QueryStatus::Running && task->driver) {
                 task->driver->cancel();
             }
             // Wait for completion
@@ -19,18 +19,18 @@ AsyncQueryExecutor::~AsyncQueryExecutor() {
     }
 }
 
-std::string AsyncQueryExecutor::submitQuery(SQLServerDriver* driver, std::string_view sql) {
+std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<SQLServerDriver> driver, std::string_view sql) {
     auto queryId = std::format("query_{}", m_queryIdCounter++);
 
     auto task = std::make_shared<QueryTask>();
-    task->driver = driver;
+    task->driver = driver;  // shared_ptr ensures driver lifetime
     task->sql = std::string(sql);
     task->startTime = std::chrono::steady_clock::now();
     task->status = QueryStatus::Running;
 
     std::string sqlCopy(sql);
 
-    // Capture shared_ptr by value to ensure task lifetime extends through async execution
+    // Capture shared_ptr by value to ensure driver and task lifetime extends through async execution
     task->future = std::async(std::launch::async, [driver, sqlCopy, task]() -> ResultSet {
         try {
             ResultSet result = driver->execute(sqlCopy);
@@ -95,7 +95,7 @@ bool AsyncQueryExecutor::cancelQuery(std::string_view queryId) {
     }
 
     auto& task = iter->second;
-    if (task->status == QueryStatus::Running && task->driver != nullptr) {
+    if (task->status == QueryStatus::Running && task->driver) {
         task->driver->cancel();
         task->status = QueryStatus::Cancelled;
         task->endTime = std::chrono::steady_clock::now();

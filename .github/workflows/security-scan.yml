@@ -183,6 +183,8 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"
+        # Allow workflow to continue even if upload fails (Code Scanning not enabled)
+        continue-on-error: true
 
   # Summary job
   security-summary:

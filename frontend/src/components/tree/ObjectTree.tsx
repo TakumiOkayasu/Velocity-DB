@@ -87,6 +87,9 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
       return;
     }
 
+    // Use AbortController to prevent race conditions when connection changes rapidly
+    let isCancelled = false;
+
     const buildTree = async () => {
       const dbNode: DatabaseObject = {
         id: activeConnectionId,
@@ -101,6 +104,10 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
       // Load tables
       setLoadingNodes((prev) => new Set(prev).add(activeConnectionId));
       const children = await loadTables(activeConnectionId);
+
+      // Check if effect was cancelled during async operation
+      if (isCancelled) return;
+
       dbNode.children = children;
       setTreeData([{ ...dbNode }]);
       setLoadingNodes((prev) => {
@@ -111,6 +118,11 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
     };
 
     buildTree();
+
+    // Cleanup function to prevent stale updates
+    return () => {
+      isCancelled = true;
+    };
   }, [activeConnectionId, activeConnection, loadTables]);
 
   // Handle node toggle with lazy loading for table columns

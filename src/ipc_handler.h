@@ -125,7 +125,7 @@ private:
     std::unique_ptr<SQLFormatter> m_sqlFormatter;
     std::unique_ptr<A5ERParser> m_a5erParser;
 
-    std::unordered_map<std::string, std::unique_ptr<SQLServerDriver>> m_activeConnections;
+    std::unordered_map<std::string, std::shared_ptr<SQLServerDriver>> m_activeConnections;
     int m_connectionIdCounter = 1;
 };
 

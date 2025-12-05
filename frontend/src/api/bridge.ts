@@ -43,11 +43,18 @@ class Bridge {
     }
 
     // Development mode only: dynamically import mock data
+    // Note: mockData types are not strictly validated - this is intentional for dev mode flexibility
+    // Real API calls in production go through proper type checking via IPC response handling above
     if (import.meta.env.DEV) {
       const { mockData } = await import('./mockData');
       // Small delay to simulate network
       await new Promise((resolve) => setTimeout(resolve, 50));
-      return (mockData[method] ?? {}) as T;
+      const data = mockData[method];
+      if (data === undefined) {
+        console.warn(`[Bridge DEV] No mock data for method: ${method}`);
+        return {} as T;
+      }
+      return data as T;
     }
 
     throw new Error('Backend not available');

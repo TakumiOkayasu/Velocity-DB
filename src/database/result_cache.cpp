@@ -7,7 +7,13 @@ namespace predategrip {
 void ResultCache::put(std::string_view key, const ResultSet& result) {
     std::lock_guard lock(m_mutex);
 
-    size_t resultSize = estimateSize(result);
+    auto resultSize = estimateSize(result);
+
+    // Skip caching if result is larger than max cache size to prevent exceeding limits
+    if (resultSize > m_maxSizeBytes) {
+        return;
+    }
+
     std::string keyStr(key);
 
     if (auto it = m_cache.find(keyStr); it != m_cache.end()) {
