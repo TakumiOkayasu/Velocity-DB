@@ -52,7 +52,7 @@ Write-Host "[3/4] Setting up branch protection for 'main'..." -ForegroundColor G
 $branchProtection = @{
     required_status_checks = @{
         strict = $true
-        contexts = @("build", "lint")
+        contexts = @("Lint", "CI Success")
     }
     enforce_admins = $true
     required_pull_request_reviews = @{
