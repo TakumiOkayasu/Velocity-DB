@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { bridge } from '../../api/bridge';
 import { useConnectionStore } from '../../store/connectionStore';
 import { useERDiagramStore } from '../../store/erDiagramStore';
 import { useQueryStore } from '../../store/queryStore';
@@ -11,6 +12,69 @@ import { BottomPanel } from './BottomPanel';
 import { CenterPanel } from './CenterPanel';
 import { LeftPanel } from './LeftPanel';
 import styles from './MainLayout.module.css';
+
+// SVG Icons (JetBrains-style simple icons)
+const Icons = {
+  database: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <ellipse cx="8" cy="4" rx="6" ry="2.5" />
+      <path d="M2 4v8c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5V4" />
+      <path d="M2 8c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5" />
+    </svg>
+  ),
+  newFile: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M9 1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V5L9 1z" />
+      <path d="M9 1v4h4" />
+      <path d="M8 8v4M6 10h4" />
+    </svg>
+  ),
+  play: (
+    <svg viewBox="0 0 16 16" fill="currentColor">
+      <path d="M4 2.5v11l9-5.5-9-5.5z" />
+    </svg>
+  ),
+  stop: (
+    <svg viewBox="0 0 16 16" fill="currentColor">
+      <rect x="3" y="3" width="10" height="10" rx="1" />
+    </svg>
+  ),
+  format: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M2 3h12M2 6h8M2 9h10M2 12h6" />
+    </svg>
+  ),
+  import: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M8 2v8M5 7l3 3 3-3" />
+      <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" />
+    </svg>
+  ),
+  sidebar: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="2" y="2" width="12" height="12" rx="1" />
+      <path d="M6 2v12" />
+    </svg>
+  ),
+  terminal: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="2" y="2" width="12" height="12" rx="1" />
+      <path d="M2 10h12" />
+    </svg>
+  ),
+  search: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <circle cx="7" cy="7" r="4" />
+      <path d="M10 10l3.5 3.5" />
+    </svg>
+  ),
+  settings: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <circle cx="8" cy="8" r="2" />
+      <path d="M8 1v2M8 13v2M1 8h2M13 8h2M2.93 2.93l1.41 1.41M11.66 11.66l1.41 1.41M2.93 13.07l1.41-1.41M11.66 4.34l1.41-1.41" />
+    </svg>
+  ),
+};
 
 export function MainLayout() {
   // Session store for persisted layout state
@@ -138,31 +202,75 @@ export function MainLayout() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleNewQuery, handleExecute, handleFormat, handleOpenSearch, handleOpenSettings]);
 
-  // Unicode icons (using HTML entities for reliability)
-  const icons = {
-    play: '\u25B6', // ▶
-    hourglass: '\u23F3', // ⏳
-    left: '\u25C0', // ◀
-    right: '\u25B6', // ▶
-    up: '\u25B2', // ▲
-    down: '\u25BC', // ▼
-    search: '\uD83D\uDD0D', // 🔍
-    gear: '\u2699', // ⚙
-  };
+  // Track and save window size/position
+  const saveWindowSizeTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const saveWindowSize = () => {
+      // Debounce: save after 500ms of no resize activity
+      if (saveWindowSizeTimeoutRef.current !== null) {
+        window.clearTimeout(saveWindowSizeTimeoutRef.current);
+      }
+
+      saveWindowSizeTimeoutRef.current = window.setTimeout(() => {
+        bridge.updateSettings({
+          window: {
+            width: window.innerWidth,
+            height: window.innerHeight,
+            x: window.screenX,
+            y: window.screenY,
+            isMaximized: false, // WebView doesn't provide maximize detection
+          },
+        });
+      }, 500);
+    };
+
+    // Save on resize
+    window.addEventListener('resize', saveWindowSize);
+
+    // Save before unload
+    const handleBeforeUnload = () => {
+      bridge.updateSettings({
+        window: {
+          width: window.innerWidth,
+          height: window.innerHeight,
+          x: window.screenX,
+          y: window.screenY,
+          isMaximized: false,
+        },
+      });
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('resize', saveWindowSize);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (saveWindowSizeTimeoutRef.current !== null) {
+        window.clearTimeout(saveWindowSizeTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className={styles.container}>
       <header className={styles.toolbar}>
+        {/* Connection */}
         <div className={styles.toolbarGroup}>
           <button onClick={() => setIsConnectionDialogOpen(true)} title="New Connection">
-            + Connect
+            {Icons.database}
+            <span>Connect</span>
           </button>
         </div>
+
+        <div className={styles.toolbarDivider} />
+
+        {/* Query operations */}
         <div className={styles.toolbarGroup}>
-          <button onClick={handleNewQuery} title="New Query (Ctrl+N)">
-            New
+          <button className={styles.iconButton} onClick={handleNewQuery} title="New Query (Ctrl+N)">
+            {Icons.newFile}
           </button>
         </div>
+
         <div className={styles.toolbarGroup}>
           <button
             onClick={handleExecute}
@@ -170,44 +278,71 @@ export function MainLayout() {
             title="Execute (Ctrl+Enter)"
             className={styles.executeButton}
           >
-            {isExecuting ? `${icons.hourglass} Running...` : `${icons.play} Execute`}
+            {isExecuting ? Icons.stop : Icons.play}
+            <span>{isExecuting ? 'Stop' : 'Run'}</span>
           </button>
         </div>
+
         <div className={styles.toolbarGroup}>
           <button
+            className={styles.iconButton}
             onClick={handleFormat}
             disabled={!activeQuery?.content}
             title="Format SQL (Ctrl+Shift+F)"
           >
-            Format
+            {Icons.format}
           </button>
         </div>
+
+        <div className={styles.toolbarDivider} />
+
+        {/* Import */}
         <div className={styles.toolbarGroup}>
           <button onClick={() => setIsA5ERImportDialogOpen(true)} title="Import A5:ER File">
-            Import A5:ER
+            {Icons.import}
+            <span>Import</span>
           </button>
         </div>
+
+        {/* Spacer */}
+        <div className={styles.toolbarSpacer} />
+
+        {/* View toggles */}
         <div className={styles.toolbarGroup}>
           <button
+            className={styles.iconButton}
             onClick={() => setIsLeftPanelVisible(!isLeftPanelVisible)}
-            title="Toggle Object Explorer"
+            title="Toggle Database Explorer"
           >
-            {isLeftPanelVisible ? icons.left : icons.right} Objects
+            {Icons.sidebar}
           </button>
           <button
+            className={styles.iconButton}
             onClick={() => setIsBottomPanelVisible(!isBottomPanelVisible)}
-            title="Toggle Results Panel"
             disabled={isDataView}
+            title="Toggle Results Panel"
           >
-            {isBottomPanelVisible && !isDataView ? icons.down : icons.up} Results
+            {Icons.terminal}
           </button>
         </div>
+
+        <div className={styles.toolbarDivider} />
+
+        {/* Search and Settings */}
         <div className={styles.toolbarGroup}>
-          <button onClick={handleOpenSearch} title="Search (Ctrl+Shift+P)">
-            {icons.search} Search
+          <button
+            className={styles.iconButton}
+            onClick={handleOpenSearch}
+            title="Search (Ctrl+Shift+P)"
+          >
+            {Icons.search}
           </button>
-          <button onClick={handleOpenSettings} title="Settings (Ctrl+,)">
-            {icons.gear} Settings
+          <button
+            className={styles.iconButton}
+            onClick={handleOpenSettings}
+            title="Settings (Ctrl+,)"
+          >
+            {Icons.settings}
           </button>
         </div>
       </header>
@@ -275,15 +410,19 @@ export function MainLayout() {
 
       <footer className={styles.statusBar}>
         <div className={styles.statusLeft}>
-          <span className={isExecuting ? styles.statusExecuting : styles.statusReady}>
+          <span
+            className={`${styles.statusItem} ${isExecuting ? styles.statusExecuting : styles.statusReady}`}
+          >
+            <span className={styles.connectionDot} />
             {isExecuting ? 'Executing...' : 'Ready'}
           </span>
         </div>
-        <div className={styles.statusCenter}>
-          {activeQuery && <span>Query: {activeQuery.name}</span>}
-        </div>
+        <div className={styles.statusCenter}>{activeQuery && <span>{activeQuery.name}</span>}</div>
         <div className={styles.statusRight}>
-          <span className={activeConnection ? styles.connected : styles.disconnected}>
+          <span
+            className={`${styles.statusItem} ${activeConnection ? styles.connected : styles.disconnected}`}
+          >
+            <span className={styles.connectionDot} />
             {activeConnection
               ? `${activeConnection.server}/${activeConnection.database}`
               : 'Not connected'}

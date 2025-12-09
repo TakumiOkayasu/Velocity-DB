@@ -33,7 +33,7 @@ export const defaultSettings: AppSettings = {
   query: {
     autoCommit: true,
     timeout: 30000,
-    maxRows: 10000,
+    maxRows: 1000000,
   },
   appearance: {
     theme: 'dark',

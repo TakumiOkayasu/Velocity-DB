@@ -20,7 +20,7 @@ interface QueryState {
   cancelQuery: (connectionId: string) => Promise<void>;
   formatQuery: (id: string) => Promise<void>;
   clearError: () => void;
-  openTableData: (connectionId: string, tableName: string, pageSize: number) => Promise<void>;
+  openTableData: (connectionId: string, tableName: string) => Promise<void>;
   applyWhereFilter: (id: string, connectionId: string, whereClause: string) => Promise<void>;
 }
 
@@ -220,7 +220,7 @@ export const useQueryStore = create<QueryState>((set, get) => ({
     set({ error: null });
   },
 
-  openTableData: async (connectionId, tableName, pageSize) => {
+  openTableData: async (connectionId, tableName) => {
     // Check if tab for this table already exists
     const existingQuery = get().queries.find(
       (q) => q.sourceTable === tableName && q.connectionId === connectionId && q.isDataView
@@ -233,7 +233,7 @@ export const useQueryStore = create<QueryState>((set, get) => ({
     }
 
     const id = `query-${++queryCounter}`;
-    const sql = `SELECT TOP ${pageSize} * FROM ${tableName}`;
+    const sql = `SELECT * FROM ${tableName}`;
     const newQuery: Query = {
       id,
       name: tableName,
@@ -287,8 +287,7 @@ export const useQueryStore = create<QueryState>((set, get) => ({
     const query = get().queries.find((q) => q.id === id);
     if (!query?.sourceTable) return;
 
-    const pageSize = 1000; // Default, could be fetched from settings
-    const baseSql = `SELECT TOP ${pageSize} * FROM ${query.sourceTable}`;
+    const baseSql = `SELECT * FROM ${query.sourceTable}`;
     const sql = whereClause.trim() ? `${baseSql} WHERE ${whereClause}` : baseSql;
 
     set((state) => ({

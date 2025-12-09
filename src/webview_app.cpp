@@ -1,6 +1,7 @@
 #include "webview_app.h"
 
 #include "ipc_handler.h"
+#include "settings_manager.h"
 #include "simdjson.h"
 #include "webview.h"
 
@@ -38,7 +39,10 @@ std::string extractFirstArgument(const std::string& jsonArray) {
 
 }  // namespace
 
-WebViewApp::WebViewApp(HINSTANCE hInstance) : m_hInstance(hInstance), m_ipcHandler(std::make_unique<IPCHandler>()), m_webview(nullptr) {}
+WebViewApp::WebViewApp(HINSTANCE hInstance) : m_hInstance(hInstance), m_ipcHandler(std::make_unique<IPCHandler>()), m_webview(nullptr), m_settingsManager(std::make_unique<SettingsManager>()) {
+    // Load settings
+    m_settingsManager->load();
+}
 
 WebViewApp::~WebViewApp() = default;
 
@@ -73,11 +77,42 @@ std::expected<std::filesystem::path, std::string> WebViewApp::locateFrontendDire
     return std::unexpected("Frontend files not found");
 }
 
+WebViewApp::WindowSize WebViewApp::calculateWindowSize() const {
+    const auto& windowSettings = m_settingsManager->getSettings().window;
+
+    // If we have saved settings and they are valid, use them
+    if (windowSettings.width > 0 && windowSettings.height > 0) {
+        return WindowSize{.width = windowSettings.width, .height = windowSettings.height, .x = windowSettings.x, .y = windowSettings.y};
+    }
+
+    // First launch: use 80% of screen size
+    const int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+    const int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+
+    const int width = static_cast<int>(screenWidth * 0.8);
+    const int height = static_cast<int>(screenHeight * 0.8);
+
+    // Center the window
+    const int x = (screenWidth - width) / 2;
+    const int y = (screenHeight - height) / 2;
+
+    return WindowSize{.width = width, .height = height, .x = x, .y = y};
+}
+
+void WebViewApp::saveWindowSettings() {
+    // Note: webview library doesn't provide API to get window size/position
+    // This would need to be implemented by getting the window handle and using Win32 APIs
+    // For now, this is a placeholder that would be called on window close
+}
+
 void WebViewApp::createAndConfigureWebView() {
     m_webview = std::make_unique<webview::webview>(true, nullptr);
 
     m_webview->set_title("Pre-DateGrip");
-    m_webview->set_size(1280, 800, WEBVIEW_HINT_NONE);
+
+    // Calculate and set window size
+    const auto windowSize = calculateWindowSize();
+    m_webview->set_size(windowSize.width, windowSize.height, WEBVIEW_HINT_NONE);
 
     // Disable browser cache to always load fresh content
     m_webview->set_disable_cache(true);

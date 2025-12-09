@@ -1180,6 +1180,20 @@ std::string IPCHandler::updateSettings(std::string_view params) {
                 settings.grid.nullDisplay = std::string(val.value());
         }
 
+        // Update window settings
+        if (auto window = doc["window"]; !window.error()) {
+            if (auto val = window["width"].get_int64(); !val.error())
+                settings.window.width = static_cast<int>(val.value());
+            if (auto val = window["height"].get_int64(); !val.error())
+                settings.window.height = static_cast<int>(val.value());
+            if (auto val = window["x"].get_int64(); !val.error())
+                settings.window.x = static_cast<int>(val.value());
+            if (auto val = window["y"].get_int64(); !val.error())
+                settings.window.y = static_cast<int>(val.value());
+            if (auto val = window["isMaximized"].get_bool(); !val.error())
+                settings.window.isMaximized = val.value();
+        }
+
         m_settingsManager->updateSettings(settings);
         m_settingsManager->save();
 

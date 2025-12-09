@@ -184,6 +184,15 @@ std::string SettingsManager::serializeSettings() const {
     json += std::format("    \"nullDisplay\": \"{}\"\n", JsonUtils::escapeString(m_settings.grid.nullDisplay));
     json += "  },\n";
 
+    // Window settings
+    json += "  \"window\": {\n";
+    json += std::format("    \"width\": {},\n", m_settings.window.width);
+    json += std::format("    \"height\": {},\n", m_settings.window.height);
+    json += std::format("    \"x\": {},\n", m_settings.window.x);
+    json += std::format("    \"y\": {},\n", m_settings.window.y);
+    json += std::format("    \"isMaximized\": {}\n", m_settings.window.isMaximized ? "true" : "false");
+    json += "  },\n";
+
     // Connection profiles
     json += "  \"connectionProfiles\": [\n";
     for (size_t i = 0; i < m_settings.connectionProfiles.size(); ++i) {
@@ -259,6 +268,20 @@ bool SettingsManager::deserializeSettings(std::string_view jsonStr) {
                 m_settings.grid.dateFormat = std::string(val.value());
             if (auto val = grid["nullDisplay"].get_string(); !val.error())
                 m_settings.grid.nullDisplay = std::string(val.value());
+        }
+
+        // Window settings
+        if (auto window = doc["window"]; !window.error()) {
+            if (auto val = window["width"].get_int64(); !val.error())
+                m_settings.window.width = static_cast<int>(val.value());
+            if (auto val = window["height"].get_int64(); !val.error())
+                m_settings.window.height = static_cast<int>(val.value());
+            if (auto val = window["x"].get_int64(); !val.error())
+                m_settings.window.x = static_cast<int>(val.value());
+            if (auto val = window["y"].get_int64(); !val.error())
+                m_settings.window.y = static_cast<int>(val.value());
+            if (auto val = window["isMaximized"].get_bool(); !val.error())
+                m_settings.window.isMaximized = val.value();
         }
 
         // Connection profiles

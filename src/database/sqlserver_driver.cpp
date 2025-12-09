@@ -1,5 +1,7 @@
 #include "sqlserver_driver.h"
 
+#include <Windows.h>
+
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -7,6 +9,22 @@
 #include <vector>
 
 namespace predategrip {
+
+// Convert UTF-16 (wchar_t) to UTF-8 (std::string)
+static std::string wcharToUtf8(const wchar_t* wstr, size_t len) {
+    if (len == 0 || wstr == nullptr) {
+        return {};
+    }
+
+    int utf8Len = WideCharToMultiByte(CP_UTF8, 0, wstr, static_cast<int>(len), nullptr, 0, nullptr, nullptr);
+    if (utf8Len == 0) {
+        return {};
+    }
+
+    std::string utf8Str(static_cast<size_t>(utf8Len), '\0');
+    WideCharToMultiByte(CP_UTF8, 0, wstr, static_cast<int>(len), utf8Str.data(), utf8Len, nullptr, nullptr);
+    return utf8Str;
+}
 
 SQLServerDriver::SQLServerDriver() {
     SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &m_env);
@@ -139,33 +157,33 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
 
     result.columns.reserve(static_cast<size_t>(numCols));
     for (SQLSMALLINT i = 1; i <= numCols; ++i) {
-        std::array<SQLCHAR, 256> colName{};
+        std::array<SQLWCHAR, 256> colName{};
         SQLSMALLINT colNameLen = 0;
         SQLSMALLINT dataType = 0;
         SQLULEN colSize = 0;
         SQLSMALLINT decimalDigits = 0;
         SQLSMALLINT nullable = 0;
 
-        ret = SQLDescribeColA(m_stmt, i, colName.data(), static_cast<SQLSMALLINT>(colName.size()), &colNameLen, &dataType, &colSize, &decimalDigits, &nullable);
+        ret = SQLDescribeColW(m_stmt, i, colName.data(), static_cast<SQLSMALLINT>(colName.size()), &colNameLen, &dataType, &colSize, &decimalDigits, &nullable);
         if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) [[unlikely]] {
             storeODBCDiagnosticMessage(ret, SQL_HANDLE_STMT, m_stmt);
             throw std::runtime_error(std::string("Failed to describe column: ") + m_lastError);
         }
 
-        // Ensure colNameLen doesn't exceed buffer size (SQLDescribeColA may truncate)
+        // Ensure colNameLen doesn't exceed buffer size (SQLDescribeColW may truncate)
         // Use (std::min) to avoid Windows min macro interference
         colNameLen = (std::min)(colNameLen, static_cast<SQLSMALLINT>(colName.size() - 1));
 
-        result.columns.push_back({.name = std::string(reinterpret_cast<char*>(colName.data()), colNameLen),
+        result.columns.push_back({.name = wcharToUtf8(reinterpret_cast<wchar_t*>(colName.data()), static_cast<size_t>(colNameLen)),
                                   .type = convertSQLTypeToDisplayName(dataType),
                                   .size = static_cast<int>(colSize),
                                   .nullable = (nullable == SQL_NULLABLE),
                                   .isPrimaryKey = false});
     }
 
-    // Dynamic buffer for large column values
-    constexpr size_t INITIAL_BUFFER_SIZE = 4096;
-    std::vector<SQLCHAR> buffer(INITIAL_BUFFER_SIZE);
+    // Dynamic buffer for large column values (Unicode - SQLWCHAR is 2 bytes)
+    constexpr size_t INITIAL_BUFFER_CHARS = 4096;
+    std::vector<SQLWCHAR> buffer(INITIAL_BUFFER_CHARS);
     SQLLEN indicator = 0;
 
     while ((ret = SQLFetch(m_stmt)) == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
@@ -173,22 +191,34 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
         row.values.reserve(static_cast<size_t>(numCols));
 
         for (SQLSMALLINT i = 1; i <= numCols; ++i) {
-            ret = SQLGetData(m_stmt, i, SQL_C_CHAR, buffer.data(), buffer.size(), &indicator);
+            // Use SQL_C_WCHAR to get Unicode data
+            ret = SQLGetData(m_stmt, i, SQL_C_WCHAR, buffer.data(), buffer.size() * sizeof(SQLWCHAR), &indicator);
             if (indicator == SQL_NULL_DATA) {
                 row.values.emplace_back();
-            } else if (ret == SQL_SUCCESS_WITH_INFO && indicator > static_cast<SQLLEN>(buffer.size() - 1)) {
+            } else if (ret == SQL_SUCCESS_WITH_INFO && indicator > static_cast<SQLLEN>((buffer.size() - 1) * sizeof(SQLWCHAR))) {
                 // Data was truncated, need a larger buffer
-                size_t requiredSize = static_cast<size_t>(indicator) + 1;
-                std::vector<SQLCHAR> largeBuffer(requiredSize);
+                // indicator is in bytes for SQL_C_WCHAR
+                size_t requiredChars = (static_cast<size_t>(indicator) / sizeof(SQLWCHAR)) + 1;
+                std::vector<SQLWCHAR> largeBuffer(requiredChars);
                 // Copy already retrieved data
-                std::copy(buffer.begin(), buffer.end(), largeBuffer.begin());
+                size_t alreadyReadChars = buffer.size() - 1;
+                std::copy(buffer.begin(), buffer.begin() + static_cast<ptrdiff_t>(alreadyReadChars), largeBuffer.begin());
                 // Get remaining data
                 SQLLEN remainingIndicator = 0;
-                size_t alreadyRead = buffer.size() - 1;
-                ret = SQLGetData(m_stmt, i, SQL_C_CHAR, largeBuffer.data() + alreadyRead, requiredSize - alreadyRead, &remainingIndicator);
-                row.values.emplace_back(reinterpret_cast<char*>(largeBuffer.data()));
+                ret = SQLGetData(m_stmt, i, SQL_C_WCHAR, largeBuffer.data() + alreadyReadChars, (requiredChars - alreadyReadChars) * sizeof(SQLWCHAR), &remainingIndicator);
+                // Find actual string length
+                size_t strLen = 0;
+                for (size_t j = 0; j < largeBuffer.size() && largeBuffer[j] != 0; ++j) {
+                    strLen = j + 1;
+                }
+                row.values.emplace_back(wcharToUtf8(reinterpret_cast<wchar_t*>(largeBuffer.data()), strLen));
             } else if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
-                row.values.emplace_back(reinterpret_cast<char*>(buffer.data()));
+                // Find actual string length
+                size_t strLen = 0;
+                for (size_t j = 0; j < buffer.size() && buffer[j] != 0; ++j) {
+                    strLen = j + 1;
+                }
+                row.values.emplace_back(wcharToUtf8(reinterpret_cast<wchar_t*>(buffer.data()), strLen));
             } else {
                 // Error getting data - add empty value and continue
                 row.values.emplace_back();

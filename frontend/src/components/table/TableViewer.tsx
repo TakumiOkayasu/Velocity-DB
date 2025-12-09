@@ -36,10 +36,9 @@ type TabType =
 interface TableViewerProps {
   tableName: string;
   schemaName?: string;
-  pageSize?: number;
 }
 
-export function TableViewer({ tableName, schemaName = 'dbo', pageSize = 1000 }: TableViewerProps) {
+export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps) {
   const activeConnectionId = useConnectionStore((state) => state.activeConnectionId);
   const [activeTab, setActiveTab] = useState<TabType>('data');
   const [showLogicalNames, setShowLogicalNames] = useState(false);
@@ -49,7 +48,6 @@ export function TableViewer({ tableName, schemaName = 'dbo', pageSize = 1000 }: 
   // Data state
   const [resultSet, setResultSet] = useState<ResultSet | null>(null);
   const [whereClause, setWhereClause] = useState('');
-  const [currentPageSize, setCurrentPageSize] = useState(pageSize);
 
   // Schema state
   const [columns, setColumns] = useState<Column[]>([]);
@@ -71,7 +69,7 @@ export function TableViewer({ tableName, schemaName = 'dbo', pageSize = 1000 }: 
     setError(null);
 
     try {
-      let sql = `SELECT TOP ${currentPageSize} * FROM ${fullTableName}`;
+      let sql = `SELECT * FROM ${fullTableName}`;
       if (whereClause.trim()) {
         sql += ` WHERE ${whereClause}`;
       }
@@ -93,7 +91,7 @@ export function TableViewer({ tableName, schemaName = 'dbo', pageSize = 1000 }: 
     } finally {
       setIsLoading(false);
     }
-  }, [activeConnectionId, fullTableName, currentPageSize, whereClause]);
+  }, [activeConnectionId, fullTableName, whereClause]);
 
   const loadColumns = useCallback(async () => {
     if (!activeConnectionId) return;
@@ -275,20 +273,9 @@ export function TableViewer({ tableName, schemaName = 'dbo', pageSize = 1000 }: 
         </div>
         <div className={styles.toolbarRight}>
           <span className={styles.tableName}>{fullTableName}</span>
-          <div className={styles.pageSize}>
-            <span>Rows:</span>
-            <select
-              value={currentPageSize}
-              onChange={(e) => setCurrentPageSize(Number(e.target.value))}
-              className={styles.pageSizeSelect}
-            >
-              <option value={100}>100</option>
-              <option value={500}>500</option>
-              <option value={1000}>1000</option>
-              <option value={5000}>5000</option>
-              <option value={10000}>10000</option>
-            </select>
-          </div>
+          {resultSet && (
+            <span className={styles.rowCount}>{resultSet.rows.length.toLocaleString()} rows</span>
+          )}
           <button className={styles.toolbarButton} title="Refresh" onClick={loadData}>
             <span className={styles.icon}>↻</span>
           </button>

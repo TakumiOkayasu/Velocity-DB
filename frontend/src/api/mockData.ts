@@ -98,7 +98,7 @@ export const mockData: Record<string, unknown> = {
       theme: 'vs-dark',
     },
     grid: {
-      defaultPageSize: 100,
+      defaultPageSize: 100000,
       showRowNumbers: true,
       enableCellEditing: false,
       dateFormat: 'yyyy-MM-dd HH:mm:ss',

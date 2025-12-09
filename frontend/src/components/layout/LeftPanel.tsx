@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
-import { bridge } from '../../api/bridge';
+import { useCallback, useState } from 'react';
 import { useConnectionStore } from '../../store/connectionStore';
 import { useQueryActions } from '../../store/queryStore';
 import { ObjectTree } from '../tree/ObjectTree';
@@ -9,48 +8,48 @@ interface LeftPanelProps {
   width: number;
 }
 
-const DEFAULT_PAGE_SIZE = 1000;
+// Database icon
+const DatabaseIcon = (
+  <svg
+    className={styles.headerIcon}
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+  >
+    <ellipse cx="8" cy="4" rx="6" ry="2.5" />
+    <path d="M2 4v8c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5V4" />
+    <path d="M2 8c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5" />
+  </svg>
+);
 
 export function LeftPanel({ width }: LeftPanelProps) {
   const [searchFilter, setSearchFilter] = useState('');
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const { activeConnectionId } = useConnectionStore();
   const { openTableData } = useQueryActions();
-
-  // Load page size from settings
-  useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const settings = await bridge.getSettings();
-        if (settings.grid?.defaultPageSize) {
-          setPageSize(settings.grid.defaultPageSize);
-        }
-      } catch {
-        // Use default if settings not available
-      }
-    };
-    loadSettings();
-  }, []);
 
   const handleTableOpen = useCallback(
     (tableName: string, _tableType: 'table' | 'view') => {
       if (activeConnectionId) {
-        openTableData(activeConnectionId, tableName, pageSize);
+        openTableData(activeConnectionId, tableName);
       }
     },
-    [activeConnectionId, openTableData, pageSize]
+    [activeConnectionId, openTableData]
   );
 
   return (
     <div className={styles.container} style={{ width }}>
       <div className={styles.header}>
-        <span>Database</span>
+        <span className={styles.headerTitle}>
+          {DatabaseIcon}
+          Database
+        </span>
       </div>
 
       <div className={styles.searchBox}>
         <input
           type="text"
-          placeholder="Search objects..."
+          placeholder="Search..."
           value={searchFilter}
           onChange={(e) => setSearchFilter(e.target.value)}
         />

@@ -5,10 +5,14 @@
 .node {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
+  gap: 2px;
+  padding: 3px 8px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  border-radius: 4px;
+  margin: 1px 4px;
+  transition: background-color 0.1s ease;
 }
 
 .node:hover {
@@ -16,26 +20,61 @@
 }
 
 .node.selected {
-  background-color: var(--bg-selected, #2d4f7c);
+  background-color: var(--tree-selection-bg);
   color: var(--text-primary);
 }
 
+.node.selected:hover {
+  background-color: var(--tree-selection-bg);
+}
+
 .expander {
-  width: 12px;
-  font-size: 8px;
-  color: var(--text-secondary);
-  cursor: pointer;
+  width: 16px;
+  height: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-size: 8px;
+  border-radius: 3px;
+  transition: color 0.1s ease;
 }
 
 .expander:hover {
   color: var(--text-primary);
+  background-color: var(--bg-tertiary);
 }
 
 .icon {
-  font-size: 14px;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+/* Icon colors based on type */
+.iconDatabase {
+  color: #6cb0f6;
+}
+
+.iconFolder {
+  color: #e8a838;
+}
+
+.iconTable {
+  color: #57a64a;
+}
+
+.iconView {
+  color: #9876aa;
+}
+
+.iconColumn {
+  color: var(--text-secondary);
 }
 
 .name {
@@ -43,12 +82,22 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.children {
-  /* Children are indented via paddingLeft in the node */
+  padding-left: 4px;
 }
 
 .loading {
-  opacity: 0.7;
+  opacity: 0.6;
+}
+
+.loadingSpinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

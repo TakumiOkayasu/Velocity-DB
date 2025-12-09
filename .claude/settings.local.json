@@ -80,7 +80,15 @@
       "Bash(bun run lint:*)",
       "Bash(C:nvm4wnodejsnpx.cmd biome lint --error-on-warnings \"D:\\prog\\Pre-DateGrip\\frontend\\src\")",
       "Bash(Select-String -Pattern \"error|ERROR|Build|SUCCESS|SUCCESSFUL\")",
-      "Bash(Select-Object -First 10)"
+      "Bash(Select-Object -First 10)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:www.jetbrains.com)",
+      "Bash(\"C:\\Program Files\\LLVM\\bin\\clang-format.exe\" --style=file --dry-run --Werror \"C:\\prog\\Pre-DateGrip\\src\\utils\\settings_manager.h\")",
+      "Bash(C:nvm4wnodejsnpm.cmd --version)",
+      "Bash(\"C:\\Program Files\\LLVM\\bin\\clang-format.exe\" -i -style=file \"C:\\prog\\Pre-DateGrip\\src\\database\\sqlserver_driver.cpp\")",
+      "Bash(\"C:\\Program Files\\LLVM\\bin\\clang-format.exe\" --style=file --dry-run --Werror \"C:\\prog\\Pre-DateGrip\\src\\database\\sqlserver_driver.cpp\")",
+      "Bash(bun run lint:fix:*)",
+      "Bash(\"C:\\Program Files\\LLVM\\bin\\clang-format.exe\" -i -style=file \"C:\\prog\\Pre-DateGrip\\src\\webview_app.cpp\" \"C:\\prog\\Pre-DateGrip\\src\\utils\\settings_manager.h\")"
     ],
     "deny": [],
     "ask": []

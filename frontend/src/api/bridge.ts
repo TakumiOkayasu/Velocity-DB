@@ -357,6 +357,13 @@ class Bridge {
       showRowNumbers: boolean;
       nullDisplay: string;
     }>;
+    window?: Partial<{
+      width: number;
+      height: number;
+      x: number;
+      y: number;
+      isMaximized: boolean;
+    }>;
   }): Promise<{ saved: boolean }> {
     return this.call('updateSettings', settings);
   }

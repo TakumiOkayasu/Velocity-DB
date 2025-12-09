@@ -20,7 +20,10 @@ uv run scripts/build.py Release     # Release build
 uv run scripts/test.py Debug
 uv run scripts/test.py Release
 
-# Frontend (React) - uses Bun
+# Frontend (React) - uses Bun or npm
+uv run scripts/build_frontend.py      # Build frontend (auto-detects Bun/npm)
+
+# Or manually with Bun/npm:
 cd frontend
 bun install                   # Install dependencies
 bun run dev                   # Development server (localhost:5173)

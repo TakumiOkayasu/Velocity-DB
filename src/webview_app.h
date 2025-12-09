@@ -14,6 +14,7 @@ class webview;
 namespace predategrip {
 
 class IPCHandler;
+class SettingsManager;
 
 class WebViewApp {
 public:
@@ -32,9 +33,19 @@ private:
     [[nodiscard]] std::filesystem::path computeExecutablePath() const;
     [[nodiscard]] std::expected<std::filesystem::path, std::string> locateFrontendDirectory() const;
 
+    struct WindowSize {
+        int width;
+        int height;
+        int x;
+        int y;
+    };
+    [[nodiscard]] WindowSize calculateWindowSize() const;
+    void saveWindowSettings();
+
     HINSTANCE m_hInstance;
     std::unique_ptr<IPCHandler> m_ipcHandler;
     std::unique_ptr<webview::webview> m_webview;
+    std::unique_ptr<SettingsManager> m_settingsManager;
 };
 
 }  // namespace predategrip

@@ -37,7 +37,7 @@ struct EditorSettings {
 };
 
 struct GridSettings {
-    int defaultPageSize = 100;
+    int defaultPageSize = 100000;
     bool showRowNumbers = true;
     bool enableCellEditing = false;
     std::string dateFormat = "yyyy-MM-dd HH:mm:ss";
@@ -53,10 +53,19 @@ struct GeneralSettings {
     std::string language = "en";
 };
 
+struct WindowSettings {
+    int width = 0;   // 0 means not set (use default)
+    int height = 0;  // 0 means not set (use default)
+    int x = -1;      // -1 means centered
+    int y = -1;      // -1 means centered
+    bool isMaximized = false;
+};
+
 struct AppSettings {
     GeneralSettings general;
     EditorSettings editor;
     GridSettings grid;
+    WindowSettings window;
     std::vector<ConnectionProfile> connectionProfiles;
 };
 

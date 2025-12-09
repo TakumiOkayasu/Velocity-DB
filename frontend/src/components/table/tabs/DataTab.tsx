@@ -1,6 +1,6 @@
-import type { CellClassParams, ColDef, GridReadyEvent } from 'ag-grid-community';
+import type { CellClassParams, ColDef, GridApi, GridReadyEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ResultSet } from '../../../types';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
@@ -22,10 +22,51 @@ export function DataTab({
   showLogicalNames,
 }: DataTabProps) {
   const gridRef = useRef<AgGridReact>(null);
-  const [, setGridReady] = useState(false);
+  const [gridApi, setGridApi] = useState<GridApi | null>(null);
 
   const columnDefs = useMemo<ColDef[]>(() => {
     if (!resultSet) return [];
+
+    // Helper function to check if a column type is numeric
+    const isNumericType = (typeName: string): boolean => {
+      const numericTypes = [
+        'int',
+        'integer',
+        'bigint',
+        'smallint',
+        'tinyint',
+        'decimal',
+        'numeric',
+        'money',
+        'smallmoney',
+        'float',
+        'real',
+        'double',
+        'number',
+        'bit',
+      ];
+      const lowerType = typeName.toLowerCase();
+      return numericTypes.some((t) => lowerType.includes(t));
+    };
+
+    // Helper function to check if a column type is text
+    const isTextType = (typeName: string): boolean => {
+      const textTypes = ['char', 'varchar', 'nchar', 'nvarchar', 'text', 'ntext', 'string'];
+      const lowerType = typeName.toLowerCase();
+      return textTypes.some((t) => lowerType.includes(t));
+    };
+
+    // Determine text alignment based on column type
+    const getCellAlignment = (typeName: string): string => {
+      if (isNumericType(typeName)) {
+        return 'right'; // Numbers: right-align
+      }
+      if (isTextType(typeName)) {
+        return 'left'; // Text: left-align
+      }
+      return 'center'; // Others (date, time, etc.): center-align
+    };
+
     return resultSet.columns.map((col) => ({
       field: col.name,
       headerName: showLogicalNames ? col.name : col.name, // TODO: Use logical name when available
@@ -33,6 +74,7 @@ export function DataTab({
       sortable: true,
       filter: true,
       resizable: true,
+      cellStyle: { textAlign: getCellAlignment(col.type) },
       cellClass: (params: CellClassParams) => {
         if (params.value === null || params.value === '') {
           return styles.nullCell;
@@ -48,24 +90,52 @@ export function DataTab({
     }));
   }, [resultSet, showLogicalNames]);
 
+  // For large datasets, use optimized loop instead of map
   const rowData = useMemo(() => {
     if (!resultSet) return [];
-    return resultSet.rows.map((row, rowIndex) => {
+
+    const rows = resultSet.rows;
+    const cols = resultSet.columns;
+    const result = new Array(rows.length);
+
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+      const row = rows[rowIndex];
       const obj: Record<string, string | null> = {
         __rowIndex: String(rowIndex + 1),
       };
-      resultSet.columns.forEach((col, idx) => {
-        const value = row[idx];
-        obj[col.name] = value === '' || value === undefined ? null : value;
-      });
-      return obj;
-    });
+
+      for (let colIdx = 0; colIdx < cols.length; colIdx++) {
+        const value = row[colIdx];
+        obj[cols[colIdx].name] = value === '' || value === undefined ? null : value;
+      }
+
+      result[rowIndex] = obj;
+    }
+
+    return result;
   }, [resultSet]);
 
-  const onGridReady = useCallback((params: GridReadyEvent) => {
-    params.api.sizeColumnsToFit();
-    setGridReady(true);
-  }, []);
+  const onGridReady = useCallback(
+    (params: GridReadyEvent) => {
+      setGridApi(params.api);
+      // Auto-size all columns to fit content after grid is ready
+      // Skip auto-size for large datasets (>10000 rows) to improve performance
+      if (resultSet && resultSet.rows.length <= 10000) {
+        params.api.autoSizeAllColumns();
+      }
+    },
+    [resultSet]
+  );
+
+  // Auto-size columns when data changes (only for small datasets)
+  useEffect(() => {
+    if (gridApi && resultSet && resultSet.rows.length <= 10000) {
+      // Wait for rendering to complete, then auto-size all columns
+      requestAnimationFrame(() => {
+        gridApi.autoSizeAllColumns();
+      });
+    }
+  }, [gridApi, resultSet]);
 
   const handleWhereKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -75,6 +145,12 @@ export function DataTab({
     },
     [onApplyFilter]
   );
+
+  const handleAutoSizeColumns = useCallback(() => {
+    if (gridApi) {
+      gridApi.autoSizeAllColumns();
+    }
+  }, [gridApi]);
 
   if (!resultSet) {
     return <div className={styles.emptyState}>No data loaded</div>;
@@ -106,6 +182,14 @@ export function DataTab({
         >
           Clear
         </button>
+        <button
+          className={styles.filterButton}
+          onClick={handleAutoSizeColumns}
+          disabled={!gridApi}
+          title="Auto-size All Columns"
+        >
+          Resize Columns
+        </button>
       </div>
 
       {/* Data Grid */}
@@ -115,7 +199,6 @@ export function DataTab({
           columnDefs={columnDefs}
           rowData={rowData}
           defaultColDef={{
-            flex: 1,
             minWidth: 100,
             sortable: true,
             filter: true,
@@ -123,13 +206,16 @@ export function DataTab({
           }}
           onGridReady={onGridReady}
           enableCellTextSelection={true}
-          ensureDomOrder={true}
+          ensureDomOrder={false}
           animateRows={false}
-          rowBuffer={20}
+          rowBuffer={10}
           rowSelection="multiple"
           suppressRowClickSelection={false}
           copyHeadersToClipboard={true}
           suppressCopyRowsToClipboard={false}
+          suppressColumnVirtualisation={false}
+          suppressRowHoverHighlight={false}
+          suppressAnimationFrame={true}
         />
       </div>
 

@@ -1,21 +1,54 @@
 :root {
-  /* DataGrip Dark Theme Colors */
-  --bg-primary: #2b2b2b;
-  --bg-secondary: #3c3f41;
-  --bg-tertiary: #313335;
-  --bg-hover: #4e5254;
+  /* JetBrains New UI Dark Theme Colors */
+  /* Based on IntelliJ/DataGrip 2024 Dark theme */
 
-  --text-primary: #bbbbbb;
-  --text-secondary: #808080;
+  /* Background colors */
+  --bg-primary: #1e1f22; /* Main editor/content background */
+  --bg-secondary: #2b2d30; /* Panels, sidebars */
+  --bg-tertiary: #393b40; /* Elevated surfaces, inputs */
+  --bg-hover: #4b4d52; /* Hover state */
+  --bg-selected: #2d5377; /* Selected items */
+  --bg-toolbar: #2b2d30; /* Toolbar background */
 
-  --border-color: #323232;
-  --accent-color: #4a88c7;
+  /* Text colors */
+  --text-primary: #dfe1e5; /* Primary text */
+  --text-secondary: #8c8f94; /* Secondary/muted text */
+  --text-disabled: #5a5d63; /* Disabled text */
 
-  --error-color: #ff6b68;
-  --warning-color: #ffc66d;
-  --success-color: #6a8759;
+  /* Border colors */
+  --border-color: #393b40; /* Standard border */
+  --border-focused: #4a88c7; /* Focused element border */
 
-  --selection-bg: #214283;
+  /* Accent colors */
+  --accent-color: #4a88c7; /* Primary accent (blue) */
+  --accent-hover: #5a98d7; /* Accent hover */
+
+  /* Status colors */
+  --error-color: #f75464; /* Error/danger */
+  --warning-color: #e8a838; /* Warning */
+  --success-color: #57a64a; /* Success/green */
+  --info-color: #6cb0f6; /* Info */
+
+  /* Selection */
+  --selection-bg: #2d5377;
+
+  /* Specific UI elements */
+  --tab-active-bg: #1e1f22;
+  --tab-inactive-bg: #2b2d30;
+  --tree-selection-bg: #2d5377;
+  --button-primary-bg: #315d8c;
+  --button-primary-hover: #3d6d9c;
+  --execute-button-bg: #365d2b;
+  --execute-button-hover: #467d3b;
+
+  /* Scrollbar */
+  --scrollbar-track: #2b2d30;
+  --scrollbar-thumb: #4b4d52;
+  --scrollbar-thumb-hover: #5a5d63;
+
+  /* Icon colors */
+  --icon-color: #8c8f94;
+  --icon-color-hover: #dfe1e5;
 }
 
 * {
@@ -32,33 +65,41 @@ body {
 
 body {
   font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", "Meiryo UI", "Yu Gothic UI", Roboto, Oxygen,
-    Ubuntu, Cantarell, sans-serif;
+    Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "Meiryo UI", "Yu Gothic UI", Roboto,
+    Oxygen, Ubuntu, Cantarell, sans-serif;
   font-size: 13px;
+  line-height: 1.4;
   background-color: var(--bg-primary);
   color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
   height: 100%;
 }
 
+/* Scrollbar styling */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-tertiary);
+  background: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--bg-hover);
-  border-radius: 5px;
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #5a5d5f;
+  background: var(--scrollbar-thumb-hover);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--scrollbar-track);
 }
 
 ::selection {
@@ -71,4 +112,10 @@ button {
 
 input {
   font-family: inherit;
+}
+
+/* Focus visible for accessibility */
+:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: -2px;
 }

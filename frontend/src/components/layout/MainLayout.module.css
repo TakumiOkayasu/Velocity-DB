@@ -6,47 +6,99 @@
   color: var(--text-primary);
 }
 
+/* Toolbar - JetBrains New UI style */
 .toolbar {
   display: flex;
-  gap: 16px;
-  padding: 8px 12px;
-  background-color: var(--bg-secondary);
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px;
+  background-color: var(--bg-toolbar);
   border-bottom: 1px solid var(--border-color);
+  min-height: 40px;
 }
 
 .toolbarGroup {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 2px;
+}
+
+.toolbarDivider {
+  width: 1px;
+  height: 20px;
+  margin: 0 6px;
+  background-color: var(--border-color);
 }
 
 .toolbarGroup button {
-  padding: 4px 12px;
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background-color: transparent;
+  border: none;
+  border-radius: 6px;
   color: var(--text-primary);
   cursor: pointer;
   font-size: 12px;
+  font-weight: 400;
+  transition:
+    background-color 0.1s ease,
+    color 0.1s ease;
+  white-space: nowrap;
 }
 
 .toolbarGroup button:hover:not(:disabled) {
   background-color: var(--bg-hover);
 }
 
+.toolbarGroup button:active:not(:disabled) {
+  background-color: var(--bg-tertiary);
+}
+
 .toolbarGroup button:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-.executeButton {
-  background-color: #2d5a27;
-  border-color: #3d7a37;
+/* Icon button (no text) */
+.toolbarGroup button.iconButton {
+  padding: 6px;
+  min-width: 28px;
+  height: 28px;
 }
 
-.executeButton:hover:not(:disabled) {
-  background-color: #3d7a37;
+.iconButton svg {
+  width: 16px;
+  height: 16px;
+  color: var(--icon-color);
 }
 
+.iconButton:hover:not(:disabled) svg {
+  color: var(--icon-color-hover);
+}
+
+/* Execute button - green accent */
+.toolbarGroup button.executeButton {
+  background-color: var(--execute-button-bg);
+  color: var(--text-primary);
+}
+
+.toolbarGroup button.executeButton:hover:not(:disabled) {
+  background-color: var(--execute-button-hover);
+}
+
+.executeButton svg {
+  color: var(--success-color);
+}
+
+/* Toolbar spacer */
+.toolbarSpacer {
+  flex: 1;
+}
+
+/* Main content area */
 .mainContent {
   display: flex;
   flex: 1;
@@ -61,56 +113,94 @@
   min-height: 0;
 }
 
+/* Resizers */
 .verticalResizer {
-  width: 4px;
+  width: 1px;
   cursor: col-resize;
   background-color: var(--border-color);
+  transition: background-color 0.15s ease;
 }
 
 .verticalResizer:hover {
   background-color: var(--accent-color);
+  width: 3px;
+  margin: 0 -1px;
 }
 
 .horizontalResizer {
-  height: 4px;
+  height: 1px;
   cursor: row-resize;
   background-color: var(--border-color);
+  transition: background-color 0.15s ease;
 }
 
 .horizontalResizer:hover {
   background-color: var(--accent-color);
+  height: 3px;
+  margin: -1px 0;
 }
 
+/* Status bar - JetBrains New UI style */
 .statusBar {
   display: flex;
   justify-content: space-between;
-  padding: 4px 12px;
+  align-items: center;
+  padding: 2px 12px;
   background-color: var(--bg-secondary);
   border-top: 1px solid var(--border-color);
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-secondary);
+  min-height: 22px;
 }
 
 .statusLeft,
 .statusCenter,
 .statusRight {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   align-items: center;
 }
 
+.statusLeft {
+  flex: 1;
+}
+
+.statusCenter {
+  flex: 2;
+  justify-content: center;
+}
+
+.statusRight {
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.statusItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .statusReady {
-  color: #6a9955;
+  color: var(--success-color);
 }
 
 .statusExecuting {
-  color: #dcdcaa;
+  color: var(--warning-color);
 }
 
 .connected {
-  color: #4ec9b0;
+  color: var(--info-color);
 }
 
 .disconnected {
-  color: #808080;
+  color: var(--text-secondary);
+}
+
+/* Connection indicator dot */
+.connectionDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
 }

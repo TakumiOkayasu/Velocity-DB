@@ -72,31 +72,6 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
   const columnDefs = useMemo<ColDef[]>(() => {
     if (!resultSet) return [];
 
-    // Calculate optimal width for each column based on header and content (use larger)
-    const calculateColumnWidth = (colName: string, colIndex: number): number => {
-      const CHAR_WIDTH = 9; // Approximate character width in pixels (monospace)
-      const HEADER_PADDING = 48; // Header padding (includes sort/filter icons)
-      const CELL_PADDING = 24; // Cell padding
-      const MAX_WIDTH = 400;
-
-      // Calculate header width - this is the minimum width to show full header
-      const headerWidth = colName.length * CHAR_WIDTH + HEADER_PADDING;
-
-      // Find max content length from first 100 rows
-      let maxContentLength = 0;
-      const sampleSize = Math.min(resultSet.rows.length, 100);
-      for (let i = 0; i < sampleSize; i++) {
-        const cellValue = resultSet.rows[i][colIndex];
-        const displayValue = cellValue === null || cellValue === '' ? 'NULL' : cellValue;
-        maxContentLength = Math.max(maxContentLength, displayValue.length);
-      }
-      const contentWidth = maxContentLength * CHAR_WIDTH + CELL_PADDING;
-
-      // Use the larger of header width and content width (header is minimum)
-      const calculatedWidth = Math.max(headerWidth, contentWidth);
-      return Math.min(MAX_WIDTH, calculatedWidth);
-    };
-
     // Helper function to check if a column type is numeric
     const isNumericType = (typeName: string): boolean => {
       const numericTypes = [
@@ -119,20 +94,37 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
       return numericTypes.some((t) => lowerType.includes(t));
     };
 
-    return resultSet.columns.map((col, colIndex) => {
-      const isNumeric = isNumericType(col.type);
+    // Helper function to check if a column type is text
+    const isTextType = (typeName: string): boolean => {
+      const textTypes = ['char', 'varchar', 'nchar', 'nvarchar', 'text', 'ntext', 'string'];
+      const lowerType = typeName.toLowerCase();
+      return textTypes.some((t) => lowerType.includes(t));
+    };
+
+    // Determine text alignment based on column type
+    const getCellAlignment = (typeName: string): string => {
+      if (isNumericType(typeName)) {
+        return 'right'; // Numbers: right-align
+      }
+      if (isTextType(typeName)) {
+        return 'left'; // Text: left-align
+      }
+      return 'center'; // Others (date, time, etc.): center-align
+    };
+
+    return resultSet.columns.map((col) => {
+      const alignment = getCellAlignment(col.type);
 
       return {
         field: col.name,
         headerName: col.name,
         headerTooltip: `${col.name} (${col.type})`,
-        width: calculateColumnWidth(col.name, colIndex),
         sortable: true,
         filter: true,
-        resizable: false,
+        resizable: true,
         editable: isEditMode,
-        // Right-align numeric columns, left-align others (headers stay centered)
-        cellStyle: isNumeric ? { textAlign: 'right' } : { textAlign: 'left' },
+        // Align based on column type: numbers right, text left, others center
+        cellStyle: { textAlign: alignment },
         cellClass: (params: CellClassParams) => {
           const classes: string[] = [];
           const rowIndex = params.node?.rowIndex ?? -1;
@@ -165,23 +157,52 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     });
   }, [resultSet, isEditMode, getCellChange, isRowDeleted]);
 
+  // For large datasets, skip memoization to avoid memory overhead
   const rowData = useMemo(() => {
     if (!resultSet) return [];
-    return resultSet.rows.map((row, rowIndex) => {
+
+    const rows = resultSet.rows;
+    const cols = resultSet.columns;
+    const result = new Array(rows.length);
+
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+      const row = rows[rowIndex];
       const obj: Record<string, string | null> = {
         __rowIndex: String(rowIndex + 1),
       };
-      resultSet.columns.forEach((col, idx) => {
-        const value = row[idx];
-        obj[col.name] = value === '' || value === undefined ? null : value;
-      });
-      return obj;
-    });
+
+      for (let colIdx = 0; colIdx < cols.length; colIdx++) {
+        const value = row[colIdx];
+        obj[cols[colIdx].name] = value === '' || value === undefined ? null : value;
+      }
+
+      result[rowIndex] = obj;
+    }
+
+    return result;
   }, [resultSet]);
 
-  const onGridReady = useCallback((params: GridReadyEvent) => {
-    setGridApi(params.api);
-  }, []);
+  const onGridReady = useCallback(
+    (params: GridReadyEvent) => {
+      setGridApi(params.api);
+      // Auto-size all columns to fit content after grid is ready
+      // Skip auto-size for large datasets (>10000 rows) to improve performance
+      if (resultSet && resultSet.rows.length <= 10000) {
+        params.api.autoSizeAllColumns();
+      }
+    },
+    [resultSet]
+  );
+
+  // Auto-size columns when data changes (only for small datasets)
+  useEffect(() => {
+    if (gridApi && resultSet && resultSet.rows.length <= 10000) {
+      // Wait for rendering to complete, then auto-size all columns
+      requestAnimationFrame(() => {
+        gridApi.autoSizeAllColumns();
+      });
+    }
+  }, [gridApi, resultSet]);
 
   // Cleanup gridApi on unmount to prevent memory leaks
   useEffect(() => {
@@ -317,6 +338,12 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     revertAll,
     gridApi,
   ]);
+
+  const handleAutoSizeColumns = useCallback(() => {
+    if (gridApi) {
+      gridApi.autoSizeAllColumns();
+    }
+  }, [gridApi]);
 
   const handleCopySelection = useCallback(() => {
     if (!gridApi) return;
@@ -512,6 +539,14 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
         {applyError && <span className={styles.errorIndicator}>{applyError}</span>}
         <div className={styles.toolbarSpacer} />
         <button
+          onClick={handleAutoSizeColumns}
+          className={styles.toolbarButton}
+          disabled={!gridApi}
+          title="Auto-size All Columns"
+        >
+          Resize Columns
+        </button>
+        <button
           onClick={() => setIsExportDialogOpen(true)}
           className={styles.toolbarButton}
           title="Export Data"
@@ -562,15 +597,15 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
           defaultColDef={{
             sortable: true,
             filter: true,
-            resizable: false,
+            resizable: true,
             suppressMovable: true,
           }}
           onGridReady={onGridReady}
           onCellValueChanged={onCellValueChanged}
           enableCellTextSelection={!isEditMode}
-          ensureDomOrder={true}
+          ensureDomOrder={false}
           animateRows={false}
-          rowBuffer={20}
+          rowBuffer={10}
           rowSelection="multiple"
           suppressRowClickSelection={false}
           suppressCellFocus={false}
@@ -579,8 +614,10 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
           suppressCopyRowsToClipboard={false}
           stopEditingWhenCellsLoseFocus={true}
           singleClickEdit={false}
-          suppressColumnVirtualisation={true}
+          suppressColumnVirtualisation={false}
           suppressMovableColumns={true}
+          suppressRowHoverHighlight={false}
+          suppressAnimationFrame={true}
         />
       </div>
       <div className={styles.statusBar}>
