@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { bridge } from '../api/bridge';
 import type { Query, ResultSet } from '../types';
+import { useConnectionStore } from './connectionStore';
 
 interface QueryState {
   queries: Query[];
@@ -232,6 +233,9 @@ export const useQueryStore = create<QueryState>((set, get) => ({
       return;
     }
 
+    // Start timing from when user clicks table
+    const startTime = performance.now();
+
     const id = `query-${++queryCounter}`;
     const sql = `SELECT * FROM ${tableName}`;
     const newQuery: Query = {
@@ -257,6 +261,13 @@ export const useQueryStore = create<QueryState>((set, get) => ({
         DEFAULT_QUERY_TIMEOUT_MS,
         'Query execution timed out after 5 minutes'
       );
+
+      // Calculate total time from click to display
+      const endTime = performance.now();
+      const totalTimeMs = endTime - startTime;
+
+      // Store the table open time in connection store
+      useConnectionStore.getState().setTableOpenTime(connectionId, totalTimeMs);
 
       const resultSet: ResultSet = {
         columns: result.columns.map((c) => ({

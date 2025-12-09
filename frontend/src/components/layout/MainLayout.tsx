@@ -416,9 +416,12 @@ export function MainLayout() {
             <span className={styles.connectionDot} />
             {isExecuting ? 'Executing...' : 'Ready'}
           </span>
-          {activeConnection?.tableListLoadTimeMs !== undefined && (
-            <span className={styles.statusItem} title="テーブル一覧の読み込み時間">
-              | Tables: {activeConnection.tableListLoadTimeMs.toFixed(1)}ms
+          {activeConnection?.tableOpenTimeMs !== undefined && (
+            <span
+              className={styles.statusItem}
+              title="テーブルを開くのにかかった時間（クリックから表示まで）"
+            >
+              | Open: {activeConnection.tableOpenTimeMs.toFixed(1)}ms
             </span>
           )}
         </div>

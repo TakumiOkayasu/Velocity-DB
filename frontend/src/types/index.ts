@@ -9,6 +9,7 @@ export interface Connection {
   password: string;
   useWindowsAuth: boolean;
   tableListLoadTimeMs?: number; // Time taken to load table list
+  tableOpenTimeMs?: number; // Time taken to open a table (click to display)
 }
 
 // Query types
