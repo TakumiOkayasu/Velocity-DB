@@ -115,6 +115,31 @@ class Bridge {
     return this.call('executeQuery', { connectionId, sql, useCache });
   }
 
+  async executeQueryPaginated(
+    connectionId: string,
+    sql: string,
+    startRow: number,
+    endRow: number,
+    sortModel?: Array<{ colId: string; sort: 'asc' | 'desc' }>
+  ): Promise<{
+    columns: { name: string; type: string }[];
+    rows: string[][];
+    affectedRows: number;
+    executionTimeMs: number;
+  }> {
+    return this.call('executeQueryPaginated', {
+      connectionId,
+      sql,
+      startRow,
+      endRow,
+      sortModel,
+    });
+  }
+
+  async getRowCount(connectionId: string, sql: string): Promise<{ rowCount: number }> {
+    return this.call('getRowCount', { connectionId, sql });
+  }
+
   async cancelQuery(connectionId: string): Promise<void> {
     return this.call('cancelQuery', { connectionId });
   }

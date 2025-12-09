@@ -51,6 +51,8 @@ private:
 
     // Query execution operations
     [[nodiscard]] std::string executeSQL(std::string_view params);
+    [[nodiscard]] std::string executeSQLPaginated(std::string_view params);
+    [[nodiscard]] std::string getRowCount(std::string_view params);
     [[nodiscard]] std::string cancelRunningQuery(std::string_view params);
 
     // Async query operations

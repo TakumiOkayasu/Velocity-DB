@@ -135,6 +135,8 @@ void IPCHandler::registerRequestRoutes() {
     m_requestRoutes["disconnect"] = [this](std::string_view p) { return closeDatabaseConnection(p); };
     m_requestRoutes["testConnection"] = [this](std::string_view p) { return verifyDatabaseConnection(p); };
     m_requestRoutes["executeQuery"] = [this](std::string_view p) { return executeSQL(p); };
+    m_requestRoutes["executeQueryPaginated"] = [this](std::string_view p) { return executeSQLPaginated(p); };
+    m_requestRoutes["getRowCount"] = [this](std::string_view p) { return getRowCount(p); };
     m_requestRoutes["cancelQuery"] = [this](std::string_view p) { return cancelRunningQuery(p); };
     m_requestRoutes["getTables"] = [this](std::string_view p) { return fetchTableList(p); };
     m_requestRoutes["getColumns"] = [this](std::string_view p) { return fetchColumnDefinitions(p); };
@@ -2186,6 +2188,112 @@ std::string IPCHandler::fetchTableDDL(std::string_view params) {
         ddl += "\n);";
 
         std::string json = std::format("{{\"ddl\":\"{}\"}}", JsonUtils::escapeString(ddl));
+        return JsonUtils::successResponse(json);
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string IPCHandler::executeSQLPaginated(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        simdjson::dom::element doc = parser.parse(params);
+
+        auto connectionIdResult = doc["connectionId"].get_string();
+        auto sqlQueryResult = doc["sql"].get_string();
+        if (connectionIdResult.error() || sqlQueryResult.error()) [[unlikely]] {
+            return JsonUtils::errorResponse("Missing required fields: connectionId or sql");
+        }
+        auto connectionId = std::string(connectionIdResult.value());
+        auto sqlQuery = std::string(sqlQueryResult.value());
+
+        // Extract pagination parameters
+        int64_t startRow = 0;
+        int64_t endRow = 100;  // Default: 100 rows
+        if (auto startRowOpt = doc["startRow"].get_int64(); !startRowOpt.error()) {
+            startRow = startRowOpt.value();
+        }
+        if (auto endRowOpt = doc["endRow"].get_int64(); !endRowOpt.error()) {
+            endRow = endRowOpt.value();
+        }
+
+        // Extract sort model (optional)
+        std::string orderByClause;
+        if (auto sortModel = doc["sortModel"].get_array(); !sortModel.error()) {
+            std::string sortClauses;
+            for (auto item : sortModel.value()) {
+                auto colId = item["colId"].get_string();
+                auto sort = item["sort"].get_string();
+                if (!colId.error() && !sort.error()) {
+                    if (!sortClauses.empty())
+                        sortClauses += ", ";
+                    sortClauses += std::string(colId.value()) + " " + (sort.value() == std::string_view("asc") ? "ASC" : "DESC");
+                }
+            }
+            if (!sortClauses.empty()) {
+                orderByClause = " ORDER BY " + sortClauses;
+            }
+        }
+
+        auto connection = m_activeConnections.find(connectionId);
+        if (connection == m_activeConnections.end()) [[unlikely]] {
+            return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
+        }
+
+        auto& driver = connection->second;
+
+        // Build paginated query using SQL Server OFFSET/FETCH
+        // Note: OFFSET/FETCH requires ORDER BY clause
+        std::string paginatedQuery;
+        if (orderByClause.empty()) {
+            // No sort specified - use a default order (e.g., by first column or row number)
+            paginatedQuery = std::format("{} ORDER BY (SELECT NULL) OFFSET {} ROWS FETCH NEXT {} ROWS ONLY", sqlQuery, startRow, endRow - startRow);
+        } else {
+            paginatedQuery = std::format("{}{} OFFSET {} ROWS FETCH NEXT {} ROWS ONLY", sqlQuery, orderByClause, startRow, endRow - startRow);
+        }
+
+        ResultSet queryResult = driver->execute(paginatedQuery);
+
+        std::string jsonResponse = JsonUtils::serializeResultSet(queryResult, false);
+
+        return JsonUtils::successResponse(jsonResponse);
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string IPCHandler::getRowCount(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        simdjson::dom::element doc = parser.parse(params);
+
+        auto connectionIdResult = doc["connectionId"].get_string();
+        auto sqlQueryResult = doc["sql"].get_string();
+        if (connectionIdResult.error() || sqlQueryResult.error()) [[unlikely]] {
+            return JsonUtils::errorResponse("Missing required fields: connectionId or sql");
+        }
+        auto connectionId = std::string(connectionIdResult.value());
+        auto sqlQuery = std::string(sqlQueryResult.value());
+
+        auto connection = m_activeConnections.find(connectionId);
+        if (connection == m_activeConnections.end()) [[unlikely]] {
+            return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
+        }
+
+        auto& driver = connection->second;
+
+        // Wrap query in SELECT COUNT(*) to get total row count
+        auto countQuery = std::format("SELECT COUNT(*) AS total_rows FROM ({}) AS subquery", sqlQuery);
+
+        ResultSet queryResult = driver->execute(countQuery);
+
+        if (queryResult.rows.empty() || queryResult.rows[0].values.empty()) {
+            return JsonUtils::errorResponse("Failed to get row count");
+        }
+
+        auto rowCount = queryResult.rows[0].values[0];
+        auto json = std::format("{{\"rowCount\":{}}}", rowCount);
+
         return JsonUtils::successResponse(json);
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
