@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*'
 
+# Default permissions (read-only)
+permissions:
+  contents: read
+
 jobs:
   # Build frontend first (faster, can fail fast)
   build-frontend:

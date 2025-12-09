@@ -11,6 +11,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Default permissions (read-only)
+permissions:
+  contents: read
+
 jobs:
   # Fast lint checks on Linux (free tier friendly)
   lint:

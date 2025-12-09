@@ -9,6 +9,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Default permissions (read-only)
+permissions:
+  contents: read
+
 jobs:
   # Semgrep: Fast pattern-based security scanning
   semgrep:
