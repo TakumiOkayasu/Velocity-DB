@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Dummy .NET project file to satisfy GitHub's automatic dependency submission workflow.
+
+    Pre-DateGrip is a C++ project and does not use .NET.
+    This file exists solely to prevent the automatic .NET dependency submission
+    workflow from failing when it searches for .csproj files.
+
+    This project is not built and has no actual dependencies.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultItems>false</EnableDefaultItems>
+  </PropertyGroup>
+
+  <!-- No dependencies -->
+  <ItemGroup />
+
+</Project>
