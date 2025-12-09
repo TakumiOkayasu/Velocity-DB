@@ -1,9 +1,7 @@
 name: Security Scan
 
 on:
-  schedule:
-    # Run daily at JST 00:00 (UTC 15:00)
-    - cron: '0 15 * * *'
+  # Manual trigger only to save minutes (remove daily schedule)
   workflow_dispatch:
 
 # Cancel in-progress runs for the same branch
@@ -162,7 +160,7 @@ jobs:
 
             console.log(`Created ${createdCount} new issues`)
 
-  # CodeQL: Deep semantic analysis
+  # CodeQL: Deep semantic analysis (optional, can be skipped)
   codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
@@ -175,8 +173,6 @@ jobs:
       fail-fast: false
       matrix:
         language: ['javascript-typescript']
-        # Note: C++ analysis requires Windows SDK headers
-        # Full C++ analysis runs on Windows in separate workflow if needed
 
     steps:
       - uses: actions/checkout@v4
@@ -205,8 +201,6 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"
-          # Disable upload since Code Scanning is not enabled for this repository
-          # To enable: Repository Settings -> Security -> Code security and analysis -> Code scanning
           upload: false
 
   # Summary job
