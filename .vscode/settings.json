@@ -1,4 +1,8 @@
 {
+  "cmake.useCMakePresets": "always",
+  "cmake.defaultBuildPreset": "release",
+  "cmake.defaultConfigurePreset": "release",
+  "cmake.defaultTestPreset": "release",
   "cmake.generator": "Ninja",
   "cmake.configureSettings": {
     "CMAKE_BUILD_TYPE": "Release"
@@ -7,5 +11,6 @@
   "cmake.preferredGenerators": [
     "Ninja",
     "Unix Makefiles"
-  ]
+  ],
+  "cmake.configureOnOpen": false
 }

@@ -85,6 +85,43 @@ uv run scripts/package.py
 - CI/CD環境との一貫性を保証
 - プロジェクトルートからの統一的な実行方法
 
+### VSCode CMake Tools使用時の注意事項
+
+**重要**: VSCodeでCMake Toolsを使用する場合、必ず**Developer Command Prompt for VS 2022**からVSCodeを起動してください。
+
+#### 正しい起動方法
+
+1. **スタートメニュー** → **Visual Studio 2022** → **Developer Command Prompt for VS 2022** を起動
+2. プロンプトで以下を実行:
+   ```cmd
+   cd D:\prog\Pre-DateGrip
+   code .
+   ```
+
+これにより、MSVC環境変数（`INCLUDE`, `LIB`, `PATH`等）が正しく設定された状態でVSCodeが起動します。
+
+#### CMake Presetsの使用
+
+- `CMakePresets.json`でNinjaジェネレータとMSVCコンパイラ（cl.exe）を指定済み
+- VSCode CMake Toolsは自動的にpresetsを認識
+- コマンドパレット（Ctrl+Shift+P）から：
+  - `CMake: Select Configure Preset` → `debug` または `release`
+  - `CMake: Configure`
+  - `CMake: Build`
+
+#### トラブルシューティング
+
+通常のコマンドプロンプトやPowerShellからVSCodeを起動すると、以下のエラーが発生します：
+```
+CMake Error: Generator Visual Studio 17 2022 could not find any instance of Visual Studio.
+```
+または
+```
+lld-link: error: could not open 'msvcrtd.lib': no such file or directory
+```
+
+**解決方法**: Developer Command Promptから起動し直すか、`uv run scripts/build_backend.py`を使用してください。
+
 ## Current Status
 
 All phases (0-7) are complete. The project includes:

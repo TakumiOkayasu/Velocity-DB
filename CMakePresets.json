@@ -1,58 +1,89 @@
 {
-  "version": 3,
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
   "configurePresets": [
     {
-      "name": "windows-base",
+      "name": "ninja-base",
       "hidden": true,
-      "generator": "Visual Studio 17 2022",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
       "architecture": {
         "value": "x64",
-        "strategy": "set"
+        "strategy": "external"
       },
-      "binaryDir": "${sourceDir}/build",
+      "toolset": {
+        "value": "host=x64",
+        "strategy": "external"
+      },
       "cacheVariables": {
-        "CMAKE_CXX_STANDARD": "20",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "CMAKE_CXX_STANDARD": "23",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "BUILD_TESTS": "ON",
         "ENABLE_SIMD": "ON"
       }
     },
     {
-      "name": "x64-debug",
-      "displayName": "x64 Debug",
-      "inherits": "windows-base",
+      "name": "debug",
+      "displayName": "Debug (Ninja)",
+      "description": "Debug build with Ninja generator",
+      "inherits": "ninja-base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
       }
     },
     {
-      "name": "x64-release",
-      "displayName": "x64 Release",
-      "inherits": "windows-base",
+      "name": "release",
+      "displayName": "Release (Ninja)",
+      "description": "Release build with Ninja generator",
+      "inherits": "ninja-base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "release-no-tests",
+      "displayName": "Release No Tests (Ninja)",
+      "description": "Release build without tests",
+      "inherits": "ninja-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTS": "OFF"
       }
     }
   ],
   "buildPresets": [
     {
-      "name": "x64-debug-build",
-      "displayName": "x64 Debug Build",
-      "configurePreset": "x64-debug",
+      "name": "debug",
+      "displayName": "Debug Build",
+      "configurePreset": "debug",
       "configuration": "Debug"
     },
     {
-      "name": "x64-release-build",
-      "displayName": "x64 Release Build",
-      "configurePreset": "x64-release",
+      "name": "release",
+      "displayName": "Release Build",
+      "configurePreset": "release",
       "configuration": "Release"
     }
   ],
   "testPresets": [
     {
-      "name": "x64-debug-test",
-      "displayName": "x64 Debug Test",
-      "configurePreset": "x64-debug",
-      "configuration": "Debug",
+      "name": "debug",
+      "displayName": "Debug Tests",
+      "configurePreset": "debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release Tests",
+      "configurePreset": "release",
       "output": {
         "outputOnFailure": true
       }
