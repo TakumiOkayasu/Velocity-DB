@@ -110,7 +110,7 @@ cd ..
 # Run C++ build
 echo ""
 echo "[C++] Running build..."
-$RUN_CMD scripts/build.py Release
+$RUN_CMD scripts/build_backend.py Release
 if [ $? -ne 0 ]; then
     echo ""
     echo "=========================================="
