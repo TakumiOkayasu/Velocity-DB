@@ -113,6 +113,7 @@ uv run scripts/package.py
 ```
 
 **ビルドパフォーマンス:**
+
 - 初回ビルド: 1.5-2分
 - インクリメンタルビルド（変更なし）: 5-10秒
 - インクリメンタルビルド（1ファイル変更）: 20-30秒
@@ -142,30 +143,76 @@ Pre-DateGrip/
 
 ### 開発コマンド
 
+すべての開発コマンドはPythonスクリプト経由で実行できます。
+
+#### バックエンド（C++）
+
 ```bash
-# フロントエンド開発サーバー（ホットリロード）
-cd frontend
-bun run dev
-
-# Lint/Format
-bun run lint          # Biomeによるチェック
-bun run lint:fix      # 自動修正
-bun run format        # フォーマットのみ
-
-# TypeScript型チェック
-bun run typecheck
+# ビルド
+uv run scripts/build_backend.py Debug           # Debugビルド
+uv run scripts/build_backend.py Release         # Releaseビルド
+uv run scripts/build_backend.py Release --clean # クリーンビルド
 
 # テスト
-bun run test
+uv run scripts/test_backend.py Debug
+uv run scripts/test_backend.py Release
 
-# キャッシュ削除
-bun pm cache rm
+# Lint/Format/Build（一括）
+uv run scripts/cpp_check.py all Release    # 全チェック
+uv run scripts/cpp_check.py format         # フォーマットのみ
+uv run scripts/cpp_check.py lint           # Lintのみ
+uv run scripts/cpp_check.py build Release  # ビルドのみ
+```
 
-# C++ Lint/Format/Build（一括）
-uv run scripts/cpp_check.py all Release
+#### フロントエンド（React/TypeScript）
 
-# 全体チェック（C++ + Frontend）
+```bash
+# 開発サーバー（ホットリロード）
+uv run scripts/dev.py
+
+# テスト
+uv run scripts/test_frontend.py        # 1回実行
+uv run scripts/test_frontend.py --watch # Watchモード
+
+# Lint
+uv run scripts/lint_frontend.py        # チェックのみ
+uv run scripts/lint_frontend.py --fix  # 自動修正
+```
+
+#### 全体チェック
+
+```bash
+# C++ + Frontend 全体チェック
 uv run scripts/check_all.py Release
+
+# Lint全体（C++ + Frontend）
+uv run scripts/run_lint.py
+
+# EOL変換
+uv run scripts/convert_eol.py lf frontend/src   # LFに変換
+uv run scripts/convert_eol.py crlf src          # CRLFに変換
+
+# パッケージ作成
+uv run scripts/package.py
+```
+
+#### 直接Bunを使う場合（オプション）
+
+フロントエンド開発では、以下のコマンドも直接使用可能です：
+
+```bash
+cd frontend
+
+# 開発
+bun run dev          # 開発サーバー
+bun run test         # テスト
+bun run lint         # Lint
+bun run lint:fix     # 自動修正
+bun run typecheck    # 型チェック
+
+# その他
+bun run format       # フォーマット
+bun pm cache rm      # キャッシュ削除
 ```
 
 ### 開発TODO

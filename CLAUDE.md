@@ -27,7 +27,14 @@ uv run scripts/test_backend.py Debug
 # Frontend (React) - uses Bun
 uv run scripts/build_frontend.py      # Build frontend (auto-detects Bun/npm)
 
-# Only for frontend development (hot reload) - direct Bun usage allowed
+# Frontend development - Python scripts (recommended)
+uv run scripts/dev.py                 # Development server (localhost:5173)
+uv run scripts/test_frontend.py       # Run tests
+uv run scripts/test_frontend.py --watch # Run tests (watch mode)
+uv run scripts/lint_frontend.py       # Lint code (Biome)
+uv run scripts/lint_frontend.py --fix # Auto-fix lint issues
+
+# Frontend development - direct Bun usage (optional)
 cd frontend
 bun install                   # Install dependencies
 bun run dev                   # Development server (localhost:5173)
@@ -60,7 +67,12 @@ uv run scripts/package.py
 - パッケージング → `uv run scripts/package.py`
 - 全体チェック → `uv run scripts/check_all.py`, `uv run scripts/run_lint.py`
 
-**直接実行が許可される場合:**
+**Pythonスクリプト推奨（フロントエンド開発）:**
+- 開発サーバー: `uv run scripts/dev.py`
+- テスト: `uv run scripts/test_frontend.py`
+- Lint: `uv run scripts/lint_frontend.py`
+
+**直接実行が許可される場合（オプション）:**
 - フロントエンド開発サーバー: `cd frontend && bun run dev`
 - フロントエンドのテスト: `cd frontend && bun run test`
 - フロントエンドのLint: `cd frontend && bun run lint`
@@ -69,7 +81,9 @@ uv run scripts/package.py
 - ビルドスクリプトはMSVC環境を自動検出・設定
 - インクリメンタルビルドとクリーンビルドの管理
 - Precompiled Headers (PCH) と ccache の最適化を適用
+- Bunの存在確認と依存関係の自動インストール
 - CI/CD環境との一貫性を保証
+- プロジェクトルートからの統一的な実行方法
 
 ## Current Status
 
