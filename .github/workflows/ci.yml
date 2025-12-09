@@ -183,7 +183,7 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: backend-build
-          path: build/src/
+          path: build/Release/
           retention-days: 7
 
   # Package - only when backend is built (main branch only)

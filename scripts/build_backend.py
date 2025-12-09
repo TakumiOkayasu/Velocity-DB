@@ -208,10 +208,15 @@ def clear_build_cache(build_dir: Path) -> None:
 
 def find_executable(build_dir: Path, build_type: str) -> Path | None:
     """Find the built executable."""
-    # Possible locations
+    # Primary location: build/[Debug|Release]/PreDateGrip.exe
+    primary_location = build_dir / build_type / "PreDateGrip.exe"
+    if primary_location.exists():
+        return primary_location
+
+    # Fallback locations (for backwards compatibility or different generators)
     candidates = [
+        build_dir / "src" / "PreDateGrip.exe",
         build_dir / "PreDateGrip.exe",
-        build_dir / build_type / "PreDateGrip.exe",
         build_dir / "bin" / "PreDateGrip.exe",
         build_dir / "bin" / build_type / "PreDateGrip.exe",
     ]
@@ -220,7 +225,7 @@ def find_executable(build_dir: Path, build_type: str) -> Path | None:
         if candidate.exists():
             return candidate
 
-    # Search recursively
+    # Search recursively as last resort
     for exe in build_dir.rglob("PreDateGrip.exe"):
         return exe
 

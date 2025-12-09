@@ -151,15 +151,17 @@ def main():
     dist_dir.mkdir()
     (dist_dir / "frontend").mkdir()
 
-    # Find executable
-    exe_path = None
-    for exe in build_dir.rglob("PreDateGrip.exe"):
-        exe_path = exe
-        break
-
-    if not exe_path:
-        print("ERROR: Could not find PreDateGrip.exe")
-        sys.exit(1)
+    # Find executable (primary location: build/Release/PreDateGrip.exe)
+    exe_path = build_dir / "Release" / "PreDateGrip.exe"
+    if not exe_path.exists():
+        # Fallback: search in build directory
+        for exe in build_dir.rglob("PreDateGrip.exe"):
+            exe_path = exe
+            break
+        else:
+            print("ERROR: Could not find PreDateGrip.exe")
+            print(f"Expected location: {build_dir / 'Release' / 'PreDateGrip.exe'}")
+            sys.exit(1)
 
     # Copy executable
     shutil.copy(exe_path, dist_dir / "PreDateGrip.exe")
