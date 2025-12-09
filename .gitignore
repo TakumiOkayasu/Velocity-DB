@@ -32,6 +32,9 @@ Release/
 # VSCode
 .vscode/
 
+# claude
+.claude/
+
 # CMake
 CMakeCache.txt
 CMakeFiles/
