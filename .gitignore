@@ -29,8 +29,13 @@ x64/
 Debug/
 Release/
 
-# VSCode
-.vscode/
+# VSCode (keep settings, ignore local state)
+.vscode/*
+!.vscode/settings.json
+!.vscode/cmake-kits.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
 
 # claude
 .claude/
@@ -60,7 +65,6 @@ frontend/coverage/
 *.swp
 *.swo
 *~
-.vscode/
 
 # OS
 .DS_Store
