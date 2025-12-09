@@ -246,52 +246,22 @@ export const useQueryStore = create<QueryState>((set, get) => ({
       isDirty: false,
       sourceTable: tableName,
       isDataView: true,
+      useServerSideRowModel: true, // Enable server-side row model for table data
     };
 
     set((state) => ({
       queries: [...state.queries, newQuery],
       activeQueryId: id,
-      isExecuting: true,
+      isExecuting: false, // Server-side mode: no initial load
       error: null,
     }));
 
-    try {
-      const result = await withTimeout(
-        bridge.executeQuery(connectionId, sql),
-        DEFAULT_QUERY_TIMEOUT_MS,
-        'Query execution timed out after 5 minutes'
-      );
-
-      // Calculate total time from click to display
-      const endTime = performance.now();
-      const totalTimeMs = endTime - startTime;
-
-      // Store the table open time in connection store
-      useConnectionStore.getState().setTableOpenTime(connectionId, totalTimeMs);
-
-      const resultSet: ResultSet = {
-        columns: result.columns.map((c) => ({
-          name: c.name,
-          type: c.type,
-          size: 0,
-          nullable: true,
-          isPrimaryKey: false,
-        })),
-        rows: result.rows,
-        affectedRows: result.affectedRows,
-        executionTimeMs: result.executionTimeMs,
-      };
-
-      set((state) => ({
-        results: { ...state.results, [id]: resultSet },
-        isExecuting: false,
-      }));
-    } catch (error) {
-      set({
-        isExecuting: false,
-        error: error instanceof Error ? error.message : 'Failed to load table data',
-      });
-    }
+    // For server-side row model, we don't fetch data immediately
+    // Data will be fetched by AG Grid's datasource on demand
+    // Just measure the time to set up the query
+    const endTime = performance.now();
+    const totalTimeMs = endTime - startTime;
+    useConnectionStore.getState().setTableOpenTime(connectionId, totalTimeMs);
   },
 
   applyWhereFilter: async (id, connectionId, whereClause) => {

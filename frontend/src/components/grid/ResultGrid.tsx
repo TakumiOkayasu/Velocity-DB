@@ -5,6 +5,8 @@ import type {
   GridApi,
   GridReadyEvent,
   IRowNode,
+  IServerSideDatasource,
+  IServerSideGetRowsParams,
 } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -68,9 +70,15 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
   const [applyError, setApplyError] = useState<string | null>(null);
 
   const resultSet = targetQueryId ? (results[targetQueryId] ?? null) : null;
+  const currentQuery = queries.find((q) => q.id === targetQueryId);
+  const useServerSide = currentQuery?.useServerSideRowModel ?? false;
+  const [totalRows, setTotalRows] = useState<number | undefined>(undefined);
 
   const columnDefs = useMemo<ColDef[]>(() => {
-    if (!resultSet) return [];
+    if (!resultSet && !useServerSide) return [];
+
+    // For server-side mode without initial result, return empty until first data arrives
+    if (useServerSide && !resultSet) return [];
 
     // Helper function to check if a column type is numeric
     const isNumericType = (typeName: string): boolean => {
@@ -111,6 +119,8 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
       }
       return 'center'; // Others (date, time, etc.): center-align
     };
+
+    if (!resultSet) return [];
 
     return resultSet.columns.map((col) => {
       const alignment = getCellAlignment(col.type);
@@ -155,7 +165,7 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
         },
       };
     });
-  }, [resultSet, isEditMode, getCellChange, isRowDeleted]);
+  }, [resultSet, isEditMode, getCellChange, isRowDeleted, useServerSide]);
 
   // For large datasets, skip memoization to avoid memory overhead
   const rowData = useMemo(() => {
@@ -182,16 +192,112 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     return result;
   }, [resultSet]);
 
+  // Create server-side datasource for paginated data loading
+  const createServerSideDatasource = useCallback((): IServerSideDatasource => {
+    return {
+      getRows: async (params: IServerSideGetRowsParams) => {
+        if (!activeConnectionId || !currentQuery?.content) {
+          params.fail();
+          return;
+        }
+
+        try {
+          const startRow = params.request.startRow ?? 0;
+          const endRow = params.request.endRow ?? 100;
+
+          // Convert AG Grid sort model to backend format
+          const sortModel = params.request.sortModel.map((sort) => ({
+            colId: sort.colId,
+            sort: sort.sort as 'asc' | 'desc',
+          }));
+
+          // Fetch paginated data
+          const result = await bridge.executeQueryPaginated(
+            activeConnectionId,
+            currentQuery.content,
+            startRow,
+            endRow,
+            sortModel.length > 0 ? sortModel : undefined
+          );
+
+          // Store columns in resultSet for the first request
+          if (startRow === 0) {
+            const resultSet = {
+              columns: result.columns.map((c) => ({
+                name: c.name,
+                type: c.type,
+                size: 0,
+                nullable: true,
+                isPrimaryKey: false,
+              })),
+              rows: result.rows,
+              affectedRows: result.affectedRows,
+              executionTimeMs: result.executionTimeMs,
+            };
+
+            // Update results in store so columnDefs can be generated
+            if (targetQueryId) {
+              useQueryStore.setState((state) => ({
+                results: { ...state.results, [targetQueryId]: resultSet },
+              }));
+            }
+
+            // Fetch total row count (only on first load)
+            if (totalRows === undefined) {
+              bridge
+                .getRowCount(activeConnectionId, currentQuery.content)
+                .then((countResult) => {
+                  setTotalRows(countResult.rowCount);
+                })
+                .catch(console.error);
+            }
+          }
+
+          // Convert rows to AG Grid format
+          const rowData = result.rows.map((row, index) => {
+            const obj: Record<string, string | null> = {
+              __rowIndex: String(startRow + index + 1),
+            };
+            for (let colIdx = 0; colIdx < result.columns.length; colIdx++) {
+              const value = row[colIdx];
+              obj[result.columns[colIdx].name] = value === '' || value === undefined ? null : value;
+            }
+            return obj;
+          });
+
+          // Determine last row
+          const lastRow =
+            totalRows ??
+            (result.rows.length < endRow - startRow ? startRow + result.rows.length : undefined);
+
+          params.success({
+            rowData,
+            rowCount: lastRow,
+          });
+        } catch (error) {
+          console.error('Server-side datasource error:', error);
+          params.fail();
+        }
+      },
+    };
+  }, [activeConnectionId, currentQuery, targetQueryId, totalRows]);
+
   const onGridReady = useCallback(
     (params: GridReadyEvent) => {
       setGridApi(params.api);
-      // Auto-size all columns to fit content after grid is ready
-      // Skip auto-size for large datasets (>10000 rows) to improve performance
-      if (resultSet && resultSet.rows.length <= 10000) {
-        params.api.autoSizeAllColumns();
+
+      // Set server-side datasource for server-side row model
+      if (useServerSide) {
+        params.api.setGridOption('serverSideDatasource', createServerSideDatasource());
+      } else {
+        // Auto-size all columns to fit content after grid is ready
+        // Skip auto-size for large datasets (>10000 rows) to improve performance
+        if (resultSet && resultSet.rows.length <= 10000) {
+          params.api.autoSizeAllColumns();
+        }
       }
     },
-    [resultSet]
+    [resultSet, useServerSide, createServerSideDatasource]
   );
 
   // Auto-size columns when data changes (only for small datasets)
@@ -593,10 +699,13 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
           ref={gridRef}
           theme={darkTheme}
           columnDefs={columnDefs}
-          rowData={rowData}
+          rowData={useServerSide ? undefined : rowData}
+          rowModelType={useServerSide ? 'serverSide' : 'clientSide'}
+          cacheBlockSize={100}
+          maxBlocksInCache={10}
           defaultColDef={{
             sortable: true,
-            filter: true,
+            filter: !useServerSide,
             resizable: true,
             suppressMovable: true,
           }}
@@ -621,13 +730,23 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
         />
       </div>
       <div className={styles.statusBar}>
-        <span>{resultSet.rows.length} rows</span>
-        <span>|</span>
-        <span>{resultSet.executionTimeMs.toFixed(2)} ms</span>
-        {resultSet.affectedRows > 0 && (
+        {useServerSide ? (
+          <span>
+            {totalRows !== undefined
+              ? `${totalRows.toLocaleString()} rows (server-side)`
+              : 'Loading...'}
+          </span>
+        ) : (
           <>
+            <span>{resultSet?.rows.length ?? 0} rows</span>
             <span>|</span>
-            <span>{resultSet.affectedRows} affected</span>
+            <span>{resultSet?.executionTimeMs.toFixed(2) ?? 0} ms</span>
+            {resultSet && resultSet.affectedRows > 0 && (
+              <>
+                <span>|</span>
+                <span>{resultSet.affectedRows} affected</span>
+              </>
+            )}
           </>
         )}
         {isEditMode && <span className={styles.editModeIndicator}>EDIT MODE</span>}

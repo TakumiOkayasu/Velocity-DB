@@ -21,6 +21,7 @@ export interface Query {
   isDirty: boolean;
   sourceTable?: string; // Table name when opened from Object Tree (for WHERE filter)
   isDataView?: boolean; // True when viewing table data (show grid instead of editor)
+  useServerSideRowModel?: boolean; // Use AG Grid Server-Side Row Model for large tables
 }
 
 // Result types
