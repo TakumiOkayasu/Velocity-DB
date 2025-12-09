@@ -171,7 +171,7 @@ jobs:
         run: ccache -s
 
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build build --config Release --parallel
 
       - name: ccache stats (after)
         run: ccache -s
