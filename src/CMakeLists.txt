@@ -22,6 +22,7 @@ set(LIB_SOURCES
     utils/session_manager.cpp
     utils/global_search.cpp
     utils/credential_protector.cpp
+    utils/logger.cpp
 )
 
 set(HEADERS
@@ -48,6 +49,7 @@ set(HEADERS
     utils/session_manager.h
     utils/global_search.h
     utils/credential_protector.h
+    utils/logger.h
 )
 
 # Create a static library for the core functionality

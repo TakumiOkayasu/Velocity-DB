@@ -16,6 +16,7 @@
 #include "simdjson.h"
 #include "utils/global_search.h"
 #include "utils/json_utils.h"
+#include "utils/logger.h"
 #include "utils/session_manager.h"
 #include "utils/settings_manager.h"
 #include "utils/simd_filter.h"
@@ -23,6 +24,8 @@
 #include <chrono>
 #include <format>
 #include <fstream>
+
+using namespace std::literals;
 
 namespace predategrip {
 
@@ -175,6 +178,7 @@ void IPCHandler::registerRequestRoutes() {
     m_requestRoutes["getTriggers"] = [this](std::string_view p) { return fetchTriggers(p); };
     m_requestRoutes["getTableMetadata"] = [this](std::string_view p) { return fetchTableMetadata(p); };
     m_requestRoutes["getTableDDL"] = [this](std::string_view p) { return fetchTableDDL(p); };
+    m_requestRoutes["writeFrontendLog"] = [this](std::string_view p) { return writeFrontendLog(p); };
 }
 
 std::string IPCHandler::dispatchRequest(std::string_view request) {
@@ -350,8 +354,11 @@ std::string IPCHandler::cancelRunningQuery(std::string_view params) {
 }
 
 std::string IPCHandler::fetchTableList(std::string_view params) {
+    predategrip::log<LogLevel::DEBUG>(std::format("IPCHandler::fetchTableList called with params: {}", params));
+
     auto connectionIdResult = extractConnectionId(params);
     if (!connectionIdResult) {
+        predategrip::log<LogLevel::ERROR_LEVEL>(std::format("IPCHandler::fetchTableList: Failed to extract connection ID: {}", connectionIdResult.error()));
         return JsonUtils::errorResponse(connectionIdResult.error());
     }
     auto connectionId = *connectionIdResult;
@@ -359,18 +366,30 @@ std::string IPCHandler::fetchTableList(std::string_view params) {
     try {
         auto connection = m_activeConnections.find(connectionId);
         if (connection == m_activeConnections.end()) [[unlikely]] {
+            predategrip::log<LogLevel::ERROR_LEVEL>(std::format("IPCHandler::fetchTableList: Connection not found: {}", connectionId));
             return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
         }
 
         auto& driver = connection->second;
+        predategrip::log<LogLevel::DEBUG>(std::format("IPCHandler::fetchTableList: Driver found for connection: {}", connectionId));
 
+        // Filter to only include user tables and views (exclude system tables)
         constexpr auto tableListQuery = R"(
             SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE
             FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_TYPE IN ('BASE TABLE', 'VIEW')
             ORDER BY TABLE_SCHEMA, TABLE_NAME
         )";
 
+        predategrip::log<LogLevel::DEBUG>("IPCHandler::fetchTableList: Executing table list query"sv);
         ResultSet queryResult = driver->execute(tableListQuery);
+
+        predategrip::log<LogLevel::INFO>(std::format("IPCHandler::fetchTableList: Found {} tables/views", queryResult.rows.size()));
+        for (const auto& row : queryResult.rows) {
+            if (row.values.size() >= 3) {
+                predategrip::log<LogLevel::DEBUG>(std::format("  Table: {}.{} ({})", row.values[0], row.values[1], row.values[2]));
+            }
+        }
 
         std::string jsonResponse = "[";
         for (size_t i = 0; i < queryResult.rows.size(); ++i) {
@@ -381,8 +400,10 @@ std::string IPCHandler::fetchTableList(std::string_view params) {
         }
         jsonResponse += ']';
 
+        predategrip::log<LogLevel::DEBUG>("IPCHandler::fetchTableList: Returning JSON response"sv);
         return JsonUtils::successResponse(jsonResponse);
     } catch (const std::exception& e) {
+        predategrip::log<LogLevel::ERROR_LEVEL>(std::format("IPCHandler::fetchTableList: Exception: {}", e.what()));
         return JsonUtils::errorResponse(e.what());
     }
 }
@@ -2295,6 +2316,32 @@ std::string IPCHandler::getRowCount(std::string_view params) {
         auto json = std::format("{{\"rowCount\":{}}}", rowCount);
 
         return JsonUtils::successResponse(json);
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string IPCHandler::writeFrontendLog(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        auto doc = parser.parse(params);
+
+        std::string logContent = std::string(doc["content"].get_string().value());
+
+        // Write to log/frontend.log
+        std::filesystem::path logPath("log/frontend.log");
+        std::filesystem::create_directories(logPath.parent_path());
+
+        std::ofstream logFile(logPath, std::ios::app);
+        if (!logFile.is_open()) {
+            return JsonUtils::errorResponse("Failed to open frontend log file");
+        }
+
+        logFile << logContent;
+        logFile.flush();
+        logFile.close();
+
+        return JsonUtils::successResponse("{}");
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
     }

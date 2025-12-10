@@ -15,6 +15,7 @@ import { useConnectionStore } from '../../store/connectionStore';
 import { useEditStore } from '../../store/editStore';
 import { useActiveQuery, useQueryActions, useQueryStore } from '../../store/queryStore';
 import { darkTheme } from '../../theme/agGridTheme';
+import { log } from '../../utils/logger';
 import { ExportDialog } from '../export/ExportDialog';
 import styles from './ResultGrid.module.css';
 
@@ -46,6 +47,9 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
 
   // If excludeDataView and active query is a data view, don't show any result
   const targetQueryId = excludeDataView && isActiveDataView ? null : (queryId ?? activeQueryId);
+
+  log.debug(`[ResultGrid] Render: targetQueryId=${targetQueryId}, activeQueryId=${activeQueryId}, excludeDataView=${excludeDataView}, isActiveDataView=${isActiveDataView}`);
+
   const { applyWhereFilter } = useQueryActions();
   const [whereClause, setWhereClause] = useState('');
   const {
@@ -74,11 +78,19 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
   const useServerSide = currentQuery?.useServerSideRowModel ?? false;
   const [totalRows, setTotalRows] = useState<number | undefined>(undefined);
 
+  log.debug(`[ResultGrid] State: useServerSide=${useServerSide}, resultSet=${resultSet ? 'exists' : 'null'}, isExecuting=${isExecuting}, error=${error ? 'exists' : 'null'}`);
+
   const columnDefs = useMemo<ColDef[]>(() => {
-    if (!resultSet && !useServerSide) return [];
+    if (!resultSet && !useServerSide) {
+      log.debug('[ResultGrid] columnDefs: returning empty (no resultSet, not serverSide)');
+      return [];
+    }
 
     // For server-side mode without initial result, return empty until first data arrives
-    if (useServerSide && !resultSet) return [];
+    if (useServerSide && !resultSet) {
+      log.debug('[ResultGrid] columnDefs: returning empty (serverSide without resultSet)');
+      return [];
+    }
 
     // Helper function to check if a column type is numeric
     const isNumericType = (typeName: string): boolean => {
@@ -120,8 +132,12 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
       return 'center'; // Others (date, time, etc.): center-align
     };
 
-    if (!resultSet) return [];
+    if (!resultSet) {
+      log.debug('[ResultGrid] columnDefs: no resultSet, returning empty');
+      return [];
+    }
 
+    log.debug(`[ResultGrid] columnDefs: generating from ${resultSet.columns.length} columns`);
     return resultSet.columns.map((col) => {
       const alignment = getCellAlignment(col.type);
 
@@ -167,6 +183,8 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     });
   }, [resultSet, isEditMode, getCellChange, isRowDeleted, useServerSide]);
 
+  log.debug(`[ResultGrid] columnDefs computed: ${columnDefs.length} columns`);
+
   // For large datasets, skip memoization to avoid memory overhead
   const rowData = useMemo(() => {
     if (!resultSet) return [];
@@ -196,7 +214,11 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
   const createServerSideDatasource = useCallback((): IServerSideDatasource => {
     return {
       getRows: async (params: IServerSideGetRowsParams) => {
+        log.debug(`[ResultGrid] getRows called, startRow: ${params.request.startRow}, endRow: ${params.request.endRow}`);
+        log.debug(`[ResultGrid] activeConnectionId: ${activeConnectionId}, query: ${currentQuery?.content?.substring(0, 50)}`);
+
         if (!activeConnectionId || !currentQuery?.content) {
+          log.error('[ResultGrid] getRows failed: missing connection or query');
           params.fail();
           return;
         }
@@ -204,6 +226,7 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
         try {
           const startRow = params.request.startRow ?? 0;
           const endRow = params.request.endRow ?? 100;
+          log.debug(`[ResultGrid] Fetching rows ${startRow} - ${endRow}`);
 
           // Convert AG Grid sort model to backend format
           const sortModel = params.request.sortModel.map((sort) => ({
@@ -270,12 +293,13 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
             totalRows ??
             (result.rows.length < endRow - startRow ? startRow + result.rows.length : undefined);
 
+          log.debug(`[ResultGrid] getRows success: ${rowData.length} rows, lastRow: ${lastRow}`);
           params.success({
             rowData,
             rowCount: lastRow,
           });
         } catch (error) {
-          console.error('Server-side datasource error:', error);
+          log.error(`[ResultGrid] Server-side datasource error: ${error}`);
           params.fail();
         }
       },
@@ -284,11 +308,14 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
 
   const onGridReady = useCallback(
     (params: GridReadyEvent) => {
+      log.debug(`[ResultGrid] onGridReady called, useServerSide: ${useServerSide}, queryId: ${targetQueryId}`);
       setGridApi(params.api);
 
       // Set server-side datasource for server-side row model
       if (useServerSide) {
+        log.debug('[ResultGrid] Setting server-side datasource');
         params.api.setGridOption('serverSideDatasource', createServerSideDatasource());
+        params.api.showLoadingOverlay();
       } else {
         // Auto-size all columns to fit content after grid is ready
         // Skip auto-size for large datasets (>10000 rows) to improve performance
@@ -297,7 +324,7 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
         }
       }
     },
-    [resultSet, useServerSide, createServerSideDatasource]
+    [resultSet, useServerSide, createServerSideDatasource, targetQueryId]
   );
 
   // Auto-size columns when data changes (only for small datasets)
@@ -588,7 +615,18 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     );
   }
 
+  // Show loading state for executing queries
+  if (isExecuting) {
+    log.debug('[ResultGrid] Showing loading state (isExecuting)');
+    return (
+      <div className={styles.message}>
+        <span>Loading data...</span>
+      </div>
+    );
+  }
+
   if (error) {
+    log.debug(`[ResultGrid] Showing error: ${error}`);
     return (
       <div className={`${styles.message} ${styles.error}`}>
         <span>Error: {error}</span>
@@ -596,13 +634,17 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     );
   }
 
+  // Show message when no data
   if (!resultSet) {
+    log.debug('[ResultGrid] Showing "Execute a query" message (!resultSet)');
     return (
       <div className={styles.message}>
         <span>Execute a query to see results</span>
       </div>
     );
   }
+
+  log.debug('[ResultGrid] Rendering grid component');
 
   return (
     <div className={styles.container}>
@@ -714,10 +756,10 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
           enableCellTextSelection={!isEditMode}
           ensureDomOrder={false}
           animateRows={false}
-          rowBuffer={10}
+          rowBuffer={20}
           rowSelection="multiple"
           suppressRowClickSelection={false}
-          suppressCellFocus={false}
+          suppressCellFocus={true}
           enableRangeSelection={false}
           copyHeadersToClipboard={true}
           suppressCopyRowsToClipboard={false}
@@ -725,6 +767,8 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
           singleClickEdit={false}
           suppressColumnVirtualisation={false}
           suppressMovableColumns={true}
+          suppressRowVirtualisation={false}
+          debounceVerticalScrollbar={true}
           suppressRowHoverHighlight={false}
           suppressAnimationFrame={true}
         />

@@ -81,6 +81,7 @@ private:
     [[nodiscard]] std::string parseA5ERFile(std::string_view params);
     [[nodiscard]] std::string retrieveQueryHistory(std::string_view params);
     [[nodiscard]] std::string getExecutionPlan(std::string_view params);
+    [[nodiscard]] std::string writeFrontendLog(std::string_view params);
 
     // Cache operations
     [[nodiscard]] std::string getCacheStats(std::string_view params);
