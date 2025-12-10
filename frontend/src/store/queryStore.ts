@@ -3,7 +3,6 @@ import { useShallow } from 'zustand/react/shallow';
 import { bridge } from '../api/bridge';
 import type { Query, ResultSet } from '../types';
 import { log } from '../utils/logger';
-import { useConnectionStore } from './connectionStore';
 
 interface QueryState {
   queries: Query[];
@@ -241,9 +240,6 @@ export const useQueryStore = create<QueryState>((set, get) => ({
       return;
     }
 
-    // Start timing from when user clicks table
-    const startTime = performance.now();
-
     const id = `query-${++queryCounter}`;
     const sql = `SELECT * FROM ${tableName}`;
     const newQuery: Query = {
@@ -254,61 +250,28 @@ export const useQueryStore = create<QueryState>((set, get) => ({
       isDirty: false,
       sourceTable: tableName,
       isDataView: true,
-      useServerSideRowModel: false, // Use client-side mode for simplicity
+      useServerSideRowModel: true, // Enable server-side row model for large tables
     };
 
-    log.debug(`[QueryStore] Creating new query tab: ${id}, executing query immediately`);
+    console.log(
+      '🚀 [QueryStore] Creating query with useServerSideRowModel:',
+      newQuery.useServerSideRowModel
+    );
+    console.log('🚀 [QueryStore] Full query object:', newQuery);
+    log.info(
+      `[QueryStore] Creating new query tab with server-side row model: ${id} for table ${tableName}`
+    );
 
-    // Create tab and execute query immediately
+    // Create tab without executing query immediately
+    // ResultGrid will fetch data on-demand using server-side datasource
     set((state) => ({
       queries: [...state.queries, newQuery],
       activeQueryId: id,
-      isExecuting: true,
+      isExecuting: false,
       error: null,
     }));
 
-    try {
-      // Execute query to fetch all data
-      log.debug(`[QueryStore] Executing query: ${sql}`);
-      const result = await withTimeout(
-        bridge.executeQuery(connectionId, sql),
-        DEFAULT_QUERY_TIMEOUT_MS,
-        'Query execution timed out after 5 minutes'
-      );
-
-      log.info(
-        `[QueryStore] Query executed successfully: ${result.rows.length} rows in ${result.executionTimeMs}ms`
-      );
-
-      const resultSet: ResultSet = {
-        columns: result.columns.map((c) => ({
-          name: c.name,
-          type: c.type,
-          size: 0,
-          nullable: true,
-          isPrimaryKey: false,
-        })),
-        rows: result.rows,
-        affectedRows: result.affectedRows,
-        executionTimeMs: result.executionTimeMs,
-      };
-
-      set((state) => ({
-        results: { ...state.results, [id]: resultSet },
-        isExecuting: false,
-      }));
-
-      const endTime = performance.now();
-      const totalTimeMs = endTime - startTime;
-      log.debug(`[QueryStore] Query tab created and data loaded in ${totalTimeMs.toFixed(2)}ms`);
-      useConnectionStore.getState().setTableOpenTime(connectionId, totalTimeMs);
-    } catch (error) {
-      log.error(`[QueryStore] Failed to execute query: ${error}`);
-      set({
-        isExecuting: false,
-        error: error instanceof Error ? error.message : 'Query execution failed',
-      });
-    }
+    log.debug(`[QueryStore] Query tab created: ${id}. Data will be loaded on-demand by AG Grid.`);
   },
 
   applyWhereFilter: async (id, connectionId, whereClause) => {

@@ -80,6 +80,13 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
   const useServerSide = currentQuery?.useServerSideRowModel ?? false;
   const [totalRows, setTotalRows] = useState<number | undefined>(undefined);
 
+  console.log('🔍 [ResultGrid] currentQuery:', currentQuery);
+  console.log(
+    '🔍 [ResultGrid] useServerSideRowModel from query:',
+    currentQuery?.useServerSideRowModel
+  );
+  console.log('🔍 [ResultGrid] useServerSide computed:', useServerSide);
+
   log.debug(
     `[ResultGrid] State: useServerSide=${useServerSide}, resultSet=${resultSet ? 'exists' : 'null'}, isExecuting=${isExecuting}, error=${error ? 'exists' : 'null'}`
   );
