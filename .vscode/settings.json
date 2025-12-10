@@ -12,5 +12,6 @@
     "Ninja",
     "Unix Makefiles"
   ],
-  "cmake.configureOnOpen": false
+  "cmake.configureOnOpen": false,
+  "terminal.integrated.fontFamily": "MonaspiceKr Nerd Font Propo"
 }
