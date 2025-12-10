@@ -223,7 +223,9 @@ export const useQueryStore = create<QueryState>((set, get) => ({
   },
 
   openTableData: async (connectionId, tableName) => {
-    log.info(`[QueryStore] openTableData called for table: ${tableName}, connection: ${connectionId}`);
+    log.info(
+      `[QueryStore] openTableData called for table: ${tableName}, connection: ${connectionId}`
+    );
 
     // Check if tab for this table already exists
     const existingQuery = get().queries.find(
@@ -231,7 +233,9 @@ export const useQueryStore = create<QueryState>((set, get) => ({
     );
 
     if (existingQuery) {
-      log.debug(`[QueryStore] Existing tab found for ${tableName}, activating: ${existingQuery.id}`);
+      log.debug(
+        `[QueryStore] Existing tab found for ${tableName}, activating: ${existingQuery.id}`
+      );
       // Just activate the existing tab
       set({ activeQueryId: existingQuery.id });
       return;
@@ -272,7 +276,9 @@ export const useQueryStore = create<QueryState>((set, get) => ({
         'Query execution timed out after 5 minutes'
       );
 
-      log.info(`[QueryStore] Query executed successfully: ${result.rows.length} rows in ${result.executionTimeMs}ms`);
+      log.info(
+        `[QueryStore] Query executed successfully: ${result.rows.length} rows in ${result.executionTimeMs}ms`
+      );
 
       const resultSet: ResultSet = {
         columns: result.columns.map((c) => ({

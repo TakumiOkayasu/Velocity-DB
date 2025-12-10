@@ -48,7 +48,9 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
   // If excludeDataView and active query is a data view, don't show any result
   const targetQueryId = excludeDataView && isActiveDataView ? null : (queryId ?? activeQueryId);
 
-  log.debug(`[ResultGrid] Render: targetQueryId=${targetQueryId}, activeQueryId=${activeQueryId}, excludeDataView=${excludeDataView}, isActiveDataView=${isActiveDataView}`);
+  log.debug(
+    `[ResultGrid] Render: targetQueryId=${targetQueryId}, activeQueryId=${activeQueryId}, excludeDataView=${excludeDataView}, isActiveDataView=${isActiveDataView}`
+  );
 
   const { applyWhereFilter } = useQueryActions();
   const [whereClause, setWhereClause] = useState('');
@@ -78,7 +80,9 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
   const useServerSide = currentQuery?.useServerSideRowModel ?? false;
   const [totalRows, setTotalRows] = useState<number | undefined>(undefined);
 
-  log.debug(`[ResultGrid] State: useServerSide=${useServerSide}, resultSet=${resultSet ? 'exists' : 'null'}, isExecuting=${isExecuting}, error=${error ? 'exists' : 'null'}`);
+  log.debug(
+    `[ResultGrid] State: useServerSide=${useServerSide}, resultSet=${resultSet ? 'exists' : 'null'}, isExecuting=${isExecuting}, error=${error ? 'exists' : 'null'}`
+  );
 
   const columnDefs = useMemo<ColDef[]>(() => {
     if (!resultSet && !useServerSide) {
@@ -214,8 +218,12 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
   const createServerSideDatasource = useCallback((): IServerSideDatasource => {
     return {
       getRows: async (params: IServerSideGetRowsParams) => {
-        log.debug(`[ResultGrid] getRows called, startRow: ${params.request.startRow}, endRow: ${params.request.endRow}`);
-        log.debug(`[ResultGrid] activeConnectionId: ${activeConnectionId}, query: ${currentQuery?.content?.substring(0, 50)}`);
+        log.debug(
+          `[ResultGrid] getRows called, startRow: ${params.request.startRow}, endRow: ${params.request.endRow}`
+        );
+        log.debug(
+          `[ResultGrid] activeConnectionId: ${activeConnectionId}, query: ${currentQuery?.content?.substring(0, 50)}`
+        );
 
         if (!activeConnectionId || !currentQuery?.content) {
           log.error('[ResultGrid] getRows failed: missing connection or query');
@@ -308,7 +316,9 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
 
   const onGridReady = useCallback(
     (params: GridReadyEvent) => {
-      log.debug(`[ResultGrid] onGridReady called, useServerSide: ${useServerSide}, queryId: ${targetQueryId}`);
+      log.debug(
+        `[ResultGrid] onGridReady called, useServerSide: ${useServerSide}, queryId: ${targetQueryId}`
+      );
       setGridApi(params.api);
 
       // Set server-side datasource for server-side row model
