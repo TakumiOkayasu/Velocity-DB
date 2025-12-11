@@ -45,7 +45,8 @@ public:
             std::filesystem::create_directories(parent_path);
         }
 
-        file_.open(std::string(filepath), std::ios::out | std::ios::app);
+        // Open in truncate mode to clear log on startup
+        file_.open(std::string(filepath), std::ios::out | std::ios::trunc);
         if (!file_.is_open()) {
             std::cerr << "Failed to open log file: " << filepath << '\n';
         }

@@ -2330,7 +2330,11 @@ std::string IPCHandler::writeFrontendLog(std::string_view params) {
         std::filesystem::path logPath("log/frontend.log");
         std::filesystem::create_directories(logPath.parent_path());
 
-        std::ofstream logFile(logPath, std::ios::app);
+        // Clear log on first write (app startup)
+        static bool firstWrite = true;
+        std::ofstream logFile(logPath, firstWrite ? std::ios::trunc : std::ios::app);
+        firstWrite = false;
+
         if (!logFile.is_open()) {
             return JsonUtils::errorResponse("Failed to open frontend log file");
         }
