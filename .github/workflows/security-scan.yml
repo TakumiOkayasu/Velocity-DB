@@ -1,13 +1,20 @@
 name: Security Scan
 
 on:
-  # Manual trigger only to save minutes (remove daily schedule)
+  # Daily security scan at 00:00 JST (15:00 UTC)
+  schedule:
+    - cron: '0 15 * * *'
+  # Manual trigger for on-demand scans
   workflow_dispatch:
 
 # Cancel in-progress runs for the same branch
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+# Default permissions (read-only)
+permissions:
+  contents: read
 
 jobs:
   # Semgrep: Fast pattern-based security scanning
@@ -24,7 +31,8 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: '3.14'
+          allow-prereleases: true
 
       - name: Install Semgrep
         run: pip install semgrep
@@ -201,7 +209,6 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{ matrix.language }}"
-          upload: false
 
   # Summary job
   security-summary:

@@ -6,7 +6,7 @@ Windows向け高性能RDBMSマネジメントツール。DataGripライクなUI/
 
 - **DataGripライクなUI** - 3ペインレイアウト（オブジェクトエクスプローラー、エディタ、結果）
 - **高速なクエリ実行** - 非同期実行、結果キャッシュ、AVX2 SIMDフィルタリング
-- **インライン編集** - AG Gridによるセル編集とUPDATE/INSERT/DELETE SQL自動生成
+- **インライン編集** - TanStack Tableによるセル編集とUPDATE/INSERT/DELETE SQL自動生成
 - **Monaco Editor** - VS Code同等のSQL編集体験
 - **ER図表示** - React Flowによるテーブル関連の可視化、A5:ERファイルインポート対応
 - **エクスポート** - CSV/JSON/Excel形式でのデータ出力
@@ -96,27 +96,32 @@ CPUがAVX2に対応しているか確認するには：
 
 ```bash
 # リポジトリをクローン
-git clone https://github.com/your-username/Pre-DateGrip.git
+git clone https://github.com/TakumiOkayasu/Pre-DateGrip.git
 cd Pre-DateGrip
 
-# Developer Command Promptを開く（MSVCコンパイラが必要）
-# または: "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
-
 # フロントエンドのビルド
-cd frontend
-bun install
-bun run build
-cd ..
+uv run scripts/pdg.py build frontend
 
-# バックエンドのビルド（Ninja使用）
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
+# バックエンドのビルド（初回）
+uv run scripts/pdg.py build backend --clean
+
+# バックエンドのビルド（2回目以降：インクリメンタル）
+uv run scripts/pdg.py build backend
+
+# または一括ビルド
+uv run scripts/pdg.py build all
 
 # パッケージ作成
-uv run scripts/package.py
+uv run scripts/pdg.py package
 ```
 
-ビルド成果物は `dist/` フォルダに出力されます。
+**ビルドパフォーマンス:**
+
+- 初回ビルド: 1.5-2分
+- インクリメンタルビルド（変更なし）: 5-10秒
+- インクリメンタルビルド（1ファイル変更）: 20-30秒
+
+ビルド成果物は `build/[Debug|Release]/PreDateGrip.exe` に出力されます。
 
 ## 開発
 
@@ -141,67 +146,143 @@ Pre-DateGrip/
 
 ### 開発コマンド
 
+すべての開発コマンドは統一CLI `pdg.py` で実行できます。
+
+#### 統一CLI（推奨）
+
 ```bash
-# フロントエンド開発サーバー（ホットリロード）
-cd frontend
-bun run dev
+# ビルド
+uv run scripts/pdg.py build backend              # Releaseビルド
+uv run scripts/pdg.py build backend --type Debug # Debugビルド
+uv run scripts/pdg.py build backend --clean      # クリーンビルド
+uv run scripts/pdg.py build frontend             # フロントエンドビルド
+uv run scripts/pdg.py build all                  # 一括ビルド
 
-# Lint/Format
-bun run lint          # Biomeによるチェック
-bun run lint:fix      # 自動修正
-bun run format        # フォーマットのみ
-
-# TypeScript型チェック
-bun run typecheck
+# 短縮形
+uv run scripts/pdg.py b backend                  # 'build' の代わりに 'b'
 
 # テスト
-bun run test
+uv run scripts/pdg.py test backend               # バックエンドテスト
+uv run scripts/pdg.py test frontend              # フロントエンドテスト
+uv run scripts/pdg.py test frontend --watch      # Watchモード
 
-# キャッシュ削除
-bun pm cache rm
+# 短縮形
+uv run scripts/pdg.py t frontend                 # 'test' の代わりに 't'
 
-# C++ Lint/Format/Build（一括）
-uv run scripts/cpp_check.py all Release
+# Lint (プロダクトコード: Frontend + C++)
+uv run scripts/pdg.py lint                       # 全体Lint
+uv run scripts/pdg.py lint --fix                 # 自動修正
 
-# 全体チェック（C++ + Frontend）
-uv run scripts/check_all.py Release
+# 短縮形
+uv run scripts/pdg.py l --fix                    # 'lint' の代わりに 'l'
+
+# Lint (ビルドスクリプト: Python) - 別途実行
+ruff check scripts/                              # チェックのみ
+ruff check --fix scripts/ && ruff format scripts/  # 自動修正
+
+# 開発サーバー
+uv run scripts/pdg.py dev                        # フロントエンド開発サーバー
+
+# 短縮形
+uv run scripts/pdg.py d                          # 'dev' の代わりに 'd'
+
+# 全体チェック
+uv run scripts/pdg.py check Release              # Lint + Test + Build
+
+# 短縮形
+uv run scripts/pdg.py c Release                  # 'check' の代わりに 'c'
+
+# パッケージ作成
+uv run scripts/pdg.py package                    # ビルド + パッケージング
+
+# ヘルプ
+uv run scripts/pdg.py --help                     # 全コマンド表示
+uv run scripts/pdg.py build --help               # buildコマンドのヘルプ
 ```
 
-### 開発TODO
+#### 直接Bunを使う場合（オプション）
 
-- [ ] ボタン配置の汚さ
+フロントエンド開発では、以下のコマンドも直接使用可能です：
+
+```bash
+cd frontend
+
+# 開発
+bun run dev          # 開発サーバー
+bun run test         # テスト
+bun run lint         # Lint
+bun run lint:fix     # 自動修正
+bun run typecheck    # 型チェック
+
+# その他
+bun run format       # フォーマット
+bun pm cache rm      # キャッシュ削除
+```
+
+### 開発TODO（次のマイルストーン）
+
+#### 即座に対応
+
+- [ ] インライン編集機能の実装
+- [ ] クエリキャンセル機能のUI統合
+- [ ] トランザクション管理UIの実装
+
+#### 短期目標（1-2週間）
+
+- [ ] キーボードショートカット（Ctrl+W、F5）の実装
 - [ ] ウィンドウサイズの保持
-- [ ] テーブル作成時のSQL（読み取り専用）を作る
-- [ ] Ctrl+Wでタブを消す
-- [ ] F5で実行
-- [ ] a5er読み込み
-- [ ] 未実装部分を追加
-- [ ] issue対応
+- [ ] ボタン配置の整理
+- [ ] テーブル作成時のDDL表示（読み取り専用）
+
+#### 中期目標（1-2ヶ月）
+
+- [ ] コード補完・IntelliSense
+- [ ] 実行計画の可視化
+- [ ] パフォーマンステストの自動化
+- [ ] E2Eテストの追加
+
+#### 継続的改善
+
+- [ ] Issue対応
+- [ ] パフォーマンス改善
+- [ ] ドキュメントの充実
+- [ ] テストカバレッジ向上
 
 ### 技術スタック
+
+#### ビルドスクリプト（Python 3.14+）
+
+| カテゴリ | ツール/技術 |
+|---------|------------|
+| ランタイム | uv |
+| Lint/Format | Ruff |
+| 設定 | pyproject.toml |
 
 #### バックエンド（C++23）
 
 | カテゴリ | ライブラリ/技術 |
 |---------|----------------|
+| ビルド | CMake + Ninja (MSVC) |
 | WebView | webview/webview (WebView2) |
 | データベース | ODBC Native API |
 | JSON | simdjson |
 | XML | pugixml |
 | 最適化 | SIMD (AVX2)、メモリマップドファイル |
+| Lint/Format | clang-format 21, clang-tidy |
 
 #### フロントエンド（React + TypeScript）
 
 | カテゴリ | ライブラリ |
 |---------|-----------|
+| ランタイム | Bun |
 | ビルド | Vite |
 | UI | React 18 |
 | エディタ | Monaco Editor |
-| テーブル | AG Grid（仮想スクロール） |
+| テーブル | TanStack Table（仮想スクロール） |
 | スタイル | CSS Modules |
 | 状態管理 | Zustand |
 | ER図 | React Flow |
-| Linter/Formatter | Biome |
+| Linter/Formatter | Biome 2.3.8 |
 | テスト | Vitest |
 
 ### パフォーマンス目標と実装
@@ -211,8 +292,8 @@ uv run scripts/check_all.py Release
 | アプリ起動 | < 0.3秒 | WebView2軽量初期化 |
 | SQL Server接続 | < 50ms | ODBC直接接続、接続プール |
 | SELECT（100万行） | < 500ms | 非同期クエリ実行、ストリーミング |
-| 結果表示開始 | < 100ms | AG Grid仮想スクロール |
-| 仮想スクロール | 60fps安定 | AG Grid仮想化 |
+| 結果表示開始 | < 100ms | TanStack Table仮想スクロール |
+| 仮想スクロール | 60fps安定 | TanStack Table仮想化 |
 | SQLフォーマット | < 50ms | 軽量カスタムパーサー |
 | CSVエクスポート（10万行） | < 2秒 | ストリーム書き込み |
 | A5:ERロード（100テーブル） | < 1秒 | pugixml高速XMLパース |
@@ -223,18 +304,85 @@ uv run scripts/check_all.py Release
 
 ## 実装状況
 
-- [x] Phase 0: CI/CD基盤（GitHub Actions、ビルドスクリプト、テスト基盤）
-- [x] Phase 1: 基本SQL実行（接続、クエリ、トランザクション）
-- [x] Phase 2: DataGripライクUI（3ペインレイアウト、Monaco Editor、タブ）
-- [x] Phase 3: データ編集（インラインセル編集、CRUD操作）
-- [x] Phase 4: 高度な機能（SQLフォーマッター、CSV/JSON/Excelエクスポート、実行計画）
-- [x] Phase 5: A5:ER連携（.a5erファイルインポート、React Flow ER図）
-- [x] Phase 6: パフォーマンス最適化（結果キャッシュ、非同期クエリ、AVX2 SIMDフィルタ）
-- [x] Phase 7: 追加機能（グローバル検索、設定管理、セッション永続化）
+### 完了済み機能
 
-## ライセンス
+#### コア機能
 
-（準備中）
+- ✅ SQL Server接続（ODBC）・接続プール
+- ✅ クエリ実行（同期・非同期）
+- ✅ 結果キャッシュ（LRU、100MB）
+- ✅ クエリ履歴
+- ✅ トランザクション管理（C++実装済み、UI未実装）
+
+#### UI/UX
+
+- ✅ DataGripライクな3ペインレイアウト
+- ✅ オブジェクトエクスプローラー（データベース・テーブル・ビュー）
+- ✅ Monaco Editor統合（SQLエディタ）
+- ✅ TanStack Table結果表示（仮想スクロール）
+- ✅ タブ管理（クエリ・データビュー）
+- ✅ セッション永続化（ウィンドウ状態・開いているタブ）
+
+#### 高度な機能
+
+- ✅ SQLフォーマッター
+- ✅ A5:ERファイルインポート
+- ✅ ER図表示（React Flow）
+- ✅ グローバル検索（テーブル・ビュー・カラム）
+- ✅ エクスポート（CSV/JSON/Excel）
+- ✅ 設定管理
+
+#### 開発インフラ
+
+- ✅ GitHub Actions CI/CD（LLVM 21、Bun、Biome 2.3.8）
+- ✅ Python ビルドスクリプト（uv）・自動回復機能
+- ✅ WebView2キャッシュ自動削除
+- ✅ ログシステム（自動削除機能付き）
+- ✅ フロントエンドビルド最適化（esbuild、es2020）
+
+### 未実装機能
+
+#### 高優先度
+
+- [ ] インライン編集（セル編集、UPDATE/INSERT/DELETE SQL自動生成）
+- [ ] トランザクション管理UI（BEGIN/COMMIT/ROLLBACK）
+- [ ] 実行計画の表示
+- [ ] クエリキャンセル機能のUI統合
+
+#### 中優先度
+
+- [ ] SIMDフィルタリングのUI統合
+- [ ] マルチデータベース対応（PostgreSQL、MySQL）
+- [ ] コード補完・IntelliSense
+- [ ] スキーマ比較・差分表示
+
+#### 低優先度
+
+- [ ] ダークテーマ以外のカラーテーマ
+- [ ] プラグインシステム
+- [ ] データインポート機能
+
+### 今後の目標
+
+#### パフォーマンス改善
+
+- [ ] 大量データ（100万行以上）の表示最適化
+- [ ] クエリ実行の並列化
+- [ ] メモリ使用量の最適化
+
+#### UI/UX改善
+
+- [ ] ボタン配置の整理
+- [ ] ウィンドウサイズの保持
+- [ ] キーボードショートカット強化（Ctrl+W、F5実行）
+- [ ] エラーメッセージの改善
+
+#### 品質向上
+
+- [ ] テストカバレッジ80%以上
+- [ ] E2Eテストの追加
+- [ ] パフォーマンステストの自動化
+- [ ] ドキュメントの充実
 
 ## 謝辞
 
@@ -244,7 +392,7 @@ uv run scripts/check_all.py Release
 - [simdjson](https://github.com/simdjson/simdjson)
 - [pugixml](https://github.com/zeux/pugixml)
 - [Monaco Editor](https://github.com/microsoft/monaco-editor)
-- [AG Grid](https://www.ag-grid.com/)
+- [TanStack Table](https://tanstack.com/table)
 - [React Flow](https://reactflow.dev/)
 - [Zustand](https://github.com/pmndrs/zustand)
 - [Biome](https://biomejs.dev/)

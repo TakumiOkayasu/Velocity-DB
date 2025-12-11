@@ -1,0 +1,20 @@
+{
+	"cmake.useCMakePresets": "always",
+	"cmake.defaultBuildPreset": "release",
+	"cmake.defaultConfigurePreset": "release",
+	"cmake.defaultTestPreset": "release",
+	"cmake.generator": "Ninja",
+	"cmake.configureSettings": {
+		"CMAKE_BUILD_TYPE": "Release"
+	},
+	"cmake.buildDirectory": "${workspaceFolder}/build",
+	"cmake.preferredGenerators": ["Ninja", "Unix Makefiles"],
+	"cmake.configureOnOpen": false,
+	"terminal.integrated.fontFamily": "MesloLGS NF",
+	"terminal.integrated.fontWeight": "normal",
+	"[markdown]": {
+		"editor.codeActionsOnSave": {
+			"source.fixAll.markdownlint": "always"
+		}
+	}
+}

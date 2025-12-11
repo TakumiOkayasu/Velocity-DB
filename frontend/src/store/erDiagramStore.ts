@@ -128,7 +128,7 @@ export const useERDiagramStore = create<ERDiagramState>((set) => ({
 
     try {
       // Get tables
-      const tablesData = await bridge.getTables(connectionId, database);
+      const { tables: tablesData } = await bridge.getTables(connectionId, database);
       const tables: ERTableNode[] = [];
       const relations: ERRelationEdge[] = [];
 

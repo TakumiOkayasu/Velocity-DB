@@ -322,7 +322,9 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
             {activeTab === 'columns' && (
               <ColumnsTab columns={columns} showLogicalNames={showLogicalNames} />
             )}
-            {activeTab === 'indexes' && <IndexesTab indexes={indexes} />}
+            {activeTab === 'indexes' && (
+              <IndexesTab indexes={indexes} showLogicalNames={showLogicalNames} />
+            )}
             {activeTab === 'constraints' && <ConstraintsTab constraints={constraints} />}
             {activeTab === 'foreignKeys' && <ForeignKeysTab foreignKeys={foreignKeys} />}
             {activeTab === 'referencingForeignKeys' && (

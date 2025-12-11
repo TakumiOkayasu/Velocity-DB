@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { bridge } from '../api/bridge';
 import type { Query, ResultSet } from '../types';
+import { log } from '../utils/logger';
 
 interface QueryState {
   queries: Query[];
@@ -221,12 +222,19 @@ export const useQueryStore = create<QueryState>((set, get) => ({
   },
 
   openTableData: async (connectionId, tableName) => {
+    log.info(
+      `[QueryStore] openTableData called for table: ${tableName}, connection: ${connectionId}`
+    );
+
     // Check if tab for this table already exists
     const existingQuery = get().queries.find(
       (q) => q.sourceTable === tableName && q.connectionId === connectionId && q.isDataView
     );
 
     if (existingQuery) {
+      log.debug(
+        `[QueryStore] Existing tab found for ${tableName}, activating: ${existingQuery.id}`
+      );
       // Just activate the existing tab
       set({ activeQueryId: existingQuery.id });
       return;
@@ -242,7 +250,10 @@ export const useQueryStore = create<QueryState>((set, get) => ({
       isDirty: false,
       sourceTable: tableName,
       isDataView: true,
+      useServerSideRowModel: false, // Use client-side model (server-side requires Enterprise license)
     };
+
+    log.info(`[QueryStore] Creating new query tab: ${id} for table ${tableName}`);
 
     set((state) => ({
       queries: [...state.queries, newQuery],
@@ -252,11 +263,10 @@ export const useQueryStore = create<QueryState>((set, get) => ({
     }));
 
     try {
-      const result = await withTimeout(
-        bridge.executeQuery(connectionId, sql),
-        DEFAULT_QUERY_TIMEOUT_MS,
-        'Query execution timed out after 5 minutes'
-      );
+      log.debug(`[QueryStore] Fetching table data for ${tableName}`);
+      const fetchStart = performance.now();
+      const result = await bridge.executeQuery(connectionId, sql);
+      const fetchEnd = performance.now();
 
       const resultSet: ResultSet = {
         columns: result.columns.map((c) => ({
@@ -275,7 +285,12 @@ export const useQueryStore = create<QueryState>((set, get) => ({
         results: { ...state.results, [id]: resultSet },
         isExecuting: false,
       }));
+
+      log.info(
+        `[QueryStore] Loaded ${result.rows.length} rows with ${result.columns.length} columns in ${(fetchEnd - fetchStart).toFixed(2)}ms`
+      );
     } catch (error) {
+      log.error(`[QueryStore] Failed to fetch table data: ${error}`);
       set({
         isExecuting: false,
         error: error instanceof Error ? error.message : 'Failed to load table data',

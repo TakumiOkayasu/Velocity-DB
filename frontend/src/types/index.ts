@@ -8,6 +8,8 @@ export interface Connection {
   username: string;
   password: string;
   useWindowsAuth: boolean;
+  tableListLoadTimeMs?: number; // Time taken to load table list
+  tableOpenTimeMs?: number; // Time taken to open a table (click to display)
 }
 
 // Query types
@@ -19,6 +21,7 @@ export interface Query {
   isDirty: boolean;
   sourceTable?: string; // Table name when opened from Object Tree (for WHERE filter)
   isDataView?: boolean; // True when viewing table data (show grid instead of editor)
+  useServerSideRowModel?: boolean; // Use AG Grid Server-Side Row Model for large tables
 }
 
 // Result types

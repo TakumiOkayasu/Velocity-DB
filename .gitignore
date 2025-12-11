@@ -29,8 +29,13 @@ x64/
 Debug/
 Release/
 
-# VSCode
-.vscode/
+# VSCode (keep settings, ignore local state)
+.vscode/*
+!.vscode/settings.json
+!.vscode/cmake-kits.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
 
 # claude
 .claude/
@@ -42,6 +47,12 @@ cmake_install.cmake
 compile_commands.json
 CTestTestfile.cmake
 _deps/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
 
 # Node.js
 node_modules/
@@ -60,7 +71,6 @@ frontend/coverage/
 *.swp
 *.swo
 *~
-.vscode/
 
 # OS
 .DS_Store
@@ -74,6 +84,7 @@ test_export.*
 
 # Logs
 logs/
+log/
 *.log
 
 # Environment

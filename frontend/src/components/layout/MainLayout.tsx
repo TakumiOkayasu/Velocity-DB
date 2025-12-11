@@ -416,6 +416,14 @@ export function MainLayout() {
             <span className={styles.connectionDot} />
             {isExecuting ? 'Executing...' : 'Ready'}
           </span>
+          {activeConnection?.tableOpenTimeMs !== undefined && (
+            <span
+              className={styles.statusItem}
+              title="テーブルを開くのにかかった時間（クリックから表示まで）"
+            >
+              | Open: {activeConnection.tableOpenTimeMs.toFixed(1)}ms
+            </span>
+          )}
         </div>
         <div className={styles.statusCenter}>{activeQuery && <span>{activeQuery.name}</span>}</div>
         <div className={styles.statusRight}>

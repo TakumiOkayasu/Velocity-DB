@@ -10,6 +10,10 @@ on:
         default: false
         type: boolean
 
+# Default permissions (read-only)
+permissions:
+  contents: read
+
 jobs:
   unit-tests:
     name: Unit Tests
@@ -30,9 +34,9 @@ jobs:
           path: |
             build/_deps
             build/third_party
-          key: cmake-test-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'src/CMakeLists.txt', 'third_party/CMakeLists.txt') }}
+          key: cmake-ninja-test-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'src/CMakeLists.txt', 'third_party/CMakeLists.txt') }}
           restore-keys: |
-            cmake-test-${{ runner.os }}-
+            cmake-ninja-test-${{ runner.os }}-
 
       - name: Configure CMake
         run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
@@ -56,6 +60,13 @@ jobs:
         working-directory: frontend
         run: bun run test --run
 
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: test-build
+          path: build/Debug/
+          retention-days: 1
+
   integration-tests:
     name: Integration Tests
     runs-on: windows-latest
@@ -65,17 +76,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup MSVC
-        uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Install Ninja
-        run: choco install ninja -y
-
-      - name: Configure CMake
-        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
-
-      - name: Build
-        run: cmake --build build --parallel
+      - name: Download build artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: test-build
+          path: build/Debug
 
       # Integration tests are disabled by default as they require a database
       # Uncomment when a test database is available

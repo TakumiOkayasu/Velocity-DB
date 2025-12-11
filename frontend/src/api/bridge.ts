@@ -1,4 +1,5 @@
 import type { IPCRequest, IPCResponse } from '../types';
+import { log } from '../utils/logger';
 
 declare global {
   interface Window {
@@ -15,11 +16,18 @@ class Bridge {
 
     if (window.invoke) {
       const requestStr = JSON.stringify(request);
-      console.log('[Bridge] Sending request:', requestStr);
+      // Skip logging for writeFrontendLog to prevent infinite loop
+      const shouldLog = method !== 'writeFrontendLog';
+
+      if (shouldLog) {
+        log.debug(`[Bridge] Sending request: ${method}`);
+      }
 
       const responseRaw = await window.invoke(requestStr);
-      console.log('[Bridge] Received response (raw):', responseRaw);
-      console.log('[Bridge] Response type:', typeof responseRaw);
+
+      if (shouldLog) {
+        log.debug(`[Bridge] Received response for ${method} (type: ${typeof responseRaw})`);
+      }
 
       // If response is already an object, webview may have parsed it
       let response: IPCResponse<T>;
@@ -29,16 +37,18 @@ class Bridge {
         // webview already parsed the JSON for us
         response = responseRaw as IPCResponse<T>;
       } else {
+        log.error(`[Bridge] Unexpected response type: ${typeof responseRaw}`);
         throw new Error(`Unexpected response type: ${typeof responseRaw}`);
       }
 
-      console.log('[Bridge] Parsed response:', response);
-
       if (!response.success) {
-        console.error('[Bridge] Error response:', response.error);
+        log.error(`[Bridge] Error response for ${method}: ${response.error}`);
         throw new Error(response.error || 'Unknown error');
       }
 
+      if (shouldLog) {
+        log.debug(`[Bridge] Successfully processed ${method}`);
+      }
       return response.data as T;
     }
 
@@ -51,9 +61,10 @@ class Bridge {
       await new Promise((resolve) => setTimeout(resolve, 50));
       const data = mockData[method];
       if (data === undefined) {
-        console.warn(`[Bridge DEV] No mock data for method: ${method}`);
+        log.warning(`[Bridge DEV] No mock data for method: ${method}`);
         return {} as T;
       }
+      log.debug(`[Bridge DEV] Returning mock data for ${method}`);
       return data as T;
     }
 
@@ -115,6 +126,31 @@ class Bridge {
     return this.call('executeQuery', { connectionId, sql, useCache });
   }
 
+  async executeQueryPaginated(
+    connectionId: string,
+    sql: string,
+    startRow: number,
+    endRow: number,
+    sortModel?: Array<{ colId: string; sort: 'asc' | 'desc' }>
+  ): Promise<{
+    columns: { name: string; type: string }[];
+    rows: string[][];
+    affectedRows: number;
+    executionTimeMs: number;
+  }> {
+    return this.call('executeQueryPaginated', {
+      connectionId,
+      sql,
+      startRow,
+      endRow,
+      sortModel,
+    });
+  }
+
+  async getRowCount(connectionId: string, sql: string): Promise<{ rowCount: number }> {
+    return this.call('getRowCount', { connectionId, sql });
+  }
+
   async cancelQuery(connectionId: string): Promise<void> {
     return this.call('cancelQuery', { connectionId });
   }
@@ -127,14 +163,32 @@ class Bridge {
   async getTables(
     connectionId: string,
     database: string
-  ): Promise<
-    {
+  ): Promise<{
+    tables: {
       schema: string;
       name: string;
       type: string;
-    }[]
-  > {
-    return this.call('getTables', { connectionId, database });
+    }[];
+    loadTimeMs: number;
+  }> {
+    log.info(`[Bridge] Getting tables for connection: ${connectionId}, database: ${database}`);
+    const startTime = performance.now();
+    const tables = await this.call<
+      {
+        schema: string;
+        name: string;
+        type: string;
+      }[]
+    >('getTables', { connectionId, database });
+    const endTime = performance.now();
+    const loadTimeMs = endTime - startTime;
+
+    log.info(`[Bridge] Received ${tables.length} tables in ${loadTimeMs.toFixed(2)}ms`);
+
+    return {
+      tables,
+      loadTimeMs,
+    };
   }
 
   async getColumns(
@@ -578,6 +632,10 @@ class Bridge {
 
   async getTableDDL(connectionId: string, table: string): Promise<{ ddl: string }> {
     return this.call('getTableDDL', { connectionId, table });
+  }
+
+  async writeFrontendLog(content: string): Promise<void> {
+    return this.call('writeFrontendLog', { content });
   }
 }
 

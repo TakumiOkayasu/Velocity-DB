@@ -1,6 +1,10 @@
 #include "schema_inspector.h"
 
+#include "utils/logger.h"
+
 #include <format>
+
+using namespace std::literals;
 
 namespace predategrip {
 
@@ -22,10 +26,13 @@ std::vector<std::string> SchemaInspector::getDatabases() {
     return databases;
 }
 
-std::vector<TableInfo> SchemaInspector::getTables(std::string_view) {
+std::vector<TableInfo> SchemaInspector::getTables(std::string_view database) {
+    predategrip::log<LogLevel::DEBUG>(std::format("SchemaInspector::getTables called for database: '{}'", database));
+
     std::vector<TableInfo> tables;
 
     if (!m_driver || !m_driver->isConnected()) [[unlikely]] {
+        predategrip::log<LogLevel::WARNING>("SchemaInspector::getTables: Driver not connected"sv);
         return tables;
     }
 
@@ -46,14 +53,19 @@ std::vector<TableInfo> SchemaInspector::getTables(std::string_view) {
         ORDER BY schema_name, table_name
     )";
 
+    predategrip::log<LogLevel::DEBUG>("SchemaInspector::getTables: Executing SQL query"sv);
     auto result = m_driver->execute(sql);
+    predategrip::log<LogLevel::INFO>(std::format("SchemaInspector::getTables: Query returned {} rows", result.rows.size()));
+
     tables.reserve(result.rows.size());
     for (const auto& row : result.rows) {
         if (row.values.size() >= 3) {
             tables.push_back({.schema = row.values[0], .name = row.values[1], .type = row.values[2]});
+            predategrip::log<LogLevel::DEBUG>(std::format("  Found: {}.{} ({})", row.values[0], row.values[1], row.values[2]));
         }
     }
 
+    predategrip::log<LogLevel::INFO>(std::format("SchemaInspector::getTables: Returning {} tables/views", tables.size()));
     return tables;
 }
 

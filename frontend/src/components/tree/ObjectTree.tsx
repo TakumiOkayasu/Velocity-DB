@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { bridge } from '../../api/bridge';
 import { useConnectionStore } from '../../store/connectionStore';
 import type { DatabaseObject } from '../../types';
+import { log } from '../../utils/logger';
 import styles from './ObjectTree.module.css';
 import { TreeNode } from './TreeNode';
 
@@ -20,60 +21,77 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
   const activeConnection = connections.find((c) => c.id === activeConnectionId);
 
   // Load tables for a connection
-  const loadTables = useCallback(async (connectionId: string): Promise<DatabaseObject[]> => {
-    try {
-      const tables = await bridge.getTables(connectionId, '');
+  const loadTables = useCallback(
+    async (connectionId: string): Promise<DatabaseObject[]> => {
+      try {
+        log.info(`[ObjectTree] Loading tables for connection: ${connectionId}`);
 
-      const tableNodes: DatabaseObject[] = [];
-      const viewNodes: DatabaseObject[] = [];
+        // Call updated API that returns timing info
+        const { tables, loadTimeMs } = await bridge.getTables(connectionId, '');
 
-      for (const table of tables) {
-        const node: DatabaseObject = {
-          id: `${connectionId}-${table.schema}-${table.name}`,
-          name: table.schema !== 'dbo' ? `${table.schema}.${table.name}` : table.name,
-          type: table.type === 'VIEW' ? 'view' : 'table',
-          children: [], // Will be loaded on expand
-        };
+        // Store the load time in connection store (using getState to avoid dependency)
+        useConnectionStore.getState().setTableListLoadTime(connectionId, loadTimeMs);
 
-        if (table.type === 'VIEW') {
-          viewNodes.push(node);
-        } else {
-          tableNodes.push(node);
+        log.info(`[ObjectTree] Loaded ${tables.length} tables/views in ${loadTimeMs.toFixed(2)}ms`);
+
+        const tableNodes: DatabaseObject[] = [];
+        const viewNodes: DatabaseObject[] = [];
+
+        for (const table of tables) {
+          const node: DatabaseObject = {
+            id: `${connectionId}-${table.schema}-${table.name}`,
+            name: table.schema !== 'dbo' ? `${table.schema}.${table.name}` : table.name,
+            type: table.type === 'VIEW' ? 'view' : 'table',
+            children: [], // Will be loaded on expand
+          };
+
+          if (table.type === 'VIEW') {
+            viewNodes.push(node);
+          } else {
+            tableNodes.push(node);
+          }
         }
-      }
 
-      return [
-        {
-          id: `${connectionId}-tables`,
-          name: 'Tables',
-          type: 'folder' as const,
-          children: tableNodes,
-        },
-        {
-          id: `${connectionId}-views`,
-          name: 'Views',
-          type: 'folder' as const,
-          children: viewNodes,
-        },
-      ];
-    } catch (error) {
-      console.error('Failed to load tables:', error);
-      return [];
-    }
-  }, []);
+        log.info(
+          `[ObjectTree] Categorized: ${tableNodes.length} tables, ${viewNodes.length} views`
+        );
+
+        return [
+          {
+            id: `${connectionId}-tables`,
+            name: 'Tables',
+            type: 'folder' as const,
+            children: tableNodes,
+          },
+          {
+            id: `${connectionId}-views`,
+            name: 'Views',
+            type: 'folder' as const,
+            children: viewNodes,
+          },
+        ];
+      } catch (error) {
+        log.error(`[ObjectTree] Failed to load tables: ${error}`);
+        return [];
+      }
+    },
+    [] // No dependencies - stable function
+  );
 
   // Load columns for a table
   const loadColumns = useCallback(
     async (connectionId: string, tableName: string): Promise<DatabaseObject[]> => {
       try {
+        log.debug(`[ObjectTree] Loading columns for table: ${tableName}`);
         const columns = await bridge.getColumns(connectionId, tableName);
+        log.debug(`[ObjectTree] Loaded ${columns.length} columns for ${tableName}`);
         return columns.map((col) => ({
           id: `${connectionId}-${tableName}-${col.name}`,
           name: `${col.name} (${col.type}${col.isPrimaryKey ? ', PK' : ''}${col.nullable ? '' : ', NOT NULL'})`,
           type: 'column' as const,
         }));
       } catch (error) {
-        console.error('Failed to load columns:', error);
+        log.error(`[ObjectTree] Failed to load columns: ${error}`);
         return [];
       }
     },
@@ -81,6 +99,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
   );
 
   // Build tree when connection changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: activeConnection creates new object reference each render, causing infinite loop. Only activeConnectionId needed.
   useEffect(() => {
     if (!activeConnectionId || !activeConnection) {
       setTreeData([]);
@@ -98,7 +117,6 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
         children: [],
       };
 
-      setTreeData([dbNode]);
       setExpandedNodes(new Set([activeConnectionId]));
 
       // Load tables
@@ -109,7 +127,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
       if (isCancelled) return;
 
       dbNode.children = children;
-      setTreeData([{ ...dbNode }]);
+      setTreeData([dbNode]);
       setLoadingNodes((prev) => {
         const next = new Set(prev);
         next.delete(activeConnectionId);
@@ -123,7 +141,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
     return () => {
       isCancelled = true;
     };
-  }, [activeConnectionId, activeConnection, loadTables]);
+  }, [activeConnectionId, loadTables]);
 
   // Handle node toggle with lazy loading for table columns
   const toggleNode = useCallback(

@@ -16,6 +16,7 @@
 #include "simdjson.h"
 #include "utils/global_search.h"
 #include "utils/json_utils.h"
+#include "utils/logger.h"
 #include "utils/session_manager.h"
 #include "utils/settings_manager.h"
 #include "utils/simd_filter.h"
@@ -23,6 +24,8 @@
 #include <chrono>
 #include <format>
 #include <fstream>
+
+using namespace std::literals;
 
 namespace predategrip {
 
@@ -135,6 +138,8 @@ void IPCHandler::registerRequestRoutes() {
     m_requestRoutes["disconnect"] = [this](std::string_view p) { return closeDatabaseConnection(p); };
     m_requestRoutes["testConnection"] = [this](std::string_view p) { return verifyDatabaseConnection(p); };
     m_requestRoutes["executeQuery"] = [this](std::string_view p) { return executeSQL(p); };
+    m_requestRoutes["executeQueryPaginated"] = [this](std::string_view p) { return executeSQLPaginated(p); };
+    m_requestRoutes["getRowCount"] = [this](std::string_view p) { return getRowCount(p); };
     m_requestRoutes["cancelQuery"] = [this](std::string_view p) { return cancelRunningQuery(p); };
     m_requestRoutes["getTables"] = [this](std::string_view p) { return fetchTableList(p); };
     m_requestRoutes["getColumns"] = [this](std::string_view p) { return fetchColumnDefinitions(p); };
@@ -173,6 +178,7 @@ void IPCHandler::registerRequestRoutes() {
     m_requestRoutes["getTriggers"] = [this](std::string_view p) { return fetchTriggers(p); };
     m_requestRoutes["getTableMetadata"] = [this](std::string_view p) { return fetchTableMetadata(p); };
     m_requestRoutes["getTableDDL"] = [this](std::string_view p) { return fetchTableDDL(p); };
+    m_requestRoutes["writeFrontendLog"] = [this](std::string_view p) { return writeFrontendLog(p); };
 }
 
 std::string IPCHandler::dispatchRequest(std::string_view request) {
@@ -348,8 +354,11 @@ std::string IPCHandler::cancelRunningQuery(std::string_view params) {
 }
 
 std::string IPCHandler::fetchTableList(std::string_view params) {
+    predategrip::log<LogLevel::DEBUG>(std::format("IPCHandler::fetchTableList called with params: {}", params));
+
     auto connectionIdResult = extractConnectionId(params);
     if (!connectionIdResult) {
+        predategrip::log<LogLevel::ERROR_LEVEL>(std::format("IPCHandler::fetchTableList: Failed to extract connection ID: {}", connectionIdResult.error()));
         return JsonUtils::errorResponse(connectionIdResult.error());
     }
     auto connectionId = *connectionIdResult;
@@ -357,18 +366,25 @@ std::string IPCHandler::fetchTableList(std::string_view params) {
     try {
         auto connection = m_activeConnections.find(connectionId);
         if (connection == m_activeConnections.end()) [[unlikely]] {
+            predategrip::log<LogLevel::ERROR_LEVEL>(std::format("IPCHandler::fetchTableList: Connection not found: {}", connectionId));
             return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
         }
 
         auto& driver = connection->second;
+        predategrip::log<LogLevel::DEBUG>(std::format("IPCHandler::fetchTableList: Driver found for connection: {}", connectionId));
 
+        // Filter to only include user tables and views (exclude system tables)
         constexpr auto tableListQuery = R"(
             SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE
             FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_TYPE IN ('BASE TABLE', 'VIEW')
             ORDER BY TABLE_SCHEMA, TABLE_NAME
         )";
 
+        predategrip::log<LogLevel::DEBUG>("IPCHandler::fetchTableList: Executing table list query"sv);
         ResultSet queryResult = driver->execute(tableListQuery);
+
+        predategrip::log<LogLevel::INFO>(std::format("IPCHandler::fetchTableList: Found {} tables/views", queryResult.rows.size()));
 
         std::string jsonResponse = "[";
         for (size_t i = 0; i < queryResult.rows.size(); ++i) {
@@ -379,8 +395,10 @@ std::string IPCHandler::fetchTableList(std::string_view params) {
         }
         jsonResponse += ']';
 
+        predategrip::log<LogLevel::DEBUG>("IPCHandler::fetchTableList: Returning JSON response"sv);
         return JsonUtils::successResponse(jsonResponse);
     } catch (const std::exception& e) {
+        predategrip::log<LogLevel::ERROR_LEVEL>(std::format("IPCHandler::fetchTableList: Exception: {}", e.what()));
         return JsonUtils::errorResponse(e.what());
     }
 }
@@ -2187,6 +2205,145 @@ std::string IPCHandler::fetchTableDDL(std::string_view params) {
 
         std::string json = std::format("{{\"ddl\":\"{}\"}}", JsonUtils::escapeString(ddl));
         return JsonUtils::successResponse(json);
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string IPCHandler::executeSQLPaginated(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        simdjson::dom::element doc = parser.parse(params);
+
+        auto connectionIdResult = doc["connectionId"].get_string();
+        auto sqlQueryResult = doc["sql"].get_string();
+        if (connectionIdResult.error() || sqlQueryResult.error()) [[unlikely]] {
+            return JsonUtils::errorResponse("Missing required fields: connectionId or sql");
+        }
+        auto connectionId = std::string(connectionIdResult.value());
+        auto sqlQuery = std::string(sqlQueryResult.value());
+
+        // Extract pagination parameters
+        int64_t startRow = 0;
+        int64_t endRow = 100;  // Default: 100 rows
+        if (auto startRowOpt = doc["startRow"].get_int64(); !startRowOpt.error()) {
+            startRow = startRowOpt.value();
+        }
+        if (auto endRowOpt = doc["endRow"].get_int64(); !endRowOpt.error()) {
+            endRow = endRowOpt.value();
+        }
+
+        // Extract sort model (optional)
+        std::string orderByClause;
+        if (auto sortModel = doc["sortModel"].get_array(); !sortModel.error()) {
+            std::string sortClauses;
+            for (auto item : sortModel.value()) {
+                auto colId = item["colId"].get_string();
+                auto sort = item["sort"].get_string();
+                if (!colId.error() && !sort.error()) {
+                    if (!sortClauses.empty())
+                        sortClauses += ", ";
+                    sortClauses += std::string(colId.value()) + " " + (sort.value() == std::string_view("asc") ? "ASC" : "DESC");
+                }
+            }
+            if (!sortClauses.empty()) {
+                orderByClause = " ORDER BY " + sortClauses;
+            }
+        }
+
+        auto connection = m_activeConnections.find(connectionId);
+        if (connection == m_activeConnections.end()) [[unlikely]] {
+            return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
+        }
+
+        auto& driver = connection->second;
+
+        // Build paginated query using SQL Server OFFSET/FETCH
+        // Note: OFFSET/FETCH requires ORDER BY clause
+        std::string paginatedQuery;
+        if (orderByClause.empty()) {
+            // No sort specified - use a default order (e.g., by first column or row number)
+            paginatedQuery = std::format("{} ORDER BY (SELECT NULL) OFFSET {} ROWS FETCH NEXT {} ROWS ONLY", sqlQuery, startRow, endRow - startRow);
+        } else {
+            paginatedQuery = std::format("{}{} OFFSET {} ROWS FETCH NEXT {} ROWS ONLY", sqlQuery, orderByClause, startRow, endRow - startRow);
+        }
+
+        ResultSet queryResult = driver->execute(paginatedQuery);
+
+        std::string jsonResponse = JsonUtils::serializeResultSet(queryResult, false);
+
+        return JsonUtils::successResponse(jsonResponse);
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string IPCHandler::getRowCount(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        simdjson::dom::element doc = parser.parse(params);
+
+        auto connectionIdResult = doc["connectionId"].get_string();
+        auto sqlQueryResult = doc["sql"].get_string();
+        if (connectionIdResult.error() || sqlQueryResult.error()) [[unlikely]] {
+            return JsonUtils::errorResponse("Missing required fields: connectionId or sql");
+        }
+        auto connectionId = std::string(connectionIdResult.value());
+        auto sqlQuery = std::string(sqlQueryResult.value());
+
+        auto connection = m_activeConnections.find(connectionId);
+        if (connection == m_activeConnections.end()) [[unlikely]] {
+            return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
+        }
+
+        auto& driver = connection->second;
+
+        // Optimize COUNT query for better performance:
+        // 1. Use COUNT_BIG(*) instead of COUNT(*) for large tables
+        // 2. Add WITH(NOLOCK) hint to avoid locking issues
+        // Note: NOLOCK may read uncommitted data, but this is acceptable for row count estimation
+        auto countQuery = std::format("SELECT COUNT_BIG(*) AS total_rows FROM ({}) AS subquery WITH(NOLOCK)", sqlQuery);
+
+        ResultSet queryResult = driver->execute(countQuery);
+
+        if (queryResult.rows.empty() || queryResult.rows[0].values.empty()) {
+            return JsonUtils::errorResponse("Failed to get row count");
+        }
+
+        auto rowCount = queryResult.rows[0].values[0];
+        auto json = std::format("{{\"rowCount\":{}}}", rowCount);
+
+        return JsonUtils::successResponse(json);
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string IPCHandler::writeFrontendLog(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        auto doc = parser.parse(params);
+
+        std::string logContent = std::string(doc["content"].get_string().value());
+
+        // Write to log/frontend.log
+        std::filesystem::path logPath("log/frontend.log");
+        std::filesystem::create_directories(logPath.parent_path());
+
+        // Clear log on first write (app startup)
+        static bool firstWrite = true;
+        std::ofstream logFile(logPath, firstWrite ? std::ios::trunc : std::ios::app);
+        firstWrite = false;
+
+        if (!logFile.is_open()) {
+            return JsonUtils::errorResponse("Failed to open frontend log file");
+        }
+
+        logFile << logContent;
+        logFile.flush();
+        logFile.close();
+
+        return JsonUtils::successResponse("{}");
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
     }

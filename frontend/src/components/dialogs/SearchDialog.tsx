@@ -184,7 +184,7 @@ async function searchObjects(connectionId: string, query: string): Promise<Searc
   try {
     // Get tables and filter locally (simplified approach)
     // In a real implementation, this would be a server-side search
-    const tables = await bridge.getTables(connectionId, '');
+    const { tables } = await bridge.getTables(connectionId, '');
 
     for (const table of tables) {
       if (table.name.toLowerCase().includes(lowerQuery)) {

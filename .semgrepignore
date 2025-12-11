@@ -17,6 +17,4 @@ frontend/tests/
 # Ignore shell=True warnings in build scripts that use hardcoded paths only
 # These scripts use vcvars64.bat paths from find_vcvars() which only returns
 # hardcoded Visual Studio installation paths - no user input involved
-# scripts/build.py - get_msvc_env()
-# scripts/cpp_check.py - get_msvc_env()
-# scripts/package.py - get_msvc_env()
+# scripts/_lib/build.py - get_msvc_env()

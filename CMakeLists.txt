@@ -9,12 +9,21 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Unity Build for faster compilation (currently disabled due to namespace conflicts)
+# TODO: Re-enable after resolving anonymous namespace collisions
+# set(CMAKE_UNITY_BUILD ON)
+# set(CMAKE_UNITY_BUILD_BATCH_SIZE 8)
+
 # Windows specific settings
 if(WIN32)
     add_definitions(-DUNICODE -D_UNICODE)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     # Define _DEBUG for Debug builds (MSVC normally does this, but ensure it for Ninja)
     add_compile_definitions($<$<CONFIG:Debug>:_DEBUG>)
+    # Enable multi-processor compilation for MSVC
+    if(MSVC)
+        add_compile_options(/MP)
+    endif()
 endif()
 
 # Options

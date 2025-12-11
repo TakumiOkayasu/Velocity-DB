@@ -1,4 +1,4 @@
-﻿# Core library sources (without main.cpp)
+# Core library sources (without main.cpp)
 set(LIB_SOURCES
     webview_app.cpp
     ipc_handler.cpp
@@ -22,6 +22,7 @@ set(LIB_SOURCES
     utils/session_manager.cpp
     utils/global_search.cpp
     utils/credential_protector.cpp
+    utils/logger.cpp
 )
 
 set(HEADERS
@@ -48,6 +49,7 @@ set(HEADERS
     utils/session_manager.h
     utils/global_search.h
     utils/credential_protector.h
+    utils/logger.h
 )
 
 # Create a static library for the core functionality
@@ -67,10 +69,44 @@ target_link_libraries(PreDateGripCore PUBLIC
     crypt32
 )
 
+# Precompiled Headers for faster compilation
+target_precompile_headers(PreDateGripCore PRIVATE
+    <string>
+    <string_view>
+    <vector>
+    <memory>
+    <format>
+    <expected>
+    <chrono>
+    <unordered_map>
+    <functional>
+    <optional>
+    <fstream>
+    <sstream>
+    <algorithm>
+    "${CMAKE_SOURCE_DIR}/third_party/simdjson.h"
+)
+
 # Main executable
 add_executable(PreDateGrip WIN32 main.cpp)
 
 target_link_libraries(PreDateGrip PRIVATE PreDateGripCore)
+
+# Set output directory to build/[Debug|Release]/
+set_target_properties(PreDateGrip PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
+    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo"
+    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_BINARY_DIR}/MinSizeRel"
+)
+
+# Also set output directory for the static library
+set_target_properties(PreDateGripCore PROPERTIES
+    ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug"
+    ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
+    ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo"
+    ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_BINARY_DIR}/MinSizeRel"
+)
 
 # Copy frontend dist to output directory (if it exists)
 if(EXISTS "${CMAKE_SOURCE_DIR}/frontend/dist")

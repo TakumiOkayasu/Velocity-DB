@@ -24,16 +24,6 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-      - name: Auto-approve PR
-        # Auto-approve minor and patch updates
-        if: |
-          steps.metadata.outputs.update-type == 'version-update:semver-minor' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-patch'
-        run: |
-          gh pr review --approve "${{ github.event.pull_request.number }}"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Enable auto-merge
         # Enable auto-merge for minor and patch updates
         if: |
@@ -44,10 +34,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Comment on major updates
-        # Add comment for major updates (manual review required)
+      - name: Request review for major updates
+        # Request review from TakumiOkayasu for major updates
         if: steps.metadata.outputs.update-type == 'version-update:semver-major'
         run: |
-          gh pr comment "${{ github.event.pull_request.number }}" --body "⚠️ This is a **major version update**. Please review manually before merging."
+          gh pr edit "${{ github.event.pull_request.number }}" --add-reviewer TakumiOkayasu
+          gh pr comment "${{ github.event.pull_request.number }}" --body "⚠️ This is a **major version update**. @TakumiOkayasu please review manually before merging."
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

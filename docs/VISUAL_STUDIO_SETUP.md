@@ -4,7 +4,10 @@
 
 1. Visual Studio 2022 がインストールされていること
 2. 「C++ によるデスクトップ開発」ワークロードがインストールされていること
-3. Node.js がインストールされていること（フロントエンドビルド用）
+3. Bun がインストールされていること（フロントエンドビルド用）
+   - インストール: `powershell -c "irm bun.sh/install.ps1 | iex"`
+4. uv がインストールされていること（ビルドスクリプト実行用）
+   - インストール: `winget install astral-sh.uv`
 
 ## セットアップ手順
 
@@ -13,9 +16,13 @@
 アプリ実行時にフロントエンドが必要です。初回は以下を実行してください：
 
 ```powershell
+# ビルドスクリプトを使用（推奨）
+uv run scripts/pdg.py build frontend
+
+# または手動でBunを使用
 cd frontend
-npm install
-npm run build
+bun install
+bun run build
 ```
 
 ### 2. ソリューションを開く
@@ -72,7 +79,7 @@ https://developer.microsoft.com/en-us/microsoft-edge/webview2/
 ### フロントエンドが表示されない場合
 
 1. `frontend/dist` フォルダが存在することを確認
-2. 存在しない場合は `cd frontend && npm run build` を実行
+2. 存在しない場合は `uv run scripts/pdg.py build frontend` を実行
 3. プロジェクトをリビルド（CMakeがdistをコピーします）
 
 ### ビルドエラーが発生する場合
@@ -81,7 +88,7 @@ https://developer.microsoft.com/en-us/microsoft-edge/webview2/
 2. 「ソリューションのクリーン」を実行してからリビルド
 3. `build` フォルダを削除してCMakeを再実行：
    ```
-   uv run scripts/build.py Debug
+   uv run scripts/pdg.py build backend --type Debug --clean
    ```
 
 ## デバッグのヒント

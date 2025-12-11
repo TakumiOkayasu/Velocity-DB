@@ -14,6 +14,8 @@ interface ConnectionState {
   setActive: (id: string | null) => void;
   testConnection: (connection: Omit<Connection, 'id'>) => Promise<boolean>;
   clearError: () => void;
+  setTableListLoadTime: (connectionId: string, loadTimeMs: number) => void;
+  setTableOpenTime: (connectionId: string, loadTimeMs: number) => void;
 }
 
 export const useConnectionStore = create<ConnectionState>((set, get) => ({
@@ -100,6 +102,22 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
   clearError: () => {
     set({ error: null });
   },
+
+  setTableListLoadTime: (connectionId, loadTimeMs) => {
+    set((state) => ({
+      connections: state.connections.map((c) =>
+        c.id === connectionId ? { ...c, tableListLoadTimeMs: loadTimeMs } : c
+      ),
+    }));
+  },
+
+  setTableOpenTime: (connectionId, loadTimeMs) => {
+    set((state) => ({
+      connections: state.connections.map((c) =>
+        c.id === connectionId ? { ...c, tableOpenTimeMs: loadTimeMs } : c
+      ),
+    }));
+  },
 }));
 
 // Optimized selectors to prevent unnecessary re-renders
@@ -119,5 +137,7 @@ export const useConnectionActions = () =>
       setActive: state.setActive,
       testConnection: state.testConnection,
       clearError: state.clearError,
+      setTableListLoadTime: state.setTableListLoadTime,
+      setTableOpenTime: state.setTableOpenTime,
     }))
   );
