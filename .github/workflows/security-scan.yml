@@ -195,7 +195,7 @@ jobs:
         if: matrix.language == 'javascript-typescript'
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.3.4
 
       - name: Install frontend dependencies
         if: matrix.language == 'javascript-typescript'
