@@ -200,32 +200,6 @@ uv run scripts/pdg.py --help                     # 全コマンド表示
 uv run scripts/pdg.py build --help               # buildコマンドのヘルプ
 ```
 
-#### レガシースクリプト（後方互換性）
-
-個別のスクリプトも引き続き使用可能です：
-
-```bash
-# バックエンド
-uv run scripts/build_backend.py Release
-uv run scripts/test_backend.py Release
-uv run scripts/cpp_check.py all Release
-
-# フロントエンド
-uv run scripts/build_frontend.py
-uv run scripts/test_frontend.py
-uv run scripts/lint_frontend.py --fix
-uv run scripts/dev.py
-
-# 全体
-uv run scripts/check_all.py Release
-uv run scripts/run_lint.py
-uv run scripts/package.py
-
-# ユーティリティ
-uv run scripts/convert_eol.py lf frontend/src   # EOL変換（LF）
-uv run scripts/convert_eol.py crlf src          # EOL変換（CRLF）
-```
-
 #### 直接Bunを使う場合（オプション）
 
 フロントエンド開発では、以下のコマンドも直接使用可能です：

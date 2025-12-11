@@ -17,7 +17,7 @@
 
 ```powershell
 # ビルドスクリプトを使用（推奨）
-uv run scripts/build_frontend.py
+uv run scripts/pdg.py build frontend
 
 # または手動でBunを使用
 cd frontend
@@ -79,7 +79,7 @@ https://developer.microsoft.com/en-us/microsoft-edge/webview2/
 ### フロントエンドが表示されない場合
 
 1. `frontend/dist` フォルダが存在することを確認
-2. 存在しない場合は `uv run scripts/build_frontend.py` を実行
+2. 存在しない場合は `uv run scripts/pdg.py build frontend` を実行
 3. プロジェクトをリビルド（CMakeがdistをコピーします）
 
 ### ビルドエラーが発生する場合
@@ -88,7 +88,7 @@ https://developer.microsoft.com/en-us/microsoft-edge/webview2/
 2. 「ソリューションのクリーン」を実行してからリビルド
 3. `build` フォルダを削除してCMakeを再実行：
    ```
-   uv run scripts/build_backend.py Debug --clean
+   uv run scripts/pdg.py build backend --type Debug --clean
    ```
 
 ## デバッグのヒント

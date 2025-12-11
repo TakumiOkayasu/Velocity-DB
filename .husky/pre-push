@@ -55,7 +55,7 @@ fi
 DIRTY_BEFORE=$(git status --porcelain)
 
 # Run lint + format first (fast)
-$RUN_CMD scripts/run_lint.py
+$RUN_CMD scripts/pdg.py lint
 if [ $? -ne 0 ]; then
     echo ""
     echo "=========================================="
@@ -110,7 +110,7 @@ cd ..
 # Run C++ build
 echo ""
 echo "[C++] Running build..."
-$RUN_CMD scripts/build_backend.py Release
+$RUN_CMD scripts/pdg.py build backend
 if [ $? -ne 0 ]; then
     echo ""
     echo "=========================================="

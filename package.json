@@ -5,12 +5,12 @@
   "description": "High-performance RDBMS management tool for Windows",
   "scripts": {
     "prepare": "husky",
-    "lint": "uv run scripts/run_lint.py",
+    "lint": "uv run scripts/pdg.py lint",
     "lint:frontend": "cd frontend && npm run lint",
     "lint:fix": "cd frontend && npm run lint:fix",
     "build:frontend": "cd frontend && npm run build",
-    "build": "uv run scripts/build.py Release",
-    "package": "uv run scripts/package.py"
+    "build": "uv run scripts/pdg.py build backend",
+    "package": "uv run scripts/pdg.py package"
   },
   "devDependencies": {
     "husky": "^9.1.7",
