@@ -280,14 +280,25 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
               }));
             }
 
-            // Fetch total row count (only on first load)
+            // Fetch total row count asynchronously (low priority, non-blocking)
+            // Only fetch if we haven't already
             if (totalRows === undefined) {
-              bridge
-                .getRowCount(activeConnectionId, currentQuery.content)
-                .then((countResult) => {
-                  setTotalRows(countResult.rowCount);
-                })
-                .catch(console.error);
+              // Delay the count query to not block initial data display
+              setTimeout(() => {
+                bridge
+                  .getRowCount(activeConnectionId, currentQuery.content)
+                  .then((countResult) => {
+                    setTotalRows(countResult.rowCount);
+                    // Refresh grid to update scroll position with known row count
+                    if (gridRef.current?.api) {
+                      gridRef.current.api.refreshInfiniteCache();
+                    }
+                  })
+                  .catch((error) => {
+                    // Silently fail - infinite scroll will continue to work
+                    log.debug(`[ResultGrid] Failed to get row count: ${error}`);
+                  });
+              }, 100); // Small delay to prioritize initial data display
             }
           }
 

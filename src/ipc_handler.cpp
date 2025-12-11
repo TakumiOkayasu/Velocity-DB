@@ -385,11 +385,6 @@ std::string IPCHandler::fetchTableList(std::string_view params) {
         ResultSet queryResult = driver->execute(tableListQuery);
 
         predategrip::log<LogLevel::INFO>(std::format("IPCHandler::fetchTableList: Found {} tables/views", queryResult.rows.size()));
-        for (const auto& row : queryResult.rows) {
-            if (row.values.size() >= 3) {
-                predategrip::log<LogLevel::DEBUG>(std::format("  Table: {}.{} ({})", row.values[0], row.values[1], row.values[2]));
-            }
-        }
 
         std::string jsonResponse = "[";
         for (size_t i = 0; i < queryResult.rows.size(); ++i) {
@@ -2303,8 +2298,11 @@ std::string IPCHandler::getRowCount(std::string_view params) {
 
         auto& driver = connection->second;
 
-        // Wrap query in SELECT COUNT(*) to get total row count
-        auto countQuery = std::format("SELECT COUNT(*) AS total_rows FROM ({}) AS subquery", sqlQuery);
+        // Optimize COUNT query for better performance:
+        // 1. Use COUNT_BIG(*) instead of COUNT(*) for large tables
+        // 2. Add WITH(NOLOCK) hint to avoid locking issues
+        // Note: NOLOCK may read uncommitted data, but this is acceptable for row count estimation
+        auto countQuery = std::format("SELECT COUNT_BIG(*) AS total_rows FROM ({}) AS subquery WITH(NOLOCK)", sqlQuery);
 
         ResultSet queryResult = driver->execute(countQuery);
 
