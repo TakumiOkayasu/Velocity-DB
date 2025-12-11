@@ -13,8 +13,14 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    minify: 'esbuild', // Explicitly use esbuild for faster minification
+    target: 'es2020', // Modern target for faster builds and smaller output
     chunkSizeWarningLimit: 1000, // Large libraries like AG Grid v33 and Monaco exceed 600KB
     rollupOptions: {
+      treeshake: {
+        preset: 'recommended',
+        moduleSideEffects: false,
+      },
       output: {
         manualChunks(id) {
           // Split node_modules into vendor chunks
@@ -43,6 +49,9 @@ export default defineConfig({
         },
       },
     },
+  },
+  esbuild: {
+    logOverride: { 'this-is-undefined-in-esm': 'silent' },
   },
   server: {
     port: 5173,

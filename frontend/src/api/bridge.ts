@@ -16,10 +16,18 @@ class Bridge {
 
     if (window.invoke) {
       const requestStr = JSON.stringify(request);
-      log.debug(`[Bridge] Sending request: ${method}`);
+      // Skip logging for writeFrontendLog to prevent infinite loop
+      const shouldLog = method !== 'writeFrontendLog';
+
+      if (shouldLog) {
+        log.debug(`[Bridge] Sending request: ${method}`);
+      }
 
       const responseRaw = await window.invoke(requestStr);
-      log.debug(`[Bridge] Received response for ${method} (type: ${typeof responseRaw})`);
+
+      if (shouldLog) {
+        log.debug(`[Bridge] Received response for ${method} (type: ${typeof responseRaw})`);
+      }
 
       // If response is already an object, webview may have parsed it
       let response: IPCResponse<T>;
@@ -38,7 +46,9 @@ class Bridge {
         throw new Error(response.error || 'Unknown error');
       }
 
-      log.debug(`[Bridge] Successfully processed ${method}`);
+      if (shouldLog) {
+        log.debug(`[Bridge] Successfully processed ${method}`);
+      }
       return response.data as T;
     }
 

@@ -253,25 +253,54 @@ export const useQueryStore = create<QueryState>((set, get) => ({
       useServerSideRowModel: true, // Enable server-side row model for large tables
     };
 
-    console.log(
-      '🚀 [QueryStore] Creating query with useServerSideRowModel:',
-      newQuery.useServerSideRowModel
-    );
-    console.log('🚀 [QueryStore] Full query object:', newQuery);
     log.info(
       `[QueryStore] Creating new query tab with server-side row model: ${id} for table ${tableName}`
     );
 
-    // Create tab without executing query immediately
-    // ResultGrid will fetch data on-demand using server-side datasource
+    // Fetch column metadata first to initialize AG Grid properly
+    // Use TOP 0 to get only schema without data (SQL Server syntax)
+    const metadataQuery = `SELECT TOP 0 * FROM ${tableName}`;
+
     set((state) => ({
       queries: [...state.queries, newQuery],
       activeQueryId: id,
-      isExecuting: false,
+      isExecuting: true,
       error: null,
     }));
 
-    log.debug(`[QueryStore] Query tab created: ${id}. Data will be loaded on-demand by AG Grid.`);
+    try {
+      log.debug(`[QueryStore] Fetching column metadata for ${tableName}`);
+      const metadataResult = await bridge.executeQuery(connectionId, metadataQuery, false);
+
+      // Create empty ResultSet with just column definitions
+      const initialResultSet: ResultSet = {
+        columns: metadataResult.columns.map((c) => ({
+          name: c.name,
+          type: c.type,
+          size: 0,
+          nullable: true,
+          isPrimaryKey: false,
+        })),
+        rows: [], // Empty rows - AG Grid will fetch data via server-side datasource
+        affectedRows: 0,
+        executionTimeMs: metadataResult.executionTimeMs,
+      };
+
+      set((state) => ({
+        results: { ...state.results, [id]: initialResultSet },
+        isExecuting: false,
+      }));
+
+      log.debug(
+        `[QueryStore] Column metadata loaded: ${initialResultSet.columns.length} columns. AG Grid will fetch data on-demand.`
+      );
+    } catch (error) {
+      log.error(`[QueryStore] Failed to fetch column metadata: ${error}`);
+      set({
+        isExecuting: false,
+        error: error instanceof Error ? error.message : 'Failed to load table schema',
+      });
+    }
   },
 
   applyWhereFilter: async (id, connectionId, whereClause) => {

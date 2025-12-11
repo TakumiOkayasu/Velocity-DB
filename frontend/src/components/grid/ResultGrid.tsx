@@ -97,12 +97,6 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
       return [];
     }
 
-    // For server-side mode without initial result, return empty until first data arrives
-    if (useServerSide && !resultSet) {
-      log.debug('[ResultGrid] columnDefs: returning empty (serverSide without resultSet)');
-      return [];
-    }
-
     // Helper function to check if a column type is numeric
     const isNumericType = (typeName: string): boolean => {
       const numericTypes = [
@@ -765,10 +759,10 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
         </div>
       )}
       <div ref={gridContainerRef} className={styles.grid}>
-        {useServerSide && !resultSet && (
+        {useServerSide && isExecuting && !resultSet && (
           <div className={styles.loadingOverlay}>
             <span className={styles.spinner}>{'\u23F3'}</span>
-            <span>Loading table data...</span>
+            <span>Loading table schema...</span>
           </div>
         )}
         <AgGridReact

@@ -271,15 +271,6 @@ bun pm cache rm      # キャッシュ削除
 
 ## 実装状況
 
-- [x] Phase 0: CI/CD基盤（GitHub Actions、ビルドスクリプト、テスト基盤）
-- [x] Phase 1: 基本SQL実行（接続、クエリ、トランザクション）
-- [x] Phase 2: DataGripライクUI（3ペインレイアウト、Monaco Editor、タブ）
-- [x] Phase 3: データ編集（インラインセル編集、CRUD操作）
-- [x] Phase 4: 高度な機能（SQLフォーマッター、CSV/JSON/Excelエクスポート、実行計画）
-- [x] Phase 5: A5:ER連携（.a5erファイルインポート、React Flow ER図）
-- [x] Phase 6: パフォーマンス最適化（結果キャッシュ、非同期クエリ、AVX2 SIMDフィルタ）
-- [x] Phase 7: 追加機能（グローバル検索、設定管理、セッション永続化）
-
 ## ライセンス
 
 （準備中）
