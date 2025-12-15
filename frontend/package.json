@@ -19,7 +19,7 @@
     "@monaco-editor/react": "^4.7.0",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.13",
-    "@xyflow/react": "^12.0.0",
+    "@xyflow/react": "^12.10.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "zustand": "^5.0.0"
