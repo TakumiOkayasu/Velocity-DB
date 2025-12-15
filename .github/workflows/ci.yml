@@ -196,13 +196,13 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download frontend build
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: frontend-build
           path: package/frontend
 
       - name: Download backend build
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: backend-build
           path: package

@@ -85,13 +85,13 @@ jobs:
       contents: write
     steps:
       - name: Download frontend
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: frontend-dist
           path: dist/frontend
 
       - name: Download backend
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: backend-exe
           path: dist
