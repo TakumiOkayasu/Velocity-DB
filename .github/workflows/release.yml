@@ -29,7 +29,7 @@ jobs:
           bun run build
 
       - name: Upload frontend
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: frontend-dist
           path: frontend/dist/
@@ -70,7 +70,7 @@ jobs:
           cmake --build build --parallel
 
       - name: Upload backend
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: backend-exe
           path: build/Release/PreDateGrip.exe
