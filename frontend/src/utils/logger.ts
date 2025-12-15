@@ -8,9 +8,28 @@ export enum LogLevel {
 }
 
 class Logger {
-  private minLevel: LogLevel = LogLevel.DEBUG;
+  private minLevel: LogLevel;
   private logQueue: string[] = [];
   private flushTimer: number | null = null;
+
+  constructor() {
+    // Read log level from environment variable (VITE_LOG_LEVEL)
+    // Valid values: DEBUG, INFO, WARNING, ERROR
+    // Default: INFO
+    const envLogLevel = import.meta.env.VITE_LOG_LEVEL as string | undefined;
+    const validLevels: LogLevel[] = [
+      LogLevel.DEBUG,
+      LogLevel.INFO,
+      LogLevel.WARNING,
+      LogLevel.ERROR,
+    ];
+
+    if (envLogLevel && validLevels.includes(envLogLevel as LogLevel)) {
+      this.minLevel = envLogLevel as LogLevel;
+    } else {
+      this.minLevel = LogLevel.INFO; // Default
+    }
+  }
 
   setMinLevel(level: LogLevel): void {
     this.minLevel = level;

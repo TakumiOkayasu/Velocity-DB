@@ -1,0 +1,10 @@
+# Frontend Environment Variables
+# Copy this file to .env and adjust as needed
+
+# Log Level: DEBUG, INFO, WARNING, ERROR
+# Default: INFO
+# - DEBUG: Show all logs (verbose, useful for development)
+# - INFO: Show info, warning, and error logs (recommended for production)
+# - WARNING: Show only warnings and errors
+# - ERROR: Show only errors
+VITE_LOG_LEVEL=INFO
