@@ -1,4 +1,5 @@
-import Editor from '@monaco-editor/react';
+import Editor, { type OnMount } from '@monaco-editor/react';
+import { useCallback } from 'react';
 import { useConnectionStore } from '../../store/connectionStore';
 import { useQueryStore } from '../../store/queryStore';
 import styles from './SqlEditor.module.css';
@@ -15,15 +16,24 @@ export function SqlEditor() {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Ctrl+Enter or F5 to execute
-    if (activeQueryId && activeConnectionId) {
-      if ((e.ctrlKey && e.key === 'Enter') || e.key === 'F5') {
-        e.preventDefault();
-        executeQuery(activeQueryId, activeConnectionId);
-      }
-    }
-  };
+  const handleEditorDidMount: OnMount = useCallback(
+    (editor, monaco) => {
+      // F5 key binding
+      editor.addCommand(monaco.KeyCode.F5, () => {
+        if (activeQueryId && activeConnectionId) {
+          executeQuery(activeQueryId, activeConnectionId);
+        }
+      });
+
+      // Ctrl+Enter key binding (already works, but let's make it explicit)
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+        if (activeQueryId && activeConnectionId) {
+          executeQuery(activeQueryId, activeConnectionId);
+        }
+      });
+    },
+    [activeQueryId, activeConnectionId, executeQuery]
+  );
 
   if (!activeQuery) {
     return (
@@ -35,13 +45,14 @@ export function SqlEditor() {
   }
 
   return (
-    <div className={styles.container} onKeyDown={handleKeyDown}>
+    <div className={styles.container}>
       <Editor
         height="100%"
         language="sql"
         theme="vs-dark"
         value={activeQuery.content}
         onChange={handleEditorChange}
+        onMount={handleEditorDidMount}
         options={{
           minimap: { enabled: false },
           fontSize: 14,
