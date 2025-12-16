@@ -18,14 +18,14 @@ export function SqlEditor() {
 
   const handleEditorDidMount: OnMount = useCallback(
     (editor, monaco) => {
-      // F5 key binding
-      editor.addCommand(monaco.KeyCode.F5, () => {
+      // F9 key binding (single key execution)
+      editor.addCommand(monaco.KeyCode.F9, () => {
         if (activeQueryId && activeConnectionId) {
           executeQuery(activeQueryId, activeConnectionId);
         }
       });
 
-      // Ctrl+Enter key binding (already works, but let's make it explicit)
+      // Ctrl+Enter key binding
       editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
         if (activeQueryId && activeConnectionId) {
           executeQuery(activeQueryId, activeConnectionId);
