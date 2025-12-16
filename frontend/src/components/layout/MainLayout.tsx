@@ -187,6 +187,12 @@ export function MainLayout() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Prevent F5 page reload
+      if (e.key === 'F5') {
+        e.preventDefault();
+        return;
+      }
+
       if (e.ctrlKey && e.key === 'n') {
         e.preventDefault();
         handleNewQuery();

@@ -75,18 +75,23 @@ bun run lint         # Lint
 
 ### 必須ルール
 
-1. **Pythonスクリプトは `uv run` 経由で実行**
+1. **作業開始前にブランチを作成**
+   - mainブランチから作業内容に適したブランチを切ること
+   - ブランチ名の形式: `feature/機能名` または `feat/機能名` (kebab-case)
+   - 例: `feature/multi-statement-results`, `feat/inline-editing`
+
+2. **Pythonスクリプトは `uv run` 経由で実行**
    - 例: `uv run scripts/pdg.py build backend`
 
-2. **git commit/push は絶対禁止**
+3. **git commit/push は絶対禁止**
    - コミットメッセージを考えるだけ
 
-3. **変更時の確認事項**
+4. **変更時の確認事項**
    - ドキュメント (CLAUDE.md, README.md) を更新
    - CI/CD (`.github/workflows/`) の更新確認
    - 後方互換性の維持
 
-4. **作業完了時の必須チェック**
+5. **作業完了時の必須チェック**
 
    ```bash
    # プロダクトコード (Frontend + C++)
@@ -292,6 +297,31 @@ interface QueryStore {
 
 ---
 
+## Keyboard Shortcuts
+
+Pre-DateGripは以下のキーボードショートカットをサポートしています：
+
+### SQL実行
+- **F9** - SQL実行（1キー、推奨）
+- **Ctrl+Enter** - SQL実行（2キー）
+
+### クエリ管理
+- **Ctrl+N** - 新規クエリタブを作成
+
+### SQL編集
+- **Ctrl+Shift+F** - SQLフォーマット（整形）
+
+### ナビゲーション
+- **Ctrl+Shift+P** - グローバル検索を開く
+- **Ctrl+,** - 設定を開く
+
+### その他
+- **F5** - 無効化（ページリロード防止）
+
+**注**: F5キーはブラウザのリロードと競合するため、SQL実行には使用できません。代わりにF9キーを使用してください。
+
+---
+
 ## TODO / Future Enhancements
 
 ### SQL実行機能の改善
@@ -306,10 +336,12 @@ interface QueryStore {
    - SELECT, FROM, WHERE などのキーワードを自動的に大文字に変換
    - コーディングスタイルの統一
 
-3. **複数DB同時接続**
+3. ~~**複数DB同時接続**~~ ✅ **実装済み**
    - DBをまたいだSQLの実行
    - 複数のDBを開きっぱなしにする機能
    - DB間のデータ比較・移行を容易に
+   - USE文のサポート
+   - 複数SQL文の結果をタブ形式で表示
 
 4. **列幅自動調整機能**
    - 現在ボタンは存在するが実装が不完全
