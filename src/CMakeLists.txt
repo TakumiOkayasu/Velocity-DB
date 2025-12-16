@@ -12,6 +12,7 @@ set(LIB_SOURCES
     database/odbc_driver_detector.cpp
     parsers/a5er_parser.cpp
     parsers/sql_formatter.cpp
+    parsers/sql_parser.cpp
     exporters/csv_exporter.cpp
     exporters/json_exporter.cpp
     exporters/excel_exporter.cpp
@@ -38,6 +39,7 @@ set(HEADERS
     database/odbc_driver_detector.h
     parsers/a5er_parser.h
     parsers/sql_formatter.h
+    parsers/sql_parser.h
     exporters/csv_exporter.h
     exporters/json_exporter.h
     exporters/excel_exporter.h

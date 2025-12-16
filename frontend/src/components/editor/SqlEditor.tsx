@@ -16,10 +16,12 @@ export function SqlEditor() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Ctrl+Enter to execute
-    if (e.ctrlKey && e.key === 'Enter' && activeQueryId && activeConnectionId) {
-      e.preventDefault();
-      executeQuery(activeQueryId, activeConnectionId);
+    // Ctrl+Enter or F5 to execute
+    if (activeQueryId && activeConnectionId) {
+      if ((e.ctrlKey && e.key === 'Enter') || e.key === 'F5') {
+        e.preventDefault();
+        executeQuery(activeQueryId, activeConnectionId);
+      }
     }
   };
 

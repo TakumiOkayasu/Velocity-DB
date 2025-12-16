@@ -13,6 +13,7 @@
 #include "exporters/json_exporter.h"
 #include "parsers/a5er_parser.h"
 #include "parsers/sql_formatter.h"
+#include "parsers/sql_parser.h"
 #include "simdjson.h"
 #include "utils/global_search.h"
 #include "utils/json_utils.h"
@@ -273,15 +274,102 @@ std::string IPCHandler::executeSQL(std::string_view params) {
         std::string connectionId = std::string(connectionIdResult.value());
         std::string sqlQuery = std::string(sqlQueryResult.value());
 
+        auto connection = m_activeConnections.find(connectionId);
+        if (connection == m_activeConnections.end()) [[unlikely]] {
+            return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
+        }
+
+        auto& driver = connection->second;
+
+        // Split SQL into multiple statements
+        auto statements = SQLParser::splitStatements(sqlQuery);
+
+        log<LogLevel::INFO>(std::format("Split SQL into {} statements", statements.size()));
+        for (size_t i = 0; i < statements.size(); ++i) {
+            log<LogLevel::INFO>(std::format("Statement {}: '{}'", i + 1, statements[i]));
+        }
+
+        // If multiple statements, execute them sequentially
+        if (statements.size() > 1) {
+            std::optional<ResultSet> lastResult;
+            auto startTime = std::chrono::high_resolution_clock::now();
+
+            try {
+                for (const auto& stmt : statements) {
+                    // Check if this is a USE statement
+                    if (SQLParser::isUseStatement(stmt)) {
+                        std::string dbName = SQLParser::extractDatabaseName(stmt);
+                        [[maybe_unused]] auto _ = driver->execute(stmt);
+                        log<LogLevel::INFO>(std::format("Database switched to '{}' for connection '{}'", dbName, connectionId));
+
+                        // Create result for USE statement
+                        ResultSet useResult;
+                        useResult.columns.push_back({.name = "Message", .type = "VARCHAR", .size = 255, .nullable = false, .isPrimaryKey = false});
+                        ResultRow messageRow;
+                        messageRow.values.push_back(std::format("Database changed to {}", dbName));
+                        useResult.rows.push_back(messageRow);
+                        useResult.affectedRows = 0;
+                        useResult.executionTimeMs = 0.0;
+                        lastResult = useResult;
+                    } else {
+                        // Execute regular statement
+                        lastResult = driver->execute(stmt);
+                    }
+                }
+
+                auto endTime = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration<double, std::milli>(endTime - startTime);
+
+                if (lastResult) {
+                    lastResult->executionTimeMs = duration.count();
+
+                    // Log column names for debugging
+                    std::string columnNames;
+                    for (size_t i = 0; i < lastResult->columns.size(); ++i) {
+                        if (i > 0)
+                            columnNames += ", ";
+                        columnNames += std::format("'{}' ({})", lastResult->columns[i].name, lastResult->columns[i].type);
+                    }
+                    log<LogLevel::INFO>(std::format("Returning multi-statement result: {} columns [{}], {} rows", lastResult->columns.size(), columnNames, lastResult->rows.size()));
+
+                    auto response = JsonUtils::successResponse(JsonUtils::serializeResultSet(*lastResult, false));
+                    return response;
+                } else {
+                    log<LogLevel::INFO>("No results from query execution");
+                    return JsonUtils::errorResponse("No results from query execution");
+                }
+            } catch (const std::exception& e) {
+                return JsonUtils::errorResponse(std::format("Failed to execute SQL: {}", e.what()));
+            }
+        }
+
+        // Single statement - handle USE statement specially
+        if (SQLParser::isUseStatement(sqlQuery)) {
+            std::string dbName = SQLParser::extractDatabaseName(sqlQuery);
+
+            try {
+                [[maybe_unused]] auto _ = driver->execute(sqlQuery);
+                log<LogLevel::INFO>(std::format("Database switched to '{}' for connection '{}'", dbName, connectionId));
+
+                // Create a ResultSet with a message row
+                ResultSet useResult;
+                useResult.columns.push_back({.name = "Message", .type = "VARCHAR", .size = 255, .nullable = false, .isPrimaryKey = false});
+                ResultRow messageRow;
+                messageRow.values.push_back(std::format("Database changed to {}", dbName));
+                useResult.rows.push_back(messageRow);
+                useResult.affectedRows = 0;
+                useResult.executionTimeMs = 0.0;
+
+                return JsonUtils::successResponse(JsonUtils::serializeResultSet(useResult, false));
+            } catch (const std::exception& e) {
+                return JsonUtils::errorResponse(std::format("Failed to switch database: {}", e.what()));
+            }
+        }
+
         // Check if cache should be used (default: true for SELECT queries)
         bool useCache = true;
         if (auto useCacheOpt = doc["useCache"].get_bool(); !useCacheOpt.error()) {
             useCache = useCacheOpt.value();
-        }
-
-        auto connection = m_activeConnections.find(connectionId);
-        if (connection == m_activeConnections.end()) [[unlikely]] {
-            return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
         }
 
         // Generate cache key from connection + query
@@ -295,7 +383,6 @@ std::string IPCHandler::executeSQL(std::string_view params) {
             }
         }
 
-        auto& driver = connection->second;
         ResultSet queryResult = driver->execute(sqlQuery);
 
         // Store in cache for SELECT queries
