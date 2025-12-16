@@ -1,13 +1,23 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { bridge } from '../api/bridge';
-import type { Query, ResultSet } from '../types';
+import type { MultipleResultSet, Query, QueryResult, ResultSet } from '../types';
 import { log } from '../utils/logger';
+
+// Type guard for MultipleResultSet
+function isMultipleResultSet(result: unknown): result is MultipleResultSet {
+  return (
+    typeof result === 'object' &&
+    result !== null &&
+    'multipleResults' in result &&
+    (result as { multipleResults: unknown }).multipleResults === true
+  );
+}
 
 interface QueryState {
   queries: Query[];
   activeQueryId: string | null;
-  results: Record<string, ResultSet>;
+  results: Record<string, QueryResult>;
   isExecuting: boolean;
   error: string | null;
 
@@ -126,21 +136,57 @@ export const useQueryStore = create<QueryState>((set, get) => ({
         'Query execution timed out after 5 minutes'
       );
 
-      const resultSet: ResultSet = {
-        columns: result.columns.map((c) => ({
-          name: c.name,
-          type: c.type,
-          size: 0,
-          nullable: true,
-          isPrimaryKey: false,
-        })),
-        rows: result.rows,
-        affectedRows: result.affectedRows,
-        executionTimeMs: result.executionTimeMs,
-      };
+      // Check if result has multipleResults property
+      let queryResult: QueryResult;
+
+      if (isMultipleResultSet(result)) {
+        // Multiple results format
+        queryResult = {
+          multipleResults: true,
+          results: result.results.map(
+            (r: {
+              statement: string;
+              data: {
+                columns: { name: string; type: string }[];
+                rows: string[][];
+                affectedRows: number;
+                executionTimeMs: number;
+              };
+            }) => ({
+              statement: r.statement,
+              data: {
+                columns: r.data.columns.map((c) => ({
+                  name: c.name,
+                  type: c.type,
+                  size: 0,
+                  nullable: true,
+                  isPrimaryKey: false,
+                })),
+                rows: r.data.rows,
+                affectedRows: r.data.affectedRows,
+                executionTimeMs: r.data.executionTimeMs,
+              },
+            })
+          ),
+        };
+      } else {
+        // Single result format
+        queryResult = {
+          columns: result.columns.map((c: { name: string; type: string }) => ({
+            name: c.name,
+            type: c.type,
+            size: 0,
+            nullable: true,
+            isPrimaryKey: false,
+          })),
+          rows: result.rows,
+          affectedRows: result.affectedRows,
+          executionTimeMs: result.executionTimeMs,
+        };
+      }
 
       set((state) => ({
-        results: { ...state.results, [id]: resultSet },
+        results: { ...state.results, [id]: queryResult },
         isExecuting: false,
       }));
     } catch (error) {
@@ -163,21 +209,57 @@ export const useQueryStore = create<QueryState>((set, get) => ({
         'Query execution timed out after 5 minutes'
       );
 
-      const resultSet: ResultSet = {
-        columns: result.columns.map((c) => ({
-          name: c.name,
-          type: c.type,
-          size: 0,
-          nullable: true,
-          isPrimaryKey: false,
-        })),
-        rows: result.rows,
-        affectedRows: result.affectedRows,
-        executionTimeMs: result.executionTimeMs,
-      };
+      // Check if result has multipleResults property
+      let queryResult: QueryResult;
+
+      if (isMultipleResultSet(result)) {
+        // Multiple results format
+        queryResult = {
+          multipleResults: true,
+          results: result.results.map(
+            (r: {
+              statement: string;
+              data: {
+                columns: { name: string; type: string }[];
+                rows: string[][];
+                affectedRows: number;
+                executionTimeMs: number;
+              };
+            }) => ({
+              statement: r.statement,
+              data: {
+                columns: r.data.columns.map((c) => ({
+                  name: c.name,
+                  type: c.type,
+                  size: 0,
+                  nullable: true,
+                  isPrimaryKey: false,
+                })),
+                rows: r.data.rows,
+                affectedRows: r.data.affectedRows,
+                executionTimeMs: r.data.executionTimeMs,
+              },
+            })
+          ),
+        };
+      } else {
+        // Single result format
+        queryResult = {
+          columns: result.columns.map((c: { name: string; type: string }) => ({
+            name: c.name,
+            type: c.type,
+            size: 0,
+            nullable: true,
+            isPrimaryKey: false,
+          })),
+          rows: result.rows,
+          affectedRows: result.affectedRows,
+          executionTimeMs: result.executionTimeMs,
+        };
+      }
 
       set((state) => ({
-        results: { ...state.results, [id]: resultSet },
+        results: { ...state.results, [id]: queryResult },
         isExecuting: false,
       }));
     } catch (error) {

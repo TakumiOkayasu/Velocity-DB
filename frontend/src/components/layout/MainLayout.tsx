@@ -98,7 +98,7 @@ export function MainLayout() {
   const [isA5ERImportDialogOpen, setIsA5ERImportDialogOpen] = useState(false);
 
   const { connections, activeConnectionId, addConnection } = useConnectionStore();
-  const { queries, activeQueryId, addQuery, executeQuery, formatQuery, isExecuting } =
+  const { queries, activeQueryId, results, addQuery, executeQuery, formatQuery, isExecuting } =
     useQueryStore();
   const { importFromA5ER } = useERDiagramStore();
   const activeConnection = connections.find((c) => c.id === activeConnectionId);
@@ -107,6 +107,13 @@ export function MainLayout() {
 
   // Hide bottom panel when in data view mode (table display)
   const shouldShowBottomPanel = isBottomPanelVisible && !isDataView;
+
+  // Auto-show bottom panel when query results are available
+  useEffect(() => {
+    if (activeQueryId && results[activeQueryId] && !isDataView) {
+      setIsBottomPanelVisible(true);
+    }
+  }, [activeQueryId, results, isDataView]);
 
   const handleConnect = async (config: ConnectionConfig) => {
     try {

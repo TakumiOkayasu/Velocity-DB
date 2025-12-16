@@ -132,12 +132,18 @@
   cursor: row-resize;
   background-color: var(--border-color);
   transition: background-color 0.15s ease;
+  /* Expand clickable area without changing visual size */
+  padding: 4px 0;
+  margin: -4px 0;
+  position: relative;
+  z-index: 10;
 }
 
 .horizontalResizer:hover {
   background-color: var(--accent-color);
   height: 3px;
-  margin: -1px 0;
+  margin: -5px 0;
+  padding: 4px 0;
 }
 
 /* Status bar - JetBrains New UI style */

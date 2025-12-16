@@ -174,11 +174,14 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
         // Use (std::min) to avoid Windows min macro interference
         colNameLen = (std::min)(colNameLen, static_cast<SQLSMALLINT>(colName.size() - 1));
 
-        result.columns.push_back({.name = wcharToUtf8(reinterpret_cast<wchar_t*>(colName.data()), static_cast<size_t>(colNameLen)),
-                                  .type = convertSQLTypeToDisplayName(dataType),
-                                  .size = static_cast<int>(colSize),
-                                  .nullable = (nullable == SQL_NULLABLE),
-                                  .isPrimaryKey = false});
+        std::string columnName = wcharToUtf8(reinterpret_cast<wchar_t*>(colName.data()), static_cast<size_t>(colNameLen));
+
+        // If column name is empty, use a default name (e.g., "Column1", "Column2")
+        if (columnName.empty()) {
+            columnName = std::format("Column{}", i);
+        }
+
+        result.columns.push_back({.name = columnName, .type = convertSQLTypeToDisplayName(dataType), .size = static_cast<int>(colSize), .nullable = (nullable == SQL_NULLABLE), .isPrimaryKey = false});
     }
 
     // Dynamic buffer for large column values (Unicode - SQLWCHAR is 2 bytes)

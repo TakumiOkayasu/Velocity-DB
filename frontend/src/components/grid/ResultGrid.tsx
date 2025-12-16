@@ -5,6 +5,7 @@ import { bridge } from '../../api/bridge';
 import { useConnectionStore } from '../../store/connectionStore';
 import { useEditStore } from '../../store/editStore';
 import { useActiveQuery, useQueryActions, useQueryStore } from '../../store/queryStore';
+import type { ResultSet } from '../../types';
 import { log } from '../../utils/logger';
 import { ExportDialog } from '../export/ExportDialog';
 import styles from './ResultGrid.module.css';
@@ -50,9 +51,28 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
   const [isApplying, setIsApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const [activeResultIndex, setActiveResultIndex] = useState(0);
 
-  const resultSet = targetQueryId ? (results[targetQueryId] ?? null) : null;
+  const queryResult = targetQueryId ? (results[targetQueryId] ?? null) : null;
   const currentQuery = queries.find((q) => q.id === targetQueryId);
+
+  // Check if we have multiple results
+  const isMultipleResults =
+    queryResult && 'multipleResults' in queryResult && queryResult.multipleResults === true;
+
+  // Filter out USE statements from results
+  const filteredResults = isMultipleResults
+    ? queryResult.results.filter((r) => !r.statement.trim().toUpperCase().startsWith('USE '))
+    : null;
+
+  const hasFilteredResults = filteredResults && filteredResults.length > 0;
+
+  // Get the active result set
+  const resultSet: ResultSet | null = hasFilteredResults
+    ? (filteredResults[activeResultIndex]?.data ?? null)
+    : isMultipleResults
+      ? null
+      : (queryResult as ResultSet | null);
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -272,6 +292,11 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     [activeQueryId, activeConnectionId, activeQueryFromStore, whereClause, applyWhereFilter]
   );
 
+  // Reset active result index when query result changes
+  useEffect(() => {
+    setActiveResultIndex(0);
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -327,6 +352,24 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
 
   return (
     <div className={styles.container}>
+      {/* Multiple Results Tabs */}
+      {hasFilteredResults && (
+        <div className={styles.resultTabs}>
+          {filteredResults.map((result, index) => (
+            <button
+              key={index}
+              className={`${styles.resultTab} ${activeResultIndex === index ? styles.activeResultTab : ''}`}
+              onClick={() => setActiveResultIndex(index)}
+              title={result.statement}
+            >
+              {result.statement.length > 50
+                ? `${result.statement.substring(0, 50)}...`
+                : result.statement}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className={styles.toolbar}>
         <button
           type="button"

@@ -41,6 +41,16 @@ export interface ResultSet {
   executionTimeMs: number;
 }
 
+export interface MultipleResultSet {
+  multipleResults: true;
+  results: Array<{
+    statement: string;
+    data: ResultSet;
+  }>;
+}
+
+export type QueryResult = ResultSet | MultipleResultSet;
+
 // History types
 export interface HistoryItem {
   id: string;
