@@ -55,7 +55,9 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [activeResultIndex, setActiveResultIndex] = useState(0);
   const [columnSizing, setColumnSizing] = useState<Record<string, number>>({});
-  const [editingCell, setEditingCell] = useState<{ rowIndex: number; columnId: string } | null>(null);
+  const [editingCell, setEditingCell] = useState<{ rowIndex: number; columnId: string } | null>(
+    null
+  );
   const [editValue, setEditValue] = useState<string>('');
 
   const queryResult = targetQueryId ? (results[targetQueryId] ?? null) : null;
@@ -398,10 +400,10 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
       let schemaName: string | null = null;
 
       if (parts.length === 2) {
-        schemaName = parts[0].replace(/[\[\]]/g, '');
-        tableName = parts[1].replace(/[\[\]]/g, '');
+        schemaName = parts[0].replace(/[[\]]/g, '');
+        tableName = parts[1].replace(/[[\]]/g, '');
       } else {
-        tableName = sourceTable.replace(/[\[\]]/g, '');
+        tableName = sourceTable.replace(/[[\]]/g, '');
       }
 
       // Get primary key columns from resultSet
