@@ -45,6 +45,8 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     generateUpdateSQL,
     generateInsertSQL,
     generateDeleteSQL,
+    setTableContext,
+    clearTableContext,
   } = useEditStore();
 
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
@@ -53,6 +55,8 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [activeResultIndex, setActiveResultIndex] = useState(0);
   const [columnSizing, setColumnSizing] = useState<Record<string, number>>({});
+  const [editingCell, setEditingCell] = useState<{ rowIndex: number; columnId: string } | null>(null);
+  const [editValue, setEditValue] = useState<string>('');
 
   const queryResult = targetQueryId ? (results[targetQueryId] ?? null) : null;
   const currentQuery = queries.find((q) => q.id === targetQueryId);
@@ -343,6 +347,35 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     }
   }, [isEditMode, selectedRows, rowData, columns, updateCell]);
 
+  const handleStartEdit = useCallback(
+    (rowIndex: number, columnId: string, currentValue: string | null) => {
+      if (!isEditMode || columnId === '__rowIndex') return;
+      setEditingCell({ rowIndex, columnId });
+      setEditValue(currentValue ?? '');
+    },
+    [isEditMode]
+  );
+
+  const handleConfirmEdit = useCallback(() => {
+    if (!editingCell) return;
+
+    const { rowIndex, columnId } = editingCell;
+    const oldValue = rowData[rowIndex][columnId];
+    const newValue = editValue === '' ? null : editValue;
+
+    if (oldValue !== newValue) {
+      updateCell(rowIndex, columnId, oldValue, newValue);
+    }
+
+    setEditingCell(null);
+    setEditValue('');
+  }, [editingCell, editValue, rowData, updateCell]);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingCell(null);
+    setEditValue('');
+  }, []);
+
   const handleWhereKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter') {
@@ -354,6 +387,44 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     [activeQueryId, activeConnectionId, activeQueryFromStore, whereClause, applyWhereFilter]
   );
 
+  // Set table context for editing when resultSet or sourceTable changes
+  useEffect(() => {
+    if (resultSet && currentQuery?.sourceTable) {
+      // Parse table name: may be in format [schema].[table] or just [table]
+      const sourceTable = currentQuery.sourceTable;
+      const parts = sourceTable.split('.');
+
+      let tableName: string;
+      let schemaName: string | null = null;
+
+      if (parts.length === 2) {
+        schemaName = parts[0].replace(/[\[\]]/g, '');
+        tableName = parts[1].replace(/[\[\]]/g, '');
+      } else {
+        tableName = sourceTable.replace(/[\[\]]/g, '');
+      }
+
+      // Get primary key columns from resultSet
+      const primaryKeyColumns = resultSet.columns
+        .filter((col) => col.isPrimaryKey)
+        .map((col) => col.name);
+
+      setTableContext(tableName, schemaName ?? 'dbo', primaryKeyColumns);
+      log.debug(
+        `[ResultGrid] Set table context: ${schemaName}.${tableName}, PK: ${primaryKeyColumns.join(', ')}`
+      );
+    } else {
+      clearTableContext();
+    }
+
+    // Cleanup when component unmounts or query changes
+    return () => {
+      if (!isEditMode) {
+        clearTableContext();
+      }
+    };
+  }, [resultSet, currentQuery?.sourceTable, setTableContext, clearTableContext, isEditMode]);
+
   // Reset active result index when query result changes
   useEffect(() => {
     setActiveResultIndex(0);
@@ -364,6 +435,19 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!tableContainerRef.current?.contains(document.activeElement)) return;
 
+      // If editing a cell, handle Enter/Escape
+      if (editingCell) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleConfirmEdit();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          handleCancelEdit();
+        }
+        return;
+      }
+
+      // Other shortcuts (when not editing a cell)
       if (e.ctrlKey && e.key === 'c') {
         e.preventDefault();
         handleCopySelection();
@@ -373,12 +457,33 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
       } else if (e.key === 'Delete' && isEditMode) {
         e.preventDefault();
         handleDeleteRow();
+      } else if (e.key === 'F2' && isEditMode && selectedRows.size === 1) {
+        e.preventDefault();
+        const rowIndex = Array.from(selectedRows)[0];
+        const firstEditableColumn = columns.find((col) => col.id !== '__rowIndex');
+        if (firstEditableColumn) {
+          const columnId = String(firstEditableColumn.id);
+          const currentValue = rowData[rowIndex][columnId];
+          handleStartEdit(rowIndex, columnId, currentValue);
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isEditMode, handleCopySelection, handlePaste, handleDeleteRow]);
+  }, [
+    isEditMode,
+    editingCell,
+    selectedRows,
+    columns,
+    rowData,
+    handleCopySelection,
+    handlePaste,
+    handleDeleteRow,
+    handleStartEdit,
+    handleConfirmEdit,
+    handleCancelEdit,
+  ]);
 
   // Loading state
   if (isExecuting) {
@@ -590,6 +695,9 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
                     const isNull = value === null || value === '';
                     const align =
                       (cell.column.columnDef.meta as { align?: string })?.align ?? 'left';
+                    const isEditing =
+                      editingCell?.rowIndex === rowIndex && editingCell?.columnId === field;
+                    const isEditable = isEditMode && field !== '__rowIndex';
 
                     return (
                       <td
@@ -599,8 +707,26 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
                           width: cell.column.getSize(),
                           textAlign: isNull ? 'center' : (align as 'left' | 'right' | 'center'),
                         }}
+                        onDoubleClick={() => {
+                          if (isEditable) {
+                            handleStartEdit(rowIndex, field, value as string | null);
+                          }
+                        }}
                       >
-                        {isNull ? 'NULL' : String(value)}
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            className={styles.cellInput}
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onBlur={handleConfirmEdit}
+                            autoFocus
+                          />
+                        ) : isNull ? (
+                          'NULL'
+                        ) : (
+                          String(value)
+                        )}
                       </td>
                     );
                   })}

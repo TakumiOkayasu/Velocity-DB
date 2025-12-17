@@ -18,6 +18,9 @@ export function SqlEditor() {
 
   const handleEditorDidMount: OnMount = useCallback(
     (editor, monaco) => {
+      // Auto-focus editor when mounted
+      editor.focus();
+
       // F9 key binding (single key execution)
       editor.addCommand(monaco.KeyCode.F9, () => {
         if (activeQueryId && activeConnectionId) {
