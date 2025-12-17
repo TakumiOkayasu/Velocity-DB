@@ -274,7 +274,7 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
 
       // Measure header width (add extra space for sort icons, etc.)
       const headerText = String(col.header || '');
-      let headerWidth = measureTextWidth(headerText, 'bold 14px monospace') + headerExtraSpace;
+      const headerWidth = measureTextWidth(headerText, 'bold 14px monospace') + headerExtraSpace;
 
       // Measure content width (sample up to 1000 rows for performance)
       let contentMaxWidth = 0;

@@ -1,17 +1,37 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { bridge } from '../../api/bridge';
 import { useConnectionStore } from '../../store/connectionStore';
 import { useERDiagramStore } from '../../store/erDiagramStore';
 import { useQueryStore } from '../../store/queryStore';
 import { useSessionStore } from '../../store/sessionStore';
-import { A5ERImportDialog } from '../dialogs/A5ERImportDialog';
-import { type ConnectionConfig, ConnectionDialog } from '../dialogs/ConnectionDialog';
-import { SearchDialog } from '../dialogs/SearchDialog';
-import { SettingsDialog } from '../dialogs/SettingsDialog';
-import { BottomPanel } from './BottomPanel';
+import type { ConnectionConfig } from '../dialogs/ConnectionDialog';
 import { CenterPanel } from './CenterPanel';
-import { LeftPanel } from './LeftPanel';
 import styles from './MainLayout.module.css';
+
+// Lazy load heavy components (dialogs, panels) to reduce initial bundle size
+const LeftPanel = lazy(() =>
+  import('./LeftPanel').then((module) => ({ default: module.LeftPanel }))
+);
+const BottomPanel = lazy(() =>
+  import('./BottomPanel').then((module) => ({ default: module.BottomPanel }))
+);
+const ConnectionDialog = lazy(() =>
+  import('../dialogs/ConnectionDialog').then((module) => ({ default: module.ConnectionDialog }))
+);
+const SearchDialog = lazy(() =>
+  import('../dialogs/SearchDialog').then((module) => ({ default: module.SearchDialog }))
+);
+const SettingsDialog = lazy(() =>
+  import('../dialogs/SettingsDialog').then((module) => ({ default: module.SettingsDialog }))
+);
+const A5ERImportDialog = lazy(() =>
+  import('../dialogs/A5ERImportDialog').then((module) => ({ default: module.A5ERImportDialog }))
+);
+
+// Simple loading fallback
+function LoadingFallback() {
+  return <div style={{ display: 'none' }} />;
+}
 
 // SVG Icons (JetBrains-style simple icons)
 const Icons = {
@@ -362,7 +382,7 @@ export function MainLayout() {
 
       <div className={styles.mainContent}>
         {isLeftPanelVisible && (
-          <>
+          <Suspense fallback={<LoadingFallback />}>
             <LeftPanel width={leftPanelWidth} />
             <div
               className={styles.verticalResizer}
@@ -384,14 +404,14 @@ export function MainLayout() {
                 document.addEventListener('mouseup', onMouseUp);
               }}
             />
-          </>
+          </Suspense>
         )}
 
         <div className={styles.rightSection}>
           <CenterPanel />
 
           {shouldShowBottomPanel && (
-            <>
+            <Suspense fallback={<LoadingFallback />}>
               <div
                 className={styles.horizontalResizer}
                 onMouseDown={(e) => {
@@ -416,7 +436,7 @@ export function MainLayout() {
                 height={bottomPanelHeight}
                 onClose={() => setIsBottomPanelVisible(false)}
               />
-            </>
+            </Suspense>
           )}
         </div>
       </div>
@@ -451,46 +471,62 @@ export function MainLayout() {
         </div>
       </footer>
 
-      <ConnectionDialog
-        isOpen={isConnectionDialogOpen}
-        onClose={() => setIsConnectionDialogOpen(false)}
-        onConnect={handleConnect}
-      />
+      {isConnectionDialogOpen && (
+        <Suspense fallback={<LoadingFallback />}>
+          <ConnectionDialog
+            isOpen={isConnectionDialogOpen}
+            onClose={() => setIsConnectionDialogOpen(false)}
+            onConnect={handleConnect}
+          />
+        </Suspense>
+      )}
 
-      <SearchDialog
-        isOpen={isSearchDialogOpen}
-        onClose={() => setIsSearchDialogOpen(false)}
-        onResultSelect={handleSearchResultSelect}
-      />
+      {isSearchDialogOpen && (
+        <Suspense fallback={<LoadingFallback />}>
+          <SearchDialog
+            isOpen={isSearchDialogOpen}
+            onClose={() => setIsSearchDialogOpen(false)}
+            onResultSelect={handleSearchResultSelect}
+          />
+        </Suspense>
+      )}
 
-      <SettingsDialog
-        isOpen={isSettingsDialogOpen}
-        onClose={() => setIsSettingsDialogOpen(false)}
-      />
+      {isSettingsDialogOpen && (
+        <Suspense fallback={<LoadingFallback />}>
+          <SettingsDialog
+            isOpen={isSettingsDialogOpen}
+            onClose={() => setIsSettingsDialogOpen(false)}
+          />
+        </Suspense>
+      )}
 
-      <A5ERImportDialog
-        isOpen={isA5ERImportDialogOpen}
-        onClose={() => setIsA5ERImportDialogOpen(false)}
-        onImport={(tables, relations) => {
-          importFromA5ER(
-            tables.map((t) => ({
-              name: t.name,
-              schema: t.schema,
-              columns: t.columns.map((c) => ({
-                name: c.name,
-                type: c.type,
-                nullable: c.nullable,
-                isPrimaryKey: c.isPrimaryKey,
-              })),
-            })),
-            relations.map((r) => ({
-              sourceTable: r.sourceTable,
-              targetTable: r.targetTable,
-              cardinality: r.cardinality,
-            }))
-          );
-        }}
-      />
+      {isA5ERImportDialogOpen && (
+        <Suspense fallback={<LoadingFallback />}>
+          <A5ERImportDialog
+            isOpen={isA5ERImportDialogOpen}
+            onClose={() => setIsA5ERImportDialogOpen(false)}
+            onImport={(tables, relations) => {
+              importFromA5ER(
+                tables.map((t) => ({
+                  name: t.name,
+                  schema: t.schema,
+                  columns: t.columns.map((c) => ({
+                    name: c.name,
+                    type: c.type,
+                    nullable: c.nullable,
+                    isPrimaryKey: c.isPrimaryKey,
+                  })),
+                })),
+                relations.map((r) => ({
+                  sourceTable: r.sourceTable,
+                  targetTable: r.targetTable,
+                  cardinality: r.cardinality,
+                }))
+              );
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

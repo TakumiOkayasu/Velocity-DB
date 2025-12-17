@@ -22,26 +22,30 @@ export default defineConfig({
         moduleSideEffects: false,
       },
       output: {
+        // Optimize chunk naming for better caching
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
         manualChunks(id) {
           // Split node_modules into vendor chunks
           if (id.includes('node_modules')) {
-            // AG Grid - split into separate chunk
-            if (id.includes('ag-grid')) {
-              return 'vendor-ag-grid';
-            }
-            // Monaco Editor - split into separate chunk
+            // Monaco Editor - split into separate chunk (lazy loaded)
             if (id.includes('monaco-editor') || id.includes('@monaco-editor')) {
               return 'vendor-monaco';
             }
-            // React Flow - split into separate chunk
+            // TanStack Table + Virtual - split into separate chunk (lazy loaded)
+            if (id.includes('@tanstack/react-table') || id.includes('@tanstack/react-virtual')) {
+              return 'vendor-table';
+            }
+            // React Flow - split into separate chunk (lazy loaded)
             if (id.includes('@xyflow') || id.includes('reactflow')) {
               return 'vendor-reactflow';
             }
-            // React core
+            // React core (always loaded)
             if (id.includes('react-dom') || id.includes('/react/')) {
               return 'vendor-react';
             }
-            // Other smaller vendors
+            // State management (always loaded)
             if (id.includes('zustand') || id.includes('immer')) {
               return 'vendor-state';
             }
@@ -52,8 +56,16 @@ export default defineConfig({
   },
   esbuild: {
     logOverride: { 'this-is-undefined-in-esm': 'silent' },
+    // Drop console and debugger in production
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
   },
   server: {
     port: 5173,
+  },
+  // Optimize dependencies pre-bundling
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'zustand'],
+    // Exclude lazy-loaded dependencies from pre-bundling
+    exclude: ['@monaco-editor/react', '@tanstack/react-table', '@tanstack/react-virtual'],
   },
 });

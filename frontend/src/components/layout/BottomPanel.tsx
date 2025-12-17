@@ -1,7 +1,13 @@
-import { useState } from 'react';
-import { ResultGrid } from '../grid/ResultGrid';
-import { QueryHistory } from '../history/QueryHistory';
+import { lazy, Suspense, useState } from 'react';
 import styles from './BottomPanel.module.css';
+
+// Lazy load heavy components (TanStack Table)
+const ResultGrid = lazy(() =>
+  import('../grid/ResultGrid').then((module) => ({ default: module.ResultGrid }))
+);
+const QueryHistory = lazy(() =>
+  import('../history/QueryHistory').then((module) => ({ default: module.QueryHistory }))
+);
 
 interface BottomPanelProps {
   height: number;
@@ -9,6 +15,17 @@ interface BottomPanelProps {
 }
 
 type TabType = 'results' | 'history';
+
+// Simple loading fallback
+function LoadingFallback() {
+  return (
+    <div
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}
+    >
+      <div style={{ color: '#808080', fontSize: '13px' }}>Loading...</div>
+    </div>
+  );
+}
 
 export function BottomPanel({ height, onClose }: BottomPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>('results');
@@ -35,8 +52,10 @@ export function BottomPanel({ height, onClose }: BottomPanelProps) {
       </div>
 
       <div className={styles.content}>
-        {activeTab === 'results' && <ResultGrid excludeDataView={true} />}
-        {activeTab === 'history' && <QueryHistory />}
+        <Suspense fallback={<LoadingFallback />}>
+          {activeTab === 'results' && <ResultGrid excludeDataView={true} />}
+          {activeTab === 'history' && <QueryHistory />}
+        </Suspense>
       </div>
     </div>
   );
