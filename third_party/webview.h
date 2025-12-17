@@ -26,8 +26,10 @@
 #include <wrl.h>
 #include <WebView2.h>
 #include <shlwapi.h>
+#include <dwmapi.h>
 #pragma comment(lib, "WebView2Loader.dll.lib")
 #pragma comment(lib, "shlwapi.lib")
+#pragma comment(lib, "dwmapi.lib")
 
 namespace webview {
 
@@ -154,9 +156,32 @@ private:
             SetWindowTextA(m_hwnd, m_title.c_str());
         }
 
+        // Enable dark mode for window title bar and frame
+        enableDarkMode(m_hwnd);
+
         ShowWindow(m_hwnd, SW_SHOW);
         UpdateWindow(m_hwnd);
         m_externalWindow = false;
+    }
+
+    // Enable dark mode for window title bar (Windows 10/11)
+    static void enableDarkMode(HWND hwnd) {
+        // DWMWA_USE_IMMERSIVE_DARK_MODE for Windows 10 Build 19041+ (20H1)
+        constexpr DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+        // For older Windows 10 builds
+        constexpr DWORD DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19;
+
+        BOOL useDarkMode = TRUE;
+
+        // Try newer attribute first (Windows 10 20H1+)
+        HRESULT hr = DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
+                                           &useDarkMode, sizeof(useDarkMode));
+
+        // If failed, try older attribute for compatibility
+        if (FAILED(hr)) {
+            DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1,
+                                 &useDarkMode, sizeof(useDarkMode));
+        }
     }
 
     void initWebView2() {
