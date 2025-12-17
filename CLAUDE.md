@@ -75,10 +75,17 @@ bun run lint         # Lint
 
 ### 必須ルール
 
-1. **作業開始前にブランチを作成**
-   - mainブランチから作業内容に適したブランチを切ること
+1. **作業開始前にブランチを作成（最重要）**
+   - **ブランチは必ずmainから切ること**（他のブランチから切らない）
+   - 作業開始前に必ず以下を実行して確認：
+     ```bash
+     git checkout main
+     git pull origin main
+     git checkout -b feat/機能名
+     ```
    - ブランチ名の形式: `feature/機能名` または `feat/機能名` (kebab-case)
    - 例: `feature/multi-statement-results`, `feat/inline-editing`
+   - 作業内容が変わる場合は、必ず新しいブランチを作成してからコード変更を開始すること
 
 2. **Pythonスクリプトは `uv run` 経由で実行**
    - 例: `uv run scripts/pdg.py build backend`
