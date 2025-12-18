@@ -95,10 +95,10 @@ https://developer.microsoft.com/en-us/microsoft-edge/webview2/
 
 ### ブレークポイントの設定場所
 
-- `src/main.cpp` - アプリケーション起動
-- `src/webview_app.cpp` - WebView初期化
-- `src/ipc_handler.cpp` - フロントエンドとの通信
-- `src/database/sqlserver_driver.cpp` - DB接続・クエリ実行
+- `backend/main.cpp` - アプリケーション起動
+- `backend/webview_app.cpp` - WebView初期化
+- `backend/ipc_handler.cpp` - フロントエンドとの通信
+- `backend/database/sqlserver_driver.cpp` - DB接続・クエリ実行
 
 ### 出力ウィンドウ
 

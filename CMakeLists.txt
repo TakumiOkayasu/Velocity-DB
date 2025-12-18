@@ -39,7 +39,7 @@ endif()
 add_subdirectory(third_party)
 
 # Main application
-add_subdirectory(src)
+add_subdirectory(backend)
 
 # Tests
 if(BUILD_TESTS)

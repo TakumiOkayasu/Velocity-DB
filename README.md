@@ -181,7 +181,7 @@ uv run scripts/pdg.py package
 
 ```markdown
 Pre-DateGrip/
-├── src/                    # C++バックエンド
+├── backend/                # C++バックエンド
 │   ├── database/           # DB接続、接続プール、結果キャッシュ、非同期実行
 │   ├── parsers/            # SQLフォーマッター、A5:ERパーサー
 │   ├── exporters/          # CSV/JSON/Excelエクスポーター

@@ -53,7 +53,7 @@ def lint_frontend(fix: bool = False, unsafe: bool = False) -> bool:
 def lint_cpp(fix: bool = False) -> bool:
     """Lint C++ code with clang-format."""
     project_root = utils.get_project_root()
-    src_dir = project_root / "src"
+    src_dir = project_root / "backend"
 
     print(f"\n{'#' * 60}")
     print("#  Linting C++")

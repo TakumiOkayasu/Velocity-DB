@@ -34,17 +34,17 @@ jobs:
 
       - name: Normalize line endings to LF
         run: |
-          find src -name '*.cpp' -o -name '*.h' | xargs sed -i 's/\r$//'
+          find backend -name '*.cpp' -o -name '*.h' | xargs sed -i 's/\r$//'
 
       - name: Remove BOM from files
         run: |
-          find src -name '*.cpp' -o -name '*.h' | while read file; do
+          find backend -name '*.cpp' -o -name '*.h' | while read file; do
             sed -i '1s/^\xEF\xBB\xBF//' "$file"
           done
 
       - name: Check C++ formatting
         run: |
-          find src -name '*.cpp' -o -name '*.h' | while read file; do
+          find backend -name '*.cpp' -o -name '*.h' | while read file; do
             clang-format --style=file --dry-run --Werror "$file" || exit 1
           done
 
@@ -155,7 +155,7 @@ jobs:
             build/CMakeCache.txt
             build/CMakeFiles
             build/**/*.dir
-          key: cmake-ninja-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'src/CMakeLists.txt', 'third_party/CMakeLists.txt') }}
+          key: cmake-ninja-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'backend/CMakeLists.txt', 'third_party/CMakeLists.txt') }}
           restore-keys: |
             cmake-ninja-${{ runner.os }}-
 

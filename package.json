@@ -20,7 +20,7 @@
     "frontend/src/**/*.{ts,tsx,js,jsx,json,css}": [
       "npx biome check --write --config-path=frontend"
     ],
-    "src/**/*.{cpp,h}": [
+    "backend/**/*.{cpp,h}": [
       "clang-format -i --style=file"
     ]
   }

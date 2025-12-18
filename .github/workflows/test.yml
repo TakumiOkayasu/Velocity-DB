@@ -34,7 +34,7 @@ jobs:
           path: |
             build/_deps
             build/third_party
-          key: cmake-ninja-test-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'src/CMakeLists.txt', 'third_party/CMakeLists.txt') }}
+          key: cmake-ninja-test-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'backend/CMakeLists.txt', 'third_party/CMakeLists.txt') }}
           restore-keys: |
             cmake-ninja-test-${{ runner.os }}-
 

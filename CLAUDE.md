@@ -2,6 +2,30 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+---
+
+## 🚨 Claude Codeへの絶対的な指示 🚨
+
+**ユーザーからコード変更を伴うタスクを受け取ったら、他の何よりも先に以下を実行すること：**
+
+### タスク受領時の必須アクション（例外なし）
+
+1. **まず `git branch --show-current` で現在のブランチを確認**
+2. **作業内容と現在のブランチ名が一致するか判断**
+   - 一致しない場合 → mainから新しいブランチを作成
+   - ブランチ名: `feat/機能名` または `feature/機能名` (kebab-case)
+   ```bash
+   git checkout main
+   git pull origin main
+   git checkout -b feat/機能名  # 例: feat/fix-pylance-warnings
+   ```
+3. **ブランチ確認・作成が完了してから、初めてコード変更を開始**
+
+**🚨 この手順を飛ばしてコード変更を開始することは、例外なく禁止 🚨**
+**🚨 守らなかった場合、作業をやり直すこと 🚨**
+
+---
+
 ## Project Overview
 
 Pre-DateGrip is a Windows-only high-performance RDBMS management tool with DataGrip-like UI/UX, targeting SQL Server as the primary database.
@@ -111,6 +135,11 @@ bun run lint         # Lint
    cd frontend && bun run lint         # フロントエンドのみ
    ```
 
+   **重要: Pythonスクリプト変更時の必須ルール**
+   - `scripts/` 内のファイルを変更した場合、**必ず** `ruff check scripts/` を実行して警告・エラーがゼロであることを確認
+   - VSCodeのPylance警告も**必ず解消**すること（型ヒント不足、型の不一致など）
+   - 警告・エラーが残ったままコミットメッセージを考えない
+
 ### コーディング規約
 
 #### Python (Build Scripts)
@@ -145,7 +174,7 @@ bun run lint         # Lint
 
 ```text
 Pre-DateGrip/
-├── src/                    # C++ Backend (ODBC, WebView2, IPC)
+├── backend/                # C++ Backend (ODBC, WebView2, IPC)
 │   ├── database/           # 接続、プール、キャッシュ、非同期実行
 │   ├── parsers/            # SQLフォーマッター、A5:ER
 │   ├── exporters/          # CSV/JSON/Excel

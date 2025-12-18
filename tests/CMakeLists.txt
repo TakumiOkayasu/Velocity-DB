@@ -33,7 +33,7 @@ set(TEST_SOURCES
 add_executable(PreDateGripTests ${TEST_SOURCES})
 
 target_include_directories(PreDateGripTests PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/backend
     ${CMAKE_SOURCE_DIR}/third_party
 )
 
