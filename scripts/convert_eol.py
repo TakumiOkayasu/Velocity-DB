@@ -98,7 +98,7 @@ def convert_file_eol(file_path: Path, target_eol: str) -> bool:
 
 def get_source_files(path: Path, extension: str | None = None) -> list[Path]:
     """Get all source files in a directory."""
-    files = []
+    files: list[Path] = []
 
     if not path.exists():
         return files
@@ -167,7 +167,7 @@ def main():
         print("Converting all source files in project...")
 
         # C++ sources
-        src_dir = project_root / "src"
+        src_dir = project_root / "backend"
         if src_dir.exists():
             for f in get_source_files(src_dir):
                 processed_count += 1
