@@ -4,6 +4,38 @@
   height: 100%;
 }
 
+.stats {
+  display: flex;
+  gap: 16px;
+  padding: 8px;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.statItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.statLabel {
+  color: var(--text-secondary);
+}
+
+.statValue {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.statValue.success {
+  color: #4ade80;
+}
+
+.statValue.failed {
+  color: #f87171;
+}
+
 .toolbar {
   display: flex;
   gap: 8px;

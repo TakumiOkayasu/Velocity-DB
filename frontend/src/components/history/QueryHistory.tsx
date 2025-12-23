@@ -3,11 +3,28 @@ import { HistoryItem } from './HistoryItem';
 import styles from './QueryHistory.module.css';
 
 export function QueryHistory() {
-  const { searchKeyword, setSearchKeyword, getFilteredHistory, clearHistory } = useHistoryStore();
+  const { searchKeyword, setSearchKeyword, getFilteredHistory, clearHistory, getStats } =
+    useHistoryStore();
   const history = getFilteredHistory();
+  const stats = getStats();
 
   return (
     <div className={styles.container}>
+      <div className={styles.stats}>
+        <div className={styles.statItem}>
+          <span className={styles.statLabel}>Total:</span>
+          <span className={styles.statValue}>{stats.total}</span>
+        </div>
+        <div className={styles.statItem}>
+          <span className={styles.statLabel}>Success:</span>
+          <span className={`${styles.statValue} ${styles.success}`}>{stats.success}</span>
+        </div>
+        <div className={styles.statItem}>
+          <span className={styles.statLabel}>Failed:</span>
+          <span className={`${styles.statValue} ${styles.failed}`}>{stats.failed}</span>
+        </div>
+      </div>
+
       <div className={styles.toolbar}>
         <input
           type="text"

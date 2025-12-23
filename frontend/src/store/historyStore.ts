@@ -3,6 +3,12 @@ import { persist } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
 import type { HistoryItem } from '../types';
 
+export interface HistoryStats {
+  total: number;
+  success: number;
+  failed: number;
+}
+
 interface HistoryState {
   history: HistoryItem[];
   searchKeyword: string;
@@ -14,6 +20,7 @@ interface HistoryState {
   setSearchKeyword: (keyword: string) => void;
   getFilteredHistory: () => HistoryItem[];
   getFavorites: () => HistoryItem[];
+  getStats: () => HistoryStats;
   exportHistory: () => string;
   importHistory: (json: string) => void;
 }
@@ -76,6 +83,14 @@ export const useHistoryStore = create<HistoryState>()(
         return history.filter((h) => h.isFavorite);
       },
 
+      getStats: () => {
+        const { history } = get();
+        const total = history.length;
+        const success = history.filter((h) => h.success).length;
+        const failed = total - success;
+        return { total, success, failed };
+      },
+
       exportHistory: () => {
         const { history } = get();
         return JSON.stringify(history, null, 2);
@@ -136,6 +151,7 @@ export const useHistoryActions = () =>
       setSearchKeyword: state.setSearchKeyword,
       getFilteredHistory: state.getFilteredHistory,
       getFavorites: state.getFavorites,
+      getStats: state.getStats,
       exportHistory: state.exportHistory,
       importHistory: state.importHistory,
     }))
