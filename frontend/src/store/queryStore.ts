@@ -130,65 +130,55 @@ export const useQueryStore = create<QueryState>((set, get) => ({
     set({ isExecuting: true, error: null });
 
     try {
-      const result = await withTimeout(
-        bridge.executeQuery(connectionId, query.content),
-        DEFAULT_QUERY_TIMEOUT_MS,
-        'Query execution timed out after 5 minutes'
-      );
+      // Start async query execution
+      const { queryId } = await bridge.executeAsyncQuery(connectionId, query.content);
 
-      // Check if result has multipleResults property
-      let queryResult: QueryResult;
+      // Poll for results
+      const pollInterval = 100; // Poll every 100ms
+      const maxPollTime = DEFAULT_QUERY_TIMEOUT_MS;
+      const startTime = Date.now();
 
-      if (isMultipleResultSet(result)) {
-        // Multiple results format
-        queryResult = {
-          multipleResults: true,
-          results: result.results.map(
-            (r: {
-              statement: string;
-              data: {
-                columns: { name: string; type: string }[];
-                rows: string[][];
-                affectedRows: number;
-                executionTimeMs: number;
-              };
-            }) => ({
-              statement: r.statement,
-              data: {
-                columns: r.data.columns.map((c) => ({
-                  name: c.name,
-                  type: c.type,
-                  size: 0,
-                  nullable: true,
-                  isPrimaryKey: false,
-                })),
-                rows: r.data.rows,
-                affectedRows: r.data.affectedRows,
-                executionTimeMs: r.data.executionTimeMs,
-              },
-            })
-          ),
-        };
-      } else {
-        // Single result format
-        queryResult = {
-          columns: result.columns.map((c: { name: string; type: string }) => ({
-            name: c.name,
-            type: c.type,
-            size: 0,
-            nullable: true,
-            isPrimaryKey: false,
-          })),
-          rows: result.rows,
-          affectedRows: result.affectedRows,
-          executionTimeMs: result.executionTimeMs,
-        };
+      while (true) {
+        // Check timeout
+        if (Date.now() - startTime > maxPollTime) {
+          throw new Error('Query execution timed out after 5 minutes');
+        }
+
+        const result = await bridge.getAsyncQueryResult(queryId);
+
+        if (result.status === 'completed') {
+          // Query completed successfully
+          if (!result.columns || !result.rows) {
+            throw new Error('Invalid query result: missing columns or rows');
+          }
+
+          const queryResult: QueryResult = {
+            columns: result.columns.map((c) => ({
+              name: c.name,
+              type: c.type,
+              size: 0,
+              nullable: true,
+              isPrimaryKey: false,
+            })),
+            rows: result.rows,
+            affectedRows: result.affectedRows ?? 0,
+            executionTimeMs: result.executionTimeMs ?? 0,
+          };
+
+          set((state) => ({
+            results: { ...state.results, [id]: queryResult },
+            isExecuting: false,
+          }));
+          break;
+        } else if (result.status === 'failed') {
+          throw new Error(result.error || 'Query execution failed');
+        } else if (result.status === 'cancelled') {
+          throw new Error('Query was cancelled');
+        }
+
+        // Status is 'pending' or 'running' - wait before polling again
+        await new Promise((resolve) => setTimeout(resolve, pollInterval));
       }
-
-      set((state) => ({
-        results: { ...state.results, [id]: queryResult },
-        isExecuting: false,
-      }));
     } catch (error) {
       set({
         isExecuting: false,
