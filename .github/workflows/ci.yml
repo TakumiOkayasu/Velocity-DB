@@ -56,7 +56,13 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: bun install --frozen-lockfile
+        run: |
+          # Dependabot doesn't update bun.lockb, so skip --frozen-lockfile for dependabot branches
+          if [[ "${{ github.actor }}" == "dependabot[bot]" ]]; then
+            bun install
+          else
+            bun install --frozen-lockfile
+          fi
 
       - name: Lint with Biome
         working-directory: frontend
@@ -81,7 +87,13 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: bun install --frozen-lockfile
+        run: |
+          # Dependabot doesn't update bun.lockb, so skip --frozen-lockfile for dependabot branches
+          if [[ "${{ github.actor }}" == "dependabot[bot]" ]]; then
+            bun install
+          else
+            bun install --frozen-lockfile
+          fi
 
       - name: Build
         working-directory: frontend
