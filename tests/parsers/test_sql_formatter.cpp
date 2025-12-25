@@ -292,6 +292,89 @@ TEST_F(SQLFormatterTest, PreservesNumericLiterals) {
     EXPECT_NE(formatted.find("100"), std::string::npos);
 }
 
+TEST_F(SQLFormatterTest, UppercasesKeywords) {
+    std::string sql = "select o.order_id from dbo.orders o where o.deleted_at is null";
+    std::string uppercased = formatter.uppercaseKeywords(sql);
+
+    // Keywords should be uppercased
+    EXPECT_NE(uppercased.find("SELECT"), std::string::npos);
+    EXPECT_NE(uppercased.find("FROM"), std::string::npos);
+    EXPECT_NE(uppercased.find("WHERE"), std::string::npos);
+    EXPECT_NE(uppercased.find("IS"), std::string::npos);
+    EXPECT_NE(uppercased.find("NULL"), std::string::npos);
+
+    // Identifiers should remain lowercase
+    EXPECT_NE(uppercased.find("o.order_id"), std::string::npos);
+    EXPECT_NE(uppercased.find("dbo.orders"), std::string::npos);
+}
+
+TEST_F(SQLFormatterTest, UppercaseFollowedByFormat) {
+    std::string sql = "select o.order_id from dbo.orders o where o.deleted_at is null";
+
+    // First uppercase
+    auto uppercased = formatter.uppercaseKeywords(sql);
+
+    // Then format
+    SQLFormatter::FormatOptions options;
+    auto formatted = formatter.format(uppercased, options);
+
+    // Should have both uppercase keywords AND formatting preserved
+    EXPECT_NE(formatted.find("SELECT"), std::string::npos);
+    EXPECT_NE(formatted.find("FROM"), std::string::npos);
+    EXPECT_NE(formatted.find("WHERE"), std::string::npos);
+    EXPECT_NE(formatted.find("IS"), std::string::npos);
+    EXPECT_NE(formatted.find("NULL"), std::string::npos);
+
+    // Identifiers should remain lowercase
+    EXPECT_NE(formatted.find("o.order_id"), std::string::npos);
+    EXPECT_NE(formatted.find("dbo.orders"), std::string::npos);
+}
+
+TEST_F(SQLFormatterTest, FormatsWithUppercaseKeywordsAndProperStructure) {
+    std::string sql = "select o.order_id,o.factory_id,f.name as factory_name from dbo.orders o "
+                      "inner join dbo.factories f on f.id=o.factory_id where o.deleted_at is null "
+                      "and o.status in('pending','processing')";
+
+    SQLFormatter::FormatOptions options;
+    std::string formatted = formatter.format(sql, options);
+
+    // Print for manual inspection
+    std::cout << "\n=== Formatted SQL Output ===\n" << formatted << "\n=== End ===\n" << std::endl;
+
+    // Verify uppercase keywords
+    EXPECT_NE(formatted.find("SELECT"), std::string::npos);
+    EXPECT_NE(formatted.find("FROM"), std::string::npos);
+    EXPECT_NE(formatted.find("INNER JOIN"), std::string::npos);
+    EXPECT_NE(formatted.find("WHERE"), std::string::npos);
+    EXPECT_NE(formatted.find("AND"), std::string::npos);
+    EXPECT_NE(formatted.find("IS NULL"), std::string::npos);
+    EXPECT_NE(formatted.find("IN"), std::string::npos);
+
+    // Verify identifiers remain lowercase
+    EXPECT_NE(formatted.find("o.order_id"), std::string::npos);
+    EXPECT_NE(formatted.find("dbo.orders"), std::string::npos);
+    EXPECT_NE(formatted.find("f.name"), std::string::npos);
+
+    // Verify structure: JOIN should be indented
+    EXPECT_NE(formatted.find("  INNER JOIN"), std::string::npos) << "JOIN should be indented with 2 spaces";
+
+    // Verify line breaks exist (major clauses on separate lines)
+    size_t selectPos = formatted.find("SELECT");
+    size_t fromPos = formatted.find("FROM");
+    size_t wherePos = formatted.find("WHERE");
+
+    ASSERT_NE(selectPos, std::string::npos);
+    ASSERT_NE(fromPos, std::string::npos);
+    ASSERT_NE(wherePos, std::string::npos);
+
+    // There should be newlines between major clauses
+    std::string selectToFrom = formatted.substr(selectPos, fromPos - selectPos);
+    std::string fromToWhere = formatted.substr(fromPos, wherePos - fromPos);
+
+    EXPECT_NE(selectToFrom.find('\n'), std::string::npos) << "Should have newline between SELECT and FROM";
+    EXPECT_NE(fromToWhere.find('\n'), std::string::npos) << "Should have newline between FROM and WHERE";
+}
+
 TEST_F(SQLFormatterTest, FormatsVeryComplexQuery) {
     std::string sql =
         "select u.user_id,u.username,u.email,u.created_at,"

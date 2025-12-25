@@ -121,3 +121,13 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/frontend/dist")
 else()
     message(STATUS "Frontend dist not found. Run 'npm run build' in frontend/ first.")
 endif()
+
+# Copy config directory to output directory
+if(EXISTS "${CMAKE_SOURCE_DIR}/config")
+    add_custom_command(TARGET PreDateGrip POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/config
+        $<TARGET_FILE_DIR:PreDateGrip>/config
+        COMMENT "Copying config files..."
+    )
+endif()

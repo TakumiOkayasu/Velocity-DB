@@ -14,15 +14,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 2. **作業内容と現在のブランチ名が一致するか判断**
    - 一致しない場合 → mainから新しいブランチを作成
    - ブランチ名: `feat/機能名` または `feature/機能名` (kebab-case)
+
    ```bash
    git checkout main
    git pull origin main
    git checkout -b feat/機能名  # 例: feat/fix-pylance-warnings
    ```
+
 3. **ブランチ確認・作成が完了してから、初めてコード変更を開始**
 
 **🚨 この手順を飛ばしてコード変更を開始することは、例外なく禁止 🚨**
 **🚨 守らなかった場合、作業をやり直すこと 🚨**
+
+1. **🚨 レスポンスは必ず日本語で 🚨**
 
 ---
 
@@ -102,11 +106,13 @@ bun run lint         # Lint
 1. **作業開始前にブランチを作成（最重要）**
    - **ブランチは必ずmainから切ること**（他のブランチから切らない）
    - 作業開始前に必ず以下を実行して確認：
+
      ```bash
      git checkout main
      git pull origin main
      git checkout -b feat/機能名
      ```
+
    - ブランチ名の形式: `feature/機能名` または `feat/機能名` (kebab-case)
    - 例: `feature/multi-statement-results`, `feat/inline-editing`
    - 作業内容が変わる場合は、必ず新しいブランチを作成してからコード変更を開始すること
@@ -234,10 +240,108 @@ Pre-DateGrip/
 5. **メモリ管理**: RAII原則に従う
 6. **パフォーマンス**: Virtual Scrolling、SIMD、非同期処理
 
+## Claude Code Skills
+
+Pre-DateGripでは、Claude Codeのスキル機能を活用して効率的な開発を実現しています。
+
+### Skills構成
+
+**グローバルskills（全プロジェクト共通）:**
+- `C:\Users\okayasu\.claude\skills\`
+- 汎用的な開発スキル（32種類）
+
+**プロジェクトローカルskills（Pre-DateGrip専用）:**
+- `C:\prog\Pre-DateGrip\.claude\skills\`
+- Pre-DateGrip固有のカスタマイズskills（以下）
+
+### プロジェクト固有のSkills
+
+#### 1. `pre-dategrip-workflow`
+**必須ワークフロー全般**
+
+適用タイミング:
+- コード変更を伴うタスク開始前（最優先）
+- ブランチ作成・確認
+- ビルド・テスト・Lint実行
+
+#### 2. `test-driven-development`
+**TDD実践（C++/Google Test, Vitest/Bun）**
+
+適用タイミング:
+- 新機能実装時
+- バグ修正時
+- リファクタリング時
+
+内容:
+- RED-GREEN-REFACTORサイクル
+- Testing Trophy手法
+- C++/TypeScript固有のテスト戦略
+
+#### 3. `database-design`
+**SQL Server特化のDB設計**
+
+適用タイミング:
+- スキーマ設計時
+- テーブル構造変更時
+- インデックス設計・クエリ最適化時
+
+内容:
+- SQL Server固有のデータ型・インデックス
+- ODBC経由でのアクセスパターン
+- パラメータ化クエリ・パフォーマンスチューニング
+
+#### 4. `performance-optimization`
+**SIMD/並列処理/Virtual Scrolling**
+
+適用タイミング:
+- パフォーマンスボトルネック解消時
+- 大規模データ処理実装時
+- レンダリング最適化時
+
+内容:
+- AVX2 SIMD最適化
+- スレッドプール・非同期処理
+- React Virtual Scrolling
+- メモリプール・プロファイリング
+
+### Skillsの使い方
+
+**明示的な呼び出し（推奨）:**
+```
+ユーザー: /pre-dategrip-workflow を実行して新機能を実装
+```
+
+**自動適用:**
+Claude Codeは、タスク内容に応じて自動的に適切なskillを選択・実行します。
+
+### Skills優先順位
+
+プロジェクトローカルskillsが優先されます：
+1. **プロジェクトローカル** (`.claude/skills/`) - **優先度高**
+2. **ユーザーグローバル** (`~/.claude/skills/`) - 優先度低
+
+同名のskillがある場合、プロジェクトローカルの設定が適用されます。
+
+### よくあるSkills活用例
+
+```bash
+# 新機能実装前
+/pre-dategrip-workflow  # ブランチ作成・確認
+
+# TDD実践
+/test-driven-development  # RED-GREEN-REFACTORサイクル
+
+# DB設計変更
+/database-design  # SQL Server固有の最適化
+
+# パフォーマンス改善
+/performance-optimization  # SIMD/並列処理
+```
+
 ## Performance Targets
 
 | 操作 | 目標 |
-|------|------|
+| --- | --- |
 | アプリ起動 | < 0.3s |
 | SQL Server接続 | < 50ms |
 | SELECT (100万行) | < 500ms |
@@ -263,10 +367,23 @@ Pre-DateGrip/
 
 ### フロントエンドのデバッグ
 
+**🚨 Claude Codeの責任範囲 🚨**:
+
+- **ログ確認はClaude Codeの仕事**
+  - ユーザーが「エディタが表示されない」「エラーが出た」と報告したら、まず`log/frontend.log`と`log/backend.log`を確認すること
+  - 必要に応じてDevToolsのコンソールログも確認（F12キー）
+  - ユーザーにスクリーンショットやログ提供を依頼する**前に**、自分でログを読み取ること
+- **エラー解析と原因特定はClaude Codeの責任**
+  - ログファイルからエラーメッセージを抽出し、根本原因を特定
+  - ソースコードと照らし合わせてバグを見つける
+  - 修正方法を提案・実装する
+
 **UI問題が発生したら**:
 
-- Claude が `log/frontend.log` と `log/backend.log` を自動解析
-- ユーザーは問題を報告するだけでOK
+1. Claude Codeが`log/frontend.log`と`log/backend.log`を自動確認
+2. 必要に応じてDevToolsのコンソールエラーも確認
+3. エラー原因を特定して修正
+4. ユーザーは問題を報告するだけでOK
 
 **フロントエンドの変更が反映されない**:
 
@@ -281,6 +398,7 @@ WebView2キャッシュは自動削除される。
 - `log/frontend.log` - フロントエンドログ
 - `log/backend.log` - バックエンドログ
 - アプリ起動時に自動削除される
+- ビルド時にも削除可能: `uv run scripts/pdg.py clean logs`
 
 ## Issue Workflow
 
@@ -338,20 +456,25 @@ interface QueryStore {
 Pre-DateGripは以下のキーボードショートカットをサポートしています：
 
 ### SQL実行
+
 - **F9** - SQL実行（1キー、推奨）
 - **Ctrl+Enter** - SQL実行（2キー）
 
 ### クエリ管理
+
 - **Ctrl+N** - 新規クエリタブを作成
 
 ### SQL編集
-- **Ctrl+Shift+F** - SQLフォーマット（整形）
+
+- **Ctrl+Shift+F** - SQLフォーマット（整形・キーワード大文字化）
 
 ### ナビゲーション
+
 - **Ctrl+Shift+P** - グローバル検索を開く
 - **Ctrl+,** - 設定を開く
 
 ### その他
+
 - **F5** - 無効化（ページリロード防止）
 
 **注**: F5キーはブラウザのリロードと競合するため、SQL実行には使用できません。代わりにF9キーを使用してください。
@@ -382,51 +505,51 @@ Pre-DateGripは以下のキーボードショートカットをサポートし�
 
 ### 🟡 中優先度（機能拡張）
 
-4. **UIを本家DataGripに近づける** ([#56](https://github.com/okayasunet/Pre-DateGrip/issues/56))
+1. **UIを本家DataGripに近づける** ([#56](https://github.com/okayasunet/Pre-DateGrip/issues/56))
    - 内容: カラースキーム、アイコン、レイアウトの改善
    - 継続的なタスク
 
-5. **クエリ結果のソート・フィルタリング**
+2. **クエリ結果のソート・フィルタリング**
    - 実装場所: `frontend/src/components/results/ResultsTable.tsx`
    - 内容: カラムヘッダークリックでソート、フィルタ入力欄
    - 想定工数: 1-2日
 
-6. **複数SQL文の個別実行**
+3. **複数SQL文の個別実行**
    - 内容: エディタ内でカーソル位置の文のみ実行（Ctrl+Enter）
    - 現状: 全体実行のみ
    - 想定工数: 2-3日
 
-7. **クエリブックマーク機能**
+4. **クエリブックマーク機能**
    - 内容: よく使うクエリを保存・管理（履歴とは別の永続的な保存）
    - 想定工数: 2-3日
 
 ### 🟢 低優先度（配布・運用フェーズ）
 
-8. **インストーラーの用意** ([#34](https://github.com/okayasunet/Pre-DateGrip/issues/34))
+1. **インストーラーの用意** ([#34](https://github.com/okayasunet/Pre-DateGrip/issues/34))
    - 内容: WiXまたはInno Setupでインストーラー作成
    - 想定工数: 3-5日
 
-9. **自動更新機能**
+2. **自動更新機能**
    - 内容: 新バージョンのチェック・自動更新
    - 想定工数: 2-3日
 
-10. **エクスポート形式の拡張**
+3. **エクスポート形式の拡張**
     - 現状: CSV, JSON, Excel対応
     - 追加: Markdown, HTML, SQL INSERT文
     - 想定工数: 1-2日
 
 ### 📋 技術的改善（パフォーマンス・品質）
 
-11. **クエリキャンセル機能**
+1. **クエリキャンセル機能**
     - 内容: 長時間実行中のクエリを途中でキャンセル
     - 想定工数: 2-3日
 
-12. **接続プールの最適化**
+2. **接続プールの最適化**
     - 実装場所: `backend/database/connection_pool.cpp`
     - 改善: タイムアウト設定、ヘルスチェック、接続再利用の改善
     - 想定工数: 1-2日
 
-13. **エラーハンドリングの改善**
+3. **エラーハンドリングの改善**
     - 内容: より詳細なエラーメッセージとリカバリー提案
     - 想定工数: 継続的なタスク
 

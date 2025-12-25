@@ -1,0 +1,120 @@
+# SQL Keywords Configuration
+# Add one keyword per line (case-insensitive)
+# Lines starting with # are comments and will be ignored
+
+# Core SQL keywords
+SELECT
+FROM
+WHERE
+AND
+OR
+NOT
+IN
+EXISTS
+
+# JOIN keywords
+JOIN
+INNER
+LEFT
+RIGHT
+FULL
+CROSS
+OUTER
+ON
+
+# Grouping and ordering
+GROUP
+BY
+HAVING
+ORDER
+ASC
+DESC
+NULLS
+FIRST
+LAST
+
+# Data manipulation
+INSERT
+INTO
+VALUES
+UPDATE
+SET
+DELETE
+
+# DDL keywords
+CREATE
+TABLE
+INDEX
+VIEW
+DROP
+ALTER
+ADD
+COLUMN
+PRIMARY
+KEY
+FOREIGN
+UNIQUE
+CHECK
+DEFAULT
+
+# Data types and modifiers
+NULL
+AS
+DISTINCT
+TOP
+LIMIT
+OFFSET
+FETCH
+NEXT
+ROWS
+ONLY
+
+# Set operations
+UNION
+ALL
+INTERSECT
+EXCEPT
+
+# Conditional expressions
+CASE
+WHEN
+THEN
+ELSE
+END
+
+# Pattern matching
+LIKE
+BETWEEN
+IS
+
+# Aggregate functions
+COUNT
+SUM
+AVG
+MIN
+MAX
+
+# Window functions
+OVER
+PARTITION
+ROW_NUMBER
+RANK
+DENSE_RANK
+PERCENT_RANK
+LAG
+LEAD
+
+# CTE and subqueries
+WITH
+RECURSIVE
+
+# Type conversion and coalescing
+COALESCE
+CAST
+ROUND
+
+# String functions
+STRING_AGG
+
+# Date/time functions
+DATE_TRUNC

@@ -152,6 +152,7 @@ void IPCHandler::registerRequestRoutes() {
     m_requestRoutes["exportJSON"] = [this](std::string_view p) { return exportToJSON(p); };
     m_requestRoutes["exportExcel"] = [this](std::string_view p) { return exportToExcel(p); };
     m_requestRoutes["formatSQL"] = [this](std::string_view p) { return formatSQLQuery(p); };
+    m_requestRoutes["uppercaseKeywords"] = [this](std::string_view p) { return uppercaseKeywords(p); };
     m_requestRoutes["parseA5ER"] = [this](std::string_view p) { return parseA5ERFile(p); };
     m_requestRoutes["getQueryHistory"] = [this](std::string_view p) { return retrieveQueryHistory(p); };
     m_requestRoutes["getExecutionPlan"] = [this](std::string_view p) { return getExecutionPlan(p); };
@@ -808,9 +809,35 @@ std::string IPCHandler::formatSQLQuery(std::string_view params) {
         }
         std::string sqlQuery = std::string(sqlResult.value());
 
+        // Prevent formatting very large SQL to avoid performance issues
+        constexpr size_t MAX_SQL_SIZE = 100000;  // 100KB
+        if (sqlQuery.size() > MAX_SQL_SIZE) [[unlikely]] {
+            return JsonUtils::errorResponse(std::format("SQL too large ({} chars). Maximum size is {} chars.", sqlQuery.size(), MAX_SQL_SIZE));
+        }
+
+        // Format SQL with uppercase keywords (default option)
         SQLFormatter::FormatOptions options;
-        auto formattedSQL = m_sqlFormatter->format(sqlQuery, options);
-        return JsonUtils::successResponse(std::format(R"({{"sql":"{}"}})", JsonUtils::escapeString(formattedSQL)));
+        auto finalSQL = m_sqlFormatter->format(sqlQuery, options);
+
+        return JsonUtils::successResponse(std::format(R"({{"sql":"{}"}})", JsonUtils::escapeString(finalSQL)));
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string IPCHandler::uppercaseKeywords(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        simdjson::dom::element doc = parser.parse(params);
+
+        auto sqlResult = doc["sql"].get_string();
+        if (sqlResult.error()) [[unlikely]] {
+            return JsonUtils::errorResponse("Missing sql field");
+        }
+        std::string sqlQuery = std::string(sqlResult.value());
+
+        auto uppercasedSQL = m_sqlFormatter->uppercaseKeywords(sqlQuery);
+        return JsonUtils::successResponse(std::format(R"({{"sql":"{}"}})", JsonUtils::escapeString(uppercasedSQL)));
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
     }

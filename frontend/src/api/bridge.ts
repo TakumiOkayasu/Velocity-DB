@@ -239,6 +239,10 @@ class Bridge {
     return this.call('formatSQL', { sql });
   }
 
+  async uppercaseKeywords(sql: string): Promise<{ sql: string }> {
+    return this.call('uppercaseKeywords', { sql });
+  }
+
   // History methods
   async getQueryHistory(): Promise<
     {

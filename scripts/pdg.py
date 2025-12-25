@@ -12,6 +12,7 @@ Usage:
     uv run scripts/pdg.py dev
     uv run scripts/pdg.py package
     uv run scripts/pdg.py check [build-type]
+    uv run scripts/pdg.py clean [logs|cache|all]
 
 Examples:
     uv run scripts/pdg.py build backend --clean
@@ -19,6 +20,7 @@ Examples:
     uv run scripts/pdg.py test frontend --watch
     uv run scripts/pdg.py lint --fix
     uv run scripts/pdg.py lint --fix --unsafe
+    uv run scripts/pdg.py clean logs
 """
 
 import argparse
@@ -186,6 +188,56 @@ def cmd_check(args):
     return errors == 0
 
 
+def cmd_clean(args):
+    """Handle clean command - remove logs, cache, etc."""
+    import shutil
+
+    project_root = utils.get_project_root()
+    target = args.target
+
+    print(f"\n{'#' * 60}")
+    print(f"#  Cleaning: {target}")
+    print(f"{'#' * 60}\n")
+
+    cleaned_items = []
+
+    if target in ("logs", "all"):
+        # Clean log directory
+        log_dir = project_root / "log"
+        if log_dir.exists():
+            for log_file in log_dir.glob("*.log"):
+                log_file.unlink()
+                cleaned_items.append(f"  [OK] Deleted: {log_file.name}")
+            if not cleaned_items:
+                cleaned_items.append("  [INFO] No log files found")
+        else:
+            cleaned_items.append("  [INFO] Log directory does not exist")
+
+    if target in ("cache", "all"):
+        # Clean WebView2 cache
+        webview_cache = project_root / "build" / "Release" / "PreDateGrip.exe.WebView2"
+        if webview_cache.exists():
+            shutil.rmtree(webview_cache)
+            cleaned_items.append("  [OK] Deleted: WebView2 cache")
+        else:
+            cleaned_items.append("  [INFO] WebView2 cache does not exist")
+
+        # Clean frontend node_modules/.cache
+        frontend_cache = project_root / "frontend" / "node_modules" / ".cache"
+        if frontend_cache.exists():
+            shutil.rmtree(frontend_cache)
+            cleaned_items.append("  [OK] Deleted: Frontend cache")
+
+    for item in cleaned_items:
+        print(item)
+
+    print(f"\n{'=' * 60}")
+    print("  CLEAN COMPLETE")
+    print(f"{'=' * 60}")
+
+    return True
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -260,6 +312,16 @@ def main():
         help="Build type (default: Release)",
     )
 
+    # Clean command
+    clean_parser = subparsers.add_parser("clean", help="Clean logs, cache, etc.")
+    clean_parser.add_argument(
+        "target",
+        choices=["logs", "cache", "all"],
+        default="logs",
+        nargs="?",
+        help="Clean target (default: logs)",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -280,6 +342,7 @@ def main():
         "p": cmd_package,
         "check": cmd_check,
         "c": cmd_check,
+        "clean": cmd_clean,
     }
 
     handler = command_map.get(args.command)

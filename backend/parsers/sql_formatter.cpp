@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <filesystem>
+#include <fstream>
 #include <ranges>
 #include <sstream>
 #include <unordered_set>
@@ -10,16 +12,6 @@
 namespace predategrip {
 
 namespace {
-
-const std::unordered_set<std::string> SQL_KEYWORDS = {
-    "SELECT", "FROM",  "WHERE",  "AND",     "OR",    "NOT",     "IN",     "EXISTS", "JOIN",    "INNER",   "LEFT",   "RIGHT",    "OUTER",  "FULL",   "CROSS",  "ON",    "GROUP", "BY",
-    "HAVING", "ORDER", "ASC",    "DESC",    "NULLS", "FIRST",   "LAST",   "INSERT", "INTO",    "VALUES",  "UPDATE", "SET",      "DELETE", "CREATE", "TABLE",  "INDEX", "VIEW",  "DROP",
-    "ALTER",  "ADD",   "COLUMN", "PRIMARY", "KEY",   "FOREIGN", "UNIQUE", "CHECK",  "DEFAULT", "NULL",    "AS",     "DISTINCT", "TOP",    "LIMIT",  "OFFSET", "FETCH", "NEXT",  "ROWS",
-    "ONLY",   "UNION", "ALL",    "CASE",    "WHEN",  "THEN",    "ELSE",   "END",    "LIKE",    "BETWEEN", "IS",     "COUNT",    "SUM",    "AVG",    "MIN",    "MAX",   "OVER",  "PARTITION"};
-
-const std::unordered_set<std::string> MAJOR_CLAUSES = {"SELECT", "FROM", "WHERE", "GROUP", "HAVING", "ORDER", "UNION", "INTERSECT", "EXCEPT"};
-
-const std::unordered_set<std::string> JOIN_KEYWORDS = {"JOIN", "INNER", "LEFT", "RIGHT", "FULL", "CROSS", "OUTER"};
 
 enum class TokenType { Keyword, Identifier, Operator, Comma, OpenParen, CloseParen, Semicolon, String, Number };
 
@@ -31,7 +23,7 @@ struct Token {
 
 class Tokenizer {
 public:
-    explicit Tokenizer(std::string_view sql) : m_sql(sql), m_pos(0) {}
+    explicit Tokenizer(std::string_view sql, const std::unordered_set<std::string>& keywords) : m_sql(sql), m_keywords(keywords), m_pos(0) {}
 
     std::vector<Token> tokenize() {
         std::vector<Token> tokens;
@@ -69,6 +61,7 @@ public:
 
 private:
     std::string_view m_sql;
+    const std::unordered_set<std::string>& m_keywords;
     size_t m_pos;
 
     void skipWhitespace() {
@@ -120,7 +113,7 @@ private:
         std::string upper = value;
         std::ranges::transform(upper, upper.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
 
-        TokenType type = SQL_KEYWORDS.contains(upper) ? TokenType::Keyword : TokenType::Identifier;
+        TokenType type = m_keywords.contains(upper) ? TokenType::Keyword : TokenType::Identifier;
         return {type, value, upper};
     }
 
@@ -145,7 +138,8 @@ private:
 
 class SQLFormatterImpl {
 public:
-    explicit SQLFormatterImpl(const SQLFormatter::FormatOptions& options) : m_options(options) {}
+    explicit SQLFormatterImpl(const SQLFormatter::FormatOptions& options, const std::unordered_set<std::string>& majorClauses, const std::unordered_set<std::string>& joinKeywords)
+        : m_options(options), m_majorClauses(majorClauses), m_joinKeywords(joinKeywords) {}
 
     std::string format(const std::vector<Token>& tokens) {
         m_result.clear();
@@ -167,6 +161,8 @@ public:
 
 private:
     const SQLFormatter::FormatOptions& m_options;
+    const std::unordered_set<std::string>& m_majorClauses;
+    const std::unordered_set<std::string>& m_joinKeywords;
     std::string m_result;
     int m_indentLevel;
     size_t m_pos;
@@ -225,7 +221,7 @@ private:
         while (m_pos < m_tokens.size()) {
             const auto& token = m_tokens[m_pos];
 
-            if (parenDepth == 0 && token.type == TokenType::Keyword && MAJOR_CLAUSES.contains(token.upperValue)) {
+            if (parenDepth == 0 && token.type == TokenType::Keyword && m_majorClauses.contains(token.upperValue)) {
                 break;
             }
 
@@ -244,6 +240,15 @@ private:
                     currentItem += ' ';
                 }
                 currentItem += formatToken(token);
+                // Add space after keyword (e.g., WITH, UNION, CASE, etc.)
+                // BUT NOT before opening parenthesis (e.g., COUNT(, SUM(, etc.)
+                if (token.type == TokenType::Keyword) {
+                    // Check if next token is '('
+                    size_t nextPos = m_pos + 1;
+                    if (nextPos >= m_tokens.size() || m_tokens[nextPos].type != TokenType::OpenParen) {
+                        currentItem += ' ';
+                    }
+                }
             }
 
             ++m_pos;
@@ -275,7 +280,7 @@ private:
         while (m_pos < m_tokens.size()) {
             const auto& token = m_tokens[m_pos];
 
-            if (token.type == TokenType::Keyword && (JOIN_KEYWORDS.contains(token.upperValue) || MAJOR_CLAUSES.contains(token.upperValue))) {
+            if (token.type == TokenType::Keyword && (m_joinKeywords.contains(token.upperValue) || m_majorClauses.contains(token.upperValue))) {
                 break;
             }
 
@@ -290,13 +295,13 @@ private:
         while (m_pos < m_tokens.size() && m_tokens[m_pos].type == TokenType::Keyword) {
             const auto& token = m_tokens[m_pos];
 
-            if (!JOIN_KEYWORDS.contains(token.upperValue))
+            if (!m_joinKeywords.contains(token.upperValue))
                 break;
 
             m_result += getIndent(1);
 
             // JOIN keywords (INNER JOIN, LEFT JOIN, etc.)
-            while (m_pos < m_tokens.size() && JOIN_KEYWORDS.contains(m_tokens[m_pos].upperValue)) {
+            while (m_pos < m_tokens.size() && m_joinKeywords.contains(m_tokens[m_pos].upperValue)) {
                 m_result += formatToken(m_tokens[m_pos]);
                 m_result += ' ';
                 ++m_pos;
@@ -306,7 +311,7 @@ private:
             while (m_pos < m_tokens.size()) {
                 const auto& t = m_tokens[m_pos];
 
-                if (t.type == TokenType::Keyword && (t.upperValue == "ON" || JOIN_KEYWORDS.contains(t.upperValue) || MAJOR_CLAUSES.contains(t.upperValue))) {
+                if (t.type == TokenType::Keyword && (t.upperValue == "ON" || m_joinKeywords.contains(t.upperValue) || m_majorClauses.contains(t.upperValue))) {
                     break;
                 }
 
@@ -324,7 +329,7 @@ private:
                 while (m_pos < m_tokens.size()) {
                     const auto& t = m_tokens[m_pos];
 
-                    if (t.type == TokenType::Keyword && (JOIN_KEYWORDS.contains(t.upperValue) || MAJOR_CLAUSES.contains(t.upperValue))) {
+                    if (t.type == TokenType::Keyword && (m_joinKeywords.contains(t.upperValue) || m_majorClauses.contains(t.upperValue))) {
                         break;
                     }
 
@@ -352,7 +357,7 @@ private:
         while (m_pos < m_tokens.size()) {
             const auto& token = m_tokens[m_pos];
 
-            if (parenDepth == 0 && token.type == TokenType::Keyword && MAJOR_CLAUSES.contains(token.upperValue)) {
+            if (parenDepth == 0 && token.type == TokenType::Keyword && m_majorClauses.contains(token.upperValue)) {
                 break;
             }
 
@@ -394,7 +399,7 @@ private:
         while (m_pos < m_tokens.size()) {
             const auto& token = m_tokens[m_pos];
 
-            if (token.type == TokenType::Keyword && MAJOR_CLAUSES.contains(token.upperValue)) {
+            if (token.type == TokenType::Keyword && m_majorClauses.contains(token.upperValue)) {
                 break;
             }
 
@@ -416,7 +421,7 @@ private:
         while (m_pos < m_tokens.size()) {
             const auto& token = m_tokens[m_pos];
 
-            if (token.type == TokenType::Keyword && MAJOR_CLAUSES.contains(token.upperValue)) {
+            if (token.type == TokenType::Keyword && m_majorClauses.contains(token.upperValue)) {
                 break;
             }
 
@@ -445,7 +450,7 @@ private:
         while (m_pos < m_tokens.size()) {
             const auto& token = m_tokens[m_pos];
 
-            if (token.type == TokenType::Keyword && MAJOR_CLAUSES.contains(token.upperValue)) {
+            if (token.type == TokenType::Keyword && m_majorClauses.contains(token.upperValue)) {
                 break;
             }
 
@@ -515,11 +520,76 @@ private:
 
 }  // namespace
 
+SQLFormatter::SQLFormatter() {
+    // Try to load keywords from external file first
+    std::filesystem::path exePath = std::filesystem::current_path();
+    std::filesystem::path configPath = exePath / "config" / "sql_keywords.txt";
+
+    if (!loadKeywordsFromFile(configPath.string())) {
+        // Fallback to default keywords if file doesn't exist
+        loadDefaultKeywords();
+    }
+}
+
+bool SQLFormatter::loadKeywordsFromFile(const std::string& filePath) {
+    std::ifstream file(filePath);
+    if (!file.is_open()) {
+        return false;
+    }
+
+    m_keywords.clear();
+    m_majorClauses.clear();
+    m_joinKeywords.clear();
+
+    std::string line;
+    while (std::getline(file, line)) {
+        // Trim whitespace
+        line.erase(0, line.find_first_not_of(" \t\r\n"));
+        line.erase(line.find_last_not_of(" \t\r\n") + 1);
+
+        // Skip empty lines and comments
+        if (line.empty() || line[0] == '#') {
+            continue;
+        }
+
+        // Convert to uppercase for storage
+        std::string upper = line;
+        std::ranges::transform(upper, upper.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+
+        m_keywords.insert(upper);
+
+        // Categorize keywords
+        if (upper == "SELECT" || upper == "FROM" || upper == "WHERE" || upper == "GROUP" || upper == "HAVING" || upper == "ORDER" || upper == "UNION" || upper == "INTERSECT" || upper == "EXCEPT") {
+            m_majorClauses.insert(upper);
+        }
+
+        if (upper == "JOIN" || upper == "INNER" || upper == "LEFT" || upper == "RIGHT" || upper == "FULL" || upper == "CROSS" || upper == "OUTER") {
+            m_joinKeywords.insert(upper);
+        }
+    }
+
+    return !m_keywords.empty();
+}
+
+void SQLFormatter::loadDefaultKeywords() {
+    // Default SQL keywords as fallback
+    m_keywords = {"SELECT",     "FROM",   "WHERE",      "AND",          "OR",     "NOT",     "IN",         "EXISTS",     "JOIN",      "INNER",     "LEFT",   "RIGHT",    "OUTER",
+                  "FULL",       "CROSS",  "ON",         "GROUP",        "BY",     "HAVING",  "ORDER",      "ASC",        "DESC",      "NULLS",     "FIRST",  "LAST",     "INSERT",
+                  "INTO",       "VALUES", "UPDATE",     "SET",          "DELETE", "CREATE",  "TABLE",      "INDEX",      "VIEW",      "DROP",      "ALTER",  "ADD",      "COLUMN",
+                  "PRIMARY",    "KEY",    "FOREIGN",    "UNIQUE",       "CHECK",  "DEFAULT", "NULL",       "AS",         "DISTINCT",  "TOP",       "LIMIT",  "OFFSET",   "FETCH",
+                  "NEXT",       "ROWS",   "ONLY",       "UNION",        "ALL",    "CASE",    "WHEN",       "THEN",       "ELSE",      "END",       "LIKE",   "BETWEEN",  "IS",
+                  "COUNT",      "SUM",    "AVG",        "MIN",          "MAX",    "OVER",    "PARTITION",  "WITH",       "RECURSIVE", "INTERSECT", "EXCEPT", "COALESCE", "CAST",
+                  "ROW_NUMBER", "RANK",   "DENSE_RANK", "PERCENT_RANK", "LAG",    "LEAD",    "STRING_AGG", "DATE_TRUNC", "ROUND"};
+
+    m_majorClauses = {"SELECT", "FROM", "WHERE", "GROUP", "HAVING", "ORDER", "UNION", "INTERSECT", "EXCEPT"};
+    m_joinKeywords = {"JOIN", "INNER", "LEFT", "RIGHT", "FULL", "CROSS", "OUTER"};
+}
+
 std::string SQLFormatter::format(std::string_view sql, const FormatOptions& options) {
-    Tokenizer tokenizer(sql);
+    Tokenizer tokenizer(sql, m_keywords);
     auto tokens = tokenizer.tokenize();
 
-    SQLFormatterImpl formatter(options);
+    SQLFormatterImpl formatter(options, m_majorClauses, m_joinKeywords);
     return formatter.format(tokens);
 }
 
@@ -538,10 +608,35 @@ std::string SQLFormatter::applyKeywordCase(std::string_view word, KeywordCase ke
     return result;
 }
 
-bool SQLFormatter::isKeyword(std::string_view word) {
+bool SQLFormatter::isKeyword(std::string_view word) const {
     std::string upper(word);
     std::ranges::transform(upper, upper.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-    return SQL_KEYWORDS.contains(upper);
+    return m_keywords.contains(upper);
+}
+
+std::string SQLFormatter::uppercaseKeywords(std::string_view sql) {
+    Tokenizer tokenizer(sql, m_keywords);
+    auto tokens = tokenizer.tokenize();
+
+    std::string result;
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        const auto& token = tokens[i];
+
+        // Add space before token if needed (except first token and after open paren)
+        if (i > 0) {
+            const auto& prevToken = tokens[i - 1];
+            if (prevToken.type != TokenType::OpenParen && token.type != TokenType::CloseParen && token.type != TokenType::Comma && token.type != TokenType::Semicolon) {
+                result += ' ';
+            }
+        }
+
+        if (token.type == TokenType::Keyword) {
+            result += applyKeywordCase(token.value, KeywordCase::Upper);
+        } else {
+            result += token.value;
+        }
+    }
+    return result;
 }
 
 std::string SQLFormatter::getIndent(int level, const FormatOptions& options) {
