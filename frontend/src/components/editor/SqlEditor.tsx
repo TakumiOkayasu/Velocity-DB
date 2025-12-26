@@ -7,7 +7,8 @@ import { log } from '../../utils/logger';
 import styles from './SqlEditor.module.css';
 
 export function SqlEditor() {
-  const { queries, activeQueryId, updateQuery, executeQuery } = useQueryStore();
+  const { queries, activeQueryId, updateQuery, executeQuery, saveToFile, loadFromFile } =
+    useQueryStore();
   const { activeConnectionId } = useConnectionStore();
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const isFormattingRef = useRef(false);
@@ -117,6 +118,35 @@ export function SqlEditor() {
             }, 0);
           });
         }
+        return;
+      }
+
+      // Ctrl+S for save to file
+      if (event.ctrlKey && event.key === 's' && !event.shiftKey && !event.altKey) {
+        event.preventDefault();
+        log.debug('[SqlEditor] Global Ctrl+S detected');
+        if (activeQueryId) {
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              saveToFile(activeQueryId);
+            }, 0);
+          });
+        }
+        return;
+      }
+
+      // Ctrl+O for load from file
+      if (event.ctrlKey && event.key === 'o' && !event.shiftKey && !event.altKey) {
+        event.preventDefault();
+        log.debug('[SqlEditor] Global Ctrl+O detected');
+        if (activeQueryId) {
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              loadFromFile(activeQueryId);
+            }, 0);
+          });
+        }
+        return;
       }
     };
 
@@ -128,7 +158,7 @@ export function SqlEditor() {
       window.removeEventListener('keydown', handleKeyDown);
       log.debug('[SqlEditor] Global keyboard listener removed');
     };
-  }, [activeQueryId, activeConnectionId, executeQuery, updateQuery]);
+  }, [activeQueryId, activeConnectionId, executeQuery, updateQuery, saveToFile, loadFromFile]);
 
   const handleEditorDidMount: OnMount = useCallback((editor) => {
     // Store editor reference

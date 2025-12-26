@@ -643,6 +643,34 @@ class Bridge {
   async writeFrontendLog(content: string): Promise<void> {
     return this.call('writeFrontendLog', { content });
   }
+
+  // File operations
+  async saveQueryToFile(content: string, defaultFileName?: string): Promise<{ filePath: string }> {
+    return this.call('saveQueryToFile', { content, defaultFileName });
+  }
+
+  async loadQueryFromFile(): Promise<{ filePath: string; content: string }> {
+    return this.call('loadQueryFromFile', {});
+  }
+
+  // Bookmark operations
+  async getBookmarks(): Promise<
+    {
+      id: string;
+      name: string;
+      content: string;
+    }[]
+  > {
+    return this.call('getBookmarks', {});
+  }
+
+  async saveBookmark(id: string, name: string, content: string): Promise<void> {
+    return this.call('saveBookmark', { id, name, content });
+  }
+
+  async deleteBookmark(id: string): Promise<void> {
+    return this.call('deleteBookmark', { id });
+  }
 }
 
 export const bridge = new Bridge();

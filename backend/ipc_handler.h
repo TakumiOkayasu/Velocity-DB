@@ -116,6 +116,15 @@ private:
     [[nodiscard]] std::string fetchTableMetadata(std::string_view params);
     [[nodiscard]] std::string fetchTableDDL(std::string_view params);
 
+    // File operations
+    [[nodiscard]] std::string saveQueryToFile(std::string_view params);
+    [[nodiscard]] std::string loadQueryFromFile(std::string_view params);
+
+    // Bookmark operations
+    [[nodiscard]] std::string getBookmarks(std::string_view params);
+    [[nodiscard]] std::string saveBookmark(std::string_view params);
+    [[nodiscard]] std::string deleteBookmark(std::string_view params);
+
     std::unique_ptr<ConnectionPool> m_connectionPool;
     std::unique_ptr<SchemaInspector> m_schemaInspector;
     std::unordered_map<std::string, std::unique_ptr<TransactionManager>> m_transactionManagers;

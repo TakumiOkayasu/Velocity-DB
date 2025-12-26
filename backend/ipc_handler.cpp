@@ -15,6 +15,7 @@
 #include "parsers/sql_formatter.h"
 #include "parsers/sql_parser.h"
 #include "simdjson.h"
+#include "utils/file_dialog.h"
 #include "utils/global_search.h"
 #include "utils/json_utils.h"
 #include "utils/logger.h"
@@ -181,6 +182,11 @@ void IPCHandler::registerRequestRoutes() {
     m_requestRoutes["getTableMetadata"] = [this](std::string_view p) { return fetchTableMetadata(p); };
     m_requestRoutes["getTableDDL"] = [this](std::string_view p) { return fetchTableDDL(p); };
     m_requestRoutes["writeFrontendLog"] = [this](std::string_view p) { return writeFrontendLog(p); };
+    m_requestRoutes["saveQueryToFile"] = [this](std::string_view p) { return saveQueryToFile(p); };
+    m_requestRoutes["loadQueryFromFile"] = [this](std::string_view p) { return loadQueryFromFile(p); };
+    m_requestRoutes["getBookmarks"] = [this](std::string_view p) { return getBookmarks(p); };
+    m_requestRoutes["saveBookmark"] = [this](std::string_view p) { return saveBookmark(p); };
+    m_requestRoutes["deleteBookmark"] = [this](std::string_view p) { return deleteBookmark(p); };
 }
 
 std::string IPCHandler::dispatchRequest(std::string_view request) {
@@ -2454,6 +2460,218 @@ std::string IPCHandler::writeFrontendLog(std::string_view params) {
         logFile << logContent;
         logFile.flush();
         logFile.close();
+
+        return JsonUtils::successResponse("{}");
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string IPCHandler::saveQueryToFile(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        auto doc = parser.parse(params);
+
+        std::string content = std::string(doc["content"].get_string().value());
+        std::string defaultFileName = "";
+        if (auto name = doc["defaultFileName"].get_string(); !name.error()) {
+            defaultFileName = std::string(name.value());
+        }
+
+        // Show save dialog
+        auto result = FileDialog::showSaveDialog("sql", "SQL Files (*.sql)\0*.sql\0All Files (*.*)\0*.*\0", defaultFileName);
+
+        if (!result) {
+            return JsonUtils::errorResponse(result.error());
+        }
+
+        // Write file
+        auto writeResult = FileDialog::writeFile(result.value(), content);
+        if (!writeResult) {
+            return JsonUtils::errorResponse(writeResult.error());
+        }
+
+        auto json = std::format("{{\"filePath\":\"{}\"}}", result.value().string());
+        return JsonUtils::successResponse(json);
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string IPCHandler::loadQueryFromFile(std::string_view params) {
+    try {
+        // Show open dialog
+        auto result = FileDialog::showOpenDialog("SQL Files (*.sql)\0*.sql\0All Files (*.*)\0*.*\0");
+
+        if (!result) {
+            return JsonUtils::errorResponse(result.error());
+        }
+
+        // Read file
+        auto readResult = FileDialog::readFile(result.value());
+        if (!readResult) {
+            return JsonUtils::errorResponse(readResult.error());
+        }
+
+        // Escape content for JSON
+        std::string escapedContent;
+        for (auto c : readResult.value()) {
+            if (c == '"') {
+                escapedContent += "\\\"";
+            } else if (c == '\\') {
+                escapedContent += "\\\\";
+            } else if (c == '\n') {
+                escapedContent += "\\n";
+            } else if (c == '\r') {
+                escapedContent += "\\r";
+            } else if (c == '\t') {
+                escapedContent += "\\t";
+            } else {
+                escapedContent += c;
+            }
+        }
+
+        auto json = std::format("{{\"filePath\":\"{}\",\"content\":\"{}\"}}", result.value().string(), escapedContent);
+        return JsonUtils::successResponse(json);
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string IPCHandler::getBookmarks(std::string_view params) {
+    try {
+        std::filesystem::path bookmarksPath("data/bookmarks.json");
+
+        if (!std::filesystem::exists(bookmarksPath)) {
+            // Return empty array if file doesn't exist
+            return JsonUtils::successResponse("[]");
+        }
+
+        auto readResult = FileDialog::readFile(bookmarksPath);
+        if (!readResult) {
+            return JsonUtils::errorResponse(readResult.error());
+        }
+
+        return JsonUtils::successResponse(readResult.value());
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string IPCHandler::saveBookmark(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        auto doc = parser.parse(params);
+
+        std::string id = std::string(doc["id"].get_string().value());
+        std::string name = std::string(doc["name"].get_string().value());
+        std::string content = std::string(doc["content"].get_string().value());
+
+        std::filesystem::path bookmarksPath("data/bookmarks.json");
+        std::filesystem::create_directories(bookmarksPath.parent_path());
+
+        // Load existing bookmarks
+        simdjson::dom::array bookmarks;
+        if (std::filesystem::exists(bookmarksPath)) {
+            auto readResult = FileDialog::readFile(bookmarksPath);
+            if (readResult) {
+                simdjson::dom::parser existingParser;
+                auto existingDoc = existingParser.parse(readResult.value());
+                bookmarks = existingDoc.get_array().value();
+            }
+        }
+
+        // Build new bookmarks array
+        std::string json = "[";
+        bool found = false;
+        bool first = true;
+
+        for (auto bookmark : bookmarks) {
+            std::string bookmarkId = std::string(bookmark["id"].get_string().value());
+            if (bookmarkId == id) {
+                // Update existing bookmark
+                found = true;
+                if (!first)
+                    json += ",";
+                json += std::format("{{\"id\":\"{}\",\"name\":\"{}\",\"content\":\"{}\"}}", id, name, content);
+            } else {
+                // Keep existing bookmark
+                if (!first)
+                    json += ",";
+                std::string existingName = std::string(bookmark["name"].get_string().value());
+                std::string existingContent = std::string(bookmark["content"].get_string().value());
+                json += std::format("{{\"id\":\"{}\",\"name\":\"{}\",\"content\":\"{}\"}}", bookmarkId, existingName, existingContent);
+            }
+            first = false;
+        }
+
+        // Add new bookmark if not found
+        if (!found) {
+            if (!first)
+                json += ",";
+            json += std::format("{{\"id\":\"{}\",\"name\":\"{}\",\"content\":\"{}\"}}", id, name, content);
+        }
+
+        json += "]";
+
+        // Write to file
+        auto writeResult = FileDialog::writeFile(bookmarksPath, json);
+        if (!writeResult) {
+            return JsonUtils::errorResponse(writeResult.error());
+        }
+
+        return JsonUtils::successResponse("{}");
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string IPCHandler::deleteBookmark(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        auto doc = parser.parse(params);
+
+        std::string id = std::string(doc["id"].get_string().value());
+
+        std::filesystem::path bookmarksPath("data/bookmarks.json");
+
+        if (!std::filesystem::exists(bookmarksPath)) {
+            return JsonUtils::successResponse("{}");
+        }
+
+        // Load existing bookmarks
+        auto readResult = FileDialog::readFile(bookmarksPath);
+        if (!readResult) {
+            return JsonUtils::errorResponse(readResult.error());
+        }
+
+        simdjson::dom::parser existingParser;
+        auto existingDoc = existingParser.parse(readResult.value());
+        auto bookmarks = existingDoc.get_array().value();
+
+        // Build new bookmarks array without the deleted one
+        std::string json = "[";
+        bool first = true;
+
+        for (auto bookmark : bookmarks) {
+            std::string bookmarkId = std::string(bookmark["id"].get_string().value());
+            if (bookmarkId != id) {
+                if (!first)
+                    json += ",";
+                std::string name = std::string(bookmark["name"].get_string().value());
+                std::string content = std::string(bookmark["content"].get_string().value());
+                json += std::format("{{\"id\":\"{}\",\"name\":\"{}\",\"content\":\"{}\"}}", bookmarkId, name, content);
+                first = false;
+            }
+        }
+
+        json += "]";
+
+        // Write to file
+        auto writeResult = FileDialog::writeFile(bookmarksPath, json);
+        if (!writeResult) {
+            return JsonUtils::errorResponse(writeResult.error());
+        }
 
         return JsonUtils::successResponse("{}");
     } catch (const std::exception& e) {

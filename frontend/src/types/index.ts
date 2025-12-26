@@ -20,9 +20,18 @@ export interface Query {
   content: string;
   connectionId: string | null;
   isDirty: boolean;
+  filePath?: string; // File path when saved to disk
   sourceTable?: string; // Table name when opened from Object Tree (for WHERE filter)
   isDataView?: boolean; // True when viewing table data (show grid instead of editor)
   useServerSideRowModel?: boolean; // Use AG Grid Server-Side Row Model for large tables
+}
+
+// Bookmark types
+export interface Bookmark {
+  id: string;
+  name: string;
+  content: string;
+  createdAt?: number;
 }
 
 // Result types

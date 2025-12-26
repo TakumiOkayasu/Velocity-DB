@@ -136,15 +136,7 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
   const columns = useMemo<ColumnDef<RowData>[]>(() => {
     if (!resultSet) return [];
 
-    const cols: ColumnDef<RowData>[] = [
-      {
-        id: '__rowIndex',
-        header: '#',
-        accessorKey: '__rowIndex',
-        size: 60,
-        minSize: 40,
-      },
-    ];
+    const cols: ColumnDef<RowData>[] = [];
 
     for (const col of resultSet.columns) {
       const isNumeric = isNumericType(col.type);

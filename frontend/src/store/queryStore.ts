@@ -33,6 +33,8 @@ interface QueryState {
   clearError: () => void;
   openTableData: (connectionId: string, tableName: string) => Promise<void>;
   applyWhereFilter: (id: string, connectionId: string, whereClause: string) => Promise<void>;
+  saveToFile: (id: string) => Promise<void>;
+  loadFromFile: (id: string) => Promise<void>;
 }
 
 let queryCounter = 0;
@@ -414,6 +416,55 @@ export const useQueryStore = create<QueryState>((set, get) => ({
       });
     }
   },
+
+  saveToFile: async (id) => {
+    const query = get().queries.find((q) => q.id === id);
+    if (!query || !query.content.trim()) return;
+
+    try {
+      const defaultFileName = query.filePath
+        ? query.filePath.split('\\').pop()?.split('/').pop()
+        : `${query.name}.sql`;
+
+      const result = await bridge.saveQueryToFile(query.content, defaultFileName);
+
+      log.info(`[QueryStore] Saved query to file: ${result.filePath}`);
+
+      set((state) => ({
+        queries: state.queries.map((q) =>
+          q.id === id ? { ...q, filePath: result.filePath, isDirty: false } : q
+        ),
+      }));
+    } catch (error) {
+      // User cancelled or error occurred
+      const message = error instanceof Error ? error.message : 'Failed to save file';
+      if (!message.includes('cancelled')) {
+        set({ error: message });
+      }
+    }
+  },
+
+  loadFromFile: async (id) => {
+    try {
+      const result = await bridge.loadQueryFromFile();
+
+      log.info(`[QueryStore] Loaded query from file: ${result.filePath}`);
+
+      set((state) => ({
+        queries: state.queries.map((q) =>
+          q.id === id
+            ? { ...q, content: result.content, filePath: result.filePath, isDirty: false }
+            : q
+        ),
+      }));
+    } catch (error) {
+      // User cancelled or error occurred
+      const message = error instanceof Error ? error.message : 'Failed to load file';
+      if (!message.includes('cancelled')) {
+        set({ error: message });
+      }
+    }
+  },
 }));
 
 // Optimized selectors to prevent unnecessary re-renders
@@ -443,5 +494,7 @@ export const useQueryActions = () =>
       clearError: state.clearError,
       openTableData: state.openTableData,
       applyWhereFilter: state.applyWhereFilter,
+      saveToFile: state.saveToFile,
+      loadFromFile: state.loadFromFile,
     }))
   );

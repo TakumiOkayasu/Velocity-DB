@@ -19,6 +19,7 @@ set(LIB_SOURCES
     utils/json_utils.cpp
     utils/simd_filter.cpp
     utils/file_utils.cpp
+    utils/file_dialog.cpp
     utils/settings_manager.cpp
     utils/session_manager.cpp
     utils/global_search.cpp
@@ -47,6 +48,7 @@ set(HEADERS
     utils/json_utils.h
     utils/simd_filter.h
     utils/file_utils.h
+    utils/file_dialog.h
     utils/settings_manager.h
     utils/session_manager.h
     utils/global_search.h
@@ -69,6 +71,7 @@ target_link_libraries(PreDateGripCore PUBLIC
     odbc32
     odbccp32
     crypt32
+    comdlg32
 )
 
 # Precompiled Headers for faster compilation
