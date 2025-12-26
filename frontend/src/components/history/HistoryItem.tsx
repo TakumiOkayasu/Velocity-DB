@@ -10,7 +10,7 @@ interface HistoryItemProps {
 
 export const HistoryItem = memo(function HistoryItem({ item }: HistoryItemProps) {
   const { setFavorite, removeHistory } = useHistoryStore();
-  const { addQuery, queries, updateQuery } = useQueryStore();
+  const { addQuery, queries, updateQuery, executeQuery } = useQueryStore();
 
   const formatTimestamp = (date: Date): string => {
     return date.toLocaleString('ja-JP', {
@@ -39,10 +39,15 @@ export const HistoryItem = memo(function HistoryItem({ item }: HistoryItemProps)
   }, [queries.length, addQuery, updateQuery, item.sql]);
 
   const handleDoubleClick = useCallback(() => {
-    // Set SQL in editor (same as single click)
-    // Auto-execution removed for safety (prevents accidental DELETE/UPDATE)
+    // Set SQL in editor and execute it
     handleClick();
-  }, [handleClick]);
+
+    // Execute the query
+    const activeId = useQueryStore.getState().activeQueryId;
+    if (activeId && item.connectionId) {
+      executeQuery(activeId, item.connectionId);
+    }
+  }, [handleClick, executeQuery, item.connectionId]);
 
   return (
     <div

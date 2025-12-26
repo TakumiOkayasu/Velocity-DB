@@ -368,11 +368,11 @@ Pre-DateGripは以下のキーボードショートカットをサポートし�
    - 影響: ユーザーが過去のクエリを素早く再実行できる
    - 想定工数: 1時間
 
-2. **SQLキーワード大文字変換**
-   - 実装場所: `backend/parsers/sql_parser.cpp` に `uppercaseKeywords()` メソッド追加
-   - 内容: SELECT, FROM, WHERE などのキーワードを自動的に大文字に変換
-   - UI: Ctrl+Shift+U などのショートカット、またはフォーマット時のオプション
-   - 想定工数: 半日
+2. **Ctrl+Wでタブを閉じる**
+   - 実装場所: `frontend/src/components/tabs/`
+   - 内容: 一般的なブラウザ/エディタと同じショートカットでタブを閉じる
+   - 影響: 直感的なタブ操作
+   - 想定工数: 1時間
 
 3. **ツリーノードのコンテキストメニュー**
    - 実装場所: `frontend/src/components/tree/TreeNode.tsx:151`
@@ -433,6 +433,8 @@ Pre-DateGripは以下のキーボードショートカットをサポートし�
 ### ✅ 完了済み
 
 - **SQLフォーマット** (Ctrl+Shift+F) - `backend/parsers/sql_formatter.cpp` で実装済み
+- **SQLキーワード大文字変換** - Ctrl+Shift+Fでフォーマットと同時に実行
+- **SQLキーワード外部ファイル化** - `config/sql_keywords.txt` で管理
 - **複数SQL文の実行** - タブ式の結果表示で実装済み
 - **インライン編集** - セル編集機能実装済み
 
