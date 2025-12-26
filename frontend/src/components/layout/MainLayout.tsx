@@ -118,8 +118,16 @@ export function MainLayout() {
   const [isA5ERImportDialogOpen, setIsA5ERImportDialogOpen] = useState(false);
 
   const { connections, activeConnectionId, addConnection } = useConnectionStore();
-  const { queries, activeQueryId, results, addQuery, executeQuery, formatQuery, isExecuting } =
-    useQueryStore();
+  const {
+    queries,
+    activeQueryId,
+    results,
+    addQuery,
+    removeQuery,
+    executeQuery,
+    formatQuery,
+    isExecuting,
+  } = useQueryStore();
   const { importFromA5ER } = useERDiagramStore();
   const activeConnection = connections.find((c) => c.id === activeConnectionId);
   const activeQuery = queries.find((q) => q.id === activeQueryId);
@@ -177,6 +185,12 @@ export function MainLayout() {
     setIsSettingsDialogOpen(true);
   }, []);
 
+  const handleCloseTab = useCallback(() => {
+    if (activeQueryId) {
+      removeQuery(activeQueryId);
+    }
+  }, [activeQueryId, removeQuery]);
+
   const handleSearchResultSelect = useCallback(
     (result: { type: string; name: string; schema: string }) => {
       // Insert table/view name into active query
@@ -216,6 +230,9 @@ export function MainLayout() {
       if (e.ctrlKey && e.key === 'n') {
         e.preventDefault();
         handleNewQuery();
+      } else if (e.ctrlKey && e.key === 'w') {
+        e.preventDefault();
+        handleCloseTab();
       } else if (e.ctrlKey && e.key === 'Enter') {
         e.preventDefault();
         handleExecute();
@@ -233,7 +250,14 @@ export function MainLayout() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleNewQuery, handleExecute, handleFormat, handleOpenSearch, handleOpenSettings]);
+  }, [
+    handleNewQuery,
+    handleCloseTab,
+    handleExecute,
+    handleFormat,
+    handleOpenSearch,
+    handleOpenSettings,
+  ]);
 
   // Track and save window size/position
   const saveWindowSizeTimeoutRef = useRef<number | null>(null);
