@@ -7,6 +7,7 @@ export interface ContextMenuItem {
   action: () => void;
   disabled?: boolean;
   separator?: boolean;
+  id?: string;
 }
 
 interface ContextMenuProps {
@@ -68,14 +69,28 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
     }
   };
 
+  // Generate unique keys for items
+  const getItemKey = (item: ContextMenuItem, index: number): string => {
+    if (item.id) return item.id;
+    if (item.separator) {
+      // For separators, use adjacent items to create a unique key
+      const prevItem = index > 0 ? items[index - 1] : null;
+      const nextItem = index < items.length - 1 ? items[index + 1] : null;
+      const prevLabel = prevItem && !prevItem.separator ? prevItem.label : 'start';
+      const nextLabel = nextItem && !nextItem.separator ? nextItem.label : 'end';
+      return `separator-${prevLabel}-${nextLabel}`;
+    }
+    return item.label;
+  };
+
   return (
     <div ref={menuRef} className={styles.container} style={{ left: x, top: y }}>
       {items.map((item, index) =>
         item.separator ? (
-          <div key={`separator-${index}`} className={styles.separator} />
+          <div key={getItemKey(item, index)} className={styles.separator} />
         ) : (
           <button
-            key={item.label}
+            key={getItemKey(item, index)}
             className={`${styles.item} ${item.disabled ? styles.disabled : ''}`}
             onClick={() => handleItemClick(item)}
             disabled={item.disabled}

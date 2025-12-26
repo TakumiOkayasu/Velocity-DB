@@ -17,6 +17,7 @@ struct ColumnInfo {
     int size = 0;
     bool nullable = true;
     bool isPrimaryKey = false;
+    std::string comment;
 };
 
 struct ResultRow {

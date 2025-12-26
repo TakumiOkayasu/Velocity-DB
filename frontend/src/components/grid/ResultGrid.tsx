@@ -5,6 +5,7 @@ import { bridge } from '../../api/bridge';
 import { useConnectionStore } from '../../store/connectionStore';
 import { useEditStore } from '../../store/editStore';
 import { useActiveQuery, useQueryActions, useQueryStore } from '../../store/queryStore';
+import { useSessionStore } from '../../store/sessionStore';
 import type { ResultSet } from '../../types';
 import { log } from '../../utils/logger';
 import { ExportDialog } from '../export/ExportDialog';
@@ -21,6 +22,7 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
   const { activeQueryId, queries, results, isExecuting, error } = useQueryStore();
   const activeConnectionId = useConnectionStore((state) => state.activeConnectionId);
   const activeQueryFromStore = useActiveQuery();
+  const { showLogicalNamesInGrid, setShowLogicalNamesInGrid } = useSessionStore();
 
   const currentActiveQuery = queries.find((q) => q.id === activeQueryId);
   const isActiveDataView = currentActiveQuery?.isDataView === true;
@@ -140,9 +142,11 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
 
     for (const col of resultSet.columns) {
       const isNumeric = isNumericType(col.type);
+      // Use logical name (comment) if available and showLogicalNamesInGrid is true
+      const displayName = showLogicalNamesInGrid && col.comment ? col.comment : col.name;
       cols.push({
         id: col.name,
-        header: col.name,
+        header: displayName,
         accessorKey: col.name,
         size: 150,
         minSize: 80,
@@ -154,7 +158,7 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     }
 
     return cols;
-  }, [resultSet, isNumericType]);
+  }, [resultSet, isNumericType, showLogicalNamesInGrid]);
 
   // TanStack Table instance
   const table = useReactTable({
@@ -573,6 +577,14 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
         {hasChanges() && <span className={styles.changesIndicator}>Unsaved changes</span>}
         {applyError && <span className={styles.errorIndicator}>{applyError}</span>}
         <div className={styles.toolbarSpacer} />
+        <label className={styles.checkboxLabel}>
+          <input
+            type="checkbox"
+            checked={showLogicalNamesInGrid}
+            onChange={(e) => setShowLogicalNamesInGrid(e.target.checked)}
+          />
+          <span>論理名で表示</span>
+        </label>
         <button
           type="button"
           onClick={handleAutoSizeColumns}
@@ -633,7 +645,7 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
       )}
 
       <div ref={tableContainerRef} className={styles.tableContainer}>
-        <table className={styles.table}>
+        <table key={`table-${showLogicalNamesInGrid}`} className={styles.table}>
           <thead className={styles.thead}>
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id} className={styles.theadRow}>

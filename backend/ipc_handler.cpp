@@ -533,46 +533,17 @@ std::string IPCHandler::fetchColumnDefinitions(std::string_view params) {
 
         auto& driver = connection->second;
 
-        // Escape single quotes in table name for safety
-        std::string escapedTableName;
-        escapedTableName.reserve(tableName.size() * 2);
-        for (char c : tableName) {
-            if (c == '\'') {
-                escapedTableName += "''";
-            } else {
-                escapedTableName += c;
-            }
-        }
-
-        auto columnQuery = std::format(R"(
-            SELECT
-                c.COLUMN_NAME,
-                c.DATA_TYPE,
-                COALESCE(c.CHARACTER_MAXIMUM_LENGTH, c.NUMERIC_PRECISION, 0) as SIZE,
-                CASE WHEN c.IS_NULLABLE = 'YES' THEN 1 ELSE 0 END as IS_NULLABLE,
-                CASE WHEN pk.COLUMN_NAME IS NOT NULL THEN 1 ELSE 0 END as IS_PRIMARY_KEY
-            FROM INFORMATION_SCHEMA.COLUMNS c
-            LEFT JOIN (
-                SELECT ku.TABLE_NAME, ku.COLUMN_NAME
-                FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
-                JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE ku
-                    ON tc.CONSTRAINT_NAME = ku.CONSTRAINT_NAME
-                WHERE tc.CONSTRAINT_TYPE = 'PRIMARY KEY'
-            ) pk ON c.TABLE_NAME = pk.TABLE_NAME AND c.COLUMN_NAME = pk.COLUMN_NAME
-            WHERE c.TABLE_NAME = '{}'
-            ORDER BY c.ORDINAL_POSITION
-        )",
-                                       escapedTableName);
-
-        ResultSet queryResult = driver->execute(columnQuery);
+        // Use SchemaInspector to get column definitions (includes MS_Description comments)
+        m_schemaInspector->setDriver(driver);
+        auto columns = m_schemaInspector->getColumns(tableName);
 
         std::string jsonResponse = "[";
-        for (size_t i = 0; i < queryResult.rows.size(); ++i) {
+        for (size_t i = 0; i < columns.size(); ++i) {
             if (i > 0)
                 jsonResponse += ',';
-            jsonResponse += std::format(R"({{"name":"{}","type":"{}","size":{},"nullable":{},"isPrimaryKey":{}}})", JsonUtils::escapeString(queryResult.rows[i].values[0]),
-                                        JsonUtils::escapeString(queryResult.rows[i].values[1]), queryResult.rows[i].values[2], queryResult.rows[i].values[3] == "1" ? "true" : "false",
-                                        queryResult.rows[i].values[4] == "1" ? "true" : "false");
+            const auto& col = columns[i];
+            jsonResponse += std::format(R"({{"name":"{}","type":"{}","size":{},"nullable":{},"isPrimaryKey":{},"comment":"{}"}})", JsonUtils::escapeString(col.name), JsonUtils::escapeString(col.type),
+                                        col.size, col.nullable ? "true" : "false", col.isPrimaryKey ? "true" : "false", JsonUtils::escapeString(col.comment));
         }
         jsonResponse += ']';
 

@@ -8,6 +8,9 @@ interface SessionState {
   isLeftPanelVisible: boolean;
   isBottomPanelVisible: boolean;
 
+  // Display settings
+  showLogicalNamesInGrid: boolean;
+
   // Last used connection
   lastConnectionId: string | null;
 
@@ -20,6 +23,7 @@ interface SessionState {
   setBottomPanelHeight: (height: number) => void;
   setLeftPanelVisible: (visible: boolean) => void;
   setBottomPanelVisible: (visible: boolean) => void;
+  setShowLogicalNamesInGrid: (show: boolean) => void;
   setLastConnectionId: (id: string | null) => void;
   setOpenTabs: (tabs: string[]) => void;
   setActiveTabId: (id: string | null) => void;
@@ -28,10 +32,11 @@ interface SessionState {
 export const useSessionStore = create<SessionState>()(
   persist(
     (set) => ({
-      leftPanelWidth: 250,
+      leftPanelWidth: 320,
       bottomPanelHeight: 200,
       isLeftPanelVisible: true,
       isBottomPanelVisible: false,
+      showLogicalNamesInGrid: false,
       lastConnectionId: null,
       openTabs: [],
       activeTabId: null,
@@ -40,6 +45,7 @@ export const useSessionStore = create<SessionState>()(
       setBottomPanelHeight: (height) => set({ bottomPanelHeight: height }),
       setLeftPanelVisible: (visible) => set({ isLeftPanelVisible: visible }),
       setBottomPanelVisible: (visible) => set({ isBottomPanelVisible: visible }),
+      setShowLogicalNamesInGrid: (show) => set({ showLogicalNamesInGrid: show }),
       setLastConnectionId: (id) => set({ lastConnectionId: id }),
       setOpenTabs: (tabs) => set({ openTabs: tabs }),
       setActiveTabId: (id) => set({ activeTabId: id }),

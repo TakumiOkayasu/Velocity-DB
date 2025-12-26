@@ -40,9 +40,12 @@ export function ConnectionTreeSection({
       const viewNodes: DatabaseObject[] = [];
 
       for (const table of tables) {
+        // Always use physical table name (not logical name)
+        const displayName = table.schema !== 'dbo' ? `${table.schema}.${table.name}` : table.name;
+
         const node: DatabaseObject = {
           id: `${connection.id}-${table.schema}-${table.name}`,
-          name: table.schema !== 'dbo' ? `${table.schema}.${table.name}` : table.name,
+          name: displayName,
           type: table.type === 'VIEW' ? 'view' : 'table',
           children: [], // Will be loaded on expand
           metadata: {
@@ -60,13 +63,13 @@ export function ConnectionTreeSection({
       return [
         {
           id: `${connection.id}-tables`,
-          name: 'Tables',
+          name: `Tables (${tableNodes.length})`,
           type: 'folder' as const,
           children: tableNodes,
         },
         {
           id: `${connection.id}-views`,
-          name: 'Views',
+          name: `Views (${viewNodes.length})`,
           type: 'folder' as const,
           children: viewNodes,
         },
@@ -84,11 +87,14 @@ export function ConnectionTreeSection({
         log.debug(`[ConnectionTreeSection] Loading columns for table: ${tableName}`);
         const columns = await bridge.getColumns(connection.id, tableName);
         log.debug(`[ConnectionTreeSection] Loaded ${columns.length} columns for ${tableName}`);
-        return columns.map((col) => ({
-          id: `${connection.id}-${tableName}-${col.name}`,
-          name: `${col.name} (${col.type}${col.isPrimaryKey ? ', PK' : ''}${col.nullable ? '' : ', NOT NULL'})`,
-          type: 'column' as const,
-        }));
+        return columns.map((col) => {
+          // Always use physical column name in tree view
+          return {
+            id: `${connection.id}-${tableName}-${col.name}`,
+            name: `${col.name} (${col.type}${col.isPrimaryKey ? ', PK' : ''}${col.nullable ? '' : ', NOT NULL'})`,
+            type: 'column' as const,
+          };
+        });
       } catch (error) {
         log.error(`[ConnectionTreeSection] Failed to load columns: ${error}`);
         return [];

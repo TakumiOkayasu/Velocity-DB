@@ -41,6 +41,7 @@ export interface Column {
   size: number;
   nullable: boolean;
   isPrimaryKey: boolean;
+  comment?: string;
 }
 
 export interface ResultSet {

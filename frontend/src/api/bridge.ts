@@ -117,7 +117,7 @@ class Bridge {
     sql: string,
     useCache = true
   ): Promise<{
-    columns: { name: string; type: string }[];
+    columns: { name: string; type: string; comment?: string }[];
     rows: string[][];
     affectedRows: number;
     executionTimeMs: number;
@@ -203,6 +203,7 @@ class Bridge {
       size: number;
       nullable: boolean;
       isPrimaryKey: boolean;
+      comment?: string;
     }[]
   > {
     return this.call('getColumns', { connectionId, table });
@@ -326,7 +327,7 @@ class Bridge {
     queryId: string;
     status: 'pending' | 'running' | 'completed' | 'cancelled' | 'failed';
     error?: string;
-    columns?: { name: string; type: string }[];
+    columns?: { name: string; type: string; comment?: string }[];
     rows?: string[][];
     affectedRows?: number;
     executionTimeMs?: number;

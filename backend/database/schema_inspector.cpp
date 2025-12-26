@@ -93,7 +93,8 @@ std::vector<ColumnInfo> SchemaInspector::getColumns(std::string_view table) {
             t.name AS data_type,
             c.max_length,
             c.is_nullable,
-            CASE WHEN pk.column_id IS NOT NULL THEN 1 ELSE 0 END AS is_primary_key
+            CASE WHEN pk.column_id IS NOT NULL THEN 1 ELSE 0 END AS is_primary_key,
+            CAST(ep.value AS NVARCHAR(MAX)) AS comment
         FROM sys.columns c
         INNER JOIN sys.types t ON c.user_type_id = t.user_type_id
         INNER JOIN sys.objects o ON c.object_id = o.object_id
@@ -103,6 +104,10 @@ std::vector<ColumnInfo> SchemaInspector::getColumns(std::string_view table) {
             INNER JOIN sys.indexes i ON ic.object_id = i.object_id AND ic.index_id = i.index_id
             WHERE i.is_primary_key = 1
         ) pk ON c.object_id = pk.object_id AND c.column_id = pk.column_id
+        LEFT JOIN sys.extended_properties ep ON ep.major_id = c.object_id
+            AND ep.minor_id = c.column_id
+            AND ep.class = 1
+            AND ep.name = 'MS_Description'
         WHERE o.name = '{}'
         ORDER BY c.column_id
     )",
@@ -112,7 +117,9 @@ std::vector<ColumnInfo> SchemaInspector::getColumns(std::string_view table) {
     columns.reserve(result.rows.size());
     for (const auto& row : result.rows) {
         if (row.values.size() >= 5) {
-            columns.push_back({.name = row.values[0], .type = row.values[1], .size = std::stoi(row.values[2]), .nullable = (row.values[3] == "1"), .isPrimaryKey = (row.values[4] == "1")});
+            std::string comment = row.values.size() >= 6 ? row.values[5] : "";
+            columns.push_back(
+                {.name = row.values[0], .type = row.values[1], .size = std::stoi(row.values[2]), .nullable = (row.values[3] == "1"), .isPrimaryKey = (row.values[4] == "1"), .comment = comment});
         }
     }
 

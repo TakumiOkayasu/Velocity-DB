@@ -161,6 +161,7 @@ export const useQueryStore = create<QueryState>((set, get) => ({
               size: 0,
               nullable: true,
               isPrimaryKey: false,
+              comment: c.comment,
             })),
             rows: result.rows,
             affectedRows: result.affectedRows ?? 0,
@@ -212,7 +213,7 @@ export const useQueryStore = create<QueryState>((set, get) => ({
             (r: {
               statement: string;
               data: {
-                columns: { name: string; type: string }[];
+                columns: { name: string; type: string; comment?: string }[];
                 rows: string[][];
                 affectedRows: number;
                 executionTimeMs: number;
@@ -226,6 +227,7 @@ export const useQueryStore = create<QueryState>((set, get) => ({
                   size: 0,
                   nullable: true,
                   isPrimaryKey: false,
+                  comment: c.comment,
                 })),
                 rows: r.data.rows,
                 affectedRows: r.data.affectedRows,
@@ -237,12 +239,13 @@ export const useQueryStore = create<QueryState>((set, get) => ({
       } else {
         // Single result format
         queryResult = {
-          columns: result.columns.map((c: { name: string; type: string }) => ({
+          columns: result.columns.map((c: { name: string; type: string; comment?: string }) => ({
             name: c.name,
             type: c.type,
             size: 0,
             nullable: true,
             isPrimaryKey: false,
+            comment: c.comment,
           })),
           rows: result.rows,
           affectedRows: result.affectedRows,
@@ -339,8 +342,16 @@ export const useQueryStore = create<QueryState>((set, get) => ({
     try {
       log.debug(`[QueryStore] Fetching table data for ${tableName}`);
       const fetchStart = performance.now();
+
+      // Fetch column definitions (includes MS_Description comments)
+      const columnDefinitions = await bridge.getColumns(connectionId, tableName);
+
+      // Fetch table data
       const result = await bridge.executeQuery(connectionId, sql);
       const fetchEnd = performance.now();
+
+      // Create a map of column names to comments
+      const commentMap = new Map(columnDefinitions.map((col) => [col.name, col.comment]));
 
       const resultSet: ResultSet = {
         columns: result.columns.map((c) => ({
@@ -349,6 +360,7 @@ export const useQueryStore = create<QueryState>((set, get) => ({
           size: 0,
           nullable: true,
           isPrimaryKey: false,
+          comment: commentMap.get(c.name) || undefined,
         })),
         rows: result.rows,
         affectedRows: result.affectedRows,
@@ -386,11 +398,17 @@ export const useQueryStore = create<QueryState>((set, get) => ({
     }));
 
     try {
+      // Fetch column definitions (includes MS_Description comments)
+      const columnDefinitions = await bridge.getColumns(connectionId, query.sourceTable);
+
       const result = await withTimeout(
         bridge.executeQuery(connectionId, sql),
         DEFAULT_QUERY_TIMEOUT_MS,
         'Query execution timed out after 5 minutes'
       );
+
+      // Create a map of column names to comments
+      const commentMap = new Map(columnDefinitions.map((col) => [col.name, col.comment]));
 
       const resultSet: ResultSet = {
         columns: result.columns.map((c) => ({
@@ -399,6 +417,7 @@ export const useQueryStore = create<QueryState>((set, get) => ({
           size: 0,
           nullable: true,
           isPrimaryKey: false,
+          comment: commentMap.get(c.name) || undefined,
         })),
         rows: result.rows,
         affectedRows: result.affectedRows,
