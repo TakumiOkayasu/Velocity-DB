@@ -110,13 +110,15 @@ jobs:
           path: frontend/dist/
           retention-days: 7
 
-  # Backend build on Windows - only on main branch push (saves Windows minutes)
+  # Backend build on Windows
+  # Runs on: main branch push OR PR with 'test-backend' label
   build-backend:
     name: Build & Test Backend
     runs-on: windows-latest
     needs: lint
-    # Only run Windows build on main branch to save minutes
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: |
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-backend'))
     steps:
       - uses: actions/checkout@v6
 
