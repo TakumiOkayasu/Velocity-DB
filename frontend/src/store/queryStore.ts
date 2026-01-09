@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { bridge } from '../api/bridge';
 import type { MultipleResultSet, Query, QueryResult, ResultSet } from '../types';
 import { log } from '../utils/logger';
+import { useHistoryStore } from './historyStore';
 
 // Type guard for MultipleResultSet
 function isMultipleResultSet(result: unknown): result is MultipleResultSet {
@@ -172,6 +173,17 @@ export const useQueryStore = create<QueryState>((set, get) => ({
             results: { ...state.results, [id]: queryResult },
             isExecuting: false,
           }));
+
+          // Add to history on success
+          useHistoryStore.getState().addHistory({
+            sql: query.content,
+            connectionId,
+            timestamp: new Date(),
+            executionTimeMs: result.executionTimeMs ?? 0,
+            affectedRows: result.affectedRows ?? 0,
+            success: true,
+            isFavorite: false,
+          });
           break;
         } else if (result.status === 'failed') {
           throw new Error(result.error || 'Query execution failed');
@@ -183,9 +195,23 @@ export const useQueryStore = create<QueryState>((set, get) => ({
         await new Promise((resolve) => setTimeout(resolve, pollInterval));
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Query execution failed';
+
+      // Add to history on failure
+      useHistoryStore.getState().addHistory({
+        sql: query.content,
+        connectionId,
+        timestamp: new Date(),
+        executionTimeMs: 0,
+        affectedRows: 0,
+        success: false,
+        errorMessage,
+        isFavorite: false,
+      });
+
       set({
         isExecuting: false,
-        error: error instanceof Error ? error.message : 'Query execution failed',
+        error: errorMessage,
       });
     }
   },
@@ -257,10 +283,38 @@ export const useQueryStore = create<QueryState>((set, get) => ({
         results: { ...state.results, [id]: queryResult },
         isExecuting: false,
       }));
+
+      // Add to history on success
+      const affectedRows = isMultipleResultSet(result)
+        ? result.results.reduce((sum, r) => sum + r.data.affectedRows, 0)
+        : result.affectedRows;
+      useHistoryStore.getState().addHistory({
+        sql: selectedText,
+        connectionId,
+        timestamp: new Date(),
+        executionTimeMs: result.executionTimeMs,
+        affectedRows,
+        success: true,
+        isFavorite: false,
+      });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Query execution failed';
+
+      // Add to history on failure
+      useHistoryStore.getState().addHistory({
+        sql: selectedText,
+        connectionId,
+        timestamp: new Date(),
+        executionTimeMs: 0,
+        affectedRows: 0,
+        success: false,
+        errorMessage,
+        isFavorite: false,
+      });
+
       set({
         isExecuting: false,
-        error: error instanceof Error ? error.message : 'Query execution failed',
+        error: errorMessage,
       });
     }
   },

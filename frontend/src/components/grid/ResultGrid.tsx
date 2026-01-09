@@ -19,7 +19,12 @@ interface ResultGridProps {
 }
 
 export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps = {}) {
-  const { activeQueryId, queries, results, isExecuting, error } = useQueryStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const activeQueryId = useQueryStore((state) => state.activeQueryId);
+  const queries = useQueryStore((state) => state.queries);
+  const results = useQueryStore((state) => state.results);
+  const isExecuting = useQueryStore((state) => state.isExecuting);
+  const error = useQueryStore((state) => state.error);
   const activeConnectionId = useConnectionStore((state) => state.activeConnectionId);
   const activeQueryFromStore = useActiveQuery();
   const { showLogicalNamesInGrid, setShowLogicalNamesInGrid } = useSessionStore();

@@ -87,6 +87,38 @@ std::vector<ColumnInfo> SchemaInspector::getColumns(std::string_view table) {
         return columns;
     }
 
+    // Parse table name: may be in format [schema].[table] or just [table]
+    std::string tableName{table};
+    std::string schemaName = "dbo";
+
+    // Remove brackets and extract schema/table
+    auto removeBrackets = [](std::string& s) {
+        if (!s.empty() && s.front() == '[' && s.back() == ']') {
+            s = s.substr(1, s.length() - 2);
+        }
+    };
+
+    if (auto dotPos = tableName.find('.'); dotPos != std::string::npos) {
+        schemaName = tableName.substr(0, dotPos);
+        tableName = tableName.substr(dotPos + 1);
+        removeBrackets(schemaName);
+    }
+    removeBrackets(tableName);
+
+    // Escape single quotes to prevent SQL injection
+    auto escapeString = [](const std::string& s) {
+        std::string escaped;
+        escaped.reserve(s.size());
+        for (char c : s) {
+            if (c == '\'') {
+                escaped += "''";
+            } else {
+                escaped += c;
+            }
+        }
+        return escaped;
+    };
+
     auto sql = std::format(R"(
         SELECT
             c.name AS column_name,
@@ -98,6 +130,7 @@ std::vector<ColumnInfo> SchemaInspector::getColumns(std::string_view table) {
         FROM sys.columns c
         INNER JOIN sys.types t ON c.user_type_id = t.user_type_id
         INNER JOIN sys.objects o ON c.object_id = o.object_id
+        INNER JOIN sys.schemas s ON o.schema_id = s.schema_id
         LEFT JOIN (
             SELECT ic.object_id, ic.column_id
             FROM sys.index_columns ic
@@ -108,10 +141,10 @@ std::vector<ColumnInfo> SchemaInspector::getColumns(std::string_view table) {
             AND ep.minor_id = c.column_id
             AND ep.class = 1
             AND ep.name = 'MS_Description'
-        WHERE o.name = '{}'
+        WHERE o.name = '{}' AND s.name = '{}'
         ORDER BY c.column_id
     )",
-                           table);
+                           escapeString(tableName), escapeString(schemaName));
 
     auto result = m_driver->execute(sql);
     columns.reserve(result.rows.size());
