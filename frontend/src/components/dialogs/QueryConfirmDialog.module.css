@@ -1,0 +1,124 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.dialog {
+  background: var(--bg-secondary, #2b2b2b);
+  border: 1px solid var(--border-color, #3c3f41);
+  border-radius: 8px;
+  width: 420px;
+  max-width: 90vw;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color, #3c3f41);
+}
+
+.header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary, #bbbbbb);
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-color, #4a88c7);
+  color: #fff;
+  font-weight: bold;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.icon.warning {
+  background: var(--warning-color, #e8a838);
+}
+
+.content {
+  padding: 20px;
+}
+
+.message {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-primary, #bbbbbb);
+  line-height: 1.5;
+}
+
+.details {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  background: var(--bg-primary, #1e1e1e);
+  border: 1px solid var(--border-color, #3c3f41);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-secondary, #808080);
+  font-family: "Consolas", "Monaco", monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-color, #3c3f41);
+}
+
+.footer button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.15s ease;
+}
+
+.cancelButton {
+  background: transparent;
+  color: var(--text-primary, #bbbbbb);
+  border: 1px solid var(--border-color, #3c3f41);
+}
+
+.cancelButton:hover {
+  background: var(--bg-hover, #3c3f41);
+}
+
+.confirmButton {
+  background: var(--accent-color, #4a88c7);
+  color: white;
+}
+
+.confirmButton:hover {
+  background: var(--accent-hover, #5a98d7);
+}
+
+.confirmButton.destructive {
+  background: var(--warning-color, #e8a838);
+}
+
+.confirmButton.destructive:hover {
+  background: #d4982d;
+}
