@@ -340,3 +340,36 @@
 .connectButton:hover {
   background: var(--accent-hover, #5a98d7);
 }
+
+/* Production Environment Section */
+.productionSection {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color, #3c3f41);
+}
+
+.sectionHeader {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary, #808080);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.productionCheckbox {
+  color: var(--warning-color, #e8a838);
+}
+
+.productionCheckbox input:checked + span,
+.productionCheckbox input:checked ~ * {
+  color: var(--warning-color, #e8a838);
+}
+
+.hint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-disabled, #5a5d63);
+  margin-left: 24px;
+  margin-top: 4px;
+}

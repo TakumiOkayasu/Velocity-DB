@@ -1,10 +1,16 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { bridge } from '../../api/bridge';
-import { useConnectionStore } from '../../store/connectionStore';
+import {
+  useConnectionStore,
+  useIsProductionMode,
+  useIsReadOnlyMode,
+} from '../../store/connectionStore';
 import { useERDiagramStore } from '../../store/erDiagramStore';
 import { useQueryStore } from '../../store/queryStore';
 import { useSessionStore } from '../../store/sessionStore';
+import { checkSqlSafety, getQueryWarnings } from '../../utils/sqlSafetyCheck';
 import type { ConnectionConfig } from '../dialogs/ConnectionDialog';
+import { QueryConfirmDialog } from '../dialogs/QueryConfirmDialog';
 import { CenterPanel } from './CenterPanel';
 import styles from './MainLayout.module.css';
 
@@ -116,6 +122,13 @@ export function MainLayout() {
   const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [isA5ERImportDialogOpen, setIsA5ERImportDialogOpen] = useState(false);
+  const [queryConfirmDialog, setQueryConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    details?: string;
+    isBlocked?: boolean;
+  }>({ isOpen: false, title: '', message: '' });
 
   const { connections, activeConnectionId, addConnection } = useConnectionStore();
   const {
@@ -129,6 +142,8 @@ export function MainLayout() {
     isExecuting,
   } = useQueryStore();
   const { importFromA5ER } = useERDiagramStore();
+  const isProduction = useIsProductionMode();
+  const isReadOnly = useIsReadOnlyMode();
   const activeConnection = connections.find((c) => c.id === activeConnectionId);
   const activeQuery = queries.find((q) => q.id === activeQueryId);
   const isDataView = activeQuery?.isDataView === true;
@@ -153,6 +168,8 @@ export function MainLayout() {
         username: config.username,
         password: config.password,
         useWindowsAuth: config.useWindowsAuth,
+        isProduction: config.isProduction,
+        isReadOnly: config.isReadOnly,
       });
     } catch (error) {
       console.error('Connection failed:', error);
@@ -163,13 +180,70 @@ export function MainLayout() {
     addQuery(activeConnectionId);
   }, [addQuery, activeConnectionId]);
 
-  const handleExecute = useCallback(() => {
+  // Store pending execution for use after confirmation
+  const pendingExecutionRef = useRef<{ queryId: string; connectionId: string } | null>(null);
+
+  const doExecuteQuery = useCallback(() => {
     if (activeQueryId && activeConnectionId) {
       executeQuery(activeQueryId, activeConnectionId);
-      // Show bottom panel when executing query
       setIsBottomPanelVisible(true);
     }
   }, [activeQueryId, activeConnectionId, executeQuery]);
+
+  const handleExecute = useCallback(() => {
+    if (!activeQueryId || !activeConnectionId || !activeQuery) return;
+
+    const sql = activeQuery.content;
+
+    // Check for read-only mode violations
+    if (isReadOnly) {
+      const safetyResult = checkSqlSafety(sql);
+      if (!safetyResult.isSafe) {
+        setQueryConfirmDialog({
+          isOpen: true,
+          title: 'Read-Only Mode',
+          message: safetyResult.message || 'This query is blocked in read-only mode.',
+          details: sql.slice(0, 200) + (sql.length > 200 ? '...' : ''),
+          isBlocked: true,
+        });
+        return;
+      }
+    }
+
+    // Check for production mode warnings
+    if (isProduction && !isReadOnly) {
+      const warnings = getQueryWarnings(sql, true);
+      if (warnings.length > 0) {
+        pendingExecutionRef.current = { queryId: activeQueryId, connectionId: activeConnectionId };
+        setQueryConfirmDialog({
+          isOpen: true,
+          title: 'Production Warning',
+          message: warnings.map((w) => w.message).join('\n'),
+          details: sql.slice(0, 200) + (sql.length > 200 ? '...' : ''),
+          isBlocked: false,
+        });
+        return;
+      }
+    }
+
+    // Safe to execute
+    doExecuteQuery();
+  }, [activeQueryId, activeConnectionId, activeQuery, isProduction, isReadOnly, doExecuteQuery]);
+
+  const handleConfirmExecute = useCallback(() => {
+    setQueryConfirmDialog({ isOpen: false, title: '', message: '' });
+    if (pendingExecutionRef.current) {
+      const { queryId, connectionId } = pendingExecutionRef.current;
+      executeQuery(queryId, connectionId);
+      setIsBottomPanelVisible(true);
+      pendingExecutionRef.current = null;
+    }
+  }, [executeQuery]);
+
+  const handleCancelExecute = useCallback(() => {
+    setQueryConfirmDialog({ isOpen: false, title: '', message: '' });
+    pendingExecutionRef.current = null;
+  }, []);
 
   const handleFormat = useCallback(() => {
     if (activeQueryId) {
@@ -310,6 +384,15 @@ export function MainLayout() {
 
   return (
     <div className={styles.container}>
+      {/* Production Environment Warning Banner */}
+      {isProduction && (
+        <div className={styles.productionBanner}>
+          <span className={styles.productionIcon}>!</span>
+          <span>PRODUCTION ENVIRONMENT</span>
+          {isReadOnly && <span className={styles.readOnlyBadge}>READ-ONLY</span>}
+        </div>
+      )}
+
       <header className={styles.toolbar}>
         {/* Connection */}
         <div className={styles.toolbarGroup}>
@@ -551,6 +634,19 @@ export function MainLayout() {
           />
         </Suspense>
       )}
+
+      {/* Query Confirm Dialog for Production/Read-Only Mode */}
+      <QueryConfirmDialog
+        isOpen={queryConfirmDialog.isOpen}
+        title={queryConfirmDialog.title}
+        message={queryConfirmDialog.message}
+        details={queryConfirmDialog.details}
+        isDestructive={true}
+        confirmLabel={queryConfirmDialog.isBlocked ? 'OK' : 'Execute Anyway'}
+        cancelLabel={queryConfirmDialog.isBlocked ? undefined : 'Cancel'}
+        onConfirm={queryConfirmDialog.isBlocked ? handleCancelExecute : handleConfirmExecute}
+        onCancel={handleCancelExecute}
+      />
     </div>
   );
 }

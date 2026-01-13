@@ -49,6 +49,22 @@
   /* Icon colors */
   --icon-color: #8c8f94;
   --icon-color-hover: #dfe1e5;
+
+  /* Production environment colors */
+  --production-bg-primary: #2a1f1f;
+  --production-bg-secondary: #352626;
+  --production-bg-tertiary: #452e2e;
+  --production-border-color: #5c3838;
+  --production-accent-color: #c44;
+  --production-indicator-color: #e74c3c;
+}
+
+/* Production mode - applies when data-production="true" on body */
+body[data-production="true"] {
+  --bg-primary: var(--production-bg-primary);
+  --bg-secondary: var(--production-bg-secondary);
+  --bg-tertiary: var(--production-bg-tertiary);
+  --border-color: var(--production-border-color);
 }
 
 * {

@@ -23,6 +23,8 @@ struct ConnectionProfile {
     bool useWindowsAuth = true;
     bool savePassword = false;
     std::string encryptedPassword;
+    bool isProduction = false;  // Production environment flag - enables safety features
+    bool isReadOnly = false;    // Read-only mode - prevents data modifications
 };
 
 struct EditorSettings {
