@@ -6,6 +6,42 @@
   color: var(--text-primary);
 }
 
+/* Production Environment Banner */
+.productionBanner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: linear-gradient(90deg, #c44 0%, #b33 50%, #c44 100%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.productionIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 11px;
+}
+
+.readOnlyBadge {
+  padding: 2px 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+}
+
 /* Toolbar - JetBrains New UI style */
 .toolbar {
   display: flex;

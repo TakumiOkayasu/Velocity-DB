@@ -1326,7 +1326,9 @@ std::string IPCHandler::getConnectionProfiles(std::string_view) {
         json += std::format("\"database\":\"{}\",", JsonUtils::escapeString(p.database));
         json += std::format("\"username\":\"{}\",", JsonUtils::escapeString(p.username));
         json += std::format("\"useWindowsAuth\":{},", p.useWindowsAuth ? "true" : "false");
-        json += std::format("\"savePassword\":{}", p.savePassword ? "true" : "false");
+        json += std::format("\"savePassword\":{},", p.savePassword ? "true" : "false");
+        json += std::format("\"isProduction\":{},", p.isProduction ? "true" : "false");
+        json += std::format("\"isReadOnly\":{}", p.isReadOnly ? "true" : "false");
         json += "}";
     }
     json += "]}";
@@ -1356,6 +1358,10 @@ std::string IPCHandler::saveConnectionProfile(std::string_view params) {
             profile.useWindowsAuth = val.value();
         if (auto val = doc["savePassword"].get_bool(); !val.error())
             profile.savePassword = val.value();
+        if (auto val = doc["isProduction"].get_bool(); !val.error())
+            profile.isProduction = val.value();
+        if (auto val = doc["isReadOnly"].get_bool(); !val.error())
+            profile.isReadOnly = val.value();
 
         // Generate ID if empty
         if (profile.id.empty()) {

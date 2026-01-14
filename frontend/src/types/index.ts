@@ -9,6 +9,8 @@ export interface Connection {
   password: string;
   useWindowsAuth: boolean;
   isActive: boolean; // Track if connection is active in ObjectTree
+  isProduction: boolean; // Production environment flag - enables safety features
+  isReadOnly: boolean; // Read-only mode - prevents data modifications
   tableListLoadTimeMs?: number; // Time taken to load table list
   tableOpenTimeMs?: number; // Time taken to open a table (click to display)
 }

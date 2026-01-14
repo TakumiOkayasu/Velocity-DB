@@ -42,6 +42,8 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         ...connection,
         id: result.connectionId,
         isActive: true, // New connections are active by default
+        isProduction: connection.isProduction ?? false,
+        isReadOnly: connection.isReadOnly ?? false,
       };
 
       set((state) => ({
@@ -137,6 +139,18 @@ export const useActiveConnection = () =>
   useConnectionStore((state) => {
     const connection = state.connections.find((c) => c.id === state.activeConnectionId);
     return connection ?? null;
+  });
+
+export const useIsProductionMode = () =>
+  useConnectionStore((state) => {
+    const connection = state.connections.find((c) => c.id === state.activeConnectionId);
+    return connection?.isProduction ?? false;
+  });
+
+export const useIsReadOnlyMode = () =>
+  useConnectionStore((state) => {
+    const connection = state.connections.find((c) => c.id === state.activeConnectionId);
+    return connection?.isReadOnly ?? false;
   });
 
 export const useConnectionActions = () =>

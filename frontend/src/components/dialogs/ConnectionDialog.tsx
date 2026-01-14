@@ -16,6 +16,8 @@ export interface ConnectionConfig {
   username: string;
   password: string;
   useWindowsAuth: boolean;
+  isProduction: boolean;
+  isReadOnly: boolean;
 }
 
 interface SavedProfile {
@@ -27,6 +29,8 @@ interface SavedProfile {
   username: string;
   useWindowsAuth: boolean;
   savePassword: boolean;
+  isProduction: boolean;
+  isReadOnly: boolean;
 }
 
 const DEFAULT_CONFIG: ConnectionConfig = {
@@ -37,6 +41,8 @@ const DEFAULT_CONFIG: ConnectionConfig = {
   username: '',
   password: '',
   useWindowsAuth: true,
+  isProduction: false,
+  isReadOnly: false,
 };
 
 export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialogProps) {
@@ -93,6 +99,8 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
       username: profile.username,
       password,
       useWindowsAuth: profile.useWindowsAuth,
+      isProduction: profile.isProduction,
+      isReadOnly: profile.isReadOnly,
     });
     setSavePassword(profile.savePassword);
     setTestResult(null);
@@ -142,6 +150,8 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
             username: p.username,
             useWindowsAuth: p.useWindowsAuth,
             savePassword: p.savePassword ?? false,
+            isProduction: p.isProduction ?? false,
+            isReadOnly: p.isReadOnly ?? false,
           }));
           setProfiles(loaded);
 
@@ -180,6 +190,8 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
                 username: profile.username,
                 password,
                 useWindowsAuth: profile.useWindowsAuth,
+                isProduction: profile.isProduction,
+                isReadOnly: profile.isReadOnly,
               });
               setSavePassword(profile.savePassword);
               setTestResult(null);
@@ -223,6 +235,8 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
         useWindowsAuth: config.useWindowsAuth,
         savePassword,
         password: savePassword ? config.password : undefined,
+        isProduction: config.isProduction,
+        isReadOnly: config.isReadOnly,
       });
 
       const savedProfile: SavedProfile = {
@@ -234,6 +248,8 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
         username: config.username,
         useWindowsAuth: config.useWindowsAuth,
         savePassword,
+        isProduction: config.isProduction,
+        isReadOnly: config.isReadOnly,
       };
 
       let updatedProfiles: SavedProfile[];
@@ -464,6 +480,37 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
                 </div>
               </>
             )}
+
+            {/* Production Environment Settings */}
+            <div className={styles.productionSection}>
+              <div className={styles.sectionHeader}>Environment Settings</div>
+              <div className={styles.formGroup}>
+                <label className={`${styles.checkboxLabel} ${styles.productionCheckbox}`}>
+                  <input
+                    type="checkbox"
+                    checked={config.isProduction}
+                    onChange={(e) => handleChange('isProduction', e.target.checked)}
+                  />
+                  Production Environment
+                </label>
+                <span className={styles.hint}>Enables safety warnings and visual indicators</span>
+              </div>
+              {config.isProduction && (
+                <div className={styles.formGroup}>
+                  <label className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={config.isReadOnly}
+                      onChange={(e) => handleChange('isReadOnly', e.target.checked)}
+                    />
+                    Read-Only Mode
+                  </label>
+                  <span className={styles.hint}>
+                    Prevents data modifications (INSERT, UPDATE, DELETE)
+                  </span>
+                </div>
+              )}
+            </div>
 
             {testResult && (
               <div

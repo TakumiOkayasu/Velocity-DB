@@ -206,7 +206,9 @@ std::string SettingsManager::serializeSettings() const {
         json += std::format("      \"username\": \"{}\",\n", JsonUtils::escapeString(profile.username));
         json += std::format("      \"useWindowsAuth\": {},\n", profile.useWindowsAuth ? "true" : "false");
         json += std::format("      \"savePassword\": {},\n", profile.savePassword ? "true" : "false");
-        json += std::format("      \"encryptedPassword\": \"{}\"\n", JsonUtils::escapeString(profile.encryptedPassword));
+        json += std::format("      \"encryptedPassword\": \"{}\",\n", JsonUtils::escapeString(profile.encryptedPassword));
+        json += std::format("      \"isProduction\": {},\n", profile.isProduction ? "true" : "false");
+        json += std::format("      \"isReadOnly\": {}\n", profile.isReadOnly ? "true" : "false");
         json += i < m_settings.connectionProfiles.size() - 1 ? "    },\n" : "    }\n";
     }
     json += "  ]\n";
@@ -307,6 +309,10 @@ bool SettingsManager::deserializeSettings(std::string_view jsonStr) {
                     profile.savePassword = val.value();
                 if (auto val = profileEl["encryptedPassword"].get_string(); !val.error())
                     profile.encryptedPassword = std::string(val.value());
+                if (auto val = profileEl["isProduction"].get_bool(); !val.error())
+                    profile.isProduction = val.value();
+                if (auto val = profileEl["isReadOnly"].get_bool(); !val.error())
+                    profile.isReadOnly = val.value();
                 m_settings.connectionProfiles.push_back(profile);
             }
         }

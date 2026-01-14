@@ -440,6 +440,8 @@ class Bridge {
       username: string;
       useWindowsAuth: boolean;
       savePassword?: boolean;
+      isProduction?: boolean;
+      isReadOnly?: boolean;
     }[];
   }> {
     return this.call('getConnectionProfiles', {});
@@ -455,6 +457,8 @@ class Bridge {
     useWindowsAuth: boolean;
     savePassword?: boolean;
     password?: string;
+    isProduction?: boolean;
+    isReadOnly?: boolean;
   }): Promise<{ id: string }> {
     return this.call('saveConnectionProfile', profile);
   }
