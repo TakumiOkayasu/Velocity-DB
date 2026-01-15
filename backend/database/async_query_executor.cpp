@@ -1,5 +1,7 @@
 #include "async_query_executor.h"
 
+#include "../parsers/sql_parser.h"
+
 #include <format>
 
 namespace predategrip {
@@ -38,22 +40,67 @@ std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<SQLServerDriver> dri
     task->startTime = std::chrono::steady_clock::now();
     task->status = QueryStatus::Running;
 
-    std::string sqlCopy(sql);
+    // Split SQL into multiple statements
+    auto statements = SQLParser::splitStatements(sql);
+    task->multipleResults = statements.size() > 1;
 
     // Capture shared_ptr by value to ensure driver and task lifetime extends through async execution
-    task->future = std::async(std::launch::async, [driver, sqlCopy, task]() -> ResultSet {
-        try {
-            ResultSet result = driver->execute(sqlCopy);
-            task->endTime = std::chrono::steady_clock::now();
-            task->status = QueryStatus::Completed;
-            return result;
-        } catch (const std::exception& e) {
-            task->endTime = std::chrono::steady_clock::now();
-            task->errorMessage = e.what();
-            task->status = QueryStatus::Failed;
-            return ResultSet{};
-        }
-    });
+    if (statements.size() > 1) {
+        // Multiple statements: execute sequentially and collect all results
+        task->future = std::async(std::launch::async, [driver, statements, task]() -> QueryResultVariant {
+            try {
+                std::vector<StatementResult> allResults;
+                allResults.reserve(statements.size());
+
+                for (const auto& stmt : statements) {
+                    ResultSet currentResult;
+
+                    if (SQLParser::isUseStatement(stmt)) {
+                        // Execute USE statement
+                        [[maybe_unused]] auto _ = driver->execute(stmt);
+                        std::string dbName = SQLParser::extractDatabaseName(stmt);
+
+                        // Create result for USE statement
+                        currentResult.columns.push_back({.name = "Message", .type = "VARCHAR", .size = 255, .nullable = false, .isPrimaryKey = false});
+                        ResultRow messageRow;
+                        messageRow.values.push_back(std::format("Database changed to {}", dbName));
+                        currentResult.rows.push_back(messageRow);
+                        currentResult.affectedRows = 0;
+                        currentResult.executionTimeMs = 0.0;
+                    } else {
+                        currentResult = driver->execute(stmt);
+                    }
+
+                    allResults.push_back(StatementResult{.statement = stmt, .result = std::move(currentResult)});
+                }
+
+                task->endTime = std::chrono::steady_clock::now();
+                task->status = QueryStatus::Completed;
+                return allResults;
+            } catch (const std::exception& e) {
+                task->endTime = std::chrono::steady_clock::now();
+                task->errorMessage = e.what();
+                task->status = QueryStatus::Failed;
+                return std::vector<StatementResult>{};
+            }
+        });
+    } else {
+        // Single statement
+        std::string sqlCopy(sql);
+        task->future = std::async(std::launch::async, [driver, sqlCopy, task]() -> QueryResultVariant {
+            try {
+                ResultSet result = driver->execute(sqlCopy);
+                task->endTime = std::chrono::steady_clock::now();
+                task->status = QueryStatus::Completed;
+                return result;
+            } catch (const std::exception& e) {
+                task->endTime = std::chrono::steady_clock::now();
+                task->errorMessage = e.what();
+                task->status = QueryStatus::Failed;
+                return ResultSet{};
+            }
+        });
+    }
 
     std::lock_guard lock(m_mutex);
     m_queries[queryId] = task;
@@ -78,6 +125,7 @@ AsyncQueryResult AsyncQueryExecutor::getQueryResult(std::string_view queryId) {
     AsyncQueryResult result;
     result.queryId = std::string(queryId);
     result.status = task->status.load();
+    result.multipleResults = task->multipleResults;
     result.startTime = task->startTime;
     result.endTime = task->endTime;
     result.errorMessage = task->errorMessage;
@@ -94,7 +142,13 @@ AsyncQueryResult AsyncQueryExecutor::getQueryResult(std::string_view queryId) {
             }
         }
         if (task->cachedResult.has_value()) {
-            result.result = task->cachedResult;
+            if (task->multipleResults) {
+                // Multiple results
+                result.results = std::get<std::vector<StatementResult>>(*task->cachedResult);
+            } else {
+                // Single result
+                result.result = std::get<ResultSet>(*task->cachedResult);
+            }
         }
     }
 

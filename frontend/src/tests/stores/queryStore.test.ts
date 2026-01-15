@@ -7,6 +7,7 @@ vi.mock('../../api/bridge', () => ({
   bridge: {
     executeAsyncQuery: vi.fn(),
     getAsyncQueryResult: vi.fn(),
+    cancelAsyncQuery: vi.fn(),
     executeQuery: vi.fn(),
     getColumns: vi.fn(),
     cancelQuery: vi.fn(),
@@ -184,20 +185,22 @@ describe('queryStore', () => {
   });
 
   describe('executeSelectedText with history integration', () => {
-    it('should record selected text execution to history', async () => {
+    it('should record selected text execution to history (async)', async () => {
       const { addQuery, executeSelectedText } = useQueryStore.getState();
 
       addQuery('conn_1');
       const { queries } = useQueryStore.getState();
       const queryId = queries[0].id;
 
-      // Mock successful execution
-      mockedBridge.executeQuery.mockResolvedValue({
+      // Mock async query flow (same as executeQuery)
+      mockedBridge.executeAsyncQuery.mockResolvedValue({ queryId: 'async_1' });
+      mockedBridge.getAsyncQueryResult.mockResolvedValue({
+        queryId: 'async_1',
+        status: 'completed',
         columns: [{ name: 'result', type: 'int' }],
         rows: [['42']],
         affectedRows: 0,
         executionTimeMs: 25,
-        cached: false,
       });
 
       await executeSelectedText(queryId, 'conn_1', 'SELECT 42');
@@ -207,6 +210,57 @@ describe('queryStore', () => {
       expect(history).toHaveLength(1);
       expect(history[0].sql).toBe('SELECT 42');
       expect(history[0].success).toBe(true);
+      expect(history[0].executionTimeMs).toBe(25);
+    });
+
+    it('should handle multiple results (async)', async () => {
+      const { addQuery, executeSelectedText } = useQueryStore.getState();
+
+      addQuery('conn_1');
+      const { queries } = useQueryStore.getState();
+      const queryId = queries[0].id;
+
+      // Mock async query flow with multiple results
+      mockedBridge.executeAsyncQuery.mockResolvedValue({ queryId: 'async_1' });
+      mockedBridge.getAsyncQueryResult.mockResolvedValue({
+        queryId: 'async_1',
+        status: 'completed',
+        multipleResults: true,
+        results: [
+          {
+            statement: 'SELECT 1',
+            data: {
+              columns: [{ name: 'result', type: 'int' }],
+              rows: [['1']],
+              affectedRows: 0,
+              executionTimeMs: 10,
+            },
+          },
+          {
+            statement: 'SELECT 2',
+            data: {
+              columns: [{ name: 'result', type: 'int' }],
+              rows: [['2']],
+              affectedRows: 0,
+              executionTimeMs: 15,
+            },
+          },
+        ],
+      });
+
+      await executeSelectedText(queryId, 'conn_1', 'SELECT 1; SELECT 2');
+
+      // Verify result
+      const { results } = useQueryStore.getState();
+      expect(results[queryId]).toBeDefined();
+      expect('multipleResults' in results[queryId] && results[queryId].multipleResults).toBe(true);
+
+      // Verify history
+      const { history } = useHistoryStore.getState();
+      expect(history).toHaveLength(1);
+      expect(history[0].sql).toBe('SELECT 1; SELECT 2');
+      expect(history[0].success).toBe(true);
+      expect(history[0].executionTimeMs).toBe(25); // 10 + 15
     });
 
     it('should not execute empty text', async () => {
@@ -218,8 +272,37 @@ describe('queryStore', () => {
 
       await executeSelectedText(queryId, 'conn_1', '   ');
 
-      expect(mockedBridge.executeQuery).not.toHaveBeenCalled();
+      expect(mockedBridge.executeAsyncQuery).not.toHaveBeenCalled();
       expect(useHistoryStore.getState().history).toHaveLength(0);
+    });
+
+    it('should record failed query to history', async () => {
+      const { addQuery, executeSelectedText } = useQueryStore.getState();
+
+      addQuery('conn_1');
+      const { queries } = useQueryStore.getState();
+      const queryId = queries[0].id;
+
+      // Mock failed query
+      mockedBridge.executeAsyncQuery.mockResolvedValue({ queryId: 'async_1' });
+      mockedBridge.getAsyncQueryResult.mockResolvedValue({
+        queryId: 'async_1',
+        status: 'failed',
+        error: 'Syntax error',
+      });
+
+      await executeSelectedText(queryId, 'conn_1', 'INVALID SQL');
+
+      // Verify history was recorded with failure
+      const { history } = useHistoryStore.getState();
+      expect(history).toHaveLength(1);
+      expect(history[0].success).toBe(false);
+      expect(history[0].errorMessage).toBe('Syntax error');
+
+      // Verify error state
+      const { error, isExecuting } = useQueryStore.getState();
+      expect(error).toBe('Syntax error');
+      expect(isExecuting).toBe(false);
     });
   });
 
