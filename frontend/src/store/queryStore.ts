@@ -1,19 +1,9 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { bridge } from '../api/bridge';
-import type { MultipleResultSet, Query, QueryResult, ResultSet } from '../types';
+import type { Query, QueryResult, ResultSet } from '../types';
 import { log } from '../utils/logger';
 import { useHistoryStore } from './historyStore';
-
-// Type guard for MultipleResultSet
-function isMultipleResultSet(result: unknown): result is MultipleResultSet {
-  return (
-    typeof result === 'object' &&
-    result !== null &&
-    'multipleResults' in result &&
-    (result as { multipleResults: unknown }).multipleResults === true
-  );
-}
 
 interface QueryState {
   queries: Query[];
@@ -222,81 +212,107 @@ export const useQueryStore = create<QueryState>((set, get) => ({
     set({ isExecuting: true, error: null });
 
     try {
-      const result = await withTimeout(
-        bridge.executeQuery(connectionId, selectedText),
-        DEFAULT_QUERY_TIMEOUT_MS,
-        'Query execution timed out after 5 minutes'
-      );
+      // Start async query execution
+      const { queryId } = await bridge.executeAsyncQuery(connectionId, selectedText);
 
-      // Check if result has multipleResults property
-      let queryResult: QueryResult;
+      // Poll for results
+      const pollInterval = 100; // Poll every 100ms
+      const maxPollTime = DEFAULT_QUERY_TIMEOUT_MS;
+      const startTime = Date.now();
 
-      if (isMultipleResultSet(result)) {
-        // Multiple results format
-        queryResult = {
-          multipleResults: true,
-          results: result.results.map(
-            (r: {
-              statement: string;
-              data: {
-                columns: { name: string; type: string; comment?: string }[];
-                rows: string[][];
-                affectedRows: number;
-                executionTimeMs: number;
-              };
-            }) => ({
-              statement: r.statement,
-              data: {
-                columns: r.data.columns.map((c) => ({
-                  name: c.name,
-                  type: c.type,
-                  size: 0,
-                  nullable: true,
-                  isPrimaryKey: false,
-                  comment: c.comment,
-                })),
-                rows: r.data.rows,
-                affectedRows: r.data.affectedRows,
-                executionTimeMs: r.data.executionTimeMs,
-              },
-            })
-          ),
-        };
-      } else {
-        // Single result format
-        queryResult = {
-          columns: result.columns.map((c: { name: string; type: string; comment?: string }) => ({
-            name: c.name,
-            type: c.type,
-            size: 0,
-            nullable: true,
-            isPrimaryKey: false,
-            comment: c.comment,
-          })),
-          rows: result.rows,
-          affectedRows: result.affectedRows,
-          executionTimeMs: result.executionTimeMs,
-        };
+      while (true) {
+        // Check timeout
+        if (Date.now() - startTime > maxPollTime) {
+          // Try to cancel the query before throwing
+          try {
+            await bridge.cancelAsyncQuery(queryId);
+          } catch {
+            // Ignore cancel errors
+          }
+          throw new Error('Query execution timed out after 5 minutes');
+        }
+
+        const result = await bridge.getAsyncQueryResult(queryId);
+
+        if (result.status === 'completed') {
+          // Query completed successfully
+          let queryResult: QueryResult;
+          let totalAffectedRows = 0;
+          let totalExecutionTimeMs = 0;
+
+          if (result.multipleResults && result.results) {
+            // Multiple results format
+            queryResult = {
+              multipleResults: true,
+              results: result.results.map((r) => ({
+                statement: r.statement,
+                data: {
+                  columns: r.data.columns.map((c) => ({
+                    name: c.name,
+                    type: c.type,
+                    size: 0,
+                    nullable: true,
+                    isPrimaryKey: false,
+                  })),
+                  rows: r.data.rows,
+                  affectedRows: r.data.affectedRows,
+                  executionTimeMs: r.data.executionTimeMs,
+                },
+              })),
+            };
+            totalAffectedRows = result.results.reduce((sum, r) => sum + r.data.affectedRows, 0);
+            totalExecutionTimeMs = result.results.reduce(
+              (sum, r) => sum + r.data.executionTimeMs,
+              0
+            );
+          } else {
+            // Single result format
+            if (!result.columns || !result.rows) {
+              throw new Error('Invalid query result: missing columns or rows');
+            }
+
+            queryResult = {
+              columns: result.columns.map((c) => ({
+                name: c.name,
+                type: c.type,
+                size: 0,
+                nullable: true,
+                isPrimaryKey: false,
+                comment: c.comment,
+              })),
+              rows: result.rows,
+              affectedRows: result.affectedRows ?? 0,
+              executionTimeMs: result.executionTimeMs ?? 0,
+            };
+            totalAffectedRows = result.affectedRows ?? 0;
+            totalExecutionTimeMs = result.executionTimeMs ?? 0;
+          }
+
+          set((state) => ({
+            results: { ...state.results, [id]: queryResult },
+            isExecuting: false,
+          }));
+
+          // Add to history on success
+          useHistoryStore.getState().addHistory({
+            sql: selectedText,
+            connectionId,
+            timestamp: new Date(),
+            executionTimeMs: totalExecutionTimeMs,
+            affectedRows: totalAffectedRows,
+            success: true,
+            isFavorite: false,
+          });
+          break;
+        } else if (result.status === 'failed') {
+          throw new Error(result.error || 'Query execution failed');
+        } else if (result.status === 'cancelled') {
+          throw new Error('Query was cancelled');
+        }
+
+        // Status is 'pending' or 'running' - wait before polling again
+        await new Promise((resolve) => setTimeout(resolve, pollInterval));
       }
-
-      set((state) => ({
-        results: { ...state.results, [id]: queryResult },
-        isExecuting: false,
-      }));
-
-      // Add to history on success
-      const affectedRows = isMultipleResultSet(result)
-        ? result.results.reduce((sum, r) => sum + r.data.affectedRows, 0)
-        : result.affectedRows;
-      useHistoryStore.getState().addHistory({
-        sql: selectedText,
-        connectionId,
-        timestamp: new Date(),
-        executionTimeMs: result.executionTimeMs,
-        affectedRows,
-        success: true,
-        isFavorite: false,
-      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Query execution failed';
 

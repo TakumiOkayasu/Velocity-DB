@@ -327,10 +327,22 @@ class Bridge {
     queryId: string;
     status: 'pending' | 'running' | 'completed' | 'cancelled' | 'failed';
     error?: string;
+    // Single result
     columns?: { name: string; type: string; comment?: string }[];
     rows?: string[][];
     affectedRows?: number;
     executionTimeMs?: number;
+    // Multiple results
+    multipleResults?: boolean;
+    results?: Array<{
+      statement: string;
+      data: {
+        columns: { name: string; type: string }[];
+        rows: string[][];
+        affectedRows: number;
+        executionTimeMs: number;
+      };
+    }>;
   }> {
     return this.call('getAsyncQueryResult', { queryId });
   }

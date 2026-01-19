@@ -1053,7 +1053,23 @@ std::string IPCHandler::getAsyncQueryResult(std::string_view params) {
             jsonResponse += std::format(R"(,"error":"{}")", JsonUtils::escapeString(asyncResult.errorMessage));
         }
 
-        if (asyncResult.result.has_value()) {
+        // Handle multiple results
+        if (asyncResult.multipleResults && !asyncResult.results.empty()) {
+            jsonResponse += R"(,"multipleResults":true,"results":[)";
+            for (size_t i = 0; i < asyncResult.results.size(); ++i) {
+                if (i > 0)
+                    jsonResponse += ",";
+
+                const auto& stmtResult = asyncResult.results[i];
+                jsonResponse += R"({"statement":")";
+                jsonResponse += JsonUtils::escapeString(stmtResult.statement);
+                jsonResponse += R"(","data":)";
+                jsonResponse += JsonUtils::serializeResultSet(stmtResult.result, false);
+                jsonResponse += "}";
+            }
+            jsonResponse += "]";
+        } else if (asyncResult.result.has_value()) {
+            // Single result
             const auto& queryResult = *asyncResult.result;
 
             jsonResponse += R"(,"columns":[)";

@@ -11,15 +11,26 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <variant>
+#include <vector>
 
 namespace predategrip {
 
 enum class QueryStatus { Pending, Running, Completed, Cancelled, Failed };
 
+struct StatementResult {
+    std::string statement;
+    ResultSet result;
+};
+
+using QueryResultVariant = std::variant<ResultSet, std::vector<StatementResult>>;
+
 struct AsyncQueryResult {
     std::string queryId;
     QueryStatus status = QueryStatus::Pending;
+    bool multipleResults = false;
     std::optional<ResultSet> result;
+    std::vector<StatementResult> results;
     std::string errorMessage;
     std::chrono::steady_clock::time_point startTime;
     std::chrono::steady_clock::time_point endTime;
@@ -56,8 +67,9 @@ public:
 
 private:
     struct QueryTask {
-        std::future<ResultSet> future;
-        std::optional<ResultSet> cachedResult;  // Cache result after first get()
+        std::future<QueryResultVariant> future;
+        std::optional<QueryResultVariant> cachedResult;  // Cache result after first get()
+        bool multipleResults = false;
         std::atomic<QueryStatus> status{QueryStatus::Pending};
         std::shared_ptr<SQLServerDriver> driver;  // shared_ptr to prevent use-after-free
         std::string sql;
