@@ -3,6 +3,11 @@ cmake_minimum_required(VERSION 3.20)
 # Must set policy before project() for MSVC runtime library
 cmake_policy(SET CMP0091 NEW)
 
+# Disable vcpkg manifest mode when vcpkg.json is absent (e.g. on main before SSH feature merge)
+if(NOT EXISTS "${CMAKE_SOURCE_DIR}/vcpkg.json")
+    set(VCPKG_MANIFEST_MODE OFF CACHE BOOL "" FORCE)
+endif()
+
 project(PreDateGrip VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
