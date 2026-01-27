@@ -13,6 +13,19 @@ namespace predategrip {
 
 using SettingValue = std::variant<bool, int, double, std::string>;
 
+enum class SshAuthType { Password, PrivateKey };
+
+struct SshConfig {
+    bool enabled = false;
+    std::string host;
+    int port = 22;
+    std::string username;
+    SshAuthType authType = SshAuthType::Password;
+    std::string encryptedPassword;       // For password auth
+    std::string privateKeyPath;          // For key auth
+    std::string encryptedKeyPassphrase;  // For encrypted private keys
+};
+
 struct ConnectionProfile {
     std::string id;
     std::string name;
@@ -25,6 +38,7 @@ struct ConnectionProfile {
     std::string encryptedPassword;
     bool isProduction = false;  // Production environment flag - enables safety features
     bool isReadOnly = false;    // Read-only mode - prevents data modifications
+    SshConfig ssh;              // SSH tunnel configuration
 };
 
 struct EditorSettings {
@@ -108,6 +122,20 @@ public:
     /// @param profileId The profile to get password for
     /// @return Decrypted password, or error message if decryption fails
     [[nodiscard]] std::expected<std::string, std::string> getProfilePassword(const std::string& profileId) const;
+
+    /// SSH password management using DPAPI encryption
+    /// @param profileId The profile to set SSH password for
+    /// @param plainPassword The plaintext SSH password to encrypt and store
+    [[nodiscard]] std::expected<void, std::string> setSshPassword(const std::string& profileId, std::string_view plainPassword);
+
+    /// Get decrypted SSH password for a connection profile
+    [[nodiscard]] std::expected<std::string, std::string> getSshPassword(const std::string& profileId) const;
+
+    /// SSH key passphrase management using DPAPI encryption
+    [[nodiscard]] std::expected<void, std::string> setSshKeyPassphrase(const std::string& profileId, std::string_view passphrase);
+
+    /// Get decrypted SSH key passphrase for a connection profile
+    [[nodiscard]] std::expected<std::string, std::string> getSshKeyPassphrase(const std::string& profileId) const;
 
     /// Get settings file path
     [[nodiscard]] std::filesystem::path getSettingsPath() const;

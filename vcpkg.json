@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "pre-dategrip",
+  "version": "0.1.0",
+  "dependencies": [
+    {
+      "name": "libssh2",
+      "features": ["openssl"]
+    }
+  ],
+  "builtin-baseline": "01f602195983451bc83e72f4214af2cbc495aa94"
+}

@@ -1,3 +1,14 @@
+# Find libssh2 (optional - via vcpkg)
+find_package(Libssh2 CONFIG QUIET)
+if(Libssh2_FOUND)
+    message(STATUS "libssh2 found - SSH tunnel support enabled")
+    set(SSH_TUNNEL_ENABLED TRUE)
+else()
+    message(STATUS "libssh2 not found - SSH tunnel support disabled")
+    message(STATUS "  To enable: set VCPKG_ROOT and install libssh2[openssl]")
+    set(SSH_TUNNEL_ENABLED FALSE)
+endif()
+
 # Core library sources (without main.cpp)
 set(LIB_SOURCES
     webview_app.cpp
@@ -26,6 +37,11 @@ set(LIB_SOURCES
     utils/credential_protector.cpp
     utils/logger.cpp
 )
+
+# Add SSH tunnel source if libssh2 is available
+if(SSH_TUNNEL_ENABLED)
+    list(APPEND LIB_SOURCES network/ssh_tunnel.cpp)
+endif()
 
 set(HEADERS
     webview_app.h
@@ -56,6 +72,11 @@ set(HEADERS
     utils/logger.h
 )
 
+# Add SSH tunnel header if libssh2 is available
+if(SSH_TUNNEL_ENABLED)
+    list(APPEND HEADERS network/ssh_tunnel.h)
+endif()
+
 # Create a static library for the core functionality
 add_library(PreDateGripCore STATIC ${LIB_SOURCES} ${HEADERS})
 
@@ -73,6 +94,12 @@ target_link_libraries(PreDateGripCore PUBLIC
     crypt32
     comdlg32
 )
+
+# Link libssh2 if available
+if(SSH_TUNNEL_ENABLED)
+    target_link_libraries(PreDateGripCore PUBLIC Libssh2::libssh2)
+    target_compile_definitions(PreDateGripCore PUBLIC SSH_TUNNEL_ENABLED)
+endif()
 
 # Precompiled Headers for faster compilation
 target_precompile_headers(PreDateGripCore PRIVATE

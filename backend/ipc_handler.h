@@ -98,6 +98,8 @@ private:
     [[nodiscard]] std::string saveConnectionProfile(std::string_view params);
     [[nodiscard]] std::string deleteConnectionProfile(std::string_view params);
     [[nodiscard]] std::string getProfilePassword(std::string_view params);
+    [[nodiscard]] std::string getSshPassword(std::string_view params);
+    [[nodiscard]] std::string getSshKeyPassphrase(std::string_view params);
 
     // Session operations
     [[nodiscard]] std::string getSessionState(std::string_view params);

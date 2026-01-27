@@ -8,6 +8,19 @@ interface ConnectionDialogProps {
   onConnect: (config: ConnectionConfig) => void;
 }
 
+export type SshAuthType = 'password' | 'privateKey';
+
+export interface SshConfig {
+  enabled: boolean;
+  host: string;
+  port: number;
+  username: string;
+  authType: SshAuthType;
+  password: string;
+  privateKeyPath: string;
+  keyPassphrase: string;
+}
+
 export interface ConnectionConfig {
   name: string;
   server: string;
@@ -18,6 +31,17 @@ export interface ConnectionConfig {
   useWindowsAuth: boolean;
   isProduction: boolean;
   isReadOnly: boolean;
+  ssh: SshConfig;
+}
+
+interface SavedSshConfig {
+  enabled: boolean;
+  host: string;
+  port: number;
+  username: string;
+  authType: SshAuthType;
+  privateKeyPath: string;
+  savePassword: boolean;
 }
 
 interface SavedProfile {
@@ -31,7 +55,19 @@ interface SavedProfile {
   savePassword: boolean;
   isProduction: boolean;
   isReadOnly: boolean;
+  ssh?: SavedSshConfig;
 }
+
+const DEFAULT_SSH_CONFIG: SshConfig = {
+  enabled: false,
+  host: '',
+  port: 22,
+  username: '',
+  authType: 'password',
+  password: '',
+  privateKeyPath: '',
+  keyPassphrase: '',
+};
 
 const DEFAULT_CONFIG: ConnectionConfig = {
   name: 'New Connection',
@@ -43,6 +79,7 @@ const DEFAULT_CONFIG: ConnectionConfig = {
   useWindowsAuth: true,
   isProduction: false,
   isReadOnly: false,
+  ssh: { ...DEFAULT_SSH_CONFIG },
 };
 
 export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialogProps) {
@@ -101,6 +138,18 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
       useWindowsAuth: profile.useWindowsAuth,
       isProduction: profile.isProduction,
       isReadOnly: profile.isReadOnly,
+      ssh: profile.ssh
+        ? {
+            enabled: profile.ssh.enabled,
+            host: profile.ssh.host,
+            port: profile.ssh.port,
+            username: profile.ssh.username,
+            authType: profile.ssh.authType,
+            password: '', // Will be loaded separately if needed
+            privateKeyPath: profile.ssh.privateKeyPath,
+            keyPassphrase: '',
+          }
+        : { ...DEFAULT_SSH_CONFIG },
     });
     setSavePassword(profile.savePassword);
     setTestResult(null);
@@ -152,6 +201,17 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
             savePassword: p.savePassword ?? false,
             isProduction: p.isProduction ?? false,
             isReadOnly: p.isReadOnly ?? false,
+            ssh: p.ssh
+              ? {
+                  enabled: p.ssh.enabled ?? false,
+                  host: p.ssh.host ?? '',
+                  port: p.ssh.port ?? 22,
+                  username: p.ssh.username ?? '',
+                  authType: (p.ssh.authType as SshAuthType) ?? 'password',
+                  privateKeyPath: p.ssh.privateKeyPath ?? '',
+                  savePassword: p.ssh.savePassword ?? false,
+                }
+              : undefined,
           }));
           setProfiles(loaded);
 
@@ -192,6 +252,18 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
                 useWindowsAuth: profile.useWindowsAuth,
                 isProduction: profile.isProduction,
                 isReadOnly: profile.isReadOnly,
+                ssh: profile.ssh
+                  ? {
+                      enabled: profile.ssh.enabled,
+                      host: profile.ssh.host,
+                      port: profile.ssh.port,
+                      username: profile.ssh.username,
+                      authType: profile.ssh.authType,
+                      password: '',
+                      privateKeyPath: profile.ssh.privateKeyPath,
+                      keyPassphrase: '',
+                    }
+                  : { ...DEFAULT_SSH_CONFIG },
               });
               setSavePassword(profile.savePassword);
               setTestResult(null);
@@ -237,6 +309,20 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
         password: savePassword ? config.password : undefined,
         isProduction: config.isProduction,
         isReadOnly: config.isReadOnly,
+        ssh: config.ssh.enabled
+          ? {
+              enabled: true,
+              host: config.ssh.host,
+              port: config.ssh.port,
+              username: config.ssh.username,
+              authType: config.ssh.authType,
+              privateKeyPath: config.ssh.privateKeyPath,
+              savePassword: config.ssh.password !== '' || config.ssh.keyPassphrase !== '',
+              password: config.ssh.authType === 'password' ? config.ssh.password : undefined,
+              keyPassphrase:
+                config.ssh.authType === 'privateKey' ? config.ssh.keyPassphrase : undefined,
+            }
+          : undefined,
       });
 
       const savedProfile: SavedProfile = {
@@ -250,6 +336,17 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
         savePassword,
         isProduction: config.isProduction,
         isReadOnly: config.isReadOnly,
+        ssh: config.ssh.enabled
+          ? {
+              enabled: true,
+              host: config.ssh.host,
+              port: config.ssh.port,
+              username: config.ssh.username,
+              authType: config.ssh.authType,
+              privateKeyPath: config.ssh.privateKeyPath,
+              savePassword: config.ssh.password !== '' || config.ssh.keyPassphrase !== '',
+            }
+          : undefined,
       };
 
       let updatedProfiles: SavedProfile[];
@@ -301,6 +398,14 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
 
   const handleChange = (field: keyof ConnectionConfig, value: string | number | boolean) => {
     setConfig((prev) => ({ ...prev, [field]: value }));
+    setTestResult(null);
+  };
+
+  const handleSshChange = (field: keyof SshConfig, value: string | number | boolean) => {
+    setConfig((prev) => ({
+      ...prev,
+      ssh: { ...prev.ssh, [field]: value },
+    }));
     setTestResult(null);
   };
 
@@ -480,6 +585,97 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
                 </div>
               </>
             )}
+
+            {/* SSH Tunnel Settings */}
+            <div className={styles.productionSection}>
+              <div className={styles.sectionHeader}>SSH Tunnel</div>
+              <div className={styles.formGroup}>
+                <label className={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={config.ssh.enabled}
+                    onChange={(e) => handleSshChange('enabled', e.target.checked)}
+                  />
+                  Use SSH Tunnel
+                </label>
+                <span className={styles.hint}>Connect via SSH port forwarding</span>
+              </div>
+              {config.ssh.enabled && (
+                <>
+                  <div className={styles.formRow}>
+                    <div className={styles.formGroup}>
+                      <label>SSH Host</label>
+                      <input
+                        type="text"
+                        value={config.ssh.host}
+                        onChange={(e) => handleSshChange('host', e.target.value)}
+                        placeholder="ssh.example.com"
+                      />
+                    </div>
+                    <div className={styles.formGroupSmall}>
+                      <label>SSH Port</label>
+                      <input
+                        type="number"
+                        value={config.ssh.port}
+                        onChange={(e) =>
+                          handleSshChange('port', Number.parseInt(e.target.value, 10) || 22)
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>SSH Username</label>
+                    <input
+                      type="text"
+                      value={config.ssh.username}
+                      onChange={(e) => handleSshChange('username', e.target.value)}
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Authentication</label>
+                    <select
+                      value={config.ssh.authType}
+                      onChange={(e) => handleSshChange('authType', e.target.value as SshAuthType)}
+                      className={styles.selectInput}
+                    >
+                      <option value="password">Password</option>
+                      <option value="privateKey">Private Key</option>
+                    </select>
+                  </div>
+                  {config.ssh.authType === 'password' && (
+                    <div className={styles.formGroup}>
+                      <label>SSH Password</label>
+                      <input
+                        type="password"
+                        value={config.ssh.password}
+                        onChange={(e) => handleSshChange('password', e.target.value)}
+                      />
+                    </div>
+                  )}
+                  {config.ssh.authType === 'privateKey' && (
+                    <>
+                      <div className={styles.formGroup}>
+                        <label>Private Key Path</label>
+                        <input
+                          type="text"
+                          value={config.ssh.privateKeyPath}
+                          onChange={(e) => handleSshChange('privateKeyPath', e.target.value)}
+                          placeholder="C:\Users\...\.ssh\id_rsa"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label>Key Passphrase (optional)</label>
+                        <input
+                          type="password"
+                          value={config.ssh.keyPassphrase}
+                          onChange={(e) => handleSshChange('keyPassphrase', e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
 
             {/* Production Environment Settings */}
             <div className={styles.productionSection}>

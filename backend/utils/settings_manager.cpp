@@ -150,6 +150,84 @@ std::filesystem::path SettingsManager::getSettingsPath() const {
     return m_settingsPath;
 }
 
+std::expected<void, std::string> SettingsManager::setSshPassword(const std::string& profileId, std::string_view plainPassword) {
+    std::lock_guard lock(m_mutex);
+
+    for (auto& profile : m_settings.connectionProfiles) {
+        if (profile.id == profileId) {
+            if (plainPassword.empty()) {
+                profile.ssh.encryptedPassword.clear();
+                return {};
+            }
+
+            auto encryptResult = CredentialProtector::encrypt(plainPassword);
+            if (!encryptResult) {
+                return std::unexpected(encryptResult.error());
+            }
+
+            profile.ssh.encryptedPassword = encryptResult.value();
+            return {};
+        }
+    }
+
+    return std::unexpected("Profile not found: " + profileId);
+}
+
+std::expected<std::string, std::string> SettingsManager::getSshPassword(const std::string& profileId) const {
+    std::lock_guard lock(m_mutex);
+
+    for (const auto& profile : m_settings.connectionProfiles) {
+        if (profile.id == profileId) {
+            if (profile.ssh.encryptedPassword.empty()) {
+                return std::string{};
+            }
+
+            return CredentialProtector::decrypt(profile.ssh.encryptedPassword);
+        }
+    }
+
+    return std::unexpected("Profile not found: " + profileId);
+}
+
+std::expected<void, std::string> SettingsManager::setSshKeyPassphrase(const std::string& profileId, std::string_view passphrase) {
+    std::lock_guard lock(m_mutex);
+
+    for (auto& profile : m_settings.connectionProfiles) {
+        if (profile.id == profileId) {
+            if (passphrase.empty()) {
+                profile.ssh.encryptedKeyPassphrase.clear();
+                return {};
+            }
+
+            auto encryptResult = CredentialProtector::encrypt(passphrase);
+            if (!encryptResult) {
+                return std::unexpected(encryptResult.error());
+            }
+
+            profile.ssh.encryptedKeyPassphrase = encryptResult.value();
+            return {};
+        }
+    }
+
+    return std::unexpected("Profile not found: " + profileId);
+}
+
+std::expected<std::string, std::string> SettingsManager::getSshKeyPassphrase(const std::string& profileId) const {
+    std::lock_guard lock(m_mutex);
+
+    for (const auto& profile : m_settings.connectionProfiles) {
+        if (profile.id == profileId) {
+            if (profile.ssh.encryptedKeyPassphrase.empty()) {
+                return std::string{};
+            }
+
+            return CredentialProtector::decrypt(profile.ssh.encryptedKeyPassphrase);
+        }
+    }
+
+    return std::unexpected("Profile not found: " + profileId);
+}
+
 std::string SettingsManager::serializeSettings() const {
     std::string json = "{\n";
 
@@ -208,7 +286,18 @@ std::string SettingsManager::serializeSettings() const {
         json += std::format("      \"savePassword\": {},\n", profile.savePassword ? "true" : "false");
         json += std::format("      \"encryptedPassword\": \"{}\",\n", JsonUtils::escapeString(profile.encryptedPassword));
         json += std::format("      \"isProduction\": {},\n", profile.isProduction ? "true" : "false");
-        json += std::format("      \"isReadOnly\": {}\n", profile.isReadOnly ? "true" : "false");
+        json += std::format("      \"isReadOnly\": {},\n", profile.isReadOnly ? "true" : "false");
+        // SSH configuration
+        json += "      \"ssh\": {\n";
+        json += std::format("        \"enabled\": {},\n", profile.ssh.enabled ? "true" : "false");
+        json += std::format("        \"host\": \"{}\",\n", JsonUtils::escapeString(profile.ssh.host));
+        json += std::format("        \"port\": {},\n", profile.ssh.port);
+        json += std::format("        \"username\": \"{}\",\n", JsonUtils::escapeString(profile.ssh.username));
+        json += std::format("        \"authType\": \"{}\",\n", profile.ssh.authType == SshAuthType::Password ? "password" : "privateKey");
+        json += std::format("        \"encryptedPassword\": \"{}\",\n", JsonUtils::escapeString(profile.ssh.encryptedPassword));
+        json += std::format("        \"privateKeyPath\": \"{}\",\n", JsonUtils::escapeString(profile.ssh.privateKeyPath));
+        json += std::format("        \"encryptedKeyPassphrase\": \"{}\"\n", JsonUtils::escapeString(profile.ssh.encryptedKeyPassphrase));
+        json += "      }\n";
         json += i < m_settings.connectionProfiles.size() - 1 ? "    },\n" : "    }\n";
     }
     json += "  ]\n";
@@ -313,6 +402,25 @@ bool SettingsManager::deserializeSettings(std::string_view jsonStr) {
                     profile.isProduction = val.value();
                 if (auto val = profileEl["isReadOnly"].get_bool(); !val.error())
                     profile.isReadOnly = val.value();
+                // SSH configuration
+                if (auto ssh = profileEl["ssh"]; !ssh.error()) {
+                    if (auto val = ssh["enabled"].get_bool(); !val.error())
+                        profile.ssh.enabled = val.value();
+                    if (auto val = ssh["host"].get_string(); !val.error())
+                        profile.ssh.host = std::string(val.value());
+                    if (auto val = ssh["port"].get_int64(); !val.error())
+                        profile.ssh.port = static_cast<int>(val.value());
+                    if (auto val = ssh["username"].get_string(); !val.error())
+                        profile.ssh.username = std::string(val.value());
+                    if (auto val = ssh["authType"].get_string(); !val.error())
+                        profile.ssh.authType = (val.value() == "privateKey") ? SshAuthType::PrivateKey : SshAuthType::Password;
+                    if (auto val = ssh["encryptedPassword"].get_string(); !val.error())
+                        profile.ssh.encryptedPassword = std::string(val.value());
+                    if (auto val = ssh["privateKeyPath"].get_string(); !val.error())
+                        profile.ssh.privateKeyPath = std::string(val.value());
+                    if (auto val = ssh["encryptedKeyPassphrase"].get_string(); !val.error())
+                        profile.ssh.encryptedKeyPassphrase = std::string(val.value());
+                }
                 m_settings.connectionProfiles.push_back(profile);
             }
         }

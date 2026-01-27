@@ -237,6 +237,23 @@
   border-color: var(--accent-color, #4a88c7);
 }
 
+.selectInput {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg-input, #1e1e1e);
+  border: 1px solid var(--border-color, #3c3f41);
+  border-radius: 4px;
+  color: var(--text-primary, #bbbbbb);
+  font-size: 13px;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.selectInput:focus {
+  outline: none;
+  border-color: var(--accent-color, #4a88c7);
+}
+
 .checkboxLabel {
   display: flex;
   align-items: center;

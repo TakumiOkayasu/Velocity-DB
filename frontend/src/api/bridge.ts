@@ -454,6 +454,15 @@ class Bridge {
       savePassword?: boolean;
       isProduction?: boolean;
       isReadOnly?: boolean;
+      ssh?: {
+        enabled: boolean;
+        host: string;
+        port: number;
+        username: string;
+        authType: 'password' | 'privateKey';
+        privateKeyPath: string;
+        savePassword: boolean;
+      };
     }[];
   }> {
     return this.call('getConnectionProfiles', {});
@@ -471,6 +480,17 @@ class Bridge {
     password?: string;
     isProduction?: boolean;
     isReadOnly?: boolean;
+    ssh?: {
+      enabled: boolean;
+      host: string;
+      port: number;
+      username: string;
+      authType: 'password' | 'privateKey';
+      privateKeyPath?: string;
+      savePassword?: boolean;
+      password?: string;
+      keyPassphrase?: string;
+    };
   }): Promise<{ id: string }> {
     return this.call('saveConnectionProfile', profile);
   }
@@ -481,6 +501,14 @@ class Bridge {
 
   async getProfilePassword(profileId: string): Promise<{ password: string }> {
     return this.call('getProfilePassword', { id: profileId });
+  }
+
+  async getSshPassword(profileId: string): Promise<{ password: string }> {
+    return this.call('getSshPassword', { id: profileId });
+  }
+
+  async getSshKeyPassphrase(profileId: string): Promise<{ passphrase: string }> {
+    return this.call('getSshKeyPassphrase', { id: profileId });
   }
 
   // Session methods

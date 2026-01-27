@@ -170,6 +170,8 @@ void IPCHandler::registerRequestRoutes() {
     m_requestRoutes["saveConnectionProfile"] = [this](std::string_view p) { return saveConnectionProfile(p); };
     m_requestRoutes["deleteConnectionProfile"] = [this](std::string_view p) { return deleteConnectionProfile(p); };
     m_requestRoutes["getProfilePassword"] = [this](std::string_view p) { return getProfilePassword(p); };
+    m_requestRoutes["getSshPassword"] = [this](std::string_view p) { return getSshPassword(p); };
+    m_requestRoutes["getSshKeyPassphrase"] = [this](std::string_view p) { return getSshKeyPassphrase(p); };
     m_requestRoutes["getSessionState"] = [this](std::string_view p) { return getSessionState(p); };
     m_requestRoutes["saveSessionState"] = [this](std::string_view p) { return saveSessionState(p); };
     m_requestRoutes["searchObjects"] = [this](std::string_view p) { return searchObjects(p); };
@@ -1344,7 +1346,17 @@ std::string IPCHandler::getConnectionProfiles(std::string_view) {
         json += std::format("\"useWindowsAuth\":{},", p.useWindowsAuth ? "true" : "false");
         json += std::format("\"savePassword\":{},", p.savePassword ? "true" : "false");
         json += std::format("\"isProduction\":{},", p.isProduction ? "true" : "false");
-        json += std::format("\"isReadOnly\":{}", p.isReadOnly ? "true" : "false");
+        json += std::format("\"isReadOnly\":{},", p.isReadOnly ? "true" : "false");
+        // SSH configuration
+        json += "\"ssh\":{";
+        json += std::format("\"enabled\":{},", p.ssh.enabled ? "true" : "false");
+        json += std::format("\"host\":\"{}\",", JsonUtils::escapeString(p.ssh.host));
+        json += std::format("\"port\":{},", p.ssh.port);
+        json += std::format("\"username\":\"{}\",", JsonUtils::escapeString(p.ssh.username));
+        json += std::format("\"authType\":\"{}\",", p.ssh.authType == SshAuthType::Password ? "password" : "privateKey");
+        json += std::format("\"privateKeyPath\":\"{}\",", JsonUtils::escapeString(p.ssh.privateKeyPath));
+        json += std::format("\"savePassword\":{}", !p.ssh.encryptedPassword.empty() || !p.ssh.encryptedKeyPassphrase.empty() ? "true" : "false");
+        json += "}";
         json += "}";
     }
     json += "]}";
@@ -1379,6 +1391,22 @@ std::string IPCHandler::saveConnectionProfile(std::string_view params) {
         if (auto val = doc["isReadOnly"].get_bool(); !val.error())
             profile.isReadOnly = val.value();
 
+        // SSH configuration
+        if (auto ssh = doc["ssh"]; !ssh.error()) {
+            if (auto val = ssh["enabled"].get_bool(); !val.error())
+                profile.ssh.enabled = val.value();
+            if (auto val = ssh["host"].get_string(); !val.error())
+                profile.ssh.host = std::string(val.value());
+            if (auto val = ssh["port"].get_int64(); !val.error())
+                profile.ssh.port = static_cast<int>(val.value());
+            if (auto val = ssh["username"].get_string(); !val.error())
+                profile.ssh.username = std::string(val.value());
+            if (auto val = ssh["authType"].get_string(); !val.error())
+                profile.ssh.authType = (val.value() == "privateKey") ? SshAuthType::PrivateKey : SshAuthType::Password;
+            if (auto val = ssh["privateKeyPath"].get_string(); !val.error())
+                profile.ssh.privateKeyPath = std::string(val.value());
+        }
+
         // Generate ID if empty
         if (profile.id.empty()) {
             profile.id = std::format("profile_{}", std::chrono::system_clock::now().time_since_epoch().count());
@@ -1402,6 +1430,30 @@ std::string IPCHandler::saveConnectionProfile(std::string_view params) {
         } else {
             // Clear saved password if savePassword is false
             (void)m_settingsManager->setProfilePassword(profile.id, "");
+        }
+
+        // Handle SSH authentication encryption
+        if (auto ssh = doc["ssh"]; !ssh.error()) {
+            if (auto savePass = ssh["savePassword"].get_bool(); !savePass.error() && savePass.value()) {
+                // SSH password auth
+                if (auto val = ssh["password"].get_string(); !val.error()) {
+                    auto sshPassword = std::string(val.value());
+                    if (!sshPassword.empty()) {
+                        (void)m_settingsManager->setSshPassword(profile.id, sshPassword);
+                    }
+                }
+                // SSH key passphrase
+                if (auto val = ssh["keyPassphrase"].get_string(); !val.error()) {
+                    auto keyPassphrase = std::string(val.value());
+                    if (!keyPassphrase.empty()) {
+                        (void)m_settingsManager->setSshKeyPassphrase(profile.id, keyPassphrase);
+                    }
+                }
+            } else {
+                // Clear saved SSH credentials
+                (void)m_settingsManager->setSshPassword(profile.id, "");
+                (void)m_settingsManager->setSshKeyPassphrase(profile.id, "");
+            }
         }
 
         m_settingsManager->save();
@@ -1448,6 +1500,50 @@ std::string IPCHandler::getProfilePassword(std::string_view params) {
         }
 
         return JsonUtils::successResponse(std::format(R"({{"password":"{}"}})", JsonUtils::escapeString(passwordResult.value())));
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string IPCHandler::getSshPassword(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        simdjson::dom::element doc = parser.parse(params);
+
+        auto idResult = doc["id"].get_string();
+        if (idResult.error()) [[unlikely]] {
+            return JsonUtils::errorResponse("Missing required field: id");
+        }
+        auto profileId = std::string(idResult.value());
+
+        auto passwordResult = m_settingsManager->getSshPassword(profileId);
+        if (!passwordResult) {
+            return JsonUtils::errorResponse(passwordResult.error());
+        }
+
+        return JsonUtils::successResponse(std::format(R"({{"password":"{}"}})", JsonUtils::escapeString(passwordResult.value())));
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string IPCHandler::getSshKeyPassphrase(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        simdjson::dom::element doc = parser.parse(params);
+
+        auto idResult = doc["id"].get_string();
+        if (idResult.error()) [[unlikely]] {
+            return JsonUtils::errorResponse("Missing required field: id");
+        }
+        auto profileId = std::string(idResult.value());
+
+        auto passphraseResult = m_settingsManager->getSshKeyPassphrase(profileId);
+        if (!passphraseResult) {
+            return JsonUtils::errorResponse(passphraseResult.error());
+        }
+
+        return JsonUtils::successResponse(std::format(R"({{"passphrase":"{}"}})", JsonUtils::escapeString(passphraseResult.value())));
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
     }

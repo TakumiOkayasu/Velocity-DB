@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  vcpkg-build:
+    build:
+      context: ../..
+      dockerfile: docker/vcpkg-build/Dockerfile
+    volumes:
+      # Mount output directory for build artifacts
+      - type: bind
+        source: ../../build-output
+        target: C:\output
+    # Windows container isolation
+    isolation: process
