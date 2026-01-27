@@ -9,6 +9,11 @@ if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
         CACHE STRING "")
 endif()
 
+# Disable vcpkg manifest mode when vcpkg.json is absent
+if(NOT EXISTS "${CMAKE_SOURCE_DIR}/vcpkg.json")
+    set(VCPKG_MANIFEST_MODE OFF CACHE BOOL "" FORCE)
+endif()
+
 project(PreDateGrip VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
