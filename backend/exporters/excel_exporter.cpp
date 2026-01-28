@@ -2,7 +2,7 @@
 
 #include <stdexcept>
 
-namespace predategrip {
+namespace velocitydb {
 
 bool ExcelExporter::exportData(const ResultSet& data, const std::string& filepath) {
     return exportData(data, filepath, ExportOptions());
@@ -15,4 +15,4 @@ bool ExcelExporter::exportData(const ResultSet& /*data*/, const std::string& /*f
                              "Excel support will be added in a future release.");
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

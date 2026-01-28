@@ -2,7 +2,7 @@
 #include "parsers/sql_formatter.h"
 
 int main() {
-    predategrip::SQLFormatter formatter;
+    velocitydb::SQLFormatter formatter;
 
     // 複雑なSQL例
     std::string complexSQL =

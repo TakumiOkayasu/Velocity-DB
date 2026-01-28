@@ -2,7 +2,7 @@
 
 #include "data_exporter.h"
 
-namespace predategrip {
+namespace velocitydb {
 
 class CSVExporter : public DataExporter {
 public:
@@ -16,4 +16,4 @@ private:
     std::string escapeCSV(const std::string& value, const ExportOptions& options) const;
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

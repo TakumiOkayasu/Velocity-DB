@@ -4,7 +4,7 @@
 #include <string_view>
 #include <unordered_set>
 
-namespace predategrip {
+namespace velocitydb {
 
 enum class KeywordCase { Upper, Lower, Unchanged };
 
@@ -39,4 +39,4 @@ private:
     std::unordered_set<std::string> m_joinKeywords;
 };  // class SQLFormatter
 
-}  // namespace predategrip
+}  // namespace velocitydb

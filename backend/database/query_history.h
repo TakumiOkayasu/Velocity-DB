@@ -7,7 +7,7 @@
 #include <string_view>
 #include <vector>
 
-namespace predategrip {
+namespace velocitydb {
 
 struct HistoryItem {
     std::string id;
@@ -49,4 +49,4 @@ private:
     std::vector<HistoryItem> m_history;
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

@@ -9,7 +9,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace predategrip {
+namespace velocitydb {
 
 namespace {
 
@@ -646,4 +646,4 @@ std::string SQLFormatter::getIndent(int level, const FormatOptions& options) {
     return std::string(static_cast<size_t>(level * options.indentSize), ' ');
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

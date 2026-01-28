@@ -5,7 +5,7 @@
 #include <format>
 #include <sstream>
 
-namespace predategrip {
+namespace velocitydb {
 
 std::string JsonUtils::successResponse(std::string_view data) {
     return std::format(R"({{"success":true,"data":{}}})", data);
@@ -128,4 +128,4 @@ std::string JsonUtils::serializeResultSet(const ResultSet& result, bool cached) 
     return json;
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

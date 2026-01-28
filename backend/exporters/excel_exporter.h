@@ -2,7 +2,7 @@
 
 #include "data_exporter.h"
 
-namespace predategrip {
+namespace velocitydb {
 
 class ExcelExporter : public DataExporter {
 public:
@@ -18,4 +18,4 @@ private:
     std::string m_sheetName = "Sheet1";
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

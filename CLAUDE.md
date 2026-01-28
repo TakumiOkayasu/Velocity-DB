@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Pre-DateGrip固有の指示。グローバルルール (`~/.claude/CLAUDE.md`) に従った上で、以下を適用。
+Velocity-DB固有の指示。グローバルルール (`~/.claude/CLAUDE.md`) に従った上で、以下を適用。
 
 ## プロジェクト概要
 

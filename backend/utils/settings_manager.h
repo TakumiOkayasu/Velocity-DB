@@ -9,7 +9,7 @@
 #include <variant>
 #include <vector>
 
-namespace predategrip {
+namespace velocitydb {
 
 using SettingValue = std::variant<bool, int, double, std::string>;
 
@@ -149,4 +149,4 @@ private:
     mutable std::mutex m_mutex;
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

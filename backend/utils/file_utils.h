@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace predategrip {
+namespace velocitydb {
 
 class FileUtils {
 public:
@@ -17,4 +17,4 @@ public:
     static std::vector<std::string> listFiles(const std::string& directory, const std::string& extension = "");
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

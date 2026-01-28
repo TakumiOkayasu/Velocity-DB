@@ -1,4 +1,4 @@
-# Pre-DateGrip プロジェクト情報
+# Velocity-DB プロジェクト情報
 
 ## 概要
 
@@ -18,7 +18,7 @@ Windows専用の高性能RDBMS管理ツール（DataGripライクなUI/UX）。S
 ## プロジェクト構造
 
 ```text
-Pre-DateGrip/
+Velocity-DB/
 ├── backend/                # C++ Backend
 │   ├── database/           # 接続、プール、キャッシュ、非同期実行
 │   ├── parsers/            # SQLフォーマッター、A5:ER

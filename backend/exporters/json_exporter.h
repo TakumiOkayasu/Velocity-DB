@@ -2,7 +2,7 @@
 
 #include "data_exporter.h"
 
-namespace predategrip {
+namespace velocitydb {
 
 class JSONExporter : public DataExporter {
 public:
@@ -23,4 +23,4 @@ private:
     bool m_asArray = true;
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

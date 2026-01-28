@@ -2,7 +2,7 @@
 
 #include <ranges>
 
-namespace predategrip {
+namespace velocitydb {
 
 void ResultCache::put(std::string_view key, const ResultSet& result) {
     std::lock_guard lock(m_mutex);
@@ -86,4 +86,4 @@ size_t ResultCache::estimateSize(const ResultSet& result) {
     return size;
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

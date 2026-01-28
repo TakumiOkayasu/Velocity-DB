@@ -78,14 +78,14 @@ if(SSH_TUNNEL_ENABLED)
 endif()
 
 # Create a static library for the core functionality
-add_library(PreDateGripCore STATIC ${LIB_SOURCES} ${HEADERS})
+add_library(VelocityDBCore STATIC ${LIB_SOURCES} ${HEADERS})
 
-target_include_directories(PreDateGripCore PUBLIC
+target_include_directories(VelocityDBCore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/third_party
 )
 
-target_link_libraries(PreDateGripCore PUBLIC
+target_link_libraries(VelocityDBCore PUBLIC
     webview
     simdjson
     pugixml
@@ -97,14 +97,14 @@ target_link_libraries(PreDateGripCore PUBLIC
 
 # Link libssh2 if available
 if(SSH_TUNNEL_ENABLED)
-    target_link_libraries(PreDateGripCore PUBLIC
+    target_link_libraries(VelocityDBCore PUBLIC
         $<IF:$<TARGET_EXISTS:Libssh2::libssh2_shared>,Libssh2::libssh2_shared,Libssh2::libssh2_static>
     )
-    target_compile_definitions(PreDateGripCore PUBLIC SSH_TUNNEL_ENABLED)
+    target_compile_definitions(VelocityDBCore PUBLIC SSH_TUNNEL_ENABLED)
 endif()
 
 # Precompiled Headers for faster compilation
-target_precompile_headers(PreDateGripCore PRIVATE
+target_precompile_headers(VelocityDBCore PRIVATE
     <string>
     <string_view>
     <vector>
@@ -122,12 +122,12 @@ target_precompile_headers(PreDateGripCore PRIVATE
 )
 
 # Main executable
-add_executable(PreDateGrip WIN32 main.cpp)
+add_executable(VelocityDB WIN32 main.cpp)
 
-target_link_libraries(PreDateGrip PRIVATE PreDateGripCore)
+target_link_libraries(VelocityDB PRIVATE VelocityDBCore)
 
 # Set output directory to build/[Debug|Release]/
-set_target_properties(PreDateGrip PROPERTIES
+set_target_properties(VelocityDB PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug"
     RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
     RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo"
@@ -135,7 +135,7 @@ set_target_properties(PreDateGrip PROPERTIES
 )
 
 # Also set output directory for the static library
-set_target_properties(PreDateGripCore PROPERTIES
+set_target_properties(VelocityDBCore PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug"
     ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
     ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo"
@@ -144,10 +144,10 @@ set_target_properties(PreDateGripCore PROPERTIES
 
 # Copy frontend dist to output directory (if it exists)
 if(EXISTS "${CMAKE_SOURCE_DIR}/frontend/dist")
-    add_custom_command(TARGET PreDateGrip POST_BUILD
+    add_custom_command(TARGET VelocityDB POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/frontend/dist
-        $<TARGET_FILE_DIR:PreDateGrip>/frontend
+        $<TARGET_FILE_DIR:VelocityDB>/frontend
         COMMENT "Copying frontend files..."
     )
 else()
@@ -156,10 +156,10 @@ endif()
 
 # Copy config directory to output directory
 if(EXISTS "${CMAKE_SOURCE_DIR}/config")
-    add_custom_command(TARGET PreDateGrip POST_BUILD
+    add_custom_command(TARGET VelocityDB POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/config
-        $<TARGET_FILE_DIR:PreDateGrip>/config
+        $<TARGET_FILE_DIR:VelocityDB>/config
         COMMENT "Copying config files..."
     )
 endif()

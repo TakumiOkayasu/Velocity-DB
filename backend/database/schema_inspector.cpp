@@ -6,7 +6,7 @@
 
 using namespace std::literals;
 
-namespace predategrip {
+namespace velocitydb {
 
 std::vector<std::string> SchemaInspector::getDatabases() {
     std::vector<std::string> databases;
@@ -27,12 +27,12 @@ std::vector<std::string> SchemaInspector::getDatabases() {
 }
 
 std::vector<TableInfo> SchemaInspector::getTables(std::string_view database) {
-    predategrip::log<LogLevel::DEBUG>(std::format("SchemaInspector::getTables called for database: '{}'", database));
+    velocitydb::log<LogLevel::DEBUG>(std::format("SchemaInspector::getTables called for database: '{}'", database));
 
     std::vector<TableInfo> tables;
 
     if (!m_driver || !m_driver->isConnected()) [[unlikely]] {
-        predategrip::log<LogLevel::WARNING>("SchemaInspector::getTables: Driver not connected"sv);
+        velocitydb::log<LogLevel::WARNING>("SchemaInspector::getTables: Driver not connected"sv);
         return tables;
     }
 
@@ -63,20 +63,20 @@ std::vector<TableInfo> SchemaInspector::getTables(std::string_view database) {
         ORDER BY schema_name, table_name
     )";
 
-    predategrip::log<LogLevel::DEBUG>("SchemaInspector::getTables: Executing SQL query"sv);
+    velocitydb::log<LogLevel::DEBUG>("SchemaInspector::getTables: Executing SQL query"sv);
     auto result = m_driver->execute(sql);
-    predategrip::log<LogLevel::INFO>(std::format("SchemaInspector::getTables: Query returned {} rows", result.rows.size()));
+    velocitydb::log<LogLevel::INFO>(std::format("SchemaInspector::getTables: Query returned {} rows", result.rows.size()));
 
     tables.reserve(result.rows.size());
     for (const auto& row : result.rows) {
         if (row.values.size() >= 3) {
             std::string comment = row.values.size() >= 4 ? row.values[3] : "";
             tables.push_back({.schema = row.values[0], .name = row.values[1], .type = row.values[2], .comment = comment});
-            predategrip::log<LogLevel::DEBUG>(std::format("  Found: {}.{} ({}) - Comment: {}", row.values[0], row.values[1], row.values[2], comment));
+            velocitydb::log<LogLevel::DEBUG>(std::format("  Found: {}.{} ({}) - Comment: {}", row.values[0], row.values[1], row.values[2], comment));
         }
     }
 
-    predategrip::log<LogLevel::INFO>(std::format("SchemaInspector::getTables: Returning {} tables/views", tables.size()));
+    velocitydb::log<LogLevel::INFO>(std::format("SchemaInspector::getTables: Returning {} tables/views", tables.size()));
     return tables;
 }
 
@@ -414,4 +414,4 @@ std::string SchemaInspector::generateDeleteStatement(std::string_view table) {
     return sql;
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

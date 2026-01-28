@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include "database/sqlserver_driver.h"
 
-namespace predategrip {
+namespace velocitydb {
 namespace test {
 
 class SQLServerDriverTest : public ::testing::Test {
@@ -65,4 +65,4 @@ TEST_F(SQLServerDriverTest, DISABLED_ExecutesSimpleQuery) {
 }
 
 }  // namespace test
-}  // namespace predategrip
+}  // namespace velocitydb

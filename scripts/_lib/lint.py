@@ -1,4 +1,4 @@
-"""Lint commands for Pre-DateGrip."""
+"""Lint commands for Velocity-DB."""
 
 import shutil
 import subprocess

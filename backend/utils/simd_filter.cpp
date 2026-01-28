@@ -8,7 +8,7 @@
 #include <immintrin.h>
 #endif
 
-namespace predategrip {
+namespace velocitydb {
 
 namespace {
 
@@ -197,4 +197,4 @@ bool SIMDFilter::simdStringContains(const char* haystack, size_t haystackLen, co
     return std::string_view(haystack, haystackLen).find(std::string_view(needle, needleLen)) != std::string_view::npos;
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace predategrip {
+namespace velocitydb {
 
 // Convert UTF-16 (wchar_t) to UTF-8 (std::string)
 static std::string wcharToUtf8(const wchar_t* wstr, size_t len) {
@@ -267,4 +267,4 @@ void SQLServerDriver::storeODBCDiagnosticMessage(SQLRETURN returnCode, SQLSMALLI
     m_lastError = wcharToUtf8(reinterpret_cast<wchar_t*>(diagnosticMessage.data()), messageLength);
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

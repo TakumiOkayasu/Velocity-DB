@@ -8,7 +8,7 @@
 #include <string_view>
 #include <vector>
 
-namespace predategrip {
+namespace velocitydb {
 
 class SQLServerDriver;
 
@@ -49,4 +49,4 @@ private:
     std::queue<std::shared_ptr<SQLServerDriver>> m_available;
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

@@ -4,7 +4,7 @@
 #include <string_view>
 #include <vector>
 
-namespace predategrip {
+namespace velocitydb {
 
 /// Represents the type and metadata of a parsed SQL statement
 struct ParsedSQL {
@@ -44,4 +44,4 @@ private:
     [[nodiscard]] static std::string toUpper(std::string_view str);
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

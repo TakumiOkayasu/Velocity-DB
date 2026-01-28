@@ -32,12 +32,12 @@ bun run build
 #### 方法A: CMakeプロジェクトとして開く（推奨）
 1. Visual Studio 2022 を起動
 2. 「フォルダーを開く」を選択
-3. `D:\prog\Pre-DateGrip` フォルダを選択
+3. `D:\prog\Velocity-DB` フォルダを選択
 4. Visual Studio が CMakeLists.txt を自動検出してプロジェクトを構成
 
 #### 方法B: 生成済みソリューションを開く
-1. `D:\prog\Pre-DateGrip\build\PreDateGrip.sln` をダブルクリック
-2. ソリューションエクスプローラーで「PreDateGrip」プロジェクトを右クリック
+1. `D:\prog\Velocity-DB\build\VelocityDB.sln` をダブルクリック
+2. ソリューションエクスプローラーで「VelocityDB」プロジェクトを右クリック
 3. 「スタートアッププロジェクトに設定」を選択
 
 ### 3. デバッグ構成の選択
@@ -59,11 +59,11 @@ bun run build
 ## プロジェクト構成
 
 ```
-PreDateGrip.sln
+VelocityDB.sln
 ├── ALL_BUILD         - 全プロジェクトビルド
-├── PreDateGrip       - メインアプリケーション (スタートアップ)
-├── PreDateGripCore   - コアライブラリ
-├── PreDateGripTests  - テストプロジェクト
+├── VelocityDB        - メインアプリケーション (スタートアップ)
+├── VelocityDBCore    - コアライブラリ
+├── VelocityDBTests   - テストプロジェクト
 ├── simdjson          - JSON処理ライブラリ
 ├── pugixml           - XML処理ライブラリ
 └── ZERO_CHECK        - CMake再生成チェック

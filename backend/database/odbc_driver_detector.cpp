@@ -7,7 +7,7 @@
 #include <array>
 #include <format>
 
-namespace predategrip {
+namespace velocitydb {
 
 namespace {
 
@@ -82,4 +82,4 @@ std::string buildDriverConnectionPrefix(std::string_view server, std::string_vie
     return std::format("Driver={{{}}};Server={};Database={};", driver, server, database);
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

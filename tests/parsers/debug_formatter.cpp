@@ -2,12 +2,12 @@
 #include "parsers/sql_formatter.h"
 
 int main() {
-    predategrip::SQLFormatter formatter;
+    velocitydb::SQLFormatter formatter;
 
     // Test 1: Lowercase keywords
     std::cout << "=== Test 1: Lowercase Keywords ===" << std::endl;
-    predategrip::SQLFormatter::FormatOptions options1;
-    options1.keywordCase = predategrip::KeywordCase::Lower;
+    velocitydb::SQLFormatter::FormatOptions options1;
+    options1.keywordCase = velocitydb::KeywordCase::Lower;
     std::string sql1 = "SELECT id, name FROM users WHERE active=1";
     std::string formatted1 = formatter.format(sql1, options1);
     std::cout << "Input:  " << sql1 << std::endl;

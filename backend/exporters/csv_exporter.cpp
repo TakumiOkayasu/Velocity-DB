@@ -3,7 +3,7 @@
 #include <fstream>
 #include <sstream>
 
-namespace predategrip {
+namespace velocitydb {
 
 bool CSVExporter::exportData(const ResultSet& data, const std::string& filepath) {
     return exportData(data, filepath, ExportOptions());
@@ -75,4 +75,4 @@ std::string CSVExporter::escapeCSV(const std::string& value, const ExportOptions
     return result.str();
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

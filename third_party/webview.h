@@ -1,7 +1,7 @@
 /*
  * MIT License
  * Copyright (c) 2017 Serge Zaitsev
- * Simplified WebView2 wrapper for Pre-DateGrip
+ * Simplified WebView2 wrapper for Velocity-DB
  */
 
 #ifndef WEBVIEW_H
@@ -129,7 +129,7 @@ private:
         wc.cbSize = sizeof(WNDCLASSEXW);
         wc.lpfnWndProc = WndProc;
         wc.hInstance = GetModuleHandle(nullptr);
-        wc.lpszClassName = L"PreDateGripWindow";
+        wc.lpszClassName = L"VelocityDBWindow";
         wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
         wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
         RegisterClassExW(&wc);
@@ -140,8 +140,8 @@ private:
 
         m_hwnd = CreateWindowExW(
             0,
-            L"PreDateGripWindow",
-            L"Pre-DateGrip",
+            L"VelocityDBWindow",
+            L"Velocity-DB",
             style,
             CW_USEDEFAULT, CW_USEDEFAULT,
             rect.right - rect.left,

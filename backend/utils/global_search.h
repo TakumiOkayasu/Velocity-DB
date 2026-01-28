@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace predategrip {
+namespace velocitydb {
 
 struct SearchResult {
     std::string objectType;  // table, view, procedure, function, column, etc.
@@ -49,4 +49,4 @@ private:
     [[nodiscard]] bool matchesPattern(const std::string& text, const std::string& pattern, bool caseSensitive) const;
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

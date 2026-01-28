@@ -3,7 +3,7 @@
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "=== Pre-DateGrip vcpkg Build ===" -ForegroundColor Cyan
+Write-Host "=== Velocity-DB vcpkg Build ===" -ForegroundColor Cyan
 
 # Setup MSVC environment
 $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath

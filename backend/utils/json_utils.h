@@ -4,7 +4,7 @@
 #include <string_view>
 #include <vector>
 
-namespace predategrip {
+namespace velocitydb {
 
 // Forward declarations
 struct ColumnInfo;
@@ -25,4 +25,4 @@ public:
     [[nodiscard]] static std::string serializeResultSet(const ResultSet& result, bool cached);
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

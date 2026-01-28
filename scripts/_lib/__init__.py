@@ -1,1 +1,1 @@
-"""Pre-DateGrip build system library."""
+"""Velocity-DB build system library."""

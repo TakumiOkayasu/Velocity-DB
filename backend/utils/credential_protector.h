@@ -5,7 +5,7 @@
 #include <string_view>
 #include <vector>
 
-namespace predategrip {
+namespace velocitydb {
 
 /// Utility class for encrypting/decrypting credentials using Windows DPAPI.
 /// DPAPI binds encryption to the current user, so encrypted data can only
@@ -27,4 +27,4 @@ private:
     [[nodiscard]] static std::expected<std::vector<unsigned char>, std::string> base64Decode(std::string_view encoded);
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

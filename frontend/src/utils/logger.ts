@@ -101,7 +101,7 @@ class Logger {
     try {
       // Save to localStorage in browser environment (max 1MB)
       if (typeof window !== 'undefined' && window.localStorage) {
-        const storageKey = 'predategrip_frontend_logs';
+        const storageKey = 'velocitydb_frontend_logs';
         const existingLogs = window.localStorage.getItem(storageKey) || '';
         const newLogs = existingLogs + logs;
 
@@ -139,14 +139,14 @@ class Logger {
   // Clear logs
   clearLogs(): void {
     if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.removeItem('predategrip_frontend_logs');
+      window.localStorage.removeItem('velocitydb_frontend_logs');
     }
   }
 
   // Get logs
   getLogs(): string {
     if (typeof window !== 'undefined' && window.localStorage) {
-      return window.localStorage.getItem('predategrip_frontend_logs') || '';
+      return window.localStorage.getItem('velocitydb_frontend_logs') || '';
     }
     return '';
   }

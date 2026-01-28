@@ -9,7 +9,7 @@
 
 #pragma comment(lib, "crypt32.lib")
 
-namespace predategrip {
+namespace velocitydb {
 
 std::expected<std::string, std::string> CredentialProtector::encrypt(std::string_view plaintext) {
     if (plaintext.empty()) {
@@ -104,4 +104,4 @@ std::expected<std::vector<unsigned char>, std::string> CredentialProtector::base
     return decoded;
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

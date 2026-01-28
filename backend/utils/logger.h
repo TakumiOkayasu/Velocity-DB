@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string_view>
 
-namespace predategrip {
+namespace velocitydb {
 
 /**
  * @brief Log level
@@ -227,4 +227,4 @@ inline void log_flush() {
  */
 void initialize_logger();
 
-}  // namespace predategrip
+}  // namespace velocitydb

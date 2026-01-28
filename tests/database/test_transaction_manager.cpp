@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include "database/transaction_manager.h"
 
-namespace predategrip {
+namespace velocitydb {
 namespace test {
 
 class TransactionManagerTest : public ::testing::Test {
@@ -39,4 +39,4 @@ TEST_F(TransactionManagerTest, RollbackWithoutTransactionThrows) {
 }
 
 }  // namespace test
-}  // namespace predategrip
+}  // namespace velocitydb

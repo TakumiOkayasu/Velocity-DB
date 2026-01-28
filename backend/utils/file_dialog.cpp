@@ -7,7 +7,7 @@
 
 #include <commdlg.h>
 
-namespace predategrip {
+namespace velocitydb {
 
 std::expected<std::filesystem::path, std::string> FileDialog::showSaveDialog(const std::string& defaultExt, const std::string& filter, const std::string& defaultFileName) {
     OPENFILENAMEA ofn = {};
@@ -102,4 +102,4 @@ std::expected<void, std::string> FileDialog::writeFile(const std::filesystem::pa
     return {};
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

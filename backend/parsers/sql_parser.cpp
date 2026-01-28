@@ -4,7 +4,7 @@
 #include <cctype>
 #include <regex>
 
-namespace predategrip {
+namespace velocitydb {
 
 std::string_view SQLParser::trim(std::string_view str) {
     // Trim leading whitespace
@@ -131,4 +131,4 @@ std::vector<std::string> SQLParser::splitStatements(std::string_view sql) {
     return statements;
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

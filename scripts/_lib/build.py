@@ -1,4 +1,4 @@
-"""Build commands for Pre-DateGrip."""
+"""Build commands for Velocity-DB."""
 
 import shutil
 
@@ -153,9 +153,9 @@ def build_backend(build_type: str = "Release", clean: bool = False) -> bool:
         return False
 
     # Find executable
-    exe_path = build_dir / build_type / "PreDateGrip.exe"
+    exe_path = build_dir / build_type / "VelocityDB.exe"
     if not exe_path.exists():
-        for exe in build_dir.rglob("PreDateGrip.exe"):
+        for exe in build_dir.rglob("VelocityDB.exe"):
             exe_path = exe
             break
 
@@ -221,7 +221,7 @@ def build_all(build_type: str = "Release", clean: bool = False) -> bool:
     print(f"{'=' * 60}")
 
     # Show final binary location
-    exe_path = build_dir / build_type / "PreDateGrip.exe"
+    exe_path = build_dir / build_type / "VelocityDB.exe"
     if exe_path.exists():
         print(f"\n  Binary: {exe_path.absolute()}")
         print(f"  Run: {exe_path.name}")

@@ -8,7 +8,7 @@
 
 #include <ShlObj.h>
 
-namespace predategrip {
+namespace velocitydb {
 
 std::optional<std::string> FileUtils::readFile(const std::string& filepath) {
     std::ifstream file(filepath, std::ios::binary);
@@ -47,7 +47,7 @@ std::string FileUtils::getAppDataPath() {
         if (size > 0) {
             std::string result(size - 1, '\0');
             WideCharToMultiByte(CP_UTF8, 0, path, -1, result.data(), size, nullptr, nullptr);
-            return result + "\\PreDateGrip";
+            return result + "\\Velocity-DB";
         }
     }
     return "";
@@ -84,4 +84,4 @@ std::vector<std::string> FileUtils::listFiles(const std::string& directory, cons
     return files;
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

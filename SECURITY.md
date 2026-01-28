@@ -13,7 +13,7 @@ We release patches for security vulnerabilities for the following versions:
 
 ## Reporting a Vulnerability
 
-We take the security of Pre-DateGrip seriously. If you believe you have found a security vulnerability, please report it to us as described below.
+We take the security of Velocity-DB seriously. If you believe you have found a security vulnerability, please report it to us as described below.
 
 ### How to Report
 
@@ -22,7 +22,7 @@ We take the security of Pre-DateGrip seriously. If you believe you have found a 
 Instead, please report them via one of the following methods:
 
 1. **GitHub Security Advisories** (Recommended)
-   - Navigate to the [Security tab](https://github.com/TakumiOkayasu/Pre-DateGrip/security/advisories)
+   - Navigate to the [Security tab](https://github.com/TakumiOkayasu/Velocity-DB/security/advisories)
    - Click "Report a vulnerability"
    - Fill in the details
 
@@ -83,7 +83,7 @@ Please include the following information in your report:
 ### Known Security Considerations
 
 **Database Credentials**
-- Pre-DateGrip connects to SQL Server databases using user-provided credentials
+- Velocity-DB connects to SQL Server databases using user-provided credentials
 - Credentials are stored locally in encrypted format (when saved)
 - We recommend using Windows Authentication when possible
 

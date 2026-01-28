@@ -4,7 +4,7 @@
 #include <Windows.h>
 
 // Window title for finding existing instance
-constexpr const wchar_t* WINDOW_TITLE = L"Pre-DateGrip";
+constexpr const wchar_t* WINDOW_TITLE = L"Velocity-DB";
 
 // Callback function to find existing window
 BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
@@ -29,22 +29,22 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
     (void)nCmdShow;
 
     // Initialize logger
-    predategrip::initialize_logger();
+    velocitydb::initialize_logger();
 
     // Single instance check using named mutex
-    constexpr const wchar_t* MUTEX_NAME = L"Global\\PreDateGrip-{8F5E9C2A-1B3D-4E7F-9A6C-2D8B4E1F3C5A}";
+    constexpr const wchar_t* MUTEX_NAME = L"Global\\VelocityDB-{8F5E9C2A-1B3D-4E7F-9A6C-2D8B4E1F3C5A}";
     HANDLE hMutex = CreateMutexW(nullptr, TRUE, MUTEX_NAME);
 
     if (GetLastError() == ERROR_ALREADY_EXISTS) {
         // Another instance is already running
-        predategrip::log<predategrip::LogLevel::INFO>("Another instance is already running. Bringing existing window to front.");
+        velocitydb::log<velocitydb::LogLevel::INFO>("Another instance is already running. Bringing existing window to front.");
 
         // Try to find and activate existing window
         bool foundWindow = false;
         EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(&foundWindow));
 
         if (!foundWindow) {
-            MessageBoxW(nullptr, L"Pre-DateGrip is already running.", L"Already Running", MB_OK | MB_ICONINFORMATION);
+            MessageBoxW(nullptr, L"Velocity-DB is already running.", L"Already Running", MB_OK | MB_ICONINFORMATION);
         }
 
         if (hMutex) {
@@ -54,7 +54,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
     }
 
     try {
-        predategrip::WebViewApp app(hInstance);
+        velocitydb::WebViewApp app(hInstance);
         int result = app.run();
 
         // Release mutex before exit

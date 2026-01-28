@@ -31,22 +31,22 @@ set(TEST_SOURCES
     exporters/test_csv_exporter.cpp
 )
 
-add_executable(PreDateGripTests ${TEST_SOURCES})
+add_executable(VelocityDBTests ${TEST_SOURCES})
 
-target_include_directories(PreDateGripTests PRIVATE
+target_include_directories(VelocityDBTests PRIVATE
     ${CMAKE_SOURCE_DIR}/backend
     ${CMAKE_SOURCE_DIR}/third_party
 )
 
-target_link_libraries(PreDateGripTests PRIVATE
-    PreDateGripCore
+target_link_libraries(VelocityDBTests PRIVATE
+    VelocityDBCore
     gtest
     gtest_main
     gmock
 )
 
 # Set output directory to build/[Debug|Release]/
-set_target_properties(PreDateGripTests PROPERTIES
+set_target_properties(VelocityDBTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug"
     RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
     RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo"
@@ -54,4 +54,4 @@ set_target_properties(PreDateGripTests PROPERTIES
 )
 
 include(GoogleTest)
-gtest_discover_tests(PreDateGripTests)
+gtest_discover_tests(VelocityDBTests)

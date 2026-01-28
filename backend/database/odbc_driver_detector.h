@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace predategrip {
+namespace velocitydb {
 
 /// Detects the best available SQL Server ODBC driver on the system.
 /// Returns "ODBC Driver 18 for SQL Server" if available, falling back to
@@ -15,4 +15,4 @@ namespace predategrip {
 /// @return Connection string with driver prefix
 [[nodiscard]] std::string buildDriverConnectionPrefix(std::string_view server, std::string_view database);
 
-}  // namespace predategrip
+}  // namespace velocitydb

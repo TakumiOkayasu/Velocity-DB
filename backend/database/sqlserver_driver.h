@@ -9,7 +9,7 @@
 #include <string_view>
 #include <vector>
 
-namespace predategrip {
+namespace velocitydb {
 
 struct ColumnInfo {
     std::string name;
@@ -61,4 +61,4 @@ private:
     std::string m_lastError;
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

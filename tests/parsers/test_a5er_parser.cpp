@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include "parsers/a5er_parser.h"
 
-namespace predategrip {
+namespace velocitydb {
 namespace test {
 
 class A5ERParserTest : public ::testing::Test {
@@ -80,4 +80,4 @@ TEST_F(A5ERParserTest, GeneratesIndexes) {
 }
 
 }  // namespace test
-}  // namespace predategrip
+}  // namespace velocitydb

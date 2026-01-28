@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include "parsers/sql_formatter.h"
 
-namespace predategrip {
+namespace velocitydb {
 namespace test {
 
 class SQLFormatterTest : public ::testing::Test {
@@ -410,4 +410,4 @@ TEST_F(SQLFormatterTest, FormatsVeryComplexQuery) {
 }
 
 }  // namespace test
-}  // namespace predategrip
+}  // namespace velocitydb

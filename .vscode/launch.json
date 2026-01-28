@@ -2,10 +2,10 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug PreDateGrip",
+      "name": "Debug VelocityDB",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/Debug/PreDateGrip.exe",
+      "program": "${workspaceFolder}/build/Debug/VelocityDB.exe",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
@@ -14,10 +14,10 @@
       "preLaunchTask": "CMake: build"
     },
     {
-      "name": "Release PreDateGrip",
+      "name": "Release VelocityDB",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/Release/PreDateGrip.exe",
+      "program": "${workspaceFolder}/build/Release/VelocityDB.exe",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",

@@ -8,7 +8,7 @@
 #include <ranges>
 #include <sstream>
 
-namespace predategrip {
+namespace velocitydb {
 
 void QueryHistory::add(const HistoryItem& item) {
     std::lock_guard lock(m_mutex);
@@ -204,4 +204,4 @@ bool QueryHistory::load(std::string_view filepath) {
     }
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

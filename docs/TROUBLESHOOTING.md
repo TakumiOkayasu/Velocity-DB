@@ -10,7 +10,7 @@ ninja: error: failed recompaction: Permission denied
 
 - 自動回復機能あり（最大3回リトライ）
 - VSCode/Visual Studio を閉じる
-- PreDateGrip.exe を終了
+- VelocityDB.exe を終了
 
 ### MSVC Not Found
 

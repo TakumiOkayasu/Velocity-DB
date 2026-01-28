@@ -1,5 +1,5 @@
 [project]
-name = "pre-dategrip"
+name = "velocity-db"
 version = "0.1.0"
 description = "High-performance RDBMS management tool"
 requires-python = ">=3.14"

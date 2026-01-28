@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <format>
 
-namespace predategrip {
+namespace velocitydb {
 
 std::vector<SearchResult> GlobalSearch::searchObjects(SQLServerDriver* driver, const std::string& pattern, const SearchOptions& options) {
     std::vector<SearchResult> results;
@@ -163,4 +163,4 @@ bool GlobalSearch::matchesPattern(const std::string& text, const std::string& pa
     return lowerText.find(lowerPattern) != std::string::npos;
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb
