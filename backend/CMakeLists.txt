@@ -97,7 +97,9 @@ target_link_libraries(PreDateGripCore PUBLIC
 
 # Link libssh2 if available
 if(SSH_TUNNEL_ENABLED)
-    target_link_libraries(PreDateGripCore PUBLIC Libssh2::libssh2)
+    target_link_libraries(PreDateGripCore PUBLIC
+        $<IF:$<TARGET_EXISTS:Libssh2::libssh2_shared>,Libssh2::libssh2_shared,Libssh2::libssh2_static>
+    )
     target_compile_definitions(PreDateGripCore PUBLIC SSH_TUNNEL_ENABLED)
 endif()
 
