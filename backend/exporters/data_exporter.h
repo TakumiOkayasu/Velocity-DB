@@ -4,7 +4,7 @@
 
 #include <string>
 
-namespace predategrip {
+namespace velocitydb {
 
 struct ExportOptions {
     std::string delimiter = ",";
@@ -22,4 +22,4 @@ public:
     virtual bool exportData(const ResultSet& data, const std::string& filepath, const ExportOptions& options) = 0;
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

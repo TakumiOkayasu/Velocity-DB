@@ -3,7 +3,7 @@
 #include <fstream>
 #include <filesystem>
 
-namespace predategrip {
+namespace velocitydb {
 namespace test {
 
 class CSVExporterTest : public ::testing::Test {
@@ -176,4 +176,4 @@ TEST_F(CSVExporterTest, HandlesCustomDelimiter) {
 }
 
 }  // namespace test
-}  // namespace predategrip
+}  // namespace velocitydb

@@ -3,7 +3,7 @@
 #include "database/schema_inspector.h"
 #include "database/sqlserver_driver.h"
 
-namespace predategrip {
+namespace velocitydb {
 namespace test {
 
 class SchemaInspectorTest : public ::testing::Test {
@@ -164,4 +164,4 @@ TEST_F(SchemaInspectorIntegrationTest, DISABLED_GetTables) {
 }
 
 }  // namespace test
-}  // namespace predategrip
+}  // namespace velocitydb

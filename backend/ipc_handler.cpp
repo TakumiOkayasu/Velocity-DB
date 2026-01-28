@@ -29,7 +29,7 @@
 
 using namespace std::literals;
 
-namespace predategrip {
+namespace velocitydb {
 
 namespace {
 
@@ -437,11 +437,11 @@ std::string IPCHandler::cancelRunningQuery(std::string_view params) {
 }
 
 std::string IPCHandler::fetchTableList(std::string_view params) {
-    predategrip::log<LogLevel::DEBUG>(std::format("IPCHandler::fetchTableList called with params: {}", params));
+    velocitydb::log<LogLevel::DEBUG>(std::format("IPCHandler::fetchTableList called with params: {}", params));
 
     auto connectionIdResult = extractConnectionId(params);
     if (!connectionIdResult) {
-        predategrip::log<LogLevel::ERROR_LEVEL>(std::format("IPCHandler::fetchTableList: Failed to extract connection ID: {}", connectionIdResult.error()));
+        velocitydb::log<LogLevel::ERROR_LEVEL>(std::format("IPCHandler::fetchTableList: Failed to extract connection ID: {}", connectionIdResult.error()));
         return JsonUtils::errorResponse(connectionIdResult.error());
     }
     auto connectionId = *connectionIdResult;
@@ -449,12 +449,12 @@ std::string IPCHandler::fetchTableList(std::string_view params) {
     try {
         auto connection = m_activeConnections.find(connectionId);
         if (connection == m_activeConnections.end()) [[unlikely]] {
-            predategrip::log<LogLevel::ERROR_LEVEL>(std::format("IPCHandler::fetchTableList: Connection not found: {}", connectionId));
+            velocitydb::log<LogLevel::ERROR_LEVEL>(std::format("IPCHandler::fetchTableList: Connection not found: {}", connectionId));
             return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
         }
 
         auto& driver = connection->second;
-        predategrip::log<LogLevel::DEBUG>(std::format("IPCHandler::fetchTableList: Driver found for connection: {}", connectionId));
+        velocitydb::log<LogLevel::DEBUG>(std::format("IPCHandler::fetchTableList: Driver found for connection: {}", connectionId));
 
         // Filter to only include user tables and views (exclude system tables)
         // Include table comments from extended properties
@@ -473,10 +473,10 @@ std::string IPCHandler::fetchTableList(std::string_view params) {
             ORDER BY t.TABLE_SCHEMA, t.TABLE_NAME
         )";
 
-        predategrip::log<LogLevel::DEBUG>("IPCHandler::fetchTableList: Executing table list query"sv);
+        velocitydb::log<LogLevel::DEBUG>("IPCHandler::fetchTableList: Executing table list query"sv);
         ResultSet queryResult = driver->execute(tableListQuery);
 
-        predategrip::log<LogLevel::INFO>(std::format("IPCHandler::fetchTableList: Found {} tables/views", queryResult.rows.size()));
+        velocitydb::log<LogLevel::INFO>(std::format("IPCHandler::fetchTableList: Found {} tables/views", queryResult.rows.size()));
 
         std::string jsonResponse = "[";
         for (size_t i = 0; i < queryResult.rows.size(); ++i) {
@@ -489,10 +489,10 @@ std::string IPCHandler::fetchTableList(std::string_view params) {
         }
         jsonResponse += ']';
 
-        predategrip::log<LogLevel::DEBUG>("IPCHandler::fetchTableList: Returning JSON response"sv);
+        velocitydb::log<LogLevel::DEBUG>("IPCHandler::fetchTableList: Returning JSON response"sv);
         return JsonUtils::successResponse(jsonResponse);
     } catch (const std::exception& e) {
-        predategrip::log<LogLevel::ERROR_LEVEL>(std::format("IPCHandler::fetchTableList: Exception: {}", e.what()));
+        velocitydb::log<LogLevel::ERROR_LEVEL>(std::format("IPCHandler::fetchTableList: Exception: {}", e.what()));
         return JsonUtils::errorResponse(e.what());
     }
 }
@@ -2768,4 +2768,4 @@ std::string IPCHandler::deleteBookmark(std::string_view params) {
     }
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

@@ -7,7 +7,7 @@
 #include <string_view>
 #include <unordered_map>
 
-namespace predategrip {
+namespace velocitydb {
 
 class SQLServerDriver;
 class ConnectionPool;
@@ -144,4 +144,4 @@ private:
     int m_connectionIdCounter = 1;
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

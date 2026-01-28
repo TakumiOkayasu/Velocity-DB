@@ -8,7 +8,7 @@
 
 #include <ShlObj.h>
 
-namespace predategrip {
+namespace velocitydb {
 
 std::optional<std::string> FileUtils::readFile(const std::string& filepath) {
     std::ifstream file(filepath, std::ios::binary);
@@ -84,4 +84,4 @@ std::vector<std::string> FileUtils::listFiles(const std::string& directory, cons
     return files;
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

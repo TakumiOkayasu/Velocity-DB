@@ -3,7 +3,7 @@
 # requires-python = ">=3.14"
 # ///
 """
-Pre-DateGrip CLI - Unified build system interface
+Velocity-DB CLI - Unified build system interface
 
 Usage:
     uv run scripts/pdg.py build [backend|frontend|all] [--clean]
@@ -123,9 +123,9 @@ def cmd_package(args):
     dist_dir.mkdir()
 
     # Copy executable
-    exe_path = project_root / "build" / "Release" / "PreDateGrip.exe"
+    exe_path = project_root / "build" / "Release" / "VelocityDB.exe"
     if exe_path.exists():
-        shutil.copy(exe_path, dist_dir / "PreDateGrip.exe")
+        shutil.copy(exe_path, dist_dir / "VelocityDB.exe")
         print(f"  [OK] Copied: {exe_path.name}")
     else:
         print(f"  [FAIL] Executable not found: {exe_path}")
@@ -215,7 +215,7 @@ def cmd_clean(args):
 
     if target in ("cache", "all"):
         # Clean WebView2 cache
-        webview_cache = project_root / "build" / "Release" / "PreDateGrip.exe.WebView2"
+        webview_cache = project_root / "build" / "Release" / "VelocityDB.exe.WebView2"
         if webview_cache.exists():
             shutil.rmtree(webview_cache)
             cleaned_items.append("  [OK] Deleted: WebView2 cache")
@@ -242,7 +242,7 @@ def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
         prog="pdg",
-        description="Pre-DateGrip unified build system",
+        description="Velocity-DB unified build system",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )

@@ -4,7 +4,7 @@
 #include <iomanip>
 #include <sstream>
 
-namespace predategrip {
+namespace velocitydb {
 
 bool JSONExporter::exportData(const ResultSet& data, const std::string& filepath) {
     return exportData(data, filepath, ExportOptions());
@@ -118,4 +118,4 @@ std::string JSONExporter::escapeJSON(const std::string& value) const {
     return result.str();
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

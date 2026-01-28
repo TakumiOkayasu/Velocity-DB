@@ -4,7 +4,7 @@
 #include <filesystem>
 #include <string>
 
-namespace predategrip {
+namespace velocitydb {
 
 /// Windows file dialog wrapper for save/open operations
 class FileDialog {
@@ -28,4 +28,4 @@ public:
     [[nodiscard]] static std::expected<void, std::string> writeFile(const std::filesystem::path& path, const std::string& content);
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

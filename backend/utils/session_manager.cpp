@@ -11,7 +11,7 @@
 
 #include <ShlObj.h>
 
-namespace predategrip {
+namespace velocitydb {
 
 SessionManager::SessionManager() {
     // Get AppData\Local path
@@ -20,7 +20,7 @@ SessionManager::SessionManager() {
         m_sessionPath = std::filesystem::path(localAppData) / "Velocity-DB";
         CoTaskMemFree(localAppData);
     } else {
-        m_sessionPath = std::filesystem::current_path() / ".predategrip";
+        m_sessionPath = std::filesystem::current_path() / ".velocitydb";
     }
 
     std::filesystem::create_directories(m_sessionPath);
@@ -247,4 +247,4 @@ bool SessionManager::deserializeSession(std::string_view jsonStr) {
     }
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

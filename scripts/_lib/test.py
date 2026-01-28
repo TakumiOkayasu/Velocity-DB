@@ -1,4 +1,4 @@
-"""Test commands for Pre-DateGrip."""
+"""Test commands for Velocity-DB."""
 
 from . import utils
 

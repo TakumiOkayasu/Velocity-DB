@@ -7,7 +7,7 @@
 #include <format>
 #include <ranges>
 
-namespace predategrip {
+namespace velocitydb {
 
 namespace {
 /// Escapes special characters in ODBC connection string values.
@@ -110,4 +110,4 @@ std::string ConnectionPool::buildConnectionString(const ConnectionInfo& info) co
     return connStr;
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

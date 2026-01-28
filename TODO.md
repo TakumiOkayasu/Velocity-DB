@@ -68,7 +68,7 @@
    - 内容: Tree表示、Transpose(行列入替)表示
    - DataGrip: Table/Tree/Text/Transpose の4モード
 
-8. **UIを本家DataGripに近づける** ★★ ([#56](https://github.com/TakumiOkayasu/Pre-DateGrip/issues/56))
+8. **UIを本家DataGripに近づける** ★★ ([#56](https://github.com/TakumiOkayasu/Velocity-DB/issues/56))
    - 内容: カラースキーム、アイコン、レイアウトの改善
    - 継続的なタスク
 
@@ -98,7 +98,7 @@
    - 内容: Git連携でスキーマ変更履歴を管理
    - DataGrip: Version Control integration
 
-5. **インストーラーの用意** ★★ ([#34](https://github.com/TakumiOkayasu/Pre-DateGrip/issues/34))
+5. **インストーラーの用意** ★★ ([#34](https://github.com/TakumiOkayasu/Velocity-DB/issues/34))
    - 内容: WiXまたはInno Setupでインストーラー作成
 
 6. **自動更新機能** ★★★

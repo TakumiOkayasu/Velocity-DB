@@ -25,7 +25,7 @@ from typing import Any
 if sys.platform == "win32":
     os.environ["PYTHONIOENCODING"] = "utf-8"
 
-REPO = "TakumiOkayasu/Pre-DateGrip"
+REPO = "TakumiOkayasu/Velocity-DB"
 
 
 def run_gh_command(args: list[str], input_data: str | None = None) -> dict[str, Any] | None:

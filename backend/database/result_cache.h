@@ -9,7 +9,7 @@
 #include <string_view>
 #include <unordered_map>
 
-namespace predategrip {
+namespace velocitydb {
 
 struct CachedResult {
     ResultSet data;
@@ -43,4 +43,4 @@ private:
     std::unordered_map<std::string, CachedResult> m_cache;
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

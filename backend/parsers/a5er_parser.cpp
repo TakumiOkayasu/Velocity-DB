@@ -6,7 +6,7 @@
 
 #include "pugixml.hpp"
 
-namespace predategrip {
+namespace velocitydb {
 
 A5ERModel A5ERParser::parse(const std::string& filepath) {
     pugi::xml_document doc;
@@ -273,4 +273,4 @@ std::string A5ERParser::mapTypeToSQLServer(const std::string& a5erType, int size
     return a5erType;
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

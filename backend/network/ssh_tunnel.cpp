@@ -18,7 +18,7 @@
 #include <fstream>
 #include <random>
 
-namespace predategrip {
+namespace velocitydb {
 
 namespace {
 
@@ -256,4 +256,4 @@ int SshTunnel::getLocalPort() const {
     return m_impl->getLocalPort();
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

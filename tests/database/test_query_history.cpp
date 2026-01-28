@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include "database/query_history.h"
 
-namespace predategrip {
+namespace velocitydb {
 namespace test {
 
 class QueryHistoryTest : public ::testing::Test {
@@ -121,4 +121,4 @@ TEST_F(QueryHistoryTest, RespectsMaxItems) {
 }
 
 }  // namespace test
-}  // namespace predategrip
+}  // namespace velocitydb

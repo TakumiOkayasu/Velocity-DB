@@ -11,7 +11,7 @@ namespace webview {
 class webview;
 }
 
-namespace predategrip {
+namespace velocitydb {
 
 class IPCHandler;
 class SettingsManager;
@@ -48,4 +48,4 @@ private:
     std::unique_ptr<SettingsManager> m_settingsManager;
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

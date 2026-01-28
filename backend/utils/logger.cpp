@@ -8,7 +8,7 @@
 #include <mutex>
 #include <string>
 
-namespace predategrip {
+namespace velocitydb {
 
 /**
  * @brief File log output implementation
@@ -91,4 +91,4 @@ void initialize_logger() {
     get_logger().set_min_level(LogLevel::DEBUG);
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

@@ -14,7 +14,7 @@
 #include <variant>
 #include <vector>
 
-namespace predategrip {
+namespace velocitydb {
 
 enum class QueryStatus { Pending, Running, Completed, Cancelled, Failed };
 
@@ -83,4 +83,4 @@ private:
     std::atomic<int> m_queryIdCounter{1};
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-namespace predategrip {
+namespace velocitydb {
 
 enum class SshAuthMethod { Password, PublicKey };
 
@@ -55,4 +55,4 @@ private:
     std::unique_ptr<Impl> m_impl;
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

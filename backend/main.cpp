@@ -29,7 +29,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
     (void)nCmdShow;
 
     // Initialize logger
-    predategrip::initialize_logger();
+    velocitydb::initialize_logger();
 
     // Single instance check using named mutex
     constexpr const wchar_t* MUTEX_NAME = L"Global\\VelocityDB-{8F5E9C2A-1B3D-4E7F-9A6C-2D8B4E1F3C5A}";
@@ -37,7 +37,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 
     if (GetLastError() == ERROR_ALREADY_EXISTS) {
         // Another instance is already running
-        predategrip::log<predategrip::LogLevel::INFO>("Another instance is already running. Bringing existing window to front.");
+        velocitydb::log<velocitydb::LogLevel::INFO>("Another instance is already running. Bringing existing window to front.");
 
         // Try to find and activate existing window
         bool foundWindow = false;
@@ -54,7 +54,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
     }
 
     try {
-        predategrip::WebViewApp app(hInstance);
+        velocitydb::WebViewApp app(hInstance);
         int result = app.run();
 
         // Release mutex before exit

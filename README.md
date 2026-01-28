@@ -79,7 +79,7 @@ CPUがAVX2に対応しているか確認するには：
 
 ### キーボードショートカット
 
-Pre-DateGripは効率的な操作のための豊富なキーボードショートカットを提供しています：
+Velocity-DBは効率的な操作のための豊富なキーボードショートカットを提供しています：
 
 #### SQL実行
 - **F9** - SQL実行（1キー、推奨）
@@ -102,7 +102,7 @@ Pre-DateGripは効率的な操作のための豊富なキーボードショー�
 
 ### 複数DB同時接続
 
-Pre-DateGripは複数のデータベースを同時に操作できます：
+Velocity-DBは複数のデータベースを同時に操作できます：
 
 ```sql
 -- USE文でデータベースを切り替え
@@ -131,7 +131,7 @@ INNER JOIN OMS.dbo.orders o ON u.id = o.user_id;
 
 ### リリース版
 
-[Releases](../../releases)から最新の`Pre-DateGrip-windows-x64.zip`をダウンロードし、任意のフォルダに展開してください。
+[Releases](../../releases)から最新の`Velocity-DB-windows-x64.zip`をダウンロードし、任意のフォルダに展開してください。
 
 ### ソースからビルド
 
@@ -148,8 +148,8 @@ INNER JOIN OMS.dbo.orders o ON u.id = o.user_id;
 
 ```bash
 # リポジトリをクローン
-git clone https://github.com/TakumiOkayasu/Pre-DateGrip.git
-cd Pre-DateGrip
+git clone https://github.com/TakumiOkayasu/Velocity-DB.git
+cd Velocity-DB
 
 # フロントエンドのビルド
 uv run scripts/pdg.py build frontend
@@ -173,14 +173,14 @@ uv run scripts/pdg.py package
 - インクリメンタルビルド（変更なし）: 5-10秒
 - インクリメンタルビルド（1ファイル変更）: 20-30秒
 
-ビルド成果物は `build/[Debug|Release]/PreDateGrip.exe` に出力されます。
+ビルド成果物は `build/[Debug|Release]/VelocityDB.exe` に出力されます。
 
 ## 開発
 
 ### ディレクトリ構成
 
 ```markdown
-Pre-DateGrip/
+Velocity-DB/
 ├── backend/                # C++バックエンド
 │   ├── database/           # DB接続、接続プール、結果キャッシュ、非同期実行
 │   ├── parsers/            # SQLフォーマッター、A5:ERパーサー

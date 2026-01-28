@@ -3,7 +3,7 @@
 # requires-python = ">=3.14"
 # ///
 """
-Pre-DateGrip End-of-Line Converter
+Velocity-DB End-of-Line Converter
 
 Converts line endings between CRLF (Windows) and LF (Unix) for source files.
 

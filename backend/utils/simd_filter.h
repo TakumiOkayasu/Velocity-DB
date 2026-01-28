@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace predategrip {
+namespace velocitydb {
 
 class SIMDFilter {
 public:
@@ -32,4 +32,4 @@ private:
     bool simdStringContains(const char* haystack, size_t haystackLen, const char* needle, size_t needleLen) const;
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

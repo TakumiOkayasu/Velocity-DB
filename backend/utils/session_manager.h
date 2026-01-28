@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace predategrip {
+namespace velocitydb {
 
 struct EditorTab {
     std::string id;
@@ -87,4 +87,4 @@ private:
     int m_autoSaveInterval = 30;
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

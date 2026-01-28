@@ -1,4 +1,4 @@
-"""Common utility functions for Pre-DateGrip build system."""
+"""Common utility functions for Velocity-DB build system."""
 
 import os
 import shutil
@@ -175,8 +175,8 @@ def clear_webview2_cache(project_root: Path) -> None:
     """Clear WebView2 cache to ensure fresh frontend load."""
     print("\n[Post-Build] Clearing WebView2 cache...")
     webview2_caches = [
-        project_root / "build" / "Debug" / "PreDateGrip.exe.WebView2",
-        project_root / "build" / "Release" / "PreDateGrip.exe.WebView2",
+        project_root / "build" / "Debug" / "VelocityDB.exe.WebView2",
+        project_root / "build" / "Release" / "VelocityDB.exe.WebView2",
     ]
 
     cleared = False

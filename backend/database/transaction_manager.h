@@ -3,7 +3,7 @@
 #include <memory>
 #include <string>
 
-namespace predategrip {
+namespace velocitydb {
 
 class SQLServerDriver;
 
@@ -32,4 +32,4 @@ private:
     bool m_autoCommit = true;
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

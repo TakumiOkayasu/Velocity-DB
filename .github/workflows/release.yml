@@ -73,7 +73,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: backend-exe
-          path: build/Release/PreDateGrip.exe
+          path: build/Release/VelocityDB.exe
           retention-days: 1
 
   # Package and release
@@ -99,12 +99,12 @@ jobs:
       - name: Create ZIP
         run: |
           cd dist
-          zip -r ../PreDateGrip-${{ github.ref_name }}.zip .
+          zip -r ../Velocity-DB-${{ github.ref_name }}.zip .
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: PreDateGrip-${{ github.ref_name }}.zip
+          files: Velocity-DB-${{ github.ref_name }}.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

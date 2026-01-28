@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace predategrip {
+namespace velocitydb {
 
 struct A5ERColumn {
     std::string name;
@@ -65,4 +65,4 @@ private:
     std::string mapTypeToSQLServer(const std::string& a5erType, int size, int scale) const;
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb

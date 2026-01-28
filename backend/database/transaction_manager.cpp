@@ -4,7 +4,7 @@
 
 #include <stdexcept>
 
-namespace predategrip {
+namespace velocitydb {
 
 TransactionManager::~TransactionManager() {
     if (m_state == TransactionState::Active && m_driver) {
@@ -73,4 +73,4 @@ void TransactionManager::rollback() {
     m_state = TransactionState::RolledBack;
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

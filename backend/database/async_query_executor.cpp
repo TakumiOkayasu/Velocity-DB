@@ -4,7 +4,7 @@
 
 #include <format>
 
-namespace predategrip {
+namespace velocitydb {
 
 AsyncQueryExecutor::~AsyncQueryExecutor() {
     std::vector<std::shared_ptr<QueryTask>> tasks;
@@ -205,4 +205,4 @@ std::vector<std::string> AsyncQueryExecutor::getActiveQueryIds() const {
     return ids;
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

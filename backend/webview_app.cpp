@@ -9,7 +9,7 @@
 #include <format>
 #include <fstream>
 
-namespace predategrip {
+namespace velocitydb {
 
 namespace {
 
@@ -137,4 +137,4 @@ void WebViewApp::createAndConfigureWebView() {
     }
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

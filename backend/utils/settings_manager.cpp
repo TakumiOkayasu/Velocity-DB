@@ -12,7 +12,7 @@
 
 #include <ShlObj.h>
 
-namespace predategrip {
+namespace velocitydb {
 
 SettingsManager::SettingsManager() {
     // Get AppData\Local path
@@ -22,7 +22,7 @@ SettingsManager::SettingsManager() {
         CoTaskMemFree(localAppData);
     } else {
         // Fallback to current directory
-        m_settingsPath = std::filesystem::current_path() / ".predategrip";
+        m_settingsPath = std::filesystem::current_path() / ".velocitydb";
     }
 
     // Ensure directory exists
@@ -431,4 +431,4 @@ bool SettingsManager::deserializeSettings(std::string_view jsonStr) {
     }
 }
 
-}  // namespace predategrip
+}  // namespace velocitydb

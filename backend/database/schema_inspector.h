@@ -7,7 +7,7 @@
 #include <string_view>
 #include <vector>
 
-namespace predategrip {
+namespace velocitydb {
 
 struct TableInfo {
     std::string schema;
@@ -69,4 +69,4 @@ private:
     std::shared_ptr<SQLServerDriver> m_driver;
 };
 
-}  // namespace predategrip
+}  // namespace velocitydb
