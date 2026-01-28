@@ -164,9 +164,9 @@ jobs:
             build/CMakeCache.txt
             build/CMakeFiles
             build/**/*.dir
-          key: cmake-ninja-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'backend/CMakeLists.txt', 'third_party/CMakeLists.txt') }}
+          key: cmake-v2-ninja-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'backend/CMakeLists.txt', 'third_party/CMakeLists.txt') }}
           restore-keys: |
-            cmake-ninja-${{ runner.os }}-
+            cmake-v2-ninja-${{ runner.os }}-
 
       - name: Configure CMake
         run: |
@@ -224,7 +224,7 @@ jobs:
       - name: Upload packaged application
         uses: actions/upload-artifact@v6
         with:
-          name: Pre-DateGrip-windows-x64
+          name: Velocity-DB-windows-x64
           path: package/
           retention-days: 30
 
