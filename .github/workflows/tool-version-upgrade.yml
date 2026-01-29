@@ -1,0 +1,439 @@
+name: Tool Version Upgrade
+
+on:
+  schedule:
+    # Monday 01:00 JST (Sunday 16:00 UTC)
+    - cron: '0 16 * * 0'
+  workflow_dispatch:
+    inputs:
+      tool:
+        description: 'Tool to check for updates'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - bun
+          - vcpkg
+          - clang-format
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: tool-version-upgrade
+  cancel-in-progress: false
+
+jobs:
+  # ==========================================================
+  # Detect current and latest versions for all tools
+  # ==========================================================
+  detect-versions:
+    name: Detect Versions
+    runs-on: ubuntu-latest
+    outputs:
+      bun_current: ${{ steps.current.outputs.bun }}
+      bun_latest: ${{ steps.latest.outputs.bun }}
+      bun_needs_update: ${{ steps.compare.outputs.bun }}
+      vcpkg_current: ${{ steps.current.outputs.vcpkg }}
+      vcpkg_latest: ${{ steps.latest.outputs.vcpkg }}
+      vcpkg_needs_update: ${{ steps.compare.outputs.vcpkg }}
+      clang_current: ${{ steps.current.outputs.clang }}
+      clang_latest: ${{ steps.latest.outputs.clang }}
+      clang_needs_update: ${{ steps.compare.outputs.clang }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Read current versions
+        id: current
+        run: |
+          # Bun: from ci.yml
+          BUN=$(grep 'bun-version:' .github/workflows/ci.yml | head -1 | awk '{print $2}')
+          echo "bun=$BUN" >> "$GITHUB_OUTPUT"
+          echo "Current Bun: $BUN"
+
+          # vcpkg: from vcpkg.json
+          VCPKG=$(grep '"builtin-baseline"' vcpkg.json | grep -oP '[0-9a-f]{40}')
+          echo "vcpkg=$VCPKG" >> "$GITHUB_OUTPUT"
+          echo "Current vcpkg baseline: $VCPKG"
+
+          # clang-format: LLVM major version from ci.yml
+          CLANG=$(grep 'clang-format-' .github/workflows/ci.yml | head -1 | grep -oP 'clang-format-\K\d+')
+          echo "clang=$CLANG" >> "$GITHUB_OUTPUT"
+          echo "Current clang-format: $CLANG"
+
+      - name: Fetch latest versions
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Bun: latest release from oven-sh/bun
+          BUN=$(gh api repos/oven-sh/bun/releases/latest --jq '.tag_name' | sed 's/^bun-v//')
+          echo "bun=$BUN" >> "$GITHUB_OUTPUT"
+          echo "Latest Bun: $BUN"
+
+          # vcpkg: HEAD commit SHA of main branch
+          VCPKG=$(gh api repos/microsoft/vcpkg/commits/main --jq '.sha')
+          echo "vcpkg=$VCPKG" >> "$GITHUB_OUTPUT"
+          echo "Latest vcpkg baseline: $VCPKG"
+
+          # vcpkg: commit date for staleness check
+          VCPKG_CURRENT_DATE=$(gh api "repos/microsoft/vcpkg/commits/${{ steps.current.outputs.vcpkg }}" --jq '.commit.committer.date' 2>/dev/null || echo "")
+          echo "vcpkg_current_date=$VCPKG_CURRENT_DATE" >> "$GITHUB_OUTPUT"
+          echo "Current vcpkg commit date: $VCPKG_CURRENT_DATE"
+
+          # clang-format: latest stable LLVM major version
+          CLANG=$(gh api repos/llvm/llvm-project/releases --jq '
+            [.[] | select(.tag_name | startswith("llvmorg-")) | select(.prerelease == false)]
+            | first | .tag_name' | sed 's/llvmorg-//' | cut -d. -f1)
+          echo "clang=$CLANG" >> "$GITHUB_OUTPUT"
+          echo "Latest clang-format: $CLANG"
+
+      - name: Compare versions
+        id: compare
+        env:
+          INPUT_TOOL: ${{ inputs.tool || 'all' }}
+        run: |
+          # Bun
+          if [[ "$INPUT_TOOL" == "all" || "$INPUT_TOOL" == "bun" ]]; then
+            if [[ "${{ steps.current.outputs.bun }}" != "${{ steps.latest.outputs.bun }}" ]]; then
+              echo "bun=true" >> "$GITHUB_OUTPUT"
+              echo "Bun needs update: ${{ steps.current.outputs.bun }} -> ${{ steps.latest.outputs.bun }}"
+            else
+              echo "bun=false" >> "$GITHUB_OUTPUT"
+              echo "Bun is up to date"
+            fi
+          else
+            echo "bun=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # vcpkg (with 14-day staleness threshold)
+          if [[ "$INPUT_TOOL" == "all" || "$INPUT_TOOL" == "vcpkg" ]]; then
+            if [[ "${{ steps.current.outputs.vcpkg }}" != "${{ steps.latest.outputs.vcpkg }}" ]]; then
+              CURRENT_DATE="${{ steps.latest.outputs.vcpkg_current_date }}"
+              if [[ -n "$CURRENT_DATE" ]]; then
+                CURRENT_EPOCH=$(date -d "$CURRENT_DATE" +%s 2>/dev/null || echo 0)
+                NOW_EPOCH=$(date +%s)
+                DAYS_OLD=$(( (NOW_EPOCH - CURRENT_EPOCH) / 86400 ))
+                if [[ "$DAYS_OLD" -ge 14 ]]; then
+                  echo "vcpkg=true" >> "$GITHUB_OUTPUT"
+                  echo "vcpkg baseline is ${DAYS_OLD} days old, updating"
+                else
+                  echo "vcpkg=false" >> "$GITHUB_OUTPUT"
+                  echo "vcpkg baseline is only ${DAYS_OLD} days old, skipping (threshold: 14 days)"
+                fi
+              else
+                echo "vcpkg=true" >> "$GITHUB_OUTPUT"
+                echo "Could not determine vcpkg baseline age, updating"
+              fi
+            else
+              echo "vcpkg=false" >> "$GITHUB_OUTPUT"
+              echo "vcpkg is up to date"
+            fi
+          else
+            echo "vcpkg=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # clang-format
+          if [[ "$INPUT_TOOL" == "all" || "$INPUT_TOOL" == "clang-format" ]]; then
+            if [[ "${{ steps.current.outputs.clang }}" != "${{ steps.latest.outputs.clang }}" ]]; then
+              echo "clang=true" >> "$GITHUB_OUTPUT"
+              echo "clang-format needs update: ${{ steps.current.outputs.clang }} -> ${{ steps.latest.outputs.clang }}"
+            else
+              echo "clang=false" >> "$GITHUB_OUTPUT"
+              echo "clang-format is up to date"
+            fi
+          else
+            echo "clang=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ==========================================================
+  # Upgrade Bun
+  # ==========================================================
+  upgrade-bun:
+    name: Upgrade Bun
+    needs: detect-versions
+    if: needs.detect-versions.outputs.bun_needs_update == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check for existing PR
+        id: check-pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          EXISTING=$(gh pr list --head "chore/upgrade-bun" --state open --json number --jq '.[0].number // empty')
+          if [[ -n "$EXISTING" ]]; then
+            echo "PR #${EXISTING} already open for Bun. Skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update Bun version in workflow files
+        if: steps.check-pr.outputs.skip == 'false'
+        env:
+          NEW_VERSION: ${{ needs.detect-versions.outputs.bun_latest }}
+        run: |
+          sed -i "s/bun-version: .*/bun-version: ${NEW_VERSION}/" \
+            .github/workflows/ci.yml \
+            .github/workflows/test.yml \
+            .github/workflows/release.yml
+
+          echo "Updated bun-version to ${NEW_VERSION} in workflow files"
+          grep 'bun-version:' .github/workflows/ci.yml .github/workflows/test.yml .github/workflows/release.yml
+
+      - name: Setup Bun (new version)
+        if: steps.check-pr.outputs.skip == 'false'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ needs.detect-versions.outputs.bun_latest }}
+
+      - name: Validate frontend build
+        if: steps.check-pr.outputs.skip == 'false'
+        working-directory: frontend
+        run: |
+          bun install
+          bun run build
+          bun run test --run
+
+      - name: Create PR
+        if: steps.check-pr.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OLD_VERSION: ${{ needs.detect-versions.outputs.bun_current }}
+          NEW_VERSION: ${{ needs.detect-versions.outputs.bun_latest }}
+        run: |
+          BRANCH="chore/upgrade-bun-${NEW_VERSION}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add .github/workflows/ci.yml .github/workflows/test.yml .github/workflows/release.yml
+          git commit -m "chore(deps): upgrade Bun ${OLD_VERSION} -> ${NEW_VERSION}"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --title "chore(deps): upgrade Bun to ${NEW_VERSION}" \
+            --body "$(cat <<'PREOF'
+          ## Tool Version Upgrade
+
+          | Field | Value |
+          |-------|-------|
+          | Tool | Bun |
+          | Previous | OLDVER |
+          | New | NEWVER |
+
+          ### Validation
+          - [x] `bun install` succeeded
+          - [x] `bun run build` succeeded
+          - [x] `bun run test --run` passed
+
+          ### Auto-generated
+          This PR was automatically created by the tool-version-upgrade workflow.
+          PREOF
+          )" \
+            --label "dependencies" \
+            --reviewer "TakumiOkayasu"
+
+          # Replace placeholders in PR body (heredoc can't expand env vars with single quotes)
+          PR_NUM=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number')
+          gh pr edit "$PR_NUM" --body "$(gh pr view "$PR_NUM" --json body --jq '.body' | sed "s/OLDVER/${OLD_VERSION}/;s/NEWVER/${NEW_VERSION}/")"
+
+  # ==========================================================
+  # Upgrade vcpkg baseline
+  # ==========================================================
+  upgrade-vcpkg:
+    name: Upgrade vcpkg Baseline
+    needs: detect-versions
+    if: needs.detect-versions.outputs.vcpkg_needs_update == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check for existing PR
+        id: check-pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $existing = gh pr list --head "chore/upgrade-vcpkg" --state open --json number --jq '.[0].number // empty'
+          if ($existing) {
+            Write-Host "PR #$existing already open for vcpkg. Skipping."
+            echo "skip=true" >> $env:GITHUB_OUTPUT
+          } else {
+            echo "skip=false" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Update vcpkg baseline
+        if: steps.check-pr.outputs.skip == 'false'
+        env:
+          NEW_SHA: ${{ needs.detect-versions.outputs.vcpkg_latest }}
+        run: |
+          $content = Get-Content vcpkg.json -Raw
+          $content = $content -replace '"builtin-baseline":\s*"[0-9a-f]+"', "`"builtin-baseline`": `"$env:NEW_SHA`""
+          Set-Content vcpkg.json -Value $content -NoNewline
+          Write-Host "Updated vcpkg baseline to $env:NEW_SHA"
+          Get-Content vcpkg.json
+
+      - name: Setup MSVC
+        if: steps.check-pr.outputs.skip == 'false'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Ninja
+        if: steps.check-pr.outputs.skip == 'false'
+        run: choco install ninja -y
+
+      - name: Validate backend build
+        if: steps.check-pr.outputs.skip == 'false'
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
+          cmake --build build --config Release --parallel
+
+      - name: Run tests
+        if: steps.check-pr.outputs.skip == 'false'
+        run: ctest --test-dir build --output-on-failure --parallel
+
+      - name: Create PR
+        if: steps.check-pr.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OLD_SHA: ${{ needs.detect-versions.outputs.vcpkg_current }}
+          NEW_SHA: ${{ needs.detect-versions.outputs.vcpkg_latest }}
+        shell: bash
+        run: |
+          SHORT_OLD="${OLD_SHA:0:12}"
+          SHORT_NEW="${NEW_SHA:0:12}"
+          BRANCH="chore/upgrade-vcpkg-${SHORT_NEW}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add vcpkg.json
+          git commit -m "chore(deps): upgrade vcpkg baseline ${SHORT_OLD} -> ${SHORT_NEW}"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --title "chore(deps): upgrade vcpkg baseline to ${SHORT_NEW}" \
+            --body "$(cat <<EOF
+          ## Tool Version Upgrade
+
+          | Field | Value |
+          |-------|-------|
+          | Tool | vcpkg baseline |
+          | Previous | \`${SHORT_OLD}\` |
+          | New | \`${SHORT_NEW}\` |
+          | Full SHA | \`${NEW_SHA}\` |
+
+          ### Validation
+          - [x] CMake configure succeeded
+          - [x] Backend build succeeded
+          - [x] Tests passed
+
+          ### Auto-generated
+          This PR was automatically created by the tool-version-upgrade workflow.
+          EOF
+          )" \
+            --label "dependencies" \
+            --reviewer "TakumiOkayasu"
+
+  # ==========================================================
+  # Upgrade clang-format (LLVM)
+  # ==========================================================
+  upgrade-clang-format:
+    name: Upgrade clang-format
+    needs: detect-versions
+    if: needs.detect-versions.outputs.clang_needs_update == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check for existing PR
+        id: check-pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          EXISTING=$(gh pr list --head "chore/upgrade-clang-format" --state open --json number --jq '.[0].number // empty')
+          if [[ -n "$EXISTING" ]]; then
+            echo "PR #${EXISTING} already open for clang-format. Skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update LLVM version in ci.yml
+        if: steps.check-pr.outputs.skip == 'false'
+        env:
+          OLD_VERSION: ${{ needs.detect-versions.outputs.clang_current }}
+          NEW_VERSION: ${{ needs.detect-versions.outputs.clang_latest }}
+        run: |
+          # Update APT repo reference
+          sed -i "s/llvm-toolchain-noble-${OLD_VERSION}/llvm-toolchain-noble-${NEW_VERSION}/g" .github/workflows/ci.yml
+
+          # Update clang-format package and binary references
+          sed -i "s/clang-format-${OLD_VERSION}/clang-format-${NEW_VERSION}/g" .github/workflows/ci.yml
+
+          # Update step name
+          sed -i "s/Install LLVM ${OLD_VERSION}/Install LLVM ${NEW_VERSION}/g" .github/workflows/ci.yml
+
+          echo "Updated clang-format ${OLD_VERSION} -> ${NEW_VERSION} in ci.yml"
+          grep -n 'llvm\|clang-format' .github/workflows/ci.yml
+
+      - name: Install new clang-format
+        if: steps.check-pr.outputs.skip == 'false'
+        env:
+          NEW_VERSION: ${{ needs.detect-versions.outputs.clang_latest }}
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-${NEW_VERSION} main" | sudo tee /etc/apt/sources.list.d/llvm.list
+          sudo apt-get update
+          sudo apt-get install -y "clang-format-${NEW_VERSION}"
+          sudo update-alternatives --install /usr/bin/clang-format clang-format "/usr/bin/clang-format-${NEW_VERSION}" 100
+          clang-format --version
+
+      - name: Validate formatting
+        if: steps.check-pr.outputs.skip == 'false'
+        run: |
+          find backend -name '*.cpp' -o -name '*.h' | while read file; do
+            clang-format --style=file --dry-run --Werror "$file" || exit 1
+          done
+          echo "All files pass clang-format check"
+
+      - name: Create PR
+        if: steps.check-pr.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OLD_VERSION: ${{ needs.detect-versions.outputs.clang_current }}
+          NEW_VERSION: ${{ needs.detect-versions.outputs.clang_latest }}
+        run: |
+          BRANCH="chore/upgrade-clang-format-${NEW_VERSION}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add .github/workflows/ci.yml
+          git commit -m "chore(deps): upgrade clang-format ${OLD_VERSION} -> ${NEW_VERSION}"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --title "chore(deps): upgrade clang-format to ${NEW_VERSION}" \
+            --body "$(cat <<EOF
+          ## Tool Version Upgrade
+
+          | Field | Value |
+          |-------|-------|
+          | Tool | clang-format (LLVM) |
+          | Previous | ${OLD_VERSION} |
+          | New | ${NEW_VERSION} |
+
+          ### Validation
+          - [x] clang-format ${NEW_VERSION} installed successfully
+          - [x] All backend sources pass \`--dry-run --Werror\`
+
+          > **Note**: clang-format major version upgrades may change formatting rules.
+          > If this PR changes formatting, review the diffs carefully before merging.
+
+          ### Auto-generated
+          This PR was automatically created by the tool-version-upgrade workflow.
+          EOF
+          )" \
+            --label "dependencies" \
+            --reviewer "TakumiOkayasu"

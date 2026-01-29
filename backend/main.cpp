@@ -3,6 +3,8 @@
 
 #include <Windows.h>
 
+#include <objbase.h>
+
 // Window title for finding existing instance
 constexpr const wchar_t* WINDOW_TITLE = L"Velocity-DB";
 
@@ -27,6 +29,9 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
     (void)hPrevInstance;
     (void)lpCmdLine;
     (void)nCmdShow;
+
+    // Initialize COM (required by WebView2)
+    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
     // Initialize logger
     velocitydb::initialize_logger();
@@ -63,6 +68,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
             CloseHandle(hMutex);
         }
 
+        CoUninitialize();
         return result;
     } catch (const std::exception& e) {
         MessageBoxA(nullptr, e.what(), "Error", MB_OK | MB_ICONERROR);

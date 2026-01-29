@@ -7,6 +7,8 @@
 #ifndef WEBVIEW_H
 #define WEBVIEW_H
 
+#include <cstdio>
+#include <format>
 #include <functional>
 #include <string>
 #include <map>
@@ -27,7 +29,7 @@
 #include <WebView2.h>
 #include <shlwapi.h>
 #include <dwmapi.h>
-#pragma comment(lib, "WebView2Loader.dll.lib")
+// WebView2LoaderStatic.lib is linked via CMake (third_party/CMakeLists.txt)
 #pragma comment(lib, "shlwapi.lib")
 #pragma comment(lib, "dwmapi.lib")
 
@@ -131,7 +133,8 @@ private:
         wc.hInstance = GetModuleHandle(nullptr);
         wc.lpszClassName = L"VelocityDBWindow";
         wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-        wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+        static HBRUSH darkBrush = CreateSolidBrush(RGB(30, 30, 30));
+        wc.hbrBackground = darkBrush;
         RegisterClassExW(&wc);
 
         DWORD style = WS_OVERLAPPEDWINDOW;
@@ -185,29 +188,18 @@ private:
     }
 
     void initWebView2() {
-        // Set user data folder path (nullptr = default = next to exe)
+        // Use %LOCALAPPDATA%/VelocityDB/WebView2 to avoid lock issues
+        // when user data folder defaults to exe directory
         std::wstring wUserDataFolder;
-        LPCWSTR userDataFolderPtr = nullptr;
         if (!m_userDataFolder.empty()) {
             wUserDataFolder = utf8_to_utf16(m_userDataFolder);
-            userDataFolderPtr = wUserDataFolder.c_str();
+        } else {
+            wchar_t localAppData[MAX_PATH]{};
+            if (GetEnvironmentVariableW(L"LOCALAPPDATA", localAppData, MAX_PATH) > 0) {
+                wUserDataFolder = std::wstring(localAppData) + L"\\VelocityDB\\WebView2";
+            }
         }
-
-        // Create environment options to disable cache if requested
-        ComPtr<ICoreWebView2EnvironmentOptions> options;
-        if (m_disableCache) {
-            // Use command line args to disable cache
-            // --disk-cache-size=0 disables the disk cache
-            CreateCoreWebView2EnvironmentWithOptions(
-                nullptr, userDataFolderPtr, nullptr,
-                Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
-                    [this](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
-                        return onEnvironmentCreated(result, env);
-                    }
-                ).Get()
-            );
-            return;
-        }
+        LPCWSTR userDataFolderPtr = wUserDataFolder.empty() ? nullptr : wUserDataFolder.c_str();
 
         HRESULT hr = CreateCoreWebView2EnvironmentWithOptions(
             nullptr, userDataFolderPtr, nullptr,
@@ -219,14 +211,19 @@ private:
         );
 
         if (FAILED(hr)) {
-            MessageBoxA(m_hwnd, "WebView2 runtime not found.\nPlease install Microsoft Edge WebView2 Runtime.", "Error", MB_OK | MB_ICONERROR);
+            auto msg = std::format(
+                "WebView2 runtime not found. (HRESULT: 0x{:08X})\n"
+                "Please install Microsoft Edge WebView2 Runtime.", static_cast<unsigned long>(hr));
+            MessageBoxA(m_hwnd, msg.c_str(), "Error", MB_OK | MB_ICONERROR);
             PostQuitMessage(1);
         }
     }
 
     HRESULT onEnvironmentCreated(HRESULT result, ICoreWebView2Environment* env) {
         if (FAILED(result)) {
-            MessageBoxA(m_hwnd, "Failed to create WebView2 environment.", "Error", MB_OK | MB_ICONERROR);
+            auto msg = std::format(
+                "Failed to create WebView2 environment. (HRESULT: 0x{:08X})", static_cast<unsigned long>(result));
+            MessageBoxA(m_hwnd, msg.c_str(), "Error", MB_OK | MB_ICONERROR);
             PostQuitMessage(1);
             return result;
         }
@@ -260,11 +257,42 @@ private:
                     // Setup bindings
                     setupBindings();
 
+                    // Open DevTools in debug builds
+                    if (m_debug) {
+                        m_webviewWindow->OpenDevToolsWindow();
+                    }
+
+                    // Navigation event handler (debug logging)
+                    EventRegistrationToken navToken;
+                    m_webviewWindow->add_NavigationCompleted(
+                        Callback<ICoreWebView2NavigationCompletedEventHandler>(
+                            [this](ICoreWebView2* /*sender*/, ICoreWebView2NavigationCompletedEventArgs* args) -> HRESULT {
+                                BOOL success = FALSE;
+                                args->get_IsSuccess(&success);
+                                COREWEBVIEW2_WEB_ERROR_STATUS status{};
+                                args->get_WebErrorStatus(&status);
+                                auto msg = std::format(
+                                    "[WebView2] NavigationCompleted: success={}, errorStatus={}, url={}, frontendPath={}\n",
+                                    success ? "true" : "false", static_cast<int>(status), m_url, m_frontendPath);
+                                fprintf(stderr, "%s", msg.c_str());
+                                return S_OK;
+                            }
+                        ).Get(),
+                        &navToken
+                    );
+
+                    fprintf(stderr, "%s", std::format(
+                        "[WebView2] Bounds: {}x{}, URL: {}, FrontendPath: {}\n",
+                        bounds.right, bounds.bottom, m_url, m_frontendPath).c_str());
+
                     // Navigate to URL
                     if (!m_url.empty()) {
                         std::wstring wurl = utf8_to_utf16(m_url);
                         m_webviewWindow->Navigate(wurl.c_str());
                     }
+
+                    // WebView2準備完了 → 再描画
+                    UpdateWindow(m_hwnd);
 
                     return S_OK;
                 }

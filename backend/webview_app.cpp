@@ -2,6 +2,7 @@
 
 #include "ipc_handler.h"
 #include "simdjson.h"
+#include "utils/logger.h"
 #include "utils/settings_manager.h"
 #include "webview.h"
 
@@ -127,12 +128,19 @@ void WebViewApp::createAndConfigureWebView() {
     if (auto frontendPath = locateFrontendDirectory()) {
         // Get the directory containing index.html
         auto frontendDir = std::filesystem::absolute(*frontendPath).parent_path();
-        m_webview->set_frontend_path(frontendDir.generic_string());
+        auto pathStr = frontendDir.string();
+        m_webview->set_frontend_path(pathStr);
+
+        log<LogLevel::INFO>(std::format("[WebView] Frontend path: {}", pathStr));
+        log<LogLevel::INFO>(std::format("[WebView] index.html: {}", frontendPath->string()));
+        log_flush();
 
         // Use virtual host to avoid CORS issues with file:// protocol
         m_webview->navigate("https://app.local/index.html");
     } else {
         // Fallback to dev server
+        log<LogLevel::WARNING>("[WebView] Frontend not found, falling back to dev server");
+        log_flush();
         m_webview->navigate("http://localhost:5173");
     }
 }
