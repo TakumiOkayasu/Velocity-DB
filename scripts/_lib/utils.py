@@ -8,8 +8,8 @@ from pathlib import Path
 
 
 def get_project_root() -> Path:
-    """Get the project root directory."""
-    script_dir = Path(__file__).parent.parent
+    """Get the project root directory (resolves symlinks)."""
+    script_dir = Path(__file__).resolve().parent.parent
     return script_dir.parent
 
 
