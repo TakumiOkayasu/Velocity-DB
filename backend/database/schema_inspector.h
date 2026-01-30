@@ -1,5 +1,6 @@
 #pragma once
 
+#include "driver_interface.h"
 #include "sqlserver_driver.h"
 
 #include <memory>
@@ -44,26 +45,27 @@ struct FunctionInfo {
     std::string definition;
 };
 
-class SchemaInspector {
+class SchemaInspector : public ISchemaProvider {
 public:
     SchemaInspector() = default;
-    ~SchemaInspector() = default;
+    ~SchemaInspector() override = default;
 
     void setDriver(std::shared_ptr<SQLServerDriver> driver) { m_driver = std::move(driver); }
 
-    [[nodiscard]] std::vector<std::string> getDatabases();
-    [[nodiscard]] std::vector<TableInfo> getTables(std::string_view database);
-    [[nodiscard]] std::vector<ColumnInfo> getColumns(std::string_view table);
-    [[nodiscard]] std::vector<IndexInfo> getIndexes(std::string_view table);
-    [[nodiscard]] std::vector<ForeignKeyInfo> getForeignKeys(std::string_view table);
-    [[nodiscard]] std::vector<StoredProcedureInfo> getStoredProcedures(std::string_view database);
-    [[nodiscard]] std::vector<FunctionInfo> getFunctions(std::string_view database);
+    // ISchemaProvider interface
+    [[nodiscard]] std::vector<std::string> getDatabases() override;
+    [[nodiscard]] std::vector<TableInfo> getTables(std::string_view database) override;
+    [[nodiscard]] std::vector<ColumnInfo> getColumns(std::string_view table) override;
+    [[nodiscard]] std::vector<IndexInfo> getIndexes(std::string_view table) override;
+    [[nodiscard]] std::vector<ForeignKeyInfo> getForeignKeys(std::string_view table) override;
+    [[nodiscard]] std::vector<StoredProcedureInfo> getStoredProcedures(std::string_view database) override;
+    [[nodiscard]] std::vector<FunctionInfo> getFunctions(std::string_view database) override;
 
-    [[nodiscard]] std::string generateDDL(std::string_view table);
-    [[nodiscard]] std::string generateSelectStatement(std::string_view table);
-    [[nodiscard]] std::string generateInsertStatement(std::string_view table);
-    [[nodiscard]] std::string generateUpdateStatement(std::string_view table);
-    [[nodiscard]] std::string generateDeleteStatement(std::string_view table);
+    [[nodiscard]] std::string generateDDL(std::string_view table) override;
+    [[nodiscard]] std::string generateSelectStatement(std::string_view table) override;
+    [[nodiscard]] std::string generateInsertStatement(std::string_view table) override;
+    [[nodiscard]] std::string generateUpdateStatement(std::string_view table) override;
+    [[nodiscard]] std::string generateDeleteStatement(std::string_view table) override;
 
 private:
     std::shared_ptr<SQLServerDriver> m_driver;

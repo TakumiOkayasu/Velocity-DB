@@ -1,13 +1,42 @@
-// SSH configuration types
+// SSH authentication type
+export type SshAuthType = 'password' | 'privateKey';
+
+// SSH configuration types (runtime, includes secrets)
 export interface SshConfig {
   enabled: boolean;
   host: string;
   port: number;
   username: string;
-  authType: 'password' | 'privateKey';
+  authType: SshAuthType;
   password?: string;
   privateKeyPath?: string;
   keyPassphrase?: string;
+}
+
+// SSH configuration for saved profiles (no secrets in memory)
+export interface SavedSshConfig {
+  enabled: boolean;
+  host: string;
+  port: number;
+  username: string;
+  authType: SshAuthType;
+  privateKeyPath: string;
+  savePassword: boolean;
+}
+
+// Saved connection profile (persistent storage)
+export interface SavedConnectionProfile {
+  id: string;
+  name: string;
+  server: string;
+  port: number;
+  database: string;
+  username: string;
+  useWindowsAuth: boolean;
+  savePassword: boolean;
+  isProduction: boolean;
+  isReadOnly: boolean;
+  ssh?: SavedSshConfig;
 }
 
 // Connection types

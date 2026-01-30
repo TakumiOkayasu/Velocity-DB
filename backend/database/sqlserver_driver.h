@@ -1,5 +1,7 @@
 #pragma once
 
+#include "driver_interface.h"
+
 #include <Windows.h>
 #include <sql.h>
 #include <sqlext.h>
@@ -31,24 +33,26 @@ struct ResultSet {
     double executionTimeMs = 0.0;
 };
 
-class SQLServerDriver {
+class SQLServerDriver : public IDatabaseDriver {
 public:
     SQLServerDriver();
-    ~SQLServerDriver();
+    ~SQLServerDriver() override;
 
     SQLServerDriver(const SQLServerDriver&) = delete;
     SQLServerDriver& operator=(const SQLServerDriver&) = delete;
     SQLServerDriver(SQLServerDriver&&) = delete;
     SQLServerDriver& operator=(SQLServerDriver&&) = delete;
 
-    [[nodiscard]] bool connect(std::string_view connectionString);
-    void disconnect();
-    [[nodiscard]] bool isConnected() const noexcept { return m_connected; }
+    // IDatabaseDriver interface
+    [[nodiscard]] bool connect(std::string_view connectionString) override;
+    void disconnect() override;
+    [[nodiscard]] bool isConnected() const noexcept override { return m_connected; }
 
-    [[nodiscard]] ResultSet execute(std::string_view sql);
-    void cancel();
+    [[nodiscard]] ResultSet execute(std::string_view sql) override;
+    void cancel() override;
 
-    [[nodiscard]] std::string_view getLastError() const noexcept { return m_lastError; }
+    [[nodiscard]] std::string_view getLastError() const noexcept override { return m_lastError; }
+    [[nodiscard]] DriverType getType() const noexcept override { return DriverType::SQLServer; }
 
 private:
     void storeODBCDiagnosticMessage(SQLRETURN returnCode, SQLSMALLINT odbcHandleType, SQLHANDLE odbcHandle);
