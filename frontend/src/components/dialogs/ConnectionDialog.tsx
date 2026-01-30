@@ -421,6 +421,18 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
         username: config.username,
         password: config.password,
         useWindowsAuth: config.useWindowsAuth,
+        ssh: config.ssh.enabled
+          ? {
+              enabled: true,
+              host: config.ssh.host,
+              port: config.ssh.port,
+              username: config.ssh.username,
+              authType: config.ssh.authType,
+              password: config.ssh.password,
+              privateKeyPath: config.ssh.privateKeyPath,
+              keyPassphrase: config.ssh.keyPassphrase,
+            }
+          : undefined,
       });
 
       if (response.success) {
@@ -656,12 +668,32 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
                     <>
                       <div className={styles.formGroup}>
                         <label>Private Key Path</label>
-                        <input
-                          type="text"
-                          value={config.ssh.privateKeyPath}
-                          onChange={(e) => handleSshChange('privateKeyPath', e.target.value)}
-                          placeholder="C:\Users\...\.ssh\id_rsa"
-                        />
+                        <div className={styles.inputWithButton}>
+                          <input
+                            type="text"
+                            value={config.ssh.privateKeyPath}
+                            onChange={(e) => handleSshChange('privateKeyPath', e.target.value)}
+                            placeholder="C:\Users\...\.ssh\id_rsa"
+                          />
+                          <button
+                            type="button"
+                            className={styles.browseButton}
+                            onClick={async () => {
+                              try {
+                                const result = await bridge.browseFile(
+                                  'Private Key Files (*.pem;*.ppk;id_*)|*.pem;*.ppk;id_*|All Files (*.*)|*.*'
+                                );
+                                if (result.filePath) {
+                                  handleSshChange('privateKeyPath', result.filePath);
+                                }
+                              } catch {
+                                // User cancelled dialog
+                              }
+                            }}
+                          >
+                            ...
+                          </button>
+                        </div>
                       </div>
                       <div className={styles.formGroup}>
                         <label>Key Passphrase (optional)</label>

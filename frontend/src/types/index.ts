@@ -1,3 +1,15 @@
+// SSH configuration types
+export interface SshConfig {
+  enabled: boolean;
+  host: string;
+  port: number;
+  username: string;
+  authType: 'password' | 'privateKey';
+  password?: string;
+  privateKeyPath?: string;
+  keyPassphrase?: string;
+}
+
 // Connection types
 export interface Connection {
   id: string;
@@ -13,6 +25,7 @@ export interface Connection {
   isReadOnly: boolean; // Read-only mode - prevents data modifications
   tableListLoadTimeMs?: number; // Time taken to load table list
   tableOpenTimeMs?: number; // Time taken to open a table (click to display)
+  ssh?: SshConfig;
 }
 
 // Query types

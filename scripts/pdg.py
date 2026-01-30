@@ -7,6 +7,7 @@ Velocity-DB CLI - Unified build system interface
 
 Usage:
     uv run scripts/pdg.py build [backend|frontend|all] [--clean]
+    uv run scripts/pdg.py debug [--clean]              # Backend Debug build
     uv run scripts/pdg.py test [backend|frontend] [--watch]
     uv run scripts/pdg.py lint [--fix] [--unsafe]
     uv run scripts/pdg.py dev
@@ -17,6 +18,7 @@ Usage:
 Examples:
     uv run scripts/pdg.py build backend --clean
     uv run scripts/pdg.py build all
+    uv run scripts/pdg.py debug                        # Quick debug build
     uv run scripts/pdg.py test frontend --watch
     uv run scripts/pdg.py lint --fix
     uv run scripts/pdg.py lint --fix --unsafe
@@ -48,6 +50,11 @@ def cmd_build(args):
     else:
         print(f"ERROR: Unknown build target: {target}")
         return False
+
+
+def cmd_debug(args):
+    """Handle debug command - quick backend debug build."""
+    return build.build_backend(build_type="Debug", clean=args.clean)
 
 
 def cmd_test(args):
@@ -269,6 +276,12 @@ def main():
         help="Build type for backend (default: Release)",
     )
 
+    # Debug command (shortcut for build backend --type Debug)
+    debug_parser = subparsers.add_parser("debug", help="Backend Debug build (shortcut)")
+    debug_parser.add_argument(
+        "--clean", "-c", action="store_true", help="Clean build (remove old artifacts)"
+    )
+
     # Test command
     test_parser = subparsers.add_parser("test", aliases=["t"], help="Run tests")
     test_parser.add_argument(
@@ -332,6 +345,7 @@ def main():
     command_map = {
         "build": cmd_build,
         "b": cmd_build,
+        "debug": cmd_debug,
         "test": cmd_test,
         "t": cmd_test,
         "lint": cmd_lint,

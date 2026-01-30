@@ -107,7 +107,7 @@ void WebViewApp::saveWindowSettings() {
 }
 
 void WebViewApp::createAndConfigureWebView() {
-    m_webview = std::make_unique<webview::webview>(true, nullptr);
+    m_webview = std::make_unique<webview::webview>(false, nullptr);
 
     m_webview->set_title("Velocity-DB");
 

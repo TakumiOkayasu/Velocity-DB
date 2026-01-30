@@ -174,7 +174,7 @@
   margin-bottom: 16px;
 }
 
-.formGroup label {
+.formGroup label:not(.checkboxLabel) {
   display: block;
   margin-bottom: 6px;
   font-size: 13px;
@@ -258,13 +258,18 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 0;
   cursor: pointer;
+  font-size: 13px;
+  color: var(--text-primary, #bbbbbb);
 }
 
 .checkboxLabel input[type="checkbox"] {
   width: 16px;
   height: 16px;
+  flex-shrink: 0;
   cursor: pointer;
+  accent-color: var(--accent-color, #4a88c7);
 }
 
 .testResult {
@@ -389,4 +394,29 @@
   color: var(--text-disabled, #5a5d63);
   margin-left: 24px;
   margin-top: 4px;
+}
+
+/* Input with browse button */
+.inputWithButton {
+  display: flex;
+  gap: 8px;
+}
+
+.inputWithButton input {
+  flex: 1;
+}
+
+.browseButton {
+  padding: 8px 12px;
+  background: var(--bg-input, #1e1e1e);
+  border: 1px solid var(--border-color, #3c3f41);
+  border-radius: 4px;
+  color: var(--text-primary, #bbbbbb);
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.browseButton:hover {
+  background: var(--bg-hover, #3c3f41);
 }

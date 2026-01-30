@@ -23,6 +23,7 @@ class GlobalSearch;
 class DataExporter;
 class A5ERParser;
 class SQLFormatter;
+class SshTunnel;
 
 /// Dispatches IPC requests from the frontend to appropriate backend operations
 class IPCHandler {
@@ -121,6 +122,7 @@ private:
     // File operations
     [[nodiscard]] std::string saveQueryToFile(std::string_view params);
     [[nodiscard]] std::string loadQueryFromFile(std::string_view params);
+    [[nodiscard]] std::string browseFile(std::string_view params);
 
     // Bookmark operations
     [[nodiscard]] std::string getBookmarks(std::string_view params);
@@ -141,6 +143,7 @@ private:
     std::unique_ptr<A5ERParser> m_a5erParser;
 
     std::unordered_map<std::string, std::shared_ptr<SQLServerDriver>> m_activeConnections;
+    std::unordered_map<std::string, std::unique_ptr<SshTunnel>> m_sshTunnels;
     int m_connectionIdCounter = 1;
 };
 

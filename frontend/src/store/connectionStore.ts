@@ -36,6 +36,18 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         username: connection.username,
         password: connection.password,
         useWindowsAuth: connection.useWindowsAuth,
+        ssh: connection.ssh?.enabled
+          ? {
+              enabled: true,
+              host: connection.ssh.host,
+              port: connection.ssh.port,
+              username: connection.ssh.username,
+              authType: connection.ssh.authType,
+              password: connection.ssh.password,
+              privateKeyPath: connection.ssh.privateKeyPath,
+              keyPassphrase: connection.ssh.keyPassphrase,
+            }
+          : undefined,
       });
 
       const newConnection: Connection = {

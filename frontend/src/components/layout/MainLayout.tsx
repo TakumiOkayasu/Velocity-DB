@@ -174,6 +174,18 @@ export function MainLayout() {
         useWindowsAuth: config.useWindowsAuth,
         isProduction: config.isProduction,
         isReadOnly: config.isReadOnly,
+        ssh: config.ssh.enabled
+          ? {
+              enabled: true,
+              host: config.ssh.host,
+              port: config.ssh.port,
+              username: config.ssh.username,
+              authType: config.ssh.authType,
+              password: config.ssh.password,
+              privateKeyPath: config.ssh.privateKeyPath,
+              keyPassphrase: config.ssh.keyPassphrase,
+            }
+          : undefined,
       });
     } catch (error) {
       console.error('Connection failed:', error);

@@ -11,6 +11,7 @@
 #include "exporters/csv_exporter.h"
 #include "exporters/excel_exporter.h"
 #include "exporters/json_exporter.h"
+#include "network/ssh_tunnel.h"
 #include "parsers/a5er_parser.h"
 #include "parsers/sql_formatter.h"
 #include "parsers/sql_parser.h"
@@ -33,12 +34,24 @@ namespace velocitydb {
 
 namespace {
 
+struct SshConnectionParams {
+    bool enabled = false;
+    std::string host;
+    int port = 22;
+    std::string username;
+    std::string authType;  // "password" or "privateKey"
+    std::string password;
+    std::string privateKeyPath;
+    std::string keyPassphrase;
+};
+
 struct DatabaseConnectionParams {
     std::string server;
     std::string database;
     std::string username;
     std::string password;
     bool useWindowsAuth = true;
+    SshConnectionParams ssh;
 };
 
 /// Escapes special characters in ODBC connection string values.
@@ -92,6 +105,37 @@ struct DatabaseConnectionParams {
         }
         if (auto auth = doc["useWindowsAuth"].get_bool(); !auth.error()) {
             result.useWindowsAuth = auth.value();
+        }
+
+        // Extract SSH settings
+        auto sshObj = doc["ssh"];
+        if (!sshObj.error()) {
+            if (auto enabled = sshObj["enabled"].get_bool(); !enabled.error()) {
+                result.ssh.enabled = enabled.value();
+            }
+            if (result.ssh.enabled) {
+                if (auto host = sshObj["host"].get_string(); !host.error()) {
+                    result.ssh.host = std::string(host.value());
+                }
+                if (auto port = sshObj["port"].get_int64(); !port.error()) {
+                    result.ssh.port = static_cast<int>(port.value());
+                }
+                if (auto username = sshObj["username"].get_string(); !username.error()) {
+                    result.ssh.username = std::string(username.value());
+                }
+                if (auto authType = sshObj["authType"].get_string(); !authType.error()) {
+                    result.ssh.authType = std::string(authType.value());
+                }
+                if (auto password = sshObj["password"].get_string(); !password.error()) {
+                    result.ssh.password = std::string(password.value());
+                }
+                if (auto keyPath = sshObj["privateKeyPath"].get_string(); !keyPath.error()) {
+                    result.ssh.privateKeyPath = std::string(keyPath.value());
+                }
+                if (auto passphrase = sshObj["keyPassphrase"].get_string(); !passphrase.error()) {
+                    result.ssh.keyPassphrase = std::string(passphrase.value());
+                }
+            }
         }
 
         return result;
@@ -186,6 +230,7 @@ void IPCHandler::registerRequestRoutes() {
     m_requestRoutes["writeFrontendLog"] = [this](std::string_view p) { return writeFrontendLog(p); };
     m_requestRoutes["saveQueryToFile"] = [this](std::string_view p) { return saveQueryToFile(p); };
     m_requestRoutes["loadQueryFromFile"] = [this](std::string_view p) { return loadQueryFromFile(p); };
+    m_requestRoutes["browseFile"] = [this](std::string_view p) { return browseFile(p); };
     m_requestRoutes["getBookmarks"] = [this](std::string_view p) { return getBookmarks(p); };
     m_requestRoutes["saveBookmark"] = [this](std::string_view p) { return saveBookmark(p); };
     m_requestRoutes["deleteBookmark"] = [this](std::string_view p) { return deleteBookmark(p); };
@@ -223,7 +268,46 @@ std::string IPCHandler::openDatabaseConnection(std::string_view params) {
         return JsonUtils::errorResponse(connectionParams.error());
     }
 
-    auto odbcString = buildODBCConnectionString(*connectionParams);
+    std::unique_ptr<SshTunnel> sshTunnel;
+    DatabaseConnectionParams effectiveParams = *connectionParams;
+
+    // If SSH is enabled, establish tunnel first
+    if (connectionParams->ssh.enabled) {
+        sshTunnel = std::make_unique<SshTunnel>();
+
+        SshTunnelConfig sshConfig;
+        sshConfig.host = connectionParams->ssh.host;
+        sshConfig.port = connectionParams->ssh.port;
+        sshConfig.username = connectionParams->ssh.username;
+        sshConfig.authMethod = (connectionParams->ssh.authType == "privateKey") ? SshAuthMethod::PublicKey : SshAuthMethod::Password;
+        sshConfig.password = connectionParams->ssh.password;
+        sshConfig.privateKeyPath = connectionParams->ssh.privateKeyPath;
+        sshConfig.keyPassphrase = connectionParams->ssh.keyPassphrase;
+
+        // Parse original server to get remote host and port
+        std::string remoteHost = connectionParams->server;
+        int remotePort = 1433;
+        if (auto commaPos = remoteHost.find(','); commaPos != std::string::npos) {
+            remotePort = std::stoi(remoteHost.substr(commaPos + 1));
+            remoteHost = remoteHost.substr(0, commaPos);
+        }
+        sshConfig.remoteHost = remoteHost;
+        sshConfig.remotePort = remotePort;
+
+        auto result = sshTunnel->connect(sshConfig);
+        if (!result) {
+            return JsonUtils::errorResponse(std::format("SSH tunnel failed: {}", result.error().message));
+        }
+
+        // Redirect connection to localhost through tunnel
+        effectiveParams.server = std::format("127.0.0.1,{}", sshTunnel->getLocalPort());
+        log<LogLevel::DEBUG>(std::format("[IPC] SSH tunnel established, redirecting to: {}", effectiveParams.server));
+    }
+
+    auto odbcString = buildODBCConnectionString(effectiveParams);
+    log<LogLevel::DEBUG>(std::format("[IPC] ODBC connection target: {}", effectiveParams.server));
+    log<LogLevel::DEBUG>("[IPC] Attempting ODBC connection...");
+    log_flush();
 
     auto driver = std::make_shared<SQLServerDriver>();
     if (!driver->connect(odbcString)) {
@@ -232,6 +316,11 @@ std::string IPCHandler::openDatabaseConnection(std::string_view params) {
 
     auto connectionId = std::format("conn_{}", m_connectionIdCounter++);
     m_activeConnections[connectionId] = driver;
+
+    // Store SSH tunnel if used
+    if (sshTunnel) {
+        m_sshTunnels[connectionId] = std::move(sshTunnel);
+    }
 
     return JsonUtils::successResponse(std::format(R"({{"connectionId":"{}"}})", connectionId));
 }
@@ -250,6 +339,12 @@ std::string IPCHandler::closeDatabaseConnection(std::string_view params) {
         m_transactionManagers.erase(connectionId);
     }
 
+    // Close SSH tunnel if exists
+    if (auto tunnel = m_sshTunnels.find(connectionId); tunnel != m_sshTunnels.end()) {
+        tunnel->second->disconnect();
+        m_sshTunnels.erase(tunnel);
+    }
+
     return JsonUtils::successResponse("{}");
 }
 
@@ -259,7 +354,46 @@ std::string IPCHandler::verifyDatabaseConnection(std::string_view params) {
         return JsonUtils::errorResponse(connectionParams.error());
     }
 
-    auto odbcString = buildODBCConnectionString(*connectionParams);
+    std::unique_ptr<SshTunnel> sshTunnel;
+    DatabaseConnectionParams effectiveParams = *connectionParams;
+
+    // If SSH is enabled, establish tunnel first
+    if (connectionParams->ssh.enabled) {
+        sshTunnel = std::make_unique<SshTunnel>();
+
+        SshTunnelConfig sshConfig;
+        sshConfig.host = connectionParams->ssh.host;
+        sshConfig.port = connectionParams->ssh.port;
+        sshConfig.username = connectionParams->ssh.username;
+        sshConfig.authMethod = (connectionParams->ssh.authType == "privateKey") ? SshAuthMethod::PublicKey : SshAuthMethod::Password;
+        sshConfig.password = connectionParams->ssh.password;
+        sshConfig.privateKeyPath = connectionParams->ssh.privateKeyPath;
+        sshConfig.keyPassphrase = connectionParams->ssh.keyPassphrase;
+
+        // Parse original server to get remote host and port
+        std::string remoteHost = connectionParams->server;
+        int remotePort = 1433;
+        if (auto commaPos = remoteHost.find(','); commaPos != std::string::npos) {
+            remotePort = std::stoi(remoteHost.substr(commaPos + 1));
+            remoteHost = remoteHost.substr(0, commaPos);
+        }
+        sshConfig.remoteHost = remoteHost;
+        sshConfig.remotePort = remotePort;
+
+        auto result = sshTunnel->connect(sshConfig);
+        if (!result) {
+            return JsonUtils::successResponse(std::format(R"({{"success":false,"message":"SSH tunnel failed: {}"}})", JsonUtils::escapeString(result.error().message)));
+        }
+
+        // Redirect connection to localhost through tunnel
+        effectiveParams.server = std::format("127.0.0.1,{}", sshTunnel->getLocalPort());
+        log<LogLevel::DEBUG>(std::format("[IPC] SSH tunnel established, redirecting to: {}", effectiveParams.server));
+    }
+
+    auto odbcString = buildODBCConnectionString(effectiveParams);
+    log<LogLevel::DEBUG>(std::format("[IPC] ODBC connection target: {}", effectiveParams.server));
+    log<LogLevel::DEBUG>("[IPC] Attempting ODBC connection...");
+    log_flush();
 
     SQLServerDriver driver;
     if (driver.connect(odbcString)) {
@@ -2621,6 +2755,47 @@ std::string IPCHandler::loadQueryFromFile(std::string_view params) {
         }
 
         auto json = std::format("{{\"filePath\":\"{}\",\"content\":\"{}\"}}", result.value().string(), escapedContent);
+        return JsonUtils::successResponse(json);
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string IPCHandler::browseFile(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        auto doc = parser.parse(params);
+
+        // Get optional filter parameter
+        std::string filter = "All Files (*.*)\0*.*\0";
+        auto filterResult = doc["filter"].get_string();
+        if (!filterResult.error()) {
+            filter = std::string(filterResult.value());
+            // Replace | with \0 for Win32 API format
+            for (auto& c : filter) {
+                if (c == '|')
+                    c = '\0';
+            }
+            filter += '\0';
+        }
+
+        auto result = FileDialog::showOpenDialog(filter);
+        if (!result) {
+            return JsonUtils::errorResponse(result.error());
+        }
+
+        // Escape backslashes for JSON
+        std::string pathStr = result.value().string();
+        std::string escapedPath;
+        for (auto c : pathStr) {
+            if (c == '\\') {
+                escapedPath += "\\\\";
+            } else {
+                escapedPath += c;
+            }
+        }
+
+        auto json = std::format("{{\"filePath\":\"{}\"}}", escapedPath);
         return JsonUtils::successResponse(json);
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());

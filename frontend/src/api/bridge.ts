@@ -79,6 +79,16 @@ class Bridge {
     username?: string;
     password?: string;
     useWindowsAuth: boolean;
+    ssh?: {
+      enabled: boolean;
+      host: string;
+      port: number;
+      username: string;
+      authType: string;
+      password?: string;
+      privateKeyPath?: string;
+      keyPassphrase?: string;
+    };
   }): Promise<{ connectionId: string }> {
     // Build server string with port if provided
     const serverWithPort =
@@ -99,6 +109,16 @@ class Bridge {
     username?: string;
     password?: string;
     useWindowsAuth: boolean;
+    ssh?: {
+      enabled: boolean;
+      host: string;
+      port: number;
+      username: string;
+      authType: string;
+      password?: string;
+      privateKeyPath?: string;
+      keyPassphrase?: string;
+    };
   }): Promise<{ success: boolean; message: string }> {
     // Build server string with port if provided
     const serverWithPort =
@@ -696,6 +716,10 @@ class Bridge {
 
   async loadQueryFromFile(): Promise<{ filePath: string; content: string }> {
     return this.call('loadQueryFromFile', {});
+  }
+
+  async browseFile(filter?: string): Promise<{ filePath: string }> {
+    return this.call('browseFile', { filter });
   }
 
   // Bookmark operations
