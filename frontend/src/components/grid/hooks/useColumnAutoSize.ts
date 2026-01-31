@@ -1,9 +1,8 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import { useEffect, useRef, useState } from 'react';
 import type { ResultSet } from '../../../types';
+import { isDateType, isNumericType, type RowData } from '../../../types/grid';
 import { log } from '../../../utils/logger';
-
-type RowData = Record<string, string | null>;
 
 interface UseColumnAutoSizeOptions {
   resultSet: ResultSet | null;
@@ -14,40 +13,6 @@ interface UseColumnAutoSizeOptions {
 interface UseColumnAutoSizeResult {
   columnSizing: Record<string, number>;
   setColumnSizing: React.Dispatch<React.SetStateAction<Record<string, number>>>;
-}
-
-// SQL Server type keywords (partial match for types like "int identity")
-const NUMERIC_TYPE_KEYWORDS = [
-  'int',
-  'bigint',
-  'smallint',
-  'tinyint',
-  'decimal',
-  'numeric',
-  'float',
-  'real',
-  'money',
-  'smallmoney',
-  'bit',
-] as const;
-
-const DATE_TYPE_KEYWORDS = [
-  'date',
-  'datetime',
-  'datetime2',
-  'smalldatetime',
-  'time',
-  'datetimeoffset',
-] as const;
-
-function isNumericType(type: string): boolean {
-  const lower = type.toLowerCase();
-  return NUMERIC_TYPE_KEYWORDS.some((keyword) => lower.includes(keyword));
-}
-
-function isDateType(type: string): boolean {
-  const lower = type.toLowerCase();
-  return DATE_TYPE_KEYWORDS.some((keyword) => lower.includes(keyword));
 }
 
 // Text measurement using canvas (Electron-only, no SSR concerns)

@@ -2,9 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { bridge } from '../../../api/bridge';
 import { type CellChange, useEditStore } from '../../../store/editStore';
 import type { Query, ResultSet } from '../../../types';
+import { parseTableName, type RowData } from '../../../types/grid';
 import { log } from '../../../utils/logger';
-
-type RowData = Record<string, string | null>;
 
 interface UseGridEditOptions {
   resultSet: ResultSet | null;
@@ -146,27 +145,12 @@ export function useGridEdit({
   // Set table context for editing when resultSet or sourceTable changes
   useEffect(() => {
     if (resultSet && currentQuery?.sourceTable) {
-      const sourceTable = currentQuery.sourceTable;
-      const parts = sourceTable.split('.');
+      const { schema, table } = parseTableName(currentQuery.sourceTable);
 
-      let tableName: string;
-      let schemaName: string | null = null;
+      const pkColumns = resultSet.columns.filter((col) => col.isPrimaryKey).map((col) => col.name);
 
-      if (parts.length === 2) {
-        schemaName = parts[0].replace(/[[\]]/g, '');
-        tableName = parts[1].replace(/[[\]]/g, '');
-      } else {
-        tableName = sourceTable.replace(/[[\]]/g, '');
-      }
-
-      const primaryKeyColumns = resultSet.columns
-        .filter((col) => col.isPrimaryKey)
-        .map((col) => col.name);
-
-      setTableContext(tableName, schemaName ?? 'dbo', primaryKeyColumns);
-      log.debug(
-        `[useGridEdit] Set table context: ${schemaName}.${tableName}, PK: ${primaryKeyColumns.join(', ')}`
-      );
+      setTableContext(table, schema, pkColumns);
+      log.debug(`[useGridEdit] Set table context: ${schema}.${table}, PK: ${pkColumns.join(', ')}`);
     } else {
       clearTableContext();
     }

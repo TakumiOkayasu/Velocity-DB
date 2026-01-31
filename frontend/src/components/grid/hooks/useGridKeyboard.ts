@@ -1,7 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import { useCallback, useEffect, useState } from 'react';
-
-type RowData = Record<string, string | null>;
+import type { RowData } from '../../../types/grid';
 
 interface EditingCell {
   rowIndex: number;
@@ -24,6 +23,7 @@ interface UseGridKeyboardOptions {
   onDeleteRow: () => void;
   onCloneRow: () => void;
   onNavigateRelated?: (rowIndex: number, columnName: string) => void;
+  onOpenValueEditor?: (rowIndex: number, columnName: string, currentValue: string | null) => void;
 }
 
 interface UseGridKeyboardResult {
@@ -48,6 +48,7 @@ export function useGridKeyboard({
   onDeleteRow,
   onCloneRow,
   onNavigateRelated,
+  onOpenValueEditor,
 }: UseGridKeyboardOptions): UseGridKeyboardResult {
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [editValue, setEditValue] = useState<string>('');
@@ -173,6 +174,18 @@ export function useGridKeyboard({
         e.preventDefault();
         const rowIndex = Array.from(selectedRows)[0];
         onNavigateRelated?.(rowIndex, selectedColumn);
+      } else if (
+        e.shiftKey &&
+        e.key === 'Enter' &&
+        isEditMode &&
+        selectedRows.size === 1 &&
+        selectedColumn
+      ) {
+        // Open value editor (Shift+Enter)
+        e.preventDefault();
+        const rowIndex = Array.from(selectedRows)[0];
+        const currentValue = rowData[rowIndex][selectedColumn];
+        onOpenValueEditor?.(rowIndex, selectedColumn, currentValue);
       }
     };
 
@@ -191,6 +204,7 @@ export function useGridKeyboard({
     onDeleteRow,
     onCloneRow,
     onNavigateRelated,
+    onOpenValueEditor,
     handleStartEdit,
     handleConfirmEdit,
     handleCancelEdit,
