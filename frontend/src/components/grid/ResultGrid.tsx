@@ -5,6 +5,7 @@ import { useConnectionStore } from '../../store/connectionStore';
 import { useActiveQuery, useQueryActions, useQueryStore } from '../../store/queryStore';
 import { useSessionStore } from '../../store/sessionStore';
 import type { ResultSet } from '../../types';
+import { isNumericType, type RowData } from '../../types/grid';
 import { log } from '../../utils/logger';
 import { ExportDialog } from '../export/ExportDialog';
 import { useColumnAutoSize } from './hooks/useColumnAutoSize';
@@ -12,8 +13,7 @@ import { useGridEdit } from './hooks/useGridEdit';
 import { useGridKeyboard } from './hooks/useGridKeyboard';
 import { useRelatedRows } from './hooks/useRelatedRows';
 import styles from './ResultGrid.module.css';
-
-type RowData = Record<string, string | null>;
+import { ValueEditorDialog } from './ValueEditorDialog';
 
 interface ResultGridProps {
   queryId?: string;
@@ -44,6 +44,12 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
   const [activeResultIndex, setActiveResultIndex] = useState(0);
+  const [valueEditorState, setValueEditorState] = useState<{
+    isOpen: boolean;
+    rowIndex: number;
+    columnName: string;
+    value: string | null;
+  }>({ isOpen: false, rowIndex: 0, columnName: '', value: null });
 
   const queryResult = targetQueryId ? (results[targetQueryId] ?? null) : null;
   const currentQuery = queries.find((q) => q.id === targetQueryId);
@@ -90,22 +96,6 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     return result;
   }, [resultSet]);
 
-  const isNumericType = useCallback((type: string): boolean => {
-    const numericTypes = [
-      'int',
-      'bigint',
-      'smallint',
-      'tinyint',
-      'decimal',
-      'numeric',
-      'float',
-      'real',
-      'money',
-      'smallmoney',
-    ];
-    return numericTypes.some((t) => type.toLowerCase().includes(t));
-  }, []);
-
   const columns = useMemo<ColumnDef<RowData>[]>(() => {
     if (!resultSet) return [];
 
@@ -128,7 +118,7 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     }
 
     return cols;
-  }, [resultSet, isNumericType, showLogicalNamesInGrid]);
+  }, [resultSet, showLogicalNamesInGrid]);
 
   // Column Auto Size Hook
   const { columnSizing, setColumnSizing } = useColumnAutoSize({
@@ -198,6 +188,33 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     [rowData, navigateToRelatedRow]
   );
 
+  const handleOpenValueEditor = useCallback(
+    (rowIndex: number, columnName: string, currentValue: string | null) => {
+      setValueEditorState({
+        isOpen: true,
+        rowIndex,
+        columnName,
+        value: currentValue,
+      });
+    },
+    []
+  );
+
+  const handleValueEditorSave = useCallback(
+    (newValue: string | null) => {
+      const { rowIndex, columnName, value: oldValue } = valueEditorState;
+      if (oldValue !== newValue) {
+        updateCell(rowIndex, columnName, oldValue, newValue);
+      }
+      setValueEditorState((prev) => ({ ...prev, isOpen: false }));
+    },
+    [valueEditorState, updateCell]
+  );
+
+  const handleValueEditorCancel = useCallback(() => {
+    setValueEditorState((prev) => ({ ...prev, isOpen: false }));
+  }, []);
+
   // Grid Keyboard Hook
   const { editingCell, editValue, setEditValue, handleStartEdit, handleConfirmEdit } =
     useGridKeyboard({
@@ -211,6 +228,7 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
       onDeleteRow: handleDeleteRow,
       onCloneRow: handleCloneRow,
       onNavigateRelated: handleNavigateRelated,
+      onOpenValueEditor: handleOpenValueEditor,
     });
 
   const table = useReactTable({
@@ -572,6 +590,14 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
         isOpen={isExportDialogOpen}
         onClose={() => setIsExportDialogOpen(false)}
         resultSet={resultSet}
+      />
+
+      <ValueEditorDialog
+        isOpen={valueEditorState.isOpen}
+        columnName={valueEditorState.columnName}
+        initialValue={valueEditorState.value}
+        onSave={handleValueEditorSave}
+        onCancel={handleValueEditorCancel}
       />
     </div>
   );
