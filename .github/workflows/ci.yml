@@ -84,6 +84,14 @@ jobs:
           wait $LINT_PID
           wait $TYPECHECK_PID
 
+  # Compatibility job for branch protection rules
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    needs: [lint-cpp, lint-frontend]
+    steps:
+      - run: echo "All lint checks passed"
+
   # Frontend build and test (depends on frontend lint only)
   build-frontend:
     name: Build & Test Frontend
