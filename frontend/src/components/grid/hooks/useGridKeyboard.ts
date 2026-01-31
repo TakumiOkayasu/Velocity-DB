@@ -11,6 +11,7 @@ interface EditingCell {
 interface UseGridKeyboardOptions {
   isEditMode: boolean;
   selectedRows: Set<number>;
+  selectedColumn: string | null;
   columns: ColumnDef<RowData>[];
   rowData: RowData[];
   tableContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -22,6 +23,7 @@ interface UseGridKeyboardOptions {
   ) => void;
   onDeleteRow: () => void;
   onCloneRow: () => void;
+  onNavigateRelated?: (rowIndex: number, columnName: string) => void;
 }
 
 interface UseGridKeyboardResult {
@@ -38,12 +40,14 @@ interface UseGridKeyboardResult {
 export function useGridKeyboard({
   isEditMode,
   selectedRows,
+  selectedColumn,
   columns,
   rowData,
   tableContainerRef,
   updateCell,
   onDeleteRow,
   onCloneRow,
+  onNavigateRelated,
 }: UseGridKeyboardOptions): UseGridKeyboardResult {
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [editValue, setEditValue] = useState<string>('');
@@ -164,6 +168,11 @@ export function useGridKeyboard({
         // Clone row (Ctrl+D) - WebView2環境ではブラウザのブックマーク機能は無効
         e.preventDefault();
         onCloneRow();
+      } else if (e.key === 'F4' && selectedRows.size === 1 && selectedColumn) {
+        // Navigate to related row (F4)
+        e.preventDefault();
+        const rowIndex = Array.from(selectedRows)[0];
+        onNavigateRelated?.(rowIndex, selectedColumn);
       }
     };
 
@@ -173,6 +182,7 @@ export function useGridKeyboard({
     isEditMode,
     editingCell,
     selectedRows,
+    selectedColumn,
     columns,
     rowData,
     tableContainerRef,
@@ -180,6 +190,7 @@ export function useGridKeyboard({
     handlePaste,
     onDeleteRow,
     onCloneRow,
+    onNavigateRelated,
     handleStartEdit,
     handleConfirmEdit,
     handleCancelEdit,

@@ -22,7 +22,7 @@ interface QueryState {
   cancelQuery: (connectionId: string) => Promise<void>;
   formatQuery: (id: string) => Promise<void>;
   clearError: () => void;
-  openTableData: (connectionId: string, tableName: string) => Promise<void>;
+  openTableData: (connectionId: string, tableName: string, whereClause?: string) => Promise<void>;
   applyWhereFilter: (id: string, connectionId: string, whereClause: string) => Promise<void>;
   refreshDataView: (id: string, connectionId: string) => Promise<void>;
   saveToFile: (id: string) => Promise<void>;
@@ -369,30 +369,36 @@ export const useQueryStore = create<QueryState>((set, get) => ({
     set({ error: null });
   },
 
-  openTableData: async (connectionId, tableName) => {
+  openTableData: async (connectionId, tableName, whereClause) => {
     log.info(
-      `[QueryStore] openTableData called for table: ${tableName}, connection: ${connectionId}`
+      `[QueryStore] openTableData called for table: ${tableName}, connection: ${connectionId}${whereClause ? `, WHERE: ${whereClause}` : ''}`
     );
 
-    // Check if tab for this table already exists
-    const existingQuery = get().queries.find(
-      (q) => q.sourceTable === tableName && q.connectionId === connectionId && q.isDataView
-    );
-
-    if (existingQuery) {
-      log.debug(
-        `[QueryStore] Existing tab found for ${tableName}, activating: ${existingQuery.id}`
+    // When whereClause is specified, always create a new tab (for related row navigation)
+    if (!whereClause) {
+      // Check if tab for this table already exists
+      const existingQuery = get().queries.find(
+        (q) => q.sourceTable === tableName && q.connectionId === connectionId && q.isDataView
       );
-      // Just activate the existing tab
-      set({ activeQueryId: existingQuery.id });
-      return;
+
+      if (existingQuery) {
+        log.debug(
+          `[QueryStore] Existing tab found for ${tableName}, activating: ${existingQuery.id}`
+        );
+        // Just activate the existing tab
+        set({ activeQueryId: existingQuery.id });
+        return;
+      }
     }
 
     const id = `query-${++queryCounter}`;
-    const sql = `SELECT * FROM ${tableName}`;
+    const sql = whereClause
+      ? `SELECT * FROM ${tableName} WHERE ${whereClause}`
+      : `SELECT * FROM ${tableName}`;
+    const tabName = whereClause ? `${tableName} (フィルタ済)` : tableName;
     const newQuery: Query = {
       id,
-      name: tableName,
+      name: tabName,
       content: sql,
       connectionId,
       isDirty: false,
