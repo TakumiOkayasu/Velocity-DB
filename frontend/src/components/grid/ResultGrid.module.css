@@ -327,6 +327,20 @@
   background-color: rgba(106, 153, 85, 0.2);
 }
 
+.fkCell {
+  color: #569cd6;
+  cursor: pointer;
+}
+
+.fkCell:hover {
+  text-decoration: underline;
+}
+
+.selectedCell {
+  background-color: rgba(58, 109, 140, 0.4);
+  outline: 1px solid var(--accent-color);
+}
+
 .td {
   padding: 6px 12px;
   border-right: 1px solid var(--border-color);

@@ -10,6 +10,7 @@ import { ExportDialog } from '../export/ExportDialog';
 import { useColumnAutoSize } from './hooks/useColumnAutoSize';
 import { useGridEdit } from './hooks/useGridEdit';
 import { useGridKeyboard } from './hooks/useGridKeyboard';
+import { useRelatedRows } from './hooks/useRelatedRows';
 import styles from './ResultGrid.module.css';
 
 type RowData = Record<string, string | null>;
@@ -37,10 +38,11 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     `[ResultGrid] Render: targetQueryId=${targetQueryId}, activeQueryId=${activeQueryId}, excludeDataView=${excludeDataView}, isActiveDataView=${isActiveDataView}`
   );
 
-  const { applyWhereFilter, refreshDataView } = useQueryActions();
+  const { applyWhereFilter, refreshDataView, openTableData } = useQueryActions();
   const [whereClause, setWhereClause] = useState('');
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
   const [activeResultIndex, setActiveResultIndex] = useState(0);
 
   const queryResult = targetQueryId ? (results[targetQueryId] ?? null) : null;
@@ -176,17 +178,39 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     return combined;
   }, [baseRowData, getInsertedRows]);
 
+  // Related Rows Hook (FK navigation)
+  const { isForeignKeyColumn, navigateToRelatedRow } = useRelatedRows({
+    connectionId: activeConnectionId,
+    tableName: currentQuery?.sourceTable ?? null,
+    onOpenRelatedTable: (tableName, fkWhereClause) => {
+      if (activeConnectionId) {
+        openTableData(activeConnectionId, tableName, fkWhereClause);
+      }
+    },
+  });
+
+  const handleNavigateRelated = useCallback(
+    (rowIndex: number, columnName: string) => {
+      const row = rowData[rowIndex];
+      if (!row) return;
+      navigateToRelatedRow(columnName, row);
+    },
+    [rowData, navigateToRelatedRow]
+  );
+
   // Grid Keyboard Hook
   const { editingCell, editValue, setEditValue, handleStartEdit, handleConfirmEdit } =
     useGridKeyboard({
       isEditMode,
       selectedRows,
+      selectedColumn,
       columns,
       rowData,
       tableContainerRef,
       updateCell,
       onDeleteRow: handleDeleteRow,
       onCloneRow: handleCloneRow,
+      onNavigateRelated: handleNavigateRelated,
     });
 
   const table = useReactTable({
@@ -470,14 +494,31 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
                       editingCell?.rowIndex === originalIndex && editingCell?.columnId === field;
                     const isEditable =
                       isEditMode && field !== '__rowIndex' && field !== '__originalIndex';
+                    const isFk = isForeignKeyColumn(field);
+                    const isCellSelected = isSelected && selectedColumn === field;
+
+                    const cellClasses = [
+                      styles.td,
+                      isNull && styles.nullCell,
+                      isChanged && styles.changedCell,
+                      isFk && styles.fkCell,
+                      isCellSelected && styles.selectedCell,
+                    ]
+                      .filter(Boolean)
+                      .join(' ');
 
                     return (
                       <td
                         key={cell.id}
-                        className={`${styles.td} ${isNull ? styles.nullCell : ''} ${isChanged ? styles.changedCell : ''}`}
+                        className={cellClasses}
                         style={{
                           width: cell.column.getSize(),
                           textAlign: isNull ? 'center' : (align as 'left' | 'right' | 'center'),
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedRows(new Set([rowIndex]));
+                          setSelectedColumn(field);
                         }}
                         onDoubleClick={() => {
                           if (isEditable) {
