@@ -16,14 +16,13 @@ permissions:
   contents: read
 
 jobs:
-  # Fast lint checks on Linux (free tier friendly)
-  lint:
-    name: Lint
+  # C++ lint (parallel with frontend lint)
+  lint-cpp:
+    name: Lint C++
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
-      # C++ formatting check
       - name: Install LLVM 21 (clang-format)
         run: |
           wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
@@ -44,39 +43,12 @@ jobs:
 
       - name: Check C++ formatting
         run: |
-          find backend -name '*.cpp' -o -name '*.h' | while read file; do
-            clang-format --style=file --dry-run --Werror "$file" || exit 1
-          done
+          find backend -name '*.cpp' -o -name '*.h' | xargs -P 4 -I {} clang-format --style=file --dry-run --Werror {}
 
-      # Frontend lint
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.4
-
-      - name: Install dependencies
-        working-directory: frontend
-        run: |
-          # Dependabot doesn't update bun.lockb, so skip --frozen-lockfile for dependabot branches
-          if [[ "${{ github.actor }}" == "dependabot[bot]" ]]; then
-            bun install
-          else
-            bun install --frozen-lockfile
-          fi
-
-      - name: Lint with Biome
-        working-directory: frontend
-        run: bun run lint
-
-      - name: Type Check
-        working-directory: frontend
-        run: bun run typecheck
-
-  # Frontend build and test (Linux - free tier friendly)
-  build-frontend:
-    name: Build & Test Frontend
+  # Frontend lint (parallel with C++ lint)
+  lint-frontend:
+    name: Lint Frontend
     runs-on: ubuntu-latest
-    needs: lint
     steps:
       - uses: actions/checkout@v6
 
@@ -85,23 +57,80 @@ jobs:
         with:
           bun-version: 1.3.4
 
+      - name: Cache Bun dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('frontend/bun.lockb') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
       - name: Install dependencies
         working-directory: frontend
         run: |
-          # Dependabot doesn't update bun.lockb, so skip --frozen-lockfile for dependabot branches
           if [[ "${{ github.actor }}" == "dependabot[bot]" ]]; then
             bun install
           else
             bun install --frozen-lockfile
           fi
 
-      - name: Build
+      - name: Lint and Type Check (parallel)
         working-directory: frontend
-        run: bun run build
+        run: |
+          bun run lint &
+          LINT_PID=$!
+          bun run typecheck &
+          TYPECHECK_PID=$!
+          wait $LINT_PID
+          wait $TYPECHECK_PID
 
-      - name: Test
+  # Compatibility job for branch protection rules
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    needs: [lint-cpp, lint-frontend]
+    steps:
+      - run: echo "All lint checks passed"
+
+  # Frontend build and test (depends on frontend lint only)
+  build-frontend:
+    name: Build & Test Frontend
+    runs-on: ubuntu-latest
+    needs: lint-frontend
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.4
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('frontend/bun.lockb') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - name: Install dependencies
         working-directory: frontend
-        run: bun run test --run
+        run: |
+          if [[ "${{ github.actor }}" == "dependabot[bot]" ]]; then
+            bun install
+          else
+            bun install --frozen-lockfile
+          fi
+
+      - name: Build and Test (parallel)
+        working-directory: frontend
+        run: |
+          bun run build &
+          BUILD_PID=$!
+          bun run test --run &
+          TEST_PID=$!
+          wait $BUILD_PID
+          wait $TEST_PID
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v6
@@ -110,12 +139,12 @@ jobs:
           path: frontend/dist/
           retention-days: 7
 
-  # Backend build on Windows
+  # Backend build on Windows (depends on C++ lint only)
   # Runs on: main branch push OR PR with 'test-backend' label
   build-backend:
     name: Build & Test Backend
     runs-on: windows-latest
-    needs: lint
+    needs: lint-cpp
     if: |
       (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-backend'))
@@ -134,11 +163,8 @@ jobs:
       - name: Setup MSVC Developer Environment
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Install Ninja
-        run: choco install ninja -y
-
-      - name: Install ccache
-        run: choco install ccache -y
+      - name: Install Ninja and ccache
+        run: choco install ninja ccache -y
 
       - name: Setup ccache
         run: |
@@ -176,16 +202,10 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
             -DCMAKE_C_COMPILER_LAUNCHER=ccache
 
-      - name: ccache stats (before)
-        run: ccache -s
-
-      - name: Build
+      - name: Build (parallel)
         run: cmake --build build --config Release --parallel
 
-      - name: ccache stats (after)
-        run: ccache -s
-
-      - name: Run Tests
+      - name: Run Tests (parallel)
         run: ctest --test-dir build --output-on-failure --parallel
 
       - name: Upload build artifacts
@@ -232,12 +252,13 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [lint, build-frontend]
+    needs: [lint-cpp, lint-frontend, build-frontend]
     if: always()
     steps:
       - name: Check all jobs passed
         run: |
-          if [[ "${{ needs.lint.result }}" != "success" ]] || \
+          if [[ "${{ needs.lint-cpp.result }}" != "success" ]] || \
+             [[ "${{ needs.lint-frontend.result }}" != "success" ]] || \
              [[ "${{ needs.build-frontend.result }}" != "success" ]]; then
             echo "One or more jobs failed"
             exit 1
