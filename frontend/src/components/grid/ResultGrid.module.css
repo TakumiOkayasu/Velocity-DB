@@ -392,3 +392,39 @@
   border-color: var(--accent-color);
   box-shadow: 0 0 0 2px rgba(58, 109, 140, 0.3);
 }
+
+.filterRow {
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.filterCell {
+  padding: 4px 6px;
+  border-right: 1px solid var(--border-color);
+}
+
+.filterCell:last-child {
+  border-right: none;
+}
+
+.columnFilterInput {
+  width: 100%;
+  padding: 2px 6px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 2px;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  box-sizing: border-box;
+}
+
+.columnFilterInput:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.columnFilterInput::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.5;
+}

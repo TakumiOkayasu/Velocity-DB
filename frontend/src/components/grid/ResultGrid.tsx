@@ -1,7 +1,9 @@
 import {
   type ColumnDef,
+  type ColumnFiltersState,
   flexRender,
   getCoreRowModel,
+  getFilteredRowModel,
   getSortedRowModel,
   type SortingState,
   useReactTable,
@@ -58,6 +60,8 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     value: string | null;
   }>({ isOpen: false, rowIndex: 0, columnName: '', value: null });
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [showColumnFilters, setShowColumnFilters] = useState(false);
 
   const queryResult = targetQueryId ? (results[targetQueryId] ?? null) : null;
   const currentQuery = queries.find((q) => q.id === targetQueryId);
@@ -243,17 +247,21 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     data: rowData,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     enableRowSelection: true,
     enableColumnResizing: true,
     enableSorting: true,
+    enableColumnFilters: true,
     columnResizeMode: 'onChange',
     state: {
       columnSizing,
       sorting,
+      columnFilters,
     },
     onColumnSizingChange: setColumnSizing,
     onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
   });
 
   const { rows } = table.getRowModel();
@@ -400,6 +408,19 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
         </label>
         <button
           type="button"
+          onClick={() => {
+            setShowColumnFilters((prev) => !prev);
+            if (showColumnFilters) {
+              setColumnFilters([]);
+            }
+          }}
+          className={`${styles.toolbarButton} ${showColumnFilters ? styles.active : ''}`}
+          title="列フィルタを表示/非表示"
+        >
+          フィルタ
+        </button>
+        <button
+          type="button"
           onClick={() => setIsExportDialogOpen(true)}
           className={styles.toolbarButton}
           title="データをエクスポート"
@@ -481,6 +502,21 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
                 })}
               </tr>
             ))}
+            {showColumnFilters && (
+              <tr className={styles.filterRow}>
+                {table.getHeaderGroups()[0]?.headers.map((header) => (
+                  <th key={`filter-${header.id}`} className={styles.filterCell}>
+                    <input
+                      type="text"
+                      className={styles.columnFilterInput}
+                      placeholder="..."
+                      value={(header.column.getFilterValue() as string) ?? ''}
+                      onChange={(e) => header.column.setFilterValue(e.target.value || undefined)}
+                    />
+                  </th>
+                ))}
+              </tr>
+            )}
           </thead>
           <tbody className={styles.tbody}>
             {paddingTop > 0 && (
@@ -598,7 +634,11 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
       </div>
 
       <div className={styles.statusBar}>
-        <span>{resultSet.rows.length} 件</span>
+        <span>
+          {columnFilters.length > 0
+            ? `${rows.length} / ${resultSet.rows.length} 件 (フィルタ中)`
+            : `${resultSet.rows.length} 件`}
+        </span>
         <span>|</span>
         <span>{resultSet.executionTimeMs.toFixed(2)} ms</span>
         {resultSet.affectedRows > 0 && (
