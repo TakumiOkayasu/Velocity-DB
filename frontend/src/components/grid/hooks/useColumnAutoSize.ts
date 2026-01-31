@@ -1,5 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ResultSet } from '../../../types';
 import { log } from '../../../utils/logger';
 
@@ -73,26 +73,27 @@ interface ColumnSizeConfig {
   padding: number;
 }
 
+// CSS already has cell padding (12px horizontal), so JS padding is minimal
 function getColumnConfig(columnType: string | undefined): ColumnSizeConfig {
   if (!columnType) {
-    return { minWidth: 60, maxWidth: 300, padding: 16 };
+    return { minWidth: 50, maxWidth: 250, padding: 8 };
   }
 
   if (isNumericType(columnType)) {
-    return { minWidth: 40, maxWidth: 150, padding: 12 };
+    return { minWidth: 36, maxWidth: 120, padding: 4 };
   }
 
   if (isDateType(columnType)) {
-    return { minWidth: 80, maxWidth: 200, padding: 12 };
+    return { minWidth: 60, maxWidth: 180, padding: 4 };
   }
 
   // Text/varchar types
-  return { minWidth: 60, maxWidth: 400, padding: 16 };
+  return { minWidth: 50, maxWidth: 300, padding: 8 };
 }
 
-const FONT = '13px system-ui, sans-serif';
+const FONT = '13px monospace';
 const HEADER_FONT = '600 13px system-ui, sans-serif';
-const ROW_INDEX_CONFIG = { minWidth: 36, maxWidth: 80, padding: 8 };
+const ROW_INDEX_CONFIG = { minWidth: 32, maxWidth: 60, padding: 4 };
 
 function calculateColumnSizing(
   columns: ColumnDef<RowData>[],
@@ -130,33 +131,38 @@ function calculateColumnSizing(
   return sizing;
 }
 
+// Generate a stable key for column structure (name + type)
+function getColumnsKey(resultSet: ResultSet | null): string | null {
+  if (!resultSet) return null;
+  return resultSet.columns.map((c) => `${c.name}:${c.type}`).join(',');
+}
+
 export function useColumnAutoSize({
   resultSet,
   columns,
   rowData,
 }: UseColumnAutoSizeOptions): UseColumnAutoSizeResult {
   const [columnSizing, setColumnSizing] = useState<Record<string, number>>({});
-  const prevColumnsRef = useRef<string | null>(null);
+  const appliedKeyRef = useRef<string | null>(null);
 
-  const applyAutoSize = useCallback(() => {
-    if (!resultSet || rowData.length === 0) {
-      log.debug('[useColumnAutoSize] No data to auto-size');
-      return;
-    }
+  // Keep latest values in refs for stable effect
+  const columnsRef = useRef(columns);
+  const rowDataRef = useRef(rowData);
+  columnsRef.current = columns;
+  rowDataRef.current = rowData;
 
-    const newSizing = calculateColumnSizing(columns, rowData, resultSet);
-    setColumnSizing(newSizing);
-    log.debug(`[useColumnAutoSize] Auto-sized: ${JSON.stringify(newSizing)}`);
-  }, [resultSet, columns, rowData]);
-
+  // Auto-size only when column structure changes (new query result)
   useEffect(() => {
-    const columnsKey = resultSet?.columns.map((c) => c.name).join(',') ?? null;
+    if (!resultSet || rowDataRef.current.length === 0) return;
 
-    if (columnsKey !== prevColumnsRef.current && rowData.length > 0) {
-      prevColumnsRef.current = columnsKey;
-      applyAutoSize();
-    }
-  }, [resultSet?.columns, rowData.length, applyAutoSize]);
+    const columnsKey = getColumnsKey(resultSet);
+    if (columnsKey === appliedKeyRef.current) return;
+
+    appliedKeyRef.current = columnsKey;
+    const newSizing = calculateColumnSizing(columnsRef.current, rowDataRef.current, resultSet);
+    setColumnSizing(newSizing);
+    log.debug(`[useColumnAutoSize] Auto-sized for key: ${columnsKey}`);
+  }, [resultSet]);
 
   return { columnSizing, setColumnSizing };
 }

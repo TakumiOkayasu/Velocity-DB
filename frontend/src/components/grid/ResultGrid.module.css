@@ -266,11 +266,10 @@
 }
 
 .table {
-  width: 100%;
+  width: max-content;
   border-collapse: collapse;
   font-size: 13px;
   font-family: var(--font-mono);
-  table-layout: fixed;
 }
 
 .thead {
