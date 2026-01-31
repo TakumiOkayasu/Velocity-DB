@@ -7,6 +7,7 @@ import { useSessionStore } from '../../store/sessionStore';
 import type { ResultSet } from '../../types';
 import { log } from '../../utils/logger';
 import { ExportDialog } from '../export/ExportDialog';
+import { useColumnAutoSize } from './hooks/useColumnAutoSize';
 import { useGridEdit } from './hooks/useGridEdit';
 import { useGridKeyboard } from './hooks/useGridKeyboard';
 import styles from './ResultGrid.module.css';
@@ -41,7 +42,6 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [activeResultIndex, setActiveResultIndex] = useState(0);
-  const [columnSizing, setColumnSizing] = useState<Record<string, number>>({});
 
   const queryResult = targetQueryId ? (results[targetQueryId] ?? null) : null;
   const currentQuery = queries.find((q) => q.id === targetQueryId);
@@ -62,12 +62,6 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
       : (queryResult as ResultSet | null);
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (Object.keys(columnSizing).length > 0) {
-      log.debug(`[ResultGrid] columnSizing updated: ${JSON.stringify(columnSizing)}`);
-    }
-  }, [columnSizing]);
 
   const rowData = useMemo<RowData[]>(() => {
     if (!resultSet) return [];
@@ -133,6 +127,13 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     return cols;
   }, [resultSet, isNumericType, showLogicalNamesInGrid]);
 
+  // Column Auto Size Hook
+  const { columnSizing, setColumnSizing } = useColumnAutoSize({
+    resultSet,
+    columns,
+    rowData,
+  });
+
   // Grid Edit Hook
   const {
     isEditMode,
@@ -193,55 +194,6 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
   const paddingTop = virtualRows.length > 0 ? (virtualRows[0]?.start ?? 0) : 0;
   const paddingBottom =
     virtualRows.length > 0 ? totalSize - (virtualRows[virtualRows.length - 1]?.end ?? 0) : 0;
-
-  const measureTextWidth = useCallback((text: string, font = '14px monospace'): number => {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    if (!context) return 0;
-    context.font = font;
-    return context.measureText(text).width;
-  }, []);
-
-  const handleAutoSizeColumns = useCallback(() => {
-    if (!resultSet || rowData.length === 0) {
-      log.debug('[ResultGrid] No data to auto-size');
-      return;
-    }
-
-    const newSizing: Record<string, number> = {};
-    const paddingDefault = 40;
-    const paddingRowIndex = 24;
-    const headerExtraSpace = 16;
-    const minWidthDefault = 80;
-    const maxWidth = 600;
-    const minWidthRowIndex = 40;
-
-    for (const col of columns) {
-      const columnId = String(col.id);
-      const isRowIndex = columnId === '__rowIndex';
-      const minWidth = isRowIndex ? minWidthRowIndex : minWidthDefault;
-      const padding = isRowIndex ? paddingRowIndex : paddingDefault;
-
-      const headerText = String(col.header || '');
-      const headerWidth = measureTextWidth(headerText, 'bold 14px monospace') + headerExtraSpace;
-
-      let contentMaxWidth = 0;
-      const sampleSize = Math.min(rowData.length, 1000);
-      for (let i = 0; i < sampleSize; i++) {
-        const value = rowData[i][columnId];
-        const text = value === null ? 'NULL' : String(value);
-        const width = measureTextWidth(text);
-        contentMaxWidth = Math.max(contentMaxWidth, width);
-      }
-
-      const maxWidth_measured = Math.max(headerWidth, contentMaxWidth);
-      const finalWidth = Math.min(maxWidth, Math.max(minWidth, maxWidth_measured + padding));
-      newSizing[columnId] = finalWidth;
-    }
-
-    setColumnSizing(newSizing);
-    log.debug(`[ResultGrid] Auto-sized columns: ${JSON.stringify(newSizing)}`);
-  }, [resultSet, rowData, columns, measureTextWidth]);
 
   const handleWhereKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -356,14 +308,6 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
           />
           <span>論理名で表示</span>
         </label>
-        <button
-          type="button"
-          onClick={handleAutoSizeColumns}
-          className={styles.toolbarButton}
-          title="Auto-size All Columns"
-        >
-          Resize Columns
-        </button>
         <button
           type="button"
           onClick={() => setIsExportDialogOpen(true)}
