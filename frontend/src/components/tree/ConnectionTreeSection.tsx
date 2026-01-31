@@ -3,6 +3,7 @@ import { bridge } from '../../api/bridge';
 import { useConnectionStore } from '../../store/connectionStore';
 import type { Connection, DatabaseObject } from '../../types';
 import { log } from '../../utils/logger';
+import { ContextMenu, type MenuItem } from './ContextMenu';
 import styles from './ObjectTree.module.css';
 import { TreeNode } from './TreeNode';
 
@@ -21,6 +22,11 @@ export function ConnectionTreeSection({
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [loadingNodes, setLoadingNodes] = useState<Set<string>>(new Set());
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    node: DatabaseObject;
+  } | null>(null);
 
   // Load tables for this connection
   const loadTables = useCallback(async (): Promise<DatabaseObject[]> => {
@@ -226,6 +232,100 @@ export function ConnectionTreeSection({
     [onTableOpen, connection.id]
   );
 
+  // Context menu handlers
+  const handleContextMenu = useCallback((e: React.MouseEvent, node: DatabaseObject) => {
+    setContextMenu({ x: e.clientX, y: e.clientY, node });
+  }, []);
+
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
+  const getMenuItems = useCallback(
+    (node: DatabaseObject): MenuItem[] => {
+      const items: MenuItem[] = [];
+
+      if (node.type === 'table' || node.type === 'view') {
+        // SELECT文をコピー
+        items.push({
+          label: 'SELECT文をコピー',
+          action: async () => {
+            const tableName = node.name.includes('.')
+              ? `[${node.name.replace('.', '].[')}]`
+              : `[${node.name}]`;
+            const sql = `SELECT * FROM ${tableName}`;
+            await navigator.clipboard.writeText(sql);
+          },
+        });
+
+        // テーブルを開く
+        items.push({
+          label: 'データを開く',
+          action: () => {
+            if (onTableOpen) {
+              onTableOpen(node.name, node.type as 'table' | 'view', connection.id);
+            }
+          },
+        });
+
+        items.push({ label: '', action: () => {}, divider: true });
+
+        // カラム一覧をコピー
+        items.push({
+          label: 'カラム一覧をコピー',
+          action: async () => {
+            const tableName = node.name.includes('.') ? node.name.split('.')[1] : node.name;
+            try {
+              const columns = await bridge.getColumns(connection.id, tableName);
+              const columnList = columns.map((c) => c.name).join(', ');
+              await navigator.clipboard.writeText(columnList);
+            } catch (error) {
+              log.error(`Failed to get columns: ${error}`);
+            }
+          },
+        });
+      }
+
+      if (node.type === 'database') {
+        items.push({
+          label: 'リフレッシュ',
+          action: async () => {
+            // Re-load tables
+            setLoadingNodes((prev) => new Set(prev).add(connection.id));
+            const children = await loadTables();
+            setTreeData((prev) => {
+              return prev.map((n) => {
+                if (n.id === connection.id) {
+                  return { ...n, children };
+                }
+                return n;
+              });
+            });
+            setLoadingNodes((prev) => {
+              const next = new Set(prev);
+              next.delete(connection.id);
+              return next;
+            });
+          },
+        });
+      }
+
+      if (node.type === 'column') {
+        items.push({
+          label: 'カラム名をコピー',
+          action: async () => {
+            // Extract column name from display name "colname (type, ...)"
+            const colName = node.name.split(' ')[0];
+            await navigator.clipboard.writeText(colName);
+          },
+        });
+      }
+
+      return items;
+    },
+    [connection.id, onTableOpen, loadTables]
+  );
+
   if (treeData.length === 0) {
     return <div className={styles.loading}>Loading...</div>;
   }
@@ -242,8 +342,17 @@ export function ConnectionTreeSection({
           selectedNodeId={selectedNodeId}
           onToggle={toggleNode}
           onTableOpen={handleTableOpen}
+          onContextMenu={handleContextMenu}
         />
       ))}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={getMenuItems(contextMenu.node)}
+          onClose={handleCloseContextMenu}
+        />
+      )}
     </div>
   );
 }
