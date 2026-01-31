@@ -10,6 +10,7 @@ interface TreeNodeProps {
   selectedNodeId?: string | null;
   onToggle: (id: string, node: DatabaseObject) => void;
   onTableOpen?: (nodeId: string, tableName: string, tableType: 'table' | 'view') => void;
+  onContextMenu?: (e: React.MouseEvent, node: DatabaseObject) => void;
 }
 
 // SVG Icons for tree nodes
@@ -123,6 +124,7 @@ export const TreeNode = memo(function TreeNode({
   selectedNodeId,
   onToggle,
   onTableOpen,
+  onContextMenu,
 }: TreeNodeProps) {
   const hasChildren = node.children && node.children.length > 0;
   const canExpand = hasChildren || node.type === 'table'; // Tables can lazy-load columns
@@ -148,8 +150,8 @@ export const TreeNode = memo(function TreeNode({
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    // TODO: Show context menu
-    console.log('Context menu:', node);
+    e.stopPropagation();
+    onContextMenu?.(e, node);
   };
 
   const nodeClasses = [
@@ -196,6 +198,7 @@ export const TreeNode = memo(function TreeNode({
               selectedNodeId={selectedNodeId}
               onToggle={onToggle}
               onTableOpen={onTableOpen}
+              onContextMenu={onContextMenu}
             />
           ))}
         </div>
