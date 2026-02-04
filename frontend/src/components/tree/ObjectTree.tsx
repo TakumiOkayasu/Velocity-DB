@@ -144,13 +144,13 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
         >
           <span className={styles.profileIcon}>🗄</span>
           <span className={styles.profileName}>{profile.name}</span>
-          <span className={styles.profileStatus}>disconnected</span>
+          <span className={styles.profileStatus}>未接続</span>
         </div>
       ))}
 
       {/* No connections message */}
       {activeConnections.length === 0 && disconnectedProfiles.length === 0 && (
-        <div className={styles.noConnection}>No connections</div>
+        <div className={styles.noConnection}>接続なし</div>
       )}
 
       {/* Connection confirmation dialog */}
@@ -162,23 +162,23 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
           >
             <div className={styles.dialogHeader}>
               {confirmingProfile.isProduction && <span className={styles.warningIcon}>⚠</span>}
-              <span>Connect to Database</span>
+              <span>データベースに接続</span>
             </div>
             <div className={styles.dialogBody}>
               {confirmingProfile.isProduction ? (
                 <p className={styles.warningText}>
-                  You are about to connect to a <strong>PRODUCTION</strong> database.
+                  <strong>本番</strong>データベースに接続しようとしています。
                   <br />
-                  Are you sure you want to proceed?
+                  続行しますか？
                 </p>
               ) : (
                 <p>
-                  Connect to <strong>{confirmingProfile.name}</strong>?
+                  <strong>{confirmingProfile.name}</strong>に接続しますか？
                 </p>
               )}
               <div className={styles.profileDetails}>
-                <div>Server: {confirmingProfile.server}</div>
-                <div>Database: {confirmingProfile.database}</div>
+                <div>サーバー: {confirmingProfile.server}</div>
+                <div>データベース: {confirmingProfile.database}</div>
               </div>
             </div>
             <div className={styles.dialogActions}>
@@ -187,7 +187,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
                 onClick={handleCancel}
                 disabled={isConnecting}
               >
-                Cancel
+                キャンセル
               </button>
               <button
                 className={`${styles.connectButton} ${confirmingProfile.isProduction ? styles.productionButton : ''}`}
@@ -195,10 +195,10 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
                 disabled={isConnecting}
               >
                 {isConnecting
-                  ? 'Connecting...'
+                  ? '接続中...'
                   : confirmingProfile.isProduction
-                    ? 'Connect to Production'
-                    : 'Connect'}
+                    ? '本番に接続'
+                    : '接続'}
               </button>
             </div>
           </div>

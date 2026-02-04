@@ -59,7 +59,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
-          <h2>Settings</h2>
+          <h2>設定</h2>
           <button className={styles.closeButton} onClick={onClose}>
             {'\u2715'}
           </button>
@@ -71,25 +71,25 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
               className={`${styles.tab} ${activeTab === 'editor' ? styles.active : ''}`}
               onClick={() => setActiveTab('editor')}
             >
-              Editor
+              エディタ
             </button>
             <button
               className={`${styles.tab} ${activeTab === 'query' ? styles.active : ''}`}
               onClick={() => setActiveTab('query')}
             >
-              Query
+              クエリ
             </button>
             <button
               className={`${styles.tab} ${activeTab === 'appearance' ? styles.active : ''}`}
               onClick={() => setActiveTab('appearance')}
             >
-              Appearance
+              外観
             </button>
             <button
               className={`${styles.tab} ${activeTab === 'shortcuts' ? styles.active : ''}`}
               onClick={() => setActiveTab('shortcuts')}
             >
-              Shortcuts
+              ショートカット
             </button>
           </div>
 
@@ -97,7 +97,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
             {activeTab === 'editor' && (
               <div className={styles.settingsGroup}>
                 <div className={styles.setting}>
-                  <label>Font Size</label>
+                  <label>フォントサイズ</label>
                   <input
                     type="number"
                     value={settings.editor.fontSize}
@@ -109,16 +109,16 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                   />
                 </div>
                 <div className={styles.setting}>
-                  <label>Tab Size</label>
+                  <label>タブサイズ</label>
                   <select
                     value={settings.editor.tabSize}
                     onChange={(e) =>
                       updateSetting('editor', 'tabSize', Number.parseInt(e.target.value, 10))
                     }
                   >
-                    <option value={2}>2 spaces</option>
-                    <option value={4}>4 spaces</option>
-                    <option value={8}>8 spaces</option>
+                    <option value={2}>2スペース</option>
+                    <option value={4}>4スペース</option>
+                    <option value={8}>8スペース</option>
                   </select>
                 </div>
                 <div className={styles.setting}>
@@ -128,7 +128,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                       checked={settings.editor.wordWrap}
                       onChange={(e) => updateSetting('editor', 'wordWrap', e.target.checked)}
                     />
-                    Word Wrap
+                    折り返し
                   </label>
                 </div>
                 <div className={styles.setting}>
@@ -138,7 +138,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                       checked={settings.editor.minimap}
                       onChange={(e) => updateSetting('editor', 'minimap', e.target.checked)}
                     />
-                    Show Minimap
+                    ミニマップを表示
                   </label>
                 </div>
               </div>
@@ -153,11 +153,11 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                       checked={settings.query.autoCommit}
                       onChange={(e) => updateSetting('query', 'autoCommit', e.target.checked)}
                     />
-                    Auto Commit
+                    自動コミット
                   </label>
                 </div>
                 <div className={styles.setting}>
-                  <label>Query Timeout (ms)</label>
+                  <label>クエリタイムアウト (ms)</label>
                   <input
                     type="number"
                     value={settings.query.timeout}
@@ -174,7 +174,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                   />
                 </div>
                 <div className={styles.setting}>
-                  <label>Max Rows</label>
+                  <label>最大行数</label>
                   <input
                     type="number"
                     value={settings.query.maxRows}
@@ -196,15 +196,15 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
             {activeTab === 'appearance' && (
               <div className={styles.settingsGroup}>
                 <div className={styles.setting}>
-                  <label>Theme</label>
+                  <label>テーマ</label>
                   <select
                     value={settings.appearance.theme}
                     onChange={(e) =>
                       updateSetting('appearance', 'theme', e.target.value as 'dark' | 'light')
                     }
                   >
-                    <option value="dark">Dark</option>
-                    <option value="light">Light (Coming Soon)</option>
+                    <option value="dark">ダーク</option>
+                    <option value="light">ライト（準備中）</option>
                   </select>
                 </div>
               </div>
@@ -213,23 +213,23 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
             {activeTab === 'shortcuts' && (
               <div className={styles.settingsGroup}>
                 <div className={styles.setting}>
-                  <label>Execute Query</label>
+                  <label>クエリを実行</label>
                   <input type="text" value={settings.shortcuts.execute} readOnly />
                 </div>
                 <div className={styles.setting}>
-                  <label>New Query</label>
+                  <label>新規クエリ</label>
                   <input type="text" value={settings.shortcuts.newQuery} readOnly />
                 </div>
                 <div className={styles.setting}>
-                  <label>Format SQL</label>
+                  <label>SQLフォーマット</label>
                   <input type="text" value={settings.shortcuts.format} readOnly />
                 </div>
                 <div className={styles.setting}>
-                  <label>Search</label>
+                  <label>検索</label>
                   <input type="text" value={settings.shortcuts.search} readOnly />
                 </div>
                 <p className={styles.shortcutNote}>
-                  Keyboard shortcuts cannot be customized in this version.
+                  このバージョンではキーボードショートカットのカスタマイズはできません。
                 </p>
               </div>
             )}
@@ -238,12 +238,12 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
 
         <div className={styles.footer}>
           <button onClick={handleReset} className={styles.resetButton}>
-            Reset to Defaults
+            デフォルトに戻す
           </button>
           <div className={styles.actions}>
-            <button onClick={onClose}>Cancel</button>
+            <button onClick={onClose}>キャンセル</button>
             <button onClick={handleSave} className={styles.saveButton}>
-              Save
+              保存
             </button>
           </div>
         </div>

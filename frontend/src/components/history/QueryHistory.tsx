@@ -12,15 +12,15 @@ export function QueryHistory() {
     <div className={styles.container}>
       <div className={styles.stats}>
         <div className={styles.statItem}>
-          <span className={styles.statLabel}>Total:</span>
+          <span className={styles.statLabel}>合計:</span>
           <span className={styles.statValue}>{stats.total}</span>
         </div>
         <div className={styles.statItem}>
-          <span className={styles.statLabel}>Success:</span>
+          <span className={styles.statLabel}>成功:</span>
           <span className={`${styles.statValue} ${styles.success}`}>{stats.success}</span>
         </div>
         <div className={styles.statItem}>
-          <span className={styles.statLabel}>Failed:</span>
+          <span className={styles.statLabel}>失敗:</span>
           <span className={`${styles.statValue} ${styles.failed}`}>{stats.failed}</span>
         </div>
       </div>
@@ -28,7 +28,7 @@ export function QueryHistory() {
       <div className={styles.toolbar}>
         <input
           type="text"
-          placeholder="Search history..."
+          placeholder="履歴を検索..."
           value={searchKeyword}
           onChange={(e) => setSearchKeyword(e.target.value)}
           className={styles.searchInput}
@@ -36,16 +36,16 @@ export function QueryHistory() {
         <button
           onClick={clearHistory}
           className={styles.clearButton}
-          title="Clear history (keeps favorites)"
+          title="履歴をクリア（お気に入りは保持）"
         >
-          Clear
+          クリア
         </button>
       </div>
 
       <div className={styles.list}>
         {history.length === 0 ? (
           <div className={styles.empty}>
-            {searchKeyword ? 'No matching queries' : 'No query history'}
+            {searchKeyword ? '一致するクエリがありません' : 'クエリ履歴がありません'}
           </div>
         ) : (
           history.map((item) => <HistoryItem key={item.id} item={item} />)

@@ -11,7 +11,7 @@ interface SshTunnelSectionProps {
 export function SshTunnelSection({ ssh, onChange }: SshTunnelSectionProps) {
   return (
     <div className={styles.productionSection}>
-      <div className={styles.sectionHeader}>SSH Tunnel</div>
+      <div className={styles.sectionHeader}>SSHトンネル</div>
       <div className={styles.formGroup}>
         <label className={styles.checkboxLabel}>
           <input
@@ -19,15 +19,15 @@ export function SshTunnelSection({ ssh, onChange }: SshTunnelSectionProps) {
             checked={ssh.enabled}
             onChange={(e) => onChange('enabled', e.target.checked)}
           />
-          Use SSH Tunnel
+          SSHトンネルを使用
         </label>
-        <span className={styles.hint}>Connect via SSH port forwarding</span>
+        <span className={styles.hint}>SSHポート転送経由で接続</span>
       </div>
       {ssh.enabled && (
         <>
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
-              <label>SSH Host</label>
+              <label>SSHホスト</label>
               <input
                 type="text"
                 value={ssh.host}
@@ -36,7 +36,7 @@ export function SshTunnelSection({ ssh, onChange }: SshTunnelSectionProps) {
               />
             </div>
             <div className={styles.formGroupSmall}>
-              <label>SSH Port</label>
+              <label>SSHポート</label>
               <input
                 type="number"
                 value={ssh.port}
@@ -45,7 +45,7 @@ export function SshTunnelSection({ ssh, onChange }: SshTunnelSectionProps) {
             </div>
           </div>
           <div className={styles.formGroup}>
-            <label>SSH Username</label>
+            <label>SSHユーザー名</label>
             <input
               type="text"
               value={ssh.username}
@@ -53,19 +53,19 @@ export function SshTunnelSection({ ssh, onChange }: SshTunnelSectionProps) {
             />
           </div>
           <div className={styles.formGroup}>
-            <label>Authentication</label>
+            <label>認証方式</label>
             <select
               value={ssh.authType}
               onChange={(e) => onChange('authType', e.target.value as SshAuthType)}
               className={styles.selectInput}
             >
-              <option value="password">Password</option>
-              <option value="privateKey">Private Key</option>
+              <option value="password">パスワード</option>
+              <option value="privateKey">秘密鍵</option>
             </select>
           </div>
           {ssh.authType === 'password' && (
             <div className={styles.formGroup}>
-              <label>SSH Password</label>
+              <label>SSHパスワード</label>
               <input
                 type="password"
                 value={ssh.password}
@@ -76,7 +76,7 @@ export function SshTunnelSection({ ssh, onChange }: SshTunnelSectionProps) {
           {ssh.authType === 'privateKey' && (
             <>
               <div className={styles.formGroup}>
-                <label>Private Key Path</label>
+                <label>秘密鍵のパス</label>
                 <div className={styles.inputWithButton}>
                   <input
                     type="text"
@@ -90,13 +90,13 @@ export function SshTunnelSection({ ssh, onChange }: SshTunnelSectionProps) {
                     onClick={async () => {
                       try {
                         const result = await bridge.browseFile(
-                          'Private Key Files (*.pem;*.ppk;id_*)|*.pem;*.ppk;id_*|All Files (*.*)|*.*'
+                          '秘密鍵ファイル (*.pem;*.ppk;id_*)|*.pem;*.ppk;id_*|すべてのファイル (*.*)|*.*'
                         );
                         if (result.filePath) {
                           onChange('privateKeyPath', result.filePath);
                         }
                       } catch {
-                        // User cancelled dialog
+                        // ユーザーがダイアログをキャンセル
                       }
                     }}
                   >
@@ -105,7 +105,7 @@ export function SshTunnelSection({ ssh, onChange }: SshTunnelSectionProps) {
                 </div>
               </div>
               <div className={styles.formGroup}>
-                <label>Key Passphrase (optional)</label>
+                <label>パスフレーズ（任意）</label>
                 <input
                   type="password"
                   value={ssh.keyPassphrase}

@@ -404,17 +404,17 @@ export function MainLayout() {
       {isProduction && (
         <div className={styles.productionBanner}>
           <span className={styles.productionIcon}>!</span>
-          <span>PRODUCTION ENVIRONMENT</span>
-          {isReadOnly && <span className={styles.readOnlyBadge}>READ-ONLY</span>}
+          <span>本番環境</span>
+          {isReadOnly && <span className={styles.readOnlyBadge}>読み取り専用</span>}
         </div>
       )}
 
       <header className={styles.toolbar}>
         {/* Connection */}
         <div className={styles.toolbarGroup}>
-          <button onClick={() => setIsConnectionDialogOpen(true)} title="New Connection">
+          <button onClick={() => setIsConnectionDialogOpen(true)} title="新規接続">
             {Icons.database}
-            <span>Connect</span>
+            <span>接続</span>
           </button>
         </div>
 
@@ -422,7 +422,11 @@ export function MainLayout() {
 
         {/* Query operations */}
         <div className={styles.toolbarGroup}>
-          <button className={styles.iconButton} onClick={handleNewQuery} title="New Query (Ctrl+N)">
+          <button
+            className={styles.iconButton}
+            onClick={handleNewQuery}
+            title="新規クエリ (Ctrl+N)"
+          >
             {Icons.newFile}
           </button>
         </div>
@@ -431,11 +435,11 @@ export function MainLayout() {
           <button
             onClick={handleExecute}
             disabled={!activeQueryId || !activeConnectionId || isExecuting}
-            title="Execute (Ctrl+Enter)"
+            title="実行 (Ctrl+Enter)"
             className={styles.executeButton}
           >
             {isExecuting ? Icons.stop : Icons.play}
-            <span>{isExecuting ? 'Stop' : 'Run'}</span>
+            <span>{isExecuting ? '停止' : '実行'}</span>
           </button>
         </div>
 
@@ -444,7 +448,7 @@ export function MainLayout() {
             className={styles.iconButton}
             onClick={handleFormat}
             disabled={!activeQuery?.content}
-            title="Format SQL (Ctrl+Shift+F)"
+            title="SQLフォーマット (Ctrl+Shift+F)"
           >
             {Icons.format}
           </button>
@@ -454,9 +458,9 @@ export function MainLayout() {
 
         {/* Import */}
         <div className={styles.toolbarGroup}>
-          <button onClick={() => setIsA5ERImportDialogOpen(true)} title="Import A5:ER File">
+          <button onClick={() => setIsA5ERImportDialogOpen(true)} title="A5:ERファイルをインポート">
             {Icons.import}
-            <span>Import</span>
+            <span>インポート</span>
           </button>
         </div>
 
@@ -468,7 +472,7 @@ export function MainLayout() {
           <button
             className={styles.iconButton}
             onClick={() => setIsLeftPanelVisible(!isLeftPanelVisible)}
-            title="Toggle Database Explorer"
+            title="データベースエクスプローラーを切り替え"
           >
             {Icons.sidebar}
           </button>
@@ -476,7 +480,7 @@ export function MainLayout() {
             className={styles.iconButton}
             onClick={() => setIsBottomPanelVisible(!isBottomPanelVisible)}
             disabled={isDataView}
-            title="Toggle Results Panel"
+            title="結果パネルを切り替え"
           >
             {Icons.terminal}
           </button>
@@ -489,15 +493,11 @@ export function MainLayout() {
           <button
             className={styles.iconButton}
             onClick={handleOpenSearch}
-            title="Search (Ctrl+Shift+P)"
+            title="検索 (Ctrl+Shift+P)"
           >
             {Icons.search}
           </button>
-          <button
-            className={styles.iconButton}
-            onClick={handleOpenSettings}
-            title="Settings (Ctrl+,)"
-          >
+          <button className={styles.iconButton} onClick={handleOpenSettings} title="設定 (Ctrl+,)">
             {Icons.settings}
           </button>
         </div>
@@ -570,7 +570,7 @@ export function MainLayout() {
             className={`${styles.statusItem} ${isExecuting ? styles.statusExecuting : styles.statusReady}`}
           >
             <span className={styles.connectionDot} />
-            {isExecuting ? 'Executing...' : 'Ready'}
+            {isExecuting ? '実行中...' : '準備完了'}
           </span>
           {activeConnection?.tableOpenTimeMs !== undefined && (
             <span
@@ -589,7 +589,7 @@ export function MainLayout() {
             <span className={styles.connectionDot} />
             {activeConnection
               ? `${activeConnection.server}/${activeConnection.database}`
-              : 'Not connected'}
+              : '未接続'}
           </span>
         </div>
       </footer>

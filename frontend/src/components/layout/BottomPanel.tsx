@@ -22,7 +22,7 @@ function LoadingFallback() {
     <div
       style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}
     >
-      <div style={{ color: '#808080', fontSize: '13px' }}>Loading...</div>
+      <div style={{ color: '#808080', fontSize: '13px' }}>読み込み中...</div>
     </div>
   );
 }
@@ -37,16 +37,16 @@ export function BottomPanel({ height, onClose }: BottomPanelProps) {
           className={`${styles.tab} ${activeTab === 'results' ? styles.active : ''}`}
           onClick={() => setActiveTab('results')}
         >
-          Results
+          結果
         </button>
         <button
           className={`${styles.tab} ${activeTab === 'history' ? styles.active : ''}`}
           onClick={() => setActiveTab('history')}
         >
-          History
+          履歴
         </button>
         <div className={styles.tabSpacer} />
-        <button className={styles.closeButton} onClick={onClose} title="Close panel">
+        <button className={styles.closeButton} onClick={onClose} title="パネルを閉じる">
           {'\u00D7'}
         </button>
       </div>

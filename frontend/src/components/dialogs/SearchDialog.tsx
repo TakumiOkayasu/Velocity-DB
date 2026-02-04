@@ -113,7 +113,7 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search tables, views, procedures..."
+            placeholder="テーブル、ビュー、プロシージャを検索..."
             className={styles.searchInput}
           />
           {(isSearching || isStale) && <span className={styles.spinner}>{'\u23F3'}</span>}
@@ -121,10 +121,10 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
 
         <div className={styles.results}>
           {!activeConnectionId ? (
-            <div className={styles.noConnection}>Connect to a database to search</div>
+            <div className={styles.noConnection}>検索するにはデータベースに接続してください</div>
           ) : results.length === 0 && searchQuery.trim() ? (
             <div className={styles.noResults}>
-              {isSearching || isStale ? 'Searching...' : 'No results found'}
+              {isSearching || isStale ? '検索中...' : '結果が見つかりません'}
             </div>
           ) : (
             results.map((result, index) => (
@@ -150,7 +150,7 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
         </div>
 
         <div className={styles.footer}>
-          <span className={styles.hint}>↑↓ to navigate, Enter to select, Esc to close</span>
+          <span className={styles.hint}>↑↓ 移動, Enter 選択, Esc 閉じる</span>
           {activeConnection && (
             <span className={styles.connectionInfo}>{activeConnection.database}</span>
           )}

@@ -101,12 +101,12 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
       if (response.success) {
         setTestResult({
           success: true,
-          message: response.message || 'Connection successful!',
+          message: response.message || '接続成功',
         });
       } else {
         setTestResult({
           success: false,
-          message: response.message || 'Connection failed',
+          message: response.message || '接続失敗',
         });
       }
     } catch (error) {
@@ -128,7 +128,7 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
     <div className={styles.overlay}>
       <div className={styles.dialog}>
         <div className={styles.header}>
-          <h2>Database Connection</h2>
+          <h2>DB接続</h2>
           <button className={styles.closeButton} onClick={onClose}>
             {'\u00D7'}
           </button>
@@ -138,11 +138,11 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
           {/* Left: Saved Profiles */}
           <div className={styles.profileList}>
             <div className={styles.profileListHeader}>
-              <span>Saved Connections</span>
+              <span>保存済み接続</span>
               <button
                 className={styles.profileAddButton}
                 onClick={handleNewProfile}
-                title="New Connection"
+                title="新規接続"
               >
                 +
               </button>
@@ -163,16 +163,14 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
                   </div>
                 </div>
               ))}
-              {profiles.length === 0 && (
-                <div className={styles.noProfiles}>No saved connections</div>
-              )}
+              {profiles.length === 0 && <div className={styles.noProfiles}>保存済み接続なし</div>}
             </div>
           </div>
 
           {/* Right: Connection Form */}
           <div className={styles.content}>
             <div className={styles.formModeIndicator}>
-              {mode === 'new' ? 'New Connection' : 'Edit Connection'}
+              {mode === 'new' ? '新規接続' : '接続を編集'}
             </div>
 
             <ConnectionFormSection
@@ -204,37 +202,37 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
           <button
             className={styles.saveButton}
             onClick={handleSaveProfile}
-            title={mode === 'new' ? 'Save as new profile' : 'Update profile'}
+            title={mode === 'new' ? '新規プロファイルとして保存' : 'プロファイルを更新'}
           >
-            {mode === 'new' ? 'Save New' : 'Save'}
+            {mode === 'new' ? '新規保存' : '保存'}
           </button>
           {mode === 'edit' && editingProfileId && (
             <>
               <button
                 className={styles.copyButton}
                 onClick={handleCopyProfile}
-                title="Copy connection profile"
+                title="接続プロファイルをコピー"
               >
-                Copy
+                コピー
               </button>
               <button
                 className={styles.deleteButton}
                 onClick={handleDeleteProfile}
-                title="Delete connection profile"
+                title="接続プロファイルを削除"
               >
-                Delete
+                削除
               </button>
             </>
           )}
           <button className={styles.testButton} onClick={handleTestConnection} disabled={testing}>
-            {testing ? 'Testing...' : 'Test'}
+            {testing ? 'テスト中...' : 'テスト'}
           </button>
           <div className={styles.spacer} />
           <button className={styles.cancelButton} onClick={onClose}>
-            Cancel
+            キャンセル
           </button>
           <button className={styles.connectButton} onClick={handleConnect}>
-            Connect
+            接続
           </button>
         </div>
       </div>

@@ -52,14 +52,14 @@ export function EditorTabs() {
                 e.stopPropagation();
                 removeQuery(query.id);
               }}
-              title="Close tab"
+              title="タブを閉じる"
             >
               {CloseIcon}
             </button>
           </div>
         ))}
       </div>
-      <button className={styles.addButton} onClick={() => addQuery()} title="New Query (Ctrl+N)">
+      <button className={styles.addButton} onClick={() => addQuery()} title="新規クエリ (Ctrl+N)">
         {PlusIcon}
       </button>
     </div>

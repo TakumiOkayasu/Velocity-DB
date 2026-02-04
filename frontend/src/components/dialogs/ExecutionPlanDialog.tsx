@@ -36,10 +36,10 @@ export function ExecutionPlanDialog({ isOpen, onClose, sql }: ExecutionPlanDialo
           const plan = result.rows.map((row) => row.join(' ')).join('\n');
           setPlanText(plan);
         } else {
-          setPlanText('No execution plan available');
+          setPlanText('実行計画を取得できません');
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to get execution plan');
+        setError(err instanceof Error ? err.message : '実行計画の取得に失敗しました');
       } finally {
         setIsLoading(false);
       }
@@ -63,7 +63,7 @@ export function ExecutionPlanDialog({ isOpen, onClose, sql }: ExecutionPlanDialo
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
-          <h2>Execution Plan</h2>
+          <h2>実行計画</h2>
           <button className={styles.closeButton} onClick={onClose}>
             {'\u2715'}
           </button>
@@ -75,34 +75,34 @@ export function ExecutionPlanDialog({ isOpen, onClose, sql }: ExecutionPlanDialo
             disabled={isLoading || !activeConnectionId}
             className={!showActual ? styles.active : ''}
           >
-            Estimated Plan
+            推定プラン
           </button>
           <button
             onClick={handleGetActualPlan}
             disabled={isLoading || !activeConnectionId}
             className={showActual ? styles.active : ''}
           >
-            Actual Plan
+            実際のプラン
           </button>
         </div>
 
         <div className={styles.content}>
           <div className={styles.sqlPreview}>
-            <label>Query:</label>
+            <label>クエリ:</label>
             <pre>{sql}</pre>
           </div>
 
           <div className={styles.planContainer}>
-            <label>Execution Plan:</label>
+            <label>実行計画:</label>
             {isLoading ? (
-              <div className={styles.loading}>Loading execution plan...</div>
+              <div className={styles.loading}>実行計画を読み込み中...</div>
             ) : error ? (
               <div className={styles.error}>{error}</div>
             ) : planText ? (
               <pre className={styles.planText}>{planText}</pre>
             ) : (
               <div className={styles.placeholder}>
-                Click "Estimated Plan" or "Actual Plan" to generate execution plan
+                「推定プラン」または「実際のプラン」をクリックして実行計画を生成
               </div>
             )}
           </div>
@@ -110,9 +110,9 @@ export function ExecutionPlanDialog({ isOpen, onClose, sql }: ExecutionPlanDialo
 
         <div className={styles.footer}>
           <span className={styles.hint}>
-            Tip: Actual plan executes the query. Estimated plan does not.
+            ヒント: 実際のプランはクエリを実行します。推定プランは実行しません。
           </span>
-          <button onClick={onClose}>Close</button>
+          <button onClick={onClose}>閉じる</button>
         </div>
       </div>
     </div>
