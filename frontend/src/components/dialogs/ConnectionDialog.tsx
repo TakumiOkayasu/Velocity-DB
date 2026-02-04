@@ -52,6 +52,7 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
     handleNewProfile,
     handleSaveProfile,
     handleDeleteProfile,
+    handleCopyProfile,
   } = useConnectionProfile(isOpen);
 
   const [testing, setTesting] = useState(false);
@@ -208,13 +209,22 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
             {mode === 'new' ? 'Save New' : 'Save'}
           </button>
           {mode === 'edit' && editingProfileId && (
-            <button
-              className={styles.deleteButton}
-              onClick={handleDeleteProfile}
-              title="Delete connection profile"
-            >
-              Delete
-            </button>
+            <>
+              <button
+                className={styles.copyButton}
+                onClick={handleCopyProfile}
+                title="Copy connection profile"
+              >
+                Copy
+              </button>
+              <button
+                className={styles.deleteButton}
+                onClick={handleDeleteProfile}
+                title="Delete connection profile"
+              >
+                Delete
+              </button>
+            </>
           )}
           <button className={styles.testButton} onClick={handleTestConnection} disabled={testing}>
             {testing ? 'Testing...' : 'Test'}

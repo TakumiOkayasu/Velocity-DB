@@ -321,6 +321,15 @@
   background: #3d7a37;
 }
 
+.copyButton {
+  background: #27455a;
+  color: white;
+}
+
+.copyButton:hover {
+  background: #37657a;
+}
+
 .deleteButton {
   background: #5a2727;
   color: white;

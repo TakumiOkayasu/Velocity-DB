@@ -43,6 +43,7 @@ interface UseConnectionProfileResult {
   handleNewProfile: () => void;
   handleSaveProfile: () => Promise<void>;
   handleDeleteProfile: () => Promise<void>;
+  handleCopyProfile: () => void;
 }
 
 export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResult {
@@ -321,6 +322,17 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
     }
   }, [editingProfileId, mode, profiles, config.name, handleNewProfile, loadProfile]);
 
+  const handleCopyProfile = useCallback(() => {
+    if (mode !== 'edit' || !editingProfileId) return;
+
+    operationCounterRef.current += 1;
+    loadingProfileIdRef.current = null;
+    setMode('new');
+    setEditingProfileId(null);
+    setConfig((prev) => ({ ...prev, name: `${prev.name} (Copy)` }));
+    setTestResult(null);
+  }, [mode, editingProfileId]);
+
   return {
     profiles,
     mode,
@@ -335,5 +347,6 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
     handleNewProfile,
     handleSaveProfile,
     handleDeleteProfile,
+    handleCopyProfile,
   };
 }
