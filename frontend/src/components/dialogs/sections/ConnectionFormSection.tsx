@@ -17,23 +17,23 @@ export function ConnectionFormSection({
   return (
     <>
       <div className={styles.formGroup}>
-        <label>Connection Name</label>
+        <label>接続名</label>
         <input type="text" value={config.name} onChange={(e) => onChange('name', e.target.value)} />
       </div>
 
       <div className={styles.formRow}>
         <div className={styles.formGroup}>
-          <label>Server</label>
+          <label>サーバー</label>
           <input
             type="text"
             value={config.server}
             onChange={(e) => onChange('server', e.target.value)}
-            placeholder="localhost or hostname"
+            placeholder="localhost またはホスト名"
           />
         </div>
 
         <div className={styles.formGroupSmall}>
-          <label>Port</label>
+          <label>ポート</label>
           <input
             type="number"
             value={config.port}
@@ -43,7 +43,7 @@ export function ConnectionFormSection({
       </div>
 
       <div className={styles.formGroup}>
-        <label>Database</label>
+        <label>データベース</label>
         <input
           type="text"
           value={config.database}
@@ -59,14 +59,14 @@ export function ConnectionFormSection({
             checked={config.useWindowsAuth}
             onChange={(e) => onChange('useWindowsAuth', e.target.checked)}
           />
-          Use Windows Authentication
+          Windows認証を使用
         </label>
       </div>
 
       {!config.useWindowsAuth && (
         <>
           <div className={styles.formGroup}>
-            <label>Username</label>
+            <label>ユーザー名</label>
             <input
               type="text"
               value={config.username}
@@ -75,7 +75,7 @@ export function ConnectionFormSection({
           </div>
 
           <div className={styles.formGroup}>
-            <label>Password</label>
+            <label>パスワード</label>
             <input
               type="password"
               value={config.password}
@@ -90,7 +90,7 @@ export function ConnectionFormSection({
                 checked={savePassword}
                 onChange={(e) => onSavePasswordChange(e.target.checked)}
               />
-              Save password (encrypted)
+              パスワードを保存（暗号化）
             </label>
           </div>
         </>

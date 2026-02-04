@@ -44,14 +44,14 @@ export function LeftPanel({ width }: LeftPanelProps) {
       <div className={styles.header}>
         <span className={styles.headerTitle}>
           {DatabaseIcon}
-          Database
+          データベース
         </span>
       </div>
 
       <div className={styles.searchBox}>
         <input
           type="text"
-          placeholder="Search..."
+          placeholder="検索..."
           value={searchFilter}
           onChange={(e) => setSearchFilter(e.target.value)}
         />

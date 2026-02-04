@@ -218,15 +218,15 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
   ]);
 
   const tabs: { id: TabType; label: string }[] = [
-    { id: 'data', label: 'Data' },
-    { id: 'columns', label: 'Columns' },
-    { id: 'indexes', label: 'Indexes' },
-    { id: 'constraints', label: 'Constraints' },
-    { id: 'foreignKeys', label: 'Foreign Keys' },
-    { id: 'referencingForeignKeys', label: 'Foreign Keys (Referenced)' },
-    { id: 'triggers', label: 'Triggers' },
-    { id: 'rdbmsInfo', label: 'RDBMS Info' },
-    { id: 'source', label: 'Source' },
+    { id: 'data', label: 'データ' },
+    { id: 'columns', label: 'カラム' },
+    { id: 'indexes', label: 'インデックス' },
+    { id: 'constraints', label: '制約' },
+    { id: 'foreignKeys', label: '外部キー' },
+    { id: 'referencingForeignKeys', label: '外部キー（参照元）' },
+    { id: 'triggers', label: 'トリガー' },
+    { id: 'rdbmsInfo', label: 'RDBMS情報' },
+    { id: 'source', label: 'ソース' },
   ];
 
   return (
@@ -234,49 +234,41 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
       {/* Toolbar */}
       <div className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
-          <button className={styles.toolbarButton} title="Add Row" disabled={activeTab !== 'data'}>
+          <button className={styles.toolbarButton} title="行を追加" disabled={activeTab !== 'data'}>
             <span className={styles.icon}>+</span>
           </button>
-          <button
-            className={styles.toolbarButton}
-            title="Delete Row"
-            disabled={activeTab !== 'data'}
-          >
+          <button className={styles.toolbarButton} title="行を削除" disabled={activeTab !== 'data'}>
             <span className={styles.icon}>−</span>
           </button>
-          <button
-            className={styles.toolbarButton}
-            title="Clone Row"
-            disabled={activeTab !== 'data'}
-          >
+          <button className={styles.toolbarButton} title="行を複製" disabled={activeTab !== 'data'}>
             <span className={styles.icon}>⎘</span>
           </button>
           <div className={styles.toolbarDivider} />
           <button
             className={`${styles.toolbarButton} ${showLogicalNames ? styles.active : ''}`}
-            title="Show Logical Names"
+            title="論理名を表示"
             onClick={() => setShowLogicalNames(!showLogicalNames)}
           >
             <span className={styles.icon}>A/あ</span>
           </button>
           <div className={styles.toolbarDivider} />
-          <button className={styles.toolbarButton} title="Filter">
+          <button className={styles.toolbarButton} title="フィルタ">
             <span className={styles.icon}>🔍</span>
           </button>
-          <button className={styles.toolbarButton} title="Condition">
+          <button className={styles.toolbarButton} title="条件">
             <span className={styles.icon}>⚡</span>
           </button>
           <div className={styles.toolbarDivider} />
-          <button className={styles.toolbarButton} title="Marker">
+          <button className={styles.toolbarButton} title="マーカー">
             <span className={styles.icon}>🔖</span>
           </button>
         </div>
         <div className={styles.toolbarRight}>
           <span className={styles.tableName}>{fullTableName}</span>
           {resultSet && (
-            <span className={styles.rowCount}>{resultSet.rows.length.toLocaleString()} rows</span>
+            <span className={styles.rowCount}>{resultSet.rows.length.toLocaleString()} 件</span>
           )}
-          <button className={styles.toolbarButton} title="Refresh" onClick={loadData}>
+          <button className={styles.toolbarButton} title="更新" onClick={loadData}>
             <span className={styles.icon}>↻</span>
           </button>
         </div>
@@ -300,12 +292,12 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
         {isLoading && (
           <div className={styles.loading}>
             <span className={styles.spinner}>⏳</span>
-            <span>Loading...</span>
+            <span>読み込み中...</span>
           </div>
         )}
         {error && (
           <div className={styles.error}>
-            <span>Error: {error}</span>
+            <span>エラー: {error}</span>
           </div>
         )}
         {!isLoading && !error && (

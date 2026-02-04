@@ -14,7 +14,7 @@ export function EnvironmentSection({
 }: EnvironmentSectionProps) {
   return (
     <div className={styles.productionSection}>
-      <div className={styles.sectionHeader}>Environment Settings</div>
+      <div className={styles.sectionHeader}>環境設定</div>
       <div className={styles.formGroup}>
         <label className={`${styles.checkboxLabel} ${styles.productionCheckbox}`}>
           <input
@@ -22,9 +22,9 @@ export function EnvironmentSection({
             checked={isProduction}
             onChange={(e) => onChange('isProduction', e.target.checked)}
           />
-          Production Environment
+          本番環境
         </label>
-        <span className={styles.hint}>Enables safety warnings and visual indicators</span>
+        <span className={styles.hint}>安全警告と視覚的インジケーターを有効化</span>
       </div>
       {isProduction && (
         <div className={styles.formGroup}>
@@ -34,9 +34,9 @@ export function EnvironmentSection({
               checked={isReadOnly}
               onChange={(e) => onChange('isReadOnly', e.target.checked)}
             />
-            Read-Only Mode
+            読み取り専用モード
           </label>
-          <span className={styles.hint}>Prevents data modifications (INSERT, UPDATE, DELETE)</span>
+          <span className={styles.hint}>データ変更を禁止（INSERT, UPDATE, DELETE）</span>
         </div>
       )}
     </div>

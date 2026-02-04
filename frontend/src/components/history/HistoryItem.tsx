@@ -65,7 +65,7 @@ export const HistoryItem = memo(function HistoryItem({ item }: HistoryItemProps)
             e.stopPropagation();
             setFavorite(item.id, !item.isFavorite);
           }}
-          title={item.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          title={item.isFavorite ? 'お気に入りから削除' : 'お気に入りに追加'}
         >
           {item.isFavorite ? '★' : '☆'}
         </button>
@@ -75,7 +75,7 @@ export const HistoryItem = memo(function HistoryItem({ item }: HistoryItemProps)
             e.stopPropagation();
             removeHistory(item.id);
           }}
-          title="Remove from history"
+          title="履歴から削除"
         >
           ×
         </button>

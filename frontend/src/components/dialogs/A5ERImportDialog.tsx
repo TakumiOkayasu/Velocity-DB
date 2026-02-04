@@ -79,7 +79,7 @@ export function A5ERImportDialog({ isOpen, onClose, onImport }: A5ERImportDialog
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
-          <h2>Import A5:ER File</h2>
+          <h2>A5:ERファイルをインポート</h2>
           <button className={styles.closeButton} onClick={onClose}>
             {'\u2715'}
           </button>
@@ -88,7 +88,7 @@ export function A5ERImportDialog({ isOpen, onClose, onImport }: A5ERImportDialog
         <div className={styles.content}>
           <div className={styles.fileInput}>
             <label>
-              Select .a5er file:
+              .a5erファイルを選択:
               <input type="file" accept=".a5er,.xml" onChange={handleFileSelect} />
             </label>
             {fileName && <span className={styles.fileName}>{fileName}</span>}
@@ -98,9 +98,9 @@ export function A5ERImportDialog({ isOpen, onClose, onImport }: A5ERImportDialog
 
           {parsedTables.length > 0 && (
             <div className={styles.summary}>
-              <h3>Parsed Content</h3>
+              <h3>解析結果</h3>
               <p>
-                {parsedTables.length} tables, {parsedRelations.length} relations
+                {parsedTables.length} テーブル, {parsedRelations.length} リレーション
               </p>
 
               <div className={styles.tableList}>
@@ -110,7 +110,7 @@ export function A5ERImportDialog({ isOpen, onClose, onImport }: A5ERImportDialog
                       {table.schema ? `${table.schema}.` : ''}
                       {table.name}
                     </span>
-                    <span className={styles.columnCount}>{table.columns.length} columns</span>
+                    <span className={styles.columnCount}>{table.columns.length} カラム</span>
                   </div>
                 ))}
               </div>
@@ -119,22 +119,22 @@ export function A5ERImportDialog({ isOpen, onClose, onImport }: A5ERImportDialog
 
           <div className={styles.ddlSection}>
             <div className={styles.ddlHeader}>
-              <h3>Generated DDL</h3>
-              <button onClick={() => setShowDDL(!showDDL)}>{showDDL ? 'Hide' : 'Show'}</button>
-              {generatedDDL && <button onClick={handleCopyDDL}>Copy</button>}
+              <h3>生成されたDDL</h3>
+              <button onClick={() => setShowDDL(!showDDL)}>{showDDL ? '非表示' : '表示'}</button>
+              {generatedDDL && <button onClick={handleCopyDDL}>コピー</button>}
             </div>
             {showDDL && generatedDDL && <pre className={styles.ddlContent}>{generatedDDL}</pre>}
           </div>
         </div>
 
         <div className={styles.footer}>
-          <button onClick={onClose}>Cancel</button>
+          <button onClick={onClose}>キャンセル</button>
           <button
             onClick={handleImport}
             disabled={parsedTables.length === 0}
             className={styles.importButton}
           >
-            Import to ER Diagram
+            ER図にインポート
           </button>
         </div>
       </div>
