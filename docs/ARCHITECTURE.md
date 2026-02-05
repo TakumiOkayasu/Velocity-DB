@@ -6,7 +6,7 @@
 
 ## レイヤー構造
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                        Frontend (React)                      │
 ├─────────────────────────────────────────────────────────────┤
@@ -23,7 +23,7 @@
 ## コンポーネント対応表
 
 | 責任 | Backend (C++) | Frontend (TS) |
-|------|---------------|---------------|
+| ------ | --------------- | --------------- |
 | **接続管理** | `DatabaseContext` | `connectionStore` |
 | **スキーマ取得** | `SchemaInspector` | `schemaStore` |
 | **クエリ実行** | `AsyncQueryExecutor` | `queryStore` |
@@ -40,7 +40,7 @@
 ### Backend (C++)
 
 | 種別 | パターン | 例 |
-|------|----------|-----|
+| ------ | ---------- | ----- |
 | インターフェース | `I*able` | `IQueryable`, `IExportable` |
 | コンテキスト | `*Context` | `DatabaseContext` |
 | サービス | `*Manager`, `*Executor` | `SettingsManager` |
@@ -49,7 +49,7 @@
 ### Frontend (TypeScript)
 
 | 種別 | パターン | 例 |
-|------|----------|-----|
+| ------ | ---------- | ----- |
 | ストア | `*Store` | `connectionStore` |
 | フック | `use*` | `useConnections` |
 | 型定義 | `I*`, `*Type` | `IConnection` |
@@ -59,7 +59,7 @@
 
 ### 接続確立
 
-```
+```text
 [Frontend]                              [Backend]
 connectionStore.connect()
     │
@@ -83,7 +83,7 @@ connectionStore.setActive(connectionId)
 
 ### クエリ実行
 
-```
+```text
 [Frontend]                              [Backend]
 queryStore.execute(sql)
     │
@@ -106,7 +106,7 @@ queryStore.setResult(data)
 
 ### Backend
 
-```
+```text
 backend/
 ├── ipc_handler.h/cpp       # IPCルーティング
 ├── interfaces/             # *able インターフェース
@@ -129,7 +129,7 @@ backend/
 
 ### Frontend
 
-```
+```text
 frontend/src/
 ├── api/
 │   └── bridge.ts           # IPC通信

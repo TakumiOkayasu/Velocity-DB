@@ -4,7 +4,7 @@
 
 ### Ninja Permission Error
 
-```
+```text
 ninja: error: failed recompaction: Permission denied
 ```
 

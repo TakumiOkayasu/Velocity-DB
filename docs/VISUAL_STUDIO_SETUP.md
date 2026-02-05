@@ -30,12 +30,14 @@ bun run build
 以下のいずれかの方法でプロジェクトを開きます：
 
 #### 方法A: CMakeプロジェクトとして開く（推奨）
+
 1. Visual Studio 2022 を起動
 2. 「フォルダーを開く」を選択
 3. `D:\prog\Velocity-DB` フォルダを選択
 4. Visual Studio が CMakeLists.txt を自動検出してプロジェクトを構成
 
 #### 方法B: 生成済みソリューションを開く
+
 1. `D:\prog\Velocity-DB\build\VelocityDB.sln` をダブルクリック
 2. ソリューションエクスプローラーで「VelocityDB」プロジェクトを右クリック
 3. 「スタートアッププロジェクトに設定」を選択
@@ -43,6 +45,7 @@ bun run build
 ### 3. デバッグ構成の選択
 
 ツールバーで構成を選択：
+
 - **Debug** : デバッグ用（ブレークポイント使用可能）
 - **Release** : リリース用（最適化有効）
 
@@ -58,7 +61,7 @@ bun run build
 
 ## プロジェクト構成
 
-```
+```text
 VelocityDB.sln
 ├── ALL_BUILD         - 全プロジェクトビルド
 ├── VelocityDB        - メインアプリケーション (スタートアップ)
@@ -74,7 +77,7 @@ VelocityDB.sln
 ### WebView2 が見つからない場合
 
 WebView2 Runtime がインストールされていることを確認してください：
-https://developer.microsoft.com/en-us/microsoft-edge/webview2/
+<https://developer.microsoft.com/en-us/microsoft-edge/webview2/>
 
 ### フロントエンドが表示されない場合
 
@@ -87,7 +90,8 @@ https://developer.microsoft.com/en-us/microsoft-edge/webview2/
 1. Visual Studio のビルドツールが最新か確認
 2. 「ソリューションのクリーン」を実行してからリビルド
 3. `build` フォルダを削除してCMakeを再実行：
-   ```
+
+   ```text
    uv run scripts/pdg.py build backend --type Debug --clean
    ```
 

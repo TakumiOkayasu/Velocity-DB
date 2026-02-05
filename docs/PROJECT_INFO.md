@@ -7,7 +7,7 @@ Windows専用の高性能RDBMS管理ツール（DataGripライクなUI/UX）。S
 ## 技術スタック
 
 | 領域 | 技術 |
-|------|------|
+| ------ | ------ |
 | Backend | C++23 + ODBC + WebView2 |
 | Frontend | React 18 + TypeScript + TanStack Table |
 | Build (C++) | CMake + Ninja (MSVC) |
@@ -37,7 +37,7 @@ Velocity-DB/
 ## キーボードショートカット
 
 | 操作 | ショートカット |
-|------|----------------|
+| ------ | ---------------- |
 | SQL実行 | F9, Ctrl+Enter |
 | 新規クエリタブ | Ctrl+N |
 | タブを閉じる | Ctrl+W |
@@ -50,7 +50,7 @@ Velocity-DB/
 ## パフォーマンス目標
 
 | 操作 | 目標 |
-|------|------|
+| ------ | ------ |
 | アプリ起動 | < 0.3s |
 | SQL Server接続 | < 50ms |
 | SELECT (100万行) | < 500ms |
