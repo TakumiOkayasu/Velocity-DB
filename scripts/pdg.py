@@ -12,6 +12,7 @@ Usage:
     uv run scripts/pdg.py lint [--fix] [--unsafe]
     uv run scripts/pdg.py dev
     uv run scripts/pdg.py package
+    uv run scripts/pdg.py release [version] [--draft] [--skip-checks]
     uv run scripts/pdg.py check [build-type]
     uv run scripts/pdg.py clean [logs|cache|all]
 
@@ -155,6 +156,232 @@ def cmd_package(args):
     print(f"\n  Output: {dist_dir}")
     total_size = sum(f.stat().st_size for f in dist_dir.rglob("*") if f.is_file())
     print(f"  Total size: {total_size / 1024 / 1024:.2f} MB")
+
+    return True
+
+
+def cmd_release(args):
+    """Handle release command - create versioned release package."""
+    import re
+    import shutil
+    import subprocess
+    import zipfile
+
+    project_root = utils.get_project_root()
+    dist_dir = project_root / "dist"
+
+    def get_latest_tag() -> str | None:
+        """Get latest semver tag from git."""
+        result = subprocess.run(
+            ["git", "tag", "--sort=-v:refname"],
+            capture_output=True,
+            text=True,
+            cwd=project_root,
+        )
+        if result.returncode != 0:
+            return None
+        tags = result.stdout.strip().split("\n")
+        for tag in tags:
+            if re.match(r"^v?\d+\.\d+\.\d+$", tag):
+                return tag.lstrip("v")
+        return None
+
+    def increment_version(version: str, bump: str) -> str:
+        """Increment version number."""
+        parts = [int(x) for x in version.split(".")]
+        if bump == "major":
+            return f"{parts[0] + 1}.0.0"
+        elif bump == "minor":
+            return f"{parts[0]}.{parts[1] + 1}.0"
+        else:  # patch
+            return f"{parts[0]}.{parts[1]}.{parts[2] + 1}"
+
+    def get_commits_since_tag(tag: str) -> list[dict]:
+        """Get commits since the specified tag."""
+        result = subprocess.run(
+            ["git", "log", f"v{tag}..HEAD", "--pretty=format:%s|%h|%an"],
+            capture_output=True,
+            text=True,
+            cwd=project_root,
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            return []
+        commits = []
+        for line in result.stdout.strip().split("\n"):
+            parts = line.split("|")
+            if len(parts) >= 2:
+                commits.append({"message": parts[0], "hash": parts[1]})
+        return commits
+
+    def categorize_commits(commits: list[dict]) -> dict[str, list[str]]:
+        """Categorize commits by type."""
+        categories = {
+            "feat": [],
+            "fix": [],
+            "perf": [],
+            "refactor": [],
+            "docs": [],
+            "other": [],
+        }
+        for commit in commits:
+            msg = commit["message"]
+            if msg.startswith("feat"):
+                categories["feat"].append(msg)
+            elif msg.startswith("fix"):
+                categories["fix"].append(msg)
+            elif msg.startswith("perf"):
+                categories["perf"].append(msg)
+            elif msg.startswith("refactor"):
+                categories["refactor"].append(msg)
+            elif msg.startswith("docs"):
+                categories["docs"].append(msg)
+            else:
+                categories["other"].append(msg)
+        return categories
+
+    def generate_release_notes(version: str, prev_tag: str | None) -> str:
+        """Generate release notes markdown."""
+        lines = [f"## v{version}\n"]
+
+        if prev_tag:
+            commits = get_commits_since_tag(prev_tag)
+            categories = categorize_commits(commits)
+
+            if categories["feat"]:
+                lines.append("## ✨ New Features\n")
+                for msg in categories["feat"]:
+                    clean = re.sub(r"^feat[:\s]*", "", msg)
+                    lines.append(f"- {clean}")
+                lines.append("")
+
+            if categories["fix"]:
+                lines.append("## 🐛 Bug Fixes\n")
+                for msg in categories["fix"]:
+                    clean = re.sub(r"^fix[:\s]*", "", msg)
+                    lines.append(f"- {clean}")
+                lines.append("")
+
+            if categories["perf"]:
+                lines.append("## ⚡ Performance\n")
+                for msg in categories["perf"]:
+                    clean = re.sub(r"^perf[:\s]*", "", msg)
+                    lines.append(f"- {clean}")
+                lines.append("")
+
+            if categories["refactor"]:
+                lines.append("## 🔧 Internal Changes\n")
+                for msg in categories["refactor"]:
+                    clean = re.sub(r"^refactor[:\s]*", "", msg)
+                    lines.append(f"- {clean}")
+                lines.append("")
+
+        return "\n".join(lines)
+
+    # Determine version
+    latest_tag = get_latest_tag()
+    if args.version:
+        version = args.version.lstrip("v")
+    elif latest_tag:
+        bump = args.bump if hasattr(args, "bump") and args.bump else "patch"
+        version = increment_version(latest_tag, bump)
+        print(f"\n  Latest tag: v{latest_tag}")
+        print(f"  Next version: v{version} ({bump} bump)")
+    else:
+        version = "1.0.0"
+        print("\n  No existing tags found. Using v1.0.0")
+
+    print(f"\n{'#' * 60}")
+    print(f"#  Creating Release v{version}")
+    print(f"{'#' * 60}")
+
+    # Step 1: Run checks (unless skipped)
+    if not args.skip_checks:
+        print("\n[1/5] Running checks...")
+        if not lint.lint_all(fix=False):
+            print("\nERROR: Lint failed. Use --skip-checks to bypass.")
+            return False
+        if not test.test_frontend(watch=False):
+            print("\nERROR: Tests failed. Use --skip-checks to bypass.")
+            return False
+    else:
+        print("\n[1/5] Skipping checks (--skip-checks)")
+
+    # Step 2: Build Release
+    print("\n[2/5] Building Release...")
+    if not build.build_all(build_type="Release", clean=True):
+        print("\nERROR: Build failed")
+        return False
+
+    # Step 3: Create dist directory
+    print("\n[3/5] Creating distribution...")
+    if dist_dir.exists():
+        shutil.rmtree(dist_dir)
+    dist_dir.mkdir()
+
+    exe_path = project_root / "build" / "Release" / "VelocityDB.exe"
+    frontend_dist = project_root / "build" / "Release" / "frontend"
+
+    if not exe_path.exists():
+        print(f"  [FAIL] Executable not found: {exe_path}")
+        return False
+    if not frontend_dist.exists():
+        print(f"  [FAIL] Frontend not found: {frontend_dist}")
+        return False
+
+    shutil.copy(exe_path, dist_dir / "VelocityDB.exe")
+    shutil.copytree(frontend_dist, dist_dir / "frontend")
+    print("  [OK] Files copied")
+
+    # Step 4: Generate release notes
+    print("\n[4/5] Generating release notes...")
+    release_notes = generate_release_notes(version, latest_tag)
+    notes_path = project_root / f"RELEASE_NOTES_v{version}.md"
+    with open(notes_path, "w", encoding="utf-8") as f:
+        f.write(release_notes)
+    print(f"  [OK] {notes_path.name}")
+
+    # Step 5: Create zip
+    print("\n[5/5] Creating zip archive...")
+    zip_name = f"Velocity-DB-v{version}.zip"
+    zip_path = project_root / zip_name
+
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for file in dist_dir.rglob("*"):
+            if file.is_file():
+                arcname = file.relative_to(dist_dir)
+                zf.write(file, arcname)
+
+    zip_size = zip_path.stat().st_size / 1024 / 1024
+    print(f"  [OK] Created: {zip_name} ({zip_size:.2f} MB)")
+
+    # Summary
+    print(f"\n{'=' * 60}")
+    print("  RELEASE PACKAGE CREATED")
+    print(f"{'=' * 60}")
+    print(f"\n  Version:       v{version}")
+    print(f"  Archive:       {zip_path}")
+    print(f"  Size:          {zip_size:.2f} MB")
+    print(f"  Release Notes: {notes_path}")
+
+    # Show release notes preview
+    print(f"\n{'=' * 60}")
+    print("  RELEASE NOTES PREVIEW")
+    print(f"{'=' * 60}")
+    print(release_notes[:500] + ("..." if len(release_notes) > 500 else ""))
+
+    # Commands to execute
+    print(f"\n{'=' * 60}")
+    print("  RELEASE COMMANDS")
+    print(f"{'=' * 60}")
+    draft_flag = "--draft " if args.draft else ""
+    print(f"""
+  # 1. Create and push tag
+  git tag -a v{version} -m "Release v{version}"
+  git push origin v{version}
+
+  # 2. Create GitHub Release
+  gh release create v{version} "{zip_path}" {draft_flag}--title "v{version}" --notes-file "{notes_path}"
+""")
 
     return True
 
@@ -315,6 +542,13 @@ def main():
     # Package command
     subparsers.add_parser("package", aliases=["p"], help="Create distribution package")
 
+    # Release command
+    release_parser = subparsers.add_parser("release", aliases=["r"], help="Create versioned release")
+    release_parser.add_argument("version", nargs="?", help="Version (e.g., 1.2.1). Auto-detect from git tags if omitted")
+    release_parser.add_argument("--bump", choices=["patch", "minor", "major"], default="patch", help="Version bump type (default: patch)")
+    release_parser.add_argument("--draft", action="store_true", help="Mark as draft release")
+    release_parser.add_argument("--skip-checks", action="store_true", help="Skip lint and test checks")
+
     # Check command
     check_parser = subparsers.add_parser("check", aliases=["c"], help="Run all checks")
     check_parser.add_argument(
@@ -354,6 +588,8 @@ def main():
         "d": cmd_dev,
         "package": cmd_package,
         "p": cmd_package,
+        "release": cmd_release,
+        "r": cmd_release,
         "check": cmd_check,
         "c": cmd_check,
         "clean": cmd_clean,

@@ -53,7 +53,15 @@ ruff check scripts/ && ruff format scripts/      # Python
 # 開発サーバー
 uv run scripts/pdg.py dev                        # localhost:5173
 
-# ショートカット: build → b, test → t, lint → l, dev → d
+# リリース
+uv run scripts/pdg.py release                    # 自動バージョン (patch bump)
+uv run scripts/pdg.py release --bump minor       # minor bump (1.2.0 → 1.3.0)
+uv run scripts/pdg.py release --bump major       # major bump (1.2.0 → 2.0.0)
+uv run scripts/pdg.py release 1.3.0              # バージョン直接指定
+uv run scripts/pdg.py release --skip-checks      # チェックをスキップ
+uv run scripts/pdg.py release --draft            # ドラフトリリース
+
+# ショートカット: build → b, test → t, lint → l, dev → d, release → r
 uv run scripts/pdg.py b backend --clean
 uv run scripts/pdg.py t frontend --watch
 uv run scripts/pdg.py l --fix
