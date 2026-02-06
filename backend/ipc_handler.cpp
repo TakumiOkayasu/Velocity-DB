@@ -1520,6 +1520,8 @@ std::string IPCHandler::getConnectionProfiles(std::string_view) {
         json += std::format("\"savePassword\":{},", p.savePassword ? "true" : "false");
         json += std::format("\"isProduction\":{},", p.isProduction ? "true" : "false");
         json += std::format("\"isReadOnly\":{},", p.isReadOnly ? "true" : "false");
+        json += std::format("\"environment\":\"{}\",", JsonUtils::escapeString(p.environment));
+        json += std::format("\"dbType\":\"{}\",", JsonUtils::escapeString(p.dbType));
         // SSH configuration
         json += "\"ssh\":{";
         json += std::format("\"enabled\":{},", p.ssh.enabled ? "true" : "false");
@@ -1563,6 +1565,10 @@ std::string IPCHandler::saveConnectionProfile(std::string_view params) {
             profile.isProduction = val.value();
         if (auto val = doc["isReadOnly"].get_bool(); !val.error())
             profile.isReadOnly = val.value();
+        if (auto val = doc["environment"].get_string(); !val.error())
+            profile.environment = std::string(val.value());
+        if (auto val = doc["dbType"].get_string(); !val.error())
+            profile.dbType = std::string(val.value());
 
         // SSH configuration
         if (auto ssh = doc["ssh"]; !ssh.error()) {

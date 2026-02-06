@@ -36,9 +36,11 @@ struct ConnectionProfile {
     bool useWindowsAuth = true;
     bool savePassword = false;
     std::string encryptedPassword;
-    bool isProduction = false;  // Production environment flag - enables safety features
-    bool isReadOnly = false;    // Read-only mode - prevents data modifications
-    SshConfig ssh;              // SSH tunnel configuration
+    bool isProduction = false;                // Production environment flag - enables safety features
+    bool isReadOnly = false;                  // Read-only mode - prevents data modifications
+    std::string environment = "development";  // development, staging, production
+    std::string dbType = "sqlserver";         // sqlserver, postgresql, mysql
+    SshConfig ssh;                            // SSH tunnel configuration
 };
 
 struct EditorSettings {

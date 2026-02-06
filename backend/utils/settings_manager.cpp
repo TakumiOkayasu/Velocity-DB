@@ -287,6 +287,8 @@ std::string SettingsManager::serializeSettings() const {
         json += std::format("      \"encryptedPassword\": \"{}\",\n", JsonUtils::escapeString(profile.encryptedPassword));
         json += std::format("      \"isProduction\": {},\n", profile.isProduction ? "true" : "false");
         json += std::format("      \"isReadOnly\": {},\n", profile.isReadOnly ? "true" : "false");
+        json += std::format("      \"environment\": \"{}\",\n", JsonUtils::escapeString(profile.environment));
+        json += std::format("      \"dbType\": \"{}\",\n", JsonUtils::escapeString(profile.dbType));
         // SSH configuration
         json += "      \"ssh\": {\n";
         json += std::format("        \"enabled\": {},\n", profile.ssh.enabled ? "true" : "false");
@@ -402,6 +404,10 @@ bool SettingsManager::deserializeSettings(std::string_view jsonStr) {
                     profile.isProduction = val.value();
                 if (auto val = profileEl["isReadOnly"].get_bool(); !val.error())
                     profile.isReadOnly = val.value();
+                if (auto val = profileEl["environment"].get_string(); !val.error())
+                    profile.environment = std::string(val.value());
+                if (auto val = profileEl["dbType"].get_string(); !val.error())
+                    profile.dbType = std::string(val.value());
                 // SSH configuration
                 if (auto ssh = profileEl["ssh"]; !ssh.error()) {
                     if (auto val = ssh["enabled"].get_bool(); !val.error())
