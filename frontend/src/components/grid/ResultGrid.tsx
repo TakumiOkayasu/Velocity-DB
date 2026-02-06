@@ -9,9 +9,15 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useConnectionStore } from '../../store/connectionStore';
-import { useActiveQuery, useQueryActions, useQueryStore } from '../../store/queryStore';
+import {
+  useIsActiveDataView,
+  useQueryActions,
+  useQueryById,
+  useQueryResult,
+  useQueryStore,
+} from '../../store/queryStore';
 import { useSessionStore } from '../../store/sessionStore';
 import type { ResultSet } from '../../types';
 import { isNumericType, type RowData } from '../../types/grid';
@@ -29,19 +35,21 @@ interface ResultGridProps {
   excludeDataView?: boolean;
 }
 
-export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps = {}) {
+function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps = {}) {
+  // Targeted store subscriptions (primitives - cheap)
   const activeQueryId = useQueryStore((state) => state.activeQueryId);
-  const queries = useQueryStore((state) => state.queries);
-  const results = useQueryStore((state) => state.results);
   const isExecuting = useQueryStore((state) => state.isExecuting);
   const error = useQueryStore((state) => state.error);
   const activeConnectionId = useConnectionStore((state) => state.activeConnectionId);
-  const activeQueryFromStore = useActiveQuery();
-  const { showLogicalNamesInGrid, setShowLogicalNamesInGrid } = useSessionStore();
 
-  const currentActiveQuery = queries.find((q) => q.id === activeQueryId);
-  const isActiveDataView = currentActiveQuery?.isDataView === true;
+  const isActiveDataView = useIsActiveDataView();
   const targetQueryId = excludeDataView && isActiveDataView ? null : (queryId ?? activeQueryId);
+  const currentQuery = useQueryById(targetQueryId);
+  const queryResult = useQueryResult(targetQueryId);
+
+  // Session store with targeted selectors (not entire store)
+  const showLogicalNamesInGrid = useSessionStore((state) => state.showLogicalNamesInGrid);
+  const setShowLogicalNamesInGrid = useSessionStore((state) => state.setShowLogicalNamesInGrid);
 
   log.debug(
     `[ResultGrid] Render: targetQueryId=${targetQueryId}, activeQueryId=${activeQueryId}, excludeDataView=${excludeDataView}, isActiveDataView=${isActiveDataView}`
@@ -62,9 +70,6 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [showColumnFilters, setShowColumnFilters] = useState(false);
-
-  const queryResult = targetQueryId ? (results[targetQueryId] ?? null) : null;
-  const currentQuery = queries.find((q) => q.id === targetQueryId);
 
   const isMultipleResults =
     queryResult && 'multipleResults' in queryResult && queryResult.multipleResults === true;
@@ -180,15 +185,21 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     return combined;
   }, [baseRowData, getInsertedRows]);
 
-  // Related Rows Hook (FK navigation)
-  const { isForeignKeyColumn, navigateToRelatedRow } = useRelatedRows({
-    connectionId: activeConnectionId,
-    tableName: currentQuery?.sourceTable ?? null,
-    onOpenRelatedTable: (tableName, fkWhereClause) => {
+  // Memoize callback to prevent useRelatedRows from recreating navigateToRelatedRow every render
+  const handleOpenRelatedTable = useCallback(
+    (tableName: string, fkWhereClause: string) => {
       if (activeConnectionId) {
         openTableData(activeConnectionId, tableName, fkWhereClause);
       }
     },
+    [activeConnectionId, openTableData]
+  );
+
+  // Related Rows Hook (FK navigation)
+  const { isForeignKeyColumn, navigateToRelatedRow } = useRelatedRows({
+    connectionId: activeConnectionId,
+    tableName: currentQuery?.sourceTable ?? null,
+    onOpenRelatedTable: handleOpenRelatedTable,
   });
 
   const handleNavigateRelated = useCallback(
@@ -282,12 +293,12 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
   const handleWhereKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter') {
-        if (activeQueryId && activeConnectionId && activeQueryFromStore?.sourceTable) {
+        if (activeQueryId && activeConnectionId && currentQuery?.sourceTable) {
           applyWhereFilter(activeQueryId, activeConnectionId, whereClause);
         }
       }
     },
-    [activeQueryId, activeConnectionId, activeQueryFromStore, whereClause, applyWhereFilter]
+    [activeQueryId, activeConnectionId, currentQuery?.sourceTable, whereClause, applyWhereFilter]
   );
 
   useEffect(() => {
@@ -343,7 +354,7 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
       )}
 
       <div className={styles.toolbar}>
-        {activeQueryFromStore?.sourceTable && activeConnectionId && (
+        {currentQuery?.sourceTable && activeConnectionId && (
           <button
             type="button"
             onClick={() => {
@@ -429,7 +440,7 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
         </button>
       </div>
 
-      {activeQueryFromStore?.sourceTable && (
+      {currentQuery?.sourceTable && (
         <div className={styles.filterBar}>
           <span className={styles.filterLabel}>WHERE</span>
           <input
@@ -666,3 +677,5 @@ export function ResultGrid({ queryId, excludeDataView = false }: ResultGridProps
     </div>
   );
 }
+
+export const ResultGrid = memo(ResultGridInner);

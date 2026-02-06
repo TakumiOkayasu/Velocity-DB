@@ -5,7 +5,7 @@ import type { Query, QueryResult, ResultSet } from '../types';
 import { log } from '../utils/logger';
 import { useHistoryStore } from './historyStore';
 
-interface QueryState {
+export interface QueryState {
   queries: Query[];
   activeQueryId: string | null;
   results: Record<string, QueryResult>;
@@ -639,7 +639,15 @@ export const useActiveQuery = () =>
     return query ?? null;
   });
 
-export const useQueryResult = (queryId: string | null) =>
+export const useIsActiveDataView = () =>
+  useQueryStore(
+    (state) => state.queries.find((q) => q.id === state.activeQueryId)?.isDataView === true
+  );
+
+export const useQueryById = (queryId: string | null | undefined) =>
+  useQueryStore((state) => (queryId ? state.queries.find((q) => q.id === queryId) : undefined));
+
+export const useQueryResult = (queryId: string | null | undefined) =>
   useQueryStore((state) => (queryId ? (state.results[queryId] ?? null) : null));
 
 export const useQueryActions = () =>
