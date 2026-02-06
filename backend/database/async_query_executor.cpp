@@ -131,14 +131,20 @@ AsyncQueryResult AsyncQueryExecutor::getQueryResult(std::string_view queryId) {
     result.errorMessage = task->errorMessage;
 
     // If completed, get the result (cache it to avoid double future.get() call)
-    // This can block, but we're not holding the mutex
-    if (result.status == QueryStatus::Completed) {
+    // Use wait_for(0) to avoid blocking the UI thread when status is set before future is ready
+    if (result.status == QueryStatus::Completed || result.status == QueryStatus::Failed) {
         if (!task->cachedResult.has_value() && task->future.valid()) {
-            try {
-                task->cachedResult = task->future.get();
-            } catch (...) {
-                result.status = QueryStatus::Failed;
-                result.errorMessage = "Failed to retrieve result";
+            if (task->future.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
+                try {
+                    task->cachedResult = task->future.get();
+                } catch (...) {
+                    result.status = QueryStatus::Failed;
+                    result.errorMessage = "Failed to retrieve result";
+                }
+            } else {
+                // Future not ready yet despite status - report as still running
+                result.status = QueryStatus::Running;
+                return result;
             }
         }
         if (task->cachedResult.has_value()) {

@@ -7,12 +7,16 @@
 #ifndef WEBVIEW_H
 #define WEBVIEW_H
 
+#include <atomic>
+#include <condition_variable>
 #include <cstdio>
 #include <format>
 #include <functional>
-#include <string>
 #include <map>
-#include <atomic>
+#include <mutex>
+#include <queue>
+#include <string>
+#include <thread>
 #include "simdjson.h"
 
 #define WEBVIEW_HINT_NONE 0
@@ -55,6 +59,14 @@ inline std::string utf16_to_utf8(const std::wstring& wstr) {
 using Microsoft::WRL::Callback;
 using Microsoft::WRL::ComPtr;
 
+// Custom Windows message for async IPC responses
+constexpr UINT WM_IPC_RESPONSE = WM_USER + 1;
+
+struct IPCResponse {
+    int64_t requestId;
+    std::string response;
+};
+
 class webview {
 public:
     webview(bool debug = false, void* window = nullptr)
@@ -74,6 +86,7 @@ public:
     void set_disable_cache(bool disable) { m_disableCache = disable; }
 
     ~webview() {
+        stopWorker();
         if (m_webviewController) {
             m_webviewController->Close();
         }
@@ -366,10 +379,13 @@ private:
 )";
         m_webviewWindow->AddScriptToExecuteOnDocumentCreated(script.c_str(), nullptr);
 
-        // Handle messages from JavaScript
+        // Start worker thread for async IPC processing
+        startWorker();
+
+        // Handle messages from JavaScript - dispatch to worker thread
         m_webviewWindow->add_WebMessageReceived(
             Callback<ICoreWebView2WebMessageReceivedEventHandler>(
-                [this](ICoreWebView2* sender, ICoreWebView2WebMessageReceivedEventArgs* args) -> HRESULT {
+                [this](ICoreWebView2* /*sender*/, ICoreWebView2WebMessageReceivedEventArgs* args) -> HRESULT {
                     LPWSTR messageRaw;
                     args->TryGetWebMessageAsString(&messageRaw);
 
@@ -396,16 +412,16 @@ private:
                                 data = std::string(data_result.value());
                             }
 
-                            // Call the "invoke" binding if it exists
+                            // Dispatch to worker thread to keep UI responsive
                             auto it = m_bindings.find("invoke");
                             if (it != m_bindings.end()) {
-                                std::string response = it->second(data);
-
-                                // Send response back to JavaScript with request id
-                                std::wstring wresponse = utf8_to_utf16(response);
-                                std::wstring script = L"window.__webview_response__(" +
-                                    std::to_wstring(id) + L", " + wresponse + L");";
-                                m_webviewWindow->ExecuteScript(script.c_str(), nullptr);
+                                auto fn = it->second;
+                                auto hwnd = m_hwnd;
+                                dispatchToWorker([fn, data = std::move(data), id, hwnd]() {
+                                    std::string response = fn(data);
+                                    auto* resp = new IPCResponse{id, std::move(response)};
+                                    PostMessage(hwnd, WM_IPC_RESPONSE, 0, reinterpret_cast<LPARAM>(resp));
+                                });
                             }
                         }
                     }
@@ -436,12 +452,61 @@ private:
             }
             return 0;
 
+        case WM_IPC_RESPONSE: {
+            auto* resp = reinterpret_cast<IPCResponse*>(lParam);
+            if (self && self->m_webviewWindow && resp) {
+                std::wstring wresponse = utf8_to_utf16(resp->response);
+                std::wstring script = L"window.__webview_response__(" +
+                    std::to_wstring(resp->requestId) + L", " + wresponse + L");";
+                self->m_webviewWindow->ExecuteScript(script.c_str(), nullptr);
+            }
+            delete resp;
+            return 0;
+        }
+
         case WM_DESTROY:
+            if (self) {
+                self->stopWorker();
+            }
             PostQuitMessage(0);
             return 0;
         }
 
         return DefWindowProc(hwnd, msg, wParam, lParam);
+    }
+
+    void startWorker() {
+        m_workerRunning = true;
+        m_workerThread = std::thread([this]() {
+            while (m_workerRunning) {
+                std::function<void()> task;
+                {
+                    std::unique_lock lock(m_taskMutex);
+                    m_taskCv.wait(lock, [this] { return !m_taskQueue.empty() || !m_workerRunning; });
+                    if (!m_workerRunning && m_taskQueue.empty())
+                        break;
+                    task = std::move(m_taskQueue.front());
+                    m_taskQueue.pop();
+                }
+                task();
+            }
+        });
+    }
+
+    void stopWorker() {
+        m_workerRunning = false;
+        m_taskCv.notify_all();
+        if (m_workerThread.joinable()) {
+            m_workerThread.join();
+        }
+    }
+
+    void dispatchToWorker(std::function<void()> task) {
+        {
+            std::lock_guard lock(m_taskMutex);
+            m_taskQueue.push(std::move(task));
+        }
+        m_taskCv.notify_one();
     }
 
     bool m_debug;
@@ -456,6 +521,13 @@ private:
     int m_height = 600;
     int m_hints = WEBVIEW_HINT_NONE;
     std::map<std::string, std::function<std::string(const std::string&)>> m_bindings;
+
+    // Worker thread for async IPC processing
+    std::thread m_workerThread;
+    std::queue<std::function<void()>> m_taskQueue;
+    std::mutex m_taskMutex;
+    std::condition_variable m_taskCv;
+    std::atomic<bool> m_workerRunning{false};
 
     ComPtr<ICoreWebView2Controller> m_webviewController;
     ComPtr<ICoreWebView2> m_webviewWindow;

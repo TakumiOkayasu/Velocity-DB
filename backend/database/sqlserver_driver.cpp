@@ -63,6 +63,11 @@ bool SQLServerDriver::connect(std::string_view connectionString) {
     std::array<SQLCHAR, 1024> outConnectionString{};
     SQLSMALLINT outConnectionStringLen = 0;
 
+    // Set connection timeout to prevent indefinite hangs (e.g. dead SSH tunnels)
+    constexpr SQLUINTEGER loginTimeout = 30;
+    SQLSetConnectAttr(m_dbc, SQL_ATTR_LOGIN_TIMEOUT, reinterpret_cast<SQLPOINTER>(static_cast<uintptr_t>(loginTimeout)), 0);
+    SQLSetConnectAttr(m_dbc, SQL_ATTR_CONNECTION_TIMEOUT, reinterpret_cast<SQLPOINTER>(static_cast<uintptr_t>(loginTimeout)), 0);
+
     std::string connStr(connectionString);
     SQLRETURN ret = SQLDriverConnectA(m_dbc, nullptr, reinterpret_cast<SQLCHAR*>(connStr.data()), SQL_NTS, outConnectionString.data(), static_cast<SQLSMALLINT>(outConnectionString.size()),
                                       &outConnectionStringLen, SQL_DRIVER_NOPROMPT);
@@ -140,6 +145,10 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
         storeODBCDiagnosticMessage(ret, SQL_HANDLE_DBC, m_dbc);
         throw std::runtime_error(m_lastError);
     }
+
+    // Set query timeout to prevent indefinite hangs
+    constexpr SQLULEN queryTimeout = 300;  // 5 minutes
+    SQLSetStmtAttr(m_stmt, SQL_ATTR_QUERY_TIMEOUT, reinterpret_cast<SQLPOINTER>(static_cast<uintptr_t>(queryTimeout)), 0);
 
     std::string sqlStr(sql);
     ret = SQLExecDirectA(m_stmt, reinterpret_cast<SQLCHAR*>(sqlStr.data()), SQL_NTS);

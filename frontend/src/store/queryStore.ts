@@ -33,24 +33,50 @@ let queryCounter = 0;
 
 // Default query timeout (5 minutes)
 const DEFAULT_QUERY_TIMEOUT_MS = 5 * 60 * 1000;
+const POLL_INTERVAL_MS = 100;
 
-// Helper function to execute with timeout
-async function withTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  errorMessage: string
-): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => reject(new Error(errorMessage)), timeoutMs);
-  });
+// Execute a query asynchronously with polling (non-blocking for UI)
+async function executeAsyncWithPolling(
+  connectionId: string,
+  sql: string
+): Promise<{
+  columns: { name: string; type: string; comment?: string }[];
+  rows: string[][];
+  affectedRows: number;
+  executionTimeMs: number;
+}> {
+  const { queryId } = await bridge.executeAsyncQuery(connectionId, sql);
 
-  try {
-    return await Promise.race([promise, timeoutPromise]);
-  } finally {
-    if (timeoutId !== undefined) {
-      clearTimeout(timeoutId);
+  const startTime = Date.now();
+  while (true) {
+    if (Date.now() - startTime > DEFAULT_QUERY_TIMEOUT_MS) {
+      try {
+        await bridge.cancelAsyncQuery(queryId);
+      } catch {
+        // Ignore cancel errors
+      }
+      throw new Error('Query execution timed out after 5 minutes');
     }
+
+    const result = await bridge.getAsyncQueryResult(queryId);
+
+    if (result.status === 'completed') {
+      if (!result.columns || !result.rows) {
+        throw new Error('Invalid query result: missing columns or rows');
+      }
+      return {
+        columns: result.columns,
+        rows: result.rows,
+        affectedRows: result.affectedRows ?? 0,
+        executionTimeMs: result.executionTimeMs ?? 0,
+      };
+    } else if (result.status === 'failed') {
+      throw new Error(result.error || 'Query execution failed');
+    } else if (result.status === 'cancelled') {
+      throw new Error('Query was cancelled');
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
 }
 
@@ -423,8 +449,8 @@ export const useQueryStore = create<QueryState>((set, get) => ({
       // Fetch column definitions (includes MS_Description comments)
       const columnDefinitions = await bridge.getColumns(connectionId, tableName);
 
-      // Fetch table data
-      const result = await bridge.executeQuery(connectionId, sql);
+      // Fetch table data (async to prevent UI freeze)
+      const result = await executeAsyncWithPolling(connectionId, sql);
       const fetchEnd = performance.now();
 
       // Create a map of column names to comments
@@ -478,11 +504,7 @@ export const useQueryStore = create<QueryState>((set, get) => ({
       // Fetch column definitions (includes MS_Description comments)
       const columnDefinitions = await bridge.getColumns(connectionId, query.sourceTable);
 
-      const result = await withTimeout(
-        bridge.executeQuery(connectionId, sql),
-        DEFAULT_QUERY_TIMEOUT_MS,
-        'Query execution timed out after 5 minutes'
-      );
+      const result = await executeAsyncWithPolling(connectionId, sql);
 
       // Create a map of column names to comments
       const commentMap = new Map(columnDefinitions.map((col) => [col.name, col.comment]));
@@ -525,11 +547,7 @@ export const useQueryStore = create<QueryState>((set, get) => ({
       // Fetch column definitions (includes MS_Description comments)
       const columnDefinitions = await bridge.getColumns(connectionId, query.sourceTable);
 
-      const result = await withTimeout(
-        bridge.executeQuery(connectionId, query.content),
-        DEFAULT_QUERY_TIMEOUT_MS,
-        'Query execution timed out after 5 minutes'
-      );
+      const result = await executeAsyncWithPolling(connectionId, query.content);
 
       // Create a map of column names to comments
       const commentMap = new Map(columnDefinitions.map((col) => [col.name, col.comment]));
