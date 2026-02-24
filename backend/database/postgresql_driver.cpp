@@ -1,4 +1,4 @@
-#include "sqlserver_driver.h"
+#include "postgresql_driver.h"
 
 #include "odbc_helpers.h"
 
@@ -10,12 +10,12 @@
 
 namespace velocitydb {
 
-SQLServerDriver::SQLServerDriver() {
+PostgreSqlDriver::PostgreSqlDriver() {
     m_env = odbc::allocateEnvironment();
     m_dbc = odbc::allocateConnection(m_env);
 }
 
-SQLServerDriver::~SQLServerDriver() {
+PostgreSqlDriver::~PostgreSqlDriver() {
     disconnect();
     if (m_dbc != SQL_NULL_HDBC) {
         SQLFreeHandle(SQL_HANDLE_DBC, m_dbc);
@@ -25,7 +25,7 @@ SQLServerDriver::~SQLServerDriver() {
     }
 }
 
-bool SQLServerDriver::connect(std::string_view connectionString) {
+bool PostgreSqlDriver::connect(std::string_view connectionString) {
     if (m_connected) {
         disconnect();
     }
@@ -43,7 +43,7 @@ bool SQLServerDriver::connect(std::string_view connectionString) {
     return true;
 }
 
-void SQLServerDriver::disconnect() {
+void PostgreSqlDriver::disconnect() {
     std::lock_guard lock(m_executeMutex);
     auto stmt = m_stmt.exchange(SQL_NULL_HSTMT, std::memory_order_acq_rel);
     if (stmt != SQL_NULL_HSTMT) {
@@ -54,7 +54,7 @@ void SQLServerDriver::disconnect() {
     }
 }
 
-ResultSet SQLServerDriver::execute(std::string_view sql) {
+ResultSet PostgreSqlDriver::execute(std::string_view sql) {
     std::lock_guard lock(m_executeMutex);
     ResultSet result;
 
@@ -77,7 +77,6 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
         throw std::runtime_error(m_lastError);
     }
 
-    // Publish new stmt so cancel() can see it immediately
     m_stmt.store(stmt, std::memory_order_release);
 
     constexpr SQLULEN queryTimeout = 300;
@@ -123,7 +122,6 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
             {.name = columnName, .type = odbc::convertSQLTypeToDisplayName(dataType), .size = static_cast<int>(colSize), .nullable = (nullable == SQL_NULLABLE), .isPrimaryKey = false});
     }
 
-    // Dynamic buffer for large column values
     constexpr size_t INITIAL_BUFFER_CHARS = 4096;
     std::vector<SQLWCHAR> buffer(INITIAL_BUFFER_CHARS);
     SQLLEN indicator = 0;
@@ -176,11 +174,11 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
     return result;
 }
 
-void SQLServerDriver::cancel() {
+void PostgreSqlDriver::cancel() {
     odbc::cancelStatement(m_stmt.load(std::memory_order_acquire));
 }
 
-std::string SQLServerDriver::getLastError() const {
+std::string PostgreSqlDriver::getLastError() const {
     std::lock_guard lock(m_executeMutex);
     return m_lastError;
 }
