@@ -1,5 +1,9 @@
 #pragma once
 
+#include "../interfaces/connectable.h"
+#include "../interfaces/error_reportable.h"
+
+#include <cstdint>
 #include <expected>
 #include <memory>
 #include <string>
@@ -8,23 +12,24 @@
 
 namespace velocitydb {
 
-// Forward declarations
-struct ColumnInfo;
-struct ResultSet;
+// Forward declarations (schema types defined in schema_inspector.h)
 struct TableInfo;
 struct IndexInfo;
 struct ForeignKeyInfo;
 struct StoredProcedureInfo;
 struct FunctionInfo;
 
-// Database driver type enumeration
-enum class DriverType {
-    SQLServer,
-    PostgreSQL,  // Future support
-    MySQL        // Future support
-};
+// Forward declarations (Dialect ISP interfaces)
+class ISchemaQueryable;
+class IRelationQueryable;
+class IDDLQueryable;
+class ISqlFormattable;
+class IObjectSearchable;
 
-// Convert driver type to string
+// ─── Driver type enumeration ───
+
+enum class DriverType { SQLServer, PostgreSQL, MySQL };
+
 [[nodiscard]] constexpr std::string_view driverTypeToString(DriverType type) noexcept {
     switch (type) {
         case DriverType::SQLServer:
@@ -37,44 +42,68 @@ enum class DriverType {
     return "Unknown";
 }
 
-// Abstract interface for database drivers
-class IDatabaseDriver {
+// ─── Result types (moved from sqlserver_driver.h) ───
+
+struct ColumnInfo {
+    std::string name;
+    std::string type;
+    int size = 0;
+    bool nullable = true;
+    bool isPrimaryKey = false;
+    std::string comment;
+};
+
+struct ResultRow {
+    std::vector<std::string> values;
+};
+
+struct ResultSet {
+    std::vector<ColumnInfo> columns;
+    std::vector<ResultRow> rows;
+    int64_t affectedRows = 0;
+    double executionTimeMs = 0.0;
+};
+
+// ─── ISP: Query execution interface ───
+
+class IQueryExecutable {
 public:
-    virtual ~IDatabaseDriver() = default;
+    virtual ~IQueryExecutable() = default;
 
-    // Non-copyable
-    IDatabaseDriver(const IDatabaseDriver&) = delete;
-    IDatabaseDriver& operator=(const IDatabaseDriver&) = delete;
+    IQueryExecutable(const IQueryExecutable&) = delete;
+    IQueryExecutable& operator=(const IQueryExecutable&) = delete;
 
-    // Connection management
-    [[nodiscard]] virtual bool connect(std::string_view connectionString) = 0;
-    virtual void disconnect() = 0;
-    [[nodiscard]] virtual bool isConnected() const noexcept = 0;
-
-    // Query execution
     [[nodiscard]] virtual ResultSet execute(std::string_view sql) = 0;
     virtual void cancel() = 0;
 
-    // Error handling
-    [[nodiscard]] virtual std::string getLastError() const = 0;
+protected:
+    IQueryExecutable() = default;
+};
 
-    // Driver identification
+// ─── Composite: IDatabaseDriver (IConnectable + IQueryExecutable + IErrorReportable) ───
+
+class IDatabaseDriver
+    : public IConnectable
+    , public IQueryExecutable
+    , public IErrorReportable {
+public:
+    ~IDatabaseDriver() override = default;
+
     [[nodiscard]] virtual DriverType getType() const noexcept = 0;
 
 protected:
     IDatabaseDriver() = default;
 };
 
-// Abstract interface for schema inspection
+// ─── Schema inspector interface ───
+
 class ISchemaInspector {
 public:
     virtual ~ISchemaInspector() = default;
 
-    // Non-copyable
     ISchemaInspector(const ISchemaInspector&) = delete;
     ISchemaInspector& operator=(const ISchemaInspector&) = delete;
 
-    // Schema inspection
     [[nodiscard]] virtual std::vector<std::string> getDatabases() = 0;
     [[nodiscard]] virtual std::vector<TableInfo> getTables(std::string_view database) = 0;
     [[nodiscard]] virtual std::vector<ColumnInfo> getColumns(std::string_view table) = 0;
@@ -83,7 +112,6 @@ public:
     [[nodiscard]] virtual std::vector<StoredProcedureInfo> getStoredProcedures(std::string_view database) = 0;
     [[nodiscard]] virtual std::vector<FunctionInfo> getFunctions(std::string_view database) = 0;
 
-    // SQL generation
     [[nodiscard]] virtual std::string generateDDL(std::string_view table) = 0;
     [[nodiscard]] virtual std::string generateSelectStatement(std::string_view table) = 0;
     [[nodiscard]] virtual std::string generateInsertStatement(std::string_view table) = 0;
@@ -94,14 +122,20 @@ protected:
     ISchemaInspector() = default;
 };
 
-// Factory for creating database drivers and schema inspectors
+// ─── Factory ───
+
 class DriverFactory {
 public:
-    // Create a database driver for the specified type
     [[nodiscard]] static std::unique_ptr<IDatabaseDriver> createDriver(DriverType type);
 
-    // Create a schema inspector for the specified driver
     [[nodiscard]] static std::unique_ptr<ISchemaInspector> createSchemaInspector(DriverType type, std::shared_ptr<IDatabaseDriver> driver);
+
+    // Dialect factories
+    [[nodiscard]] static std::unique_ptr<ISchemaQueryable> createSchemaQueryable(DriverType type);
+    [[nodiscard]] static std::unique_ptr<IRelationQueryable> createRelationQueryable(DriverType type);
+    [[nodiscard]] static std::unique_ptr<IDDLQueryable> createDDLQueryable(DriverType type);
+    [[nodiscard]] static std::unique_ptr<ISqlFormattable> createSqlFormattable(DriverType type);
+    [[nodiscard]] static std::unique_ptr<IObjectSearchable> createObjectSearchable(DriverType type);
 };
 
 }  // namespace velocitydb

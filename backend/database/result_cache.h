@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sqlserver_driver.h"
+#include "driver_interface.h"
 
 #include <chrono>
 #include <mutex>
