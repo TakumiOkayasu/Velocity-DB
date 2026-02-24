@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../network/ssh_tunnel.h"
+#include "driver_interface.h"
 
 #include <atomic>
 #include <expected>
@@ -11,8 +12,6 @@
 #include <unordered_map>
 
 namespace velocitydb {
-
-class IDatabaseDriver;
 
 /// Manages active database connections and their associated resources
 class ConnectionRegistry {
@@ -28,7 +27,7 @@ public:
     ConnectionRegistry& operator=(ConnectionRegistry&&) = delete;
 
     /// Add a new connection pair (query + metadata) and return its unique ID
-    [[nodiscard]] std::string add(DriverPtr queryDriver, DriverPtr metadataDriver);
+    [[nodiscard]] std::string add(DriverPtr queryDriver, DriverPtr metadataDriver, DriverType driverType);
 
     /// Remove a connection by ID (disconnects both query and metadata drivers)
     void remove(std::string_view id);
@@ -41,6 +40,9 @@ public:
 
     /// Get a connection by ID (alias for getQueryDriver, for backwards compatibility)
     [[nodiscard]] std::expected<DriverPtr, std::string> get(std::string_view id) const;
+
+    /// Get the driver type for a connection
+    [[nodiscard]] std::expected<DriverType, std::string> getDriverType(std::string_view id) const;
 
     /// Check if a connection exists
     [[nodiscard]] bool exists(std::string_view id) const;
@@ -61,6 +63,7 @@ private:
     mutable std::shared_mutex m_mutex;
     std::unordered_map<std::string, DriverPtr> m_queryConnections;
     std::unordered_map<std::string, DriverPtr> m_metadataConnections;
+    std::unordered_map<std::string, DriverType> m_driverTypes;
     std::unordered_map<std::string, std::unique_ptr<SshTunnel>> m_tunnels;
     std::atomic<int> m_counter{1};
 };

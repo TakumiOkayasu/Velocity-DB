@@ -2,7 +2,7 @@
 
 #include "../database/connection_registry.h"
 #include "../database/connection_utils.h"
-#include "../database/sqlserver_driver.h"
+#include "../database/driver_interface.h"
 #include "../network/ssh_tunnel.h"
 #include "../utils/json_utils.h"
 #include "../utils/logger.h"
@@ -13,26 +13,25 @@ namespace velocitydb {
 
 namespace {
 
-[[nodiscard]] std::shared_ptr<SQLServerDriver> getDriver(const ConnectionRegistry& registry, std::string_view connectionId) {
-    auto driverResult = registry.getQueryDriver(connectionId);
-    if (!driverResult)
-        return nullptr;
-    return std::dynamic_pointer_cast<SQLServerDriver>(*driverResult);
-}
-
-[[nodiscard]] std::shared_ptr<SQLServerDriver> getMetaDriver(const ConnectionRegistry& registry, std::string_view connectionId) {
-    auto driverResult = registry.getMetadataDriver(connectionId);
-    if (!driverResult)
-        return nullptr;
-    return std::dynamic_pointer_cast<SQLServerDriver>(*driverResult);
+/// Map DbType (connection params) to DriverType (driver layer)
+[[nodiscard]] constexpr DriverType toDriverType(DbType dbType) noexcept {
+    switch (dbType) {
+        case DbType::PostgreSQL:
+            return DriverType::PostgreSQL;
+        case DbType::MySQL:
+            return DriverType::MySQL;
+        default:
+            return DriverType::SQLServer;
+    }
 }
 
 struct PreparedConnection {
     std::string odbcString;
     std::unique_ptr<SshTunnel> tunnel;
+    DriverType driverType;
 };
 
-/// SSH tunnel確立 + ODBC接続文字列構築の共通処理
+/// SSH tunnel + ODBC connection string construction
 [[nodiscard]] std::expected<PreparedConnection, std::string> prepareConnection(const DatabaseConnectionParams& params) {
     DatabaseConnectionParams effectiveParams = params;
     std::unique_ptr<SshTunnel> tunnel;
@@ -51,7 +50,7 @@ struct PreparedConnection {
     log<LogLevel::DEBUG>("[DB] Attempting ODBC connection...");
     log_flush();
 
-    return PreparedConnection{std::move(odbcString), std::move(tunnel)};
+    return PreparedConnection{std::move(odbcString), std::move(tunnel), toDriverType(params.dbType)};
 }
 
 }  // namespace
@@ -60,12 +59,25 @@ ConnectionProvider::ConnectionProvider() : m_registry(std::make_unique<Connectio
 
 ConnectionProvider::~ConnectionProvider() = default;
 
-std::shared_ptr<SQLServerDriver> ConnectionProvider::getQueryDriver(std::string_view connectionId) {
-    return getDriver(*m_registry, connectionId);
+std::shared_ptr<IDatabaseDriver> ConnectionProvider::getQueryDriver(std::string_view connectionId) {
+    auto result = m_registry->getQueryDriver(connectionId);
+    if (!result)
+        return nullptr;
+    return *result;
 }
 
-std::shared_ptr<SQLServerDriver> ConnectionProvider::getMetadataDriver(std::string_view connectionId) {
-    return getMetaDriver(*m_registry, connectionId);
+std::shared_ptr<IDatabaseDriver> ConnectionProvider::getMetadataDriver(std::string_view connectionId) {
+    auto result = m_registry->getMetadataDriver(connectionId);
+    if (!result)
+        return nullptr;
+    return *result;
+}
+
+DriverType ConnectionProvider::getDriverType(std::string_view connectionId) const {
+    auto result = m_registry->getDriverType(connectionId);
+    if (!result) [[unlikely]]
+        throw std::runtime_error(result.error());
+    return *result;
 }
 
 std::string ConnectionProvider::handleConnect(std::string_view params) {
@@ -79,18 +91,20 @@ std::string ConnectionProvider::handleConnect(std::string_view params) {
         return JsonUtils::errorResponse(prepared.error());
     }
 
-    auto queryDriverPtr = std::make_shared<SQLServerDriver>();
+    auto queryDriver = DriverFactory::createDriver(prepared->driverType);
+    std::shared_ptr<IDatabaseDriver> queryDriverPtr(std::move(queryDriver));
     if (!queryDriverPtr->connect(prepared->odbcString)) {
         return JsonUtils::errorResponse(std::format("Connection failed: {}", queryDriverPtr->getLastError()));
     }
 
-    auto metadataDriverPtr = std::make_shared<SQLServerDriver>();
+    auto metadataDriver = DriverFactory::createDriver(prepared->driverType);
+    std::shared_ptr<IDatabaseDriver> metadataDriverPtr(std::move(metadataDriver));
     if (!metadataDriverPtr->connect(prepared->odbcString)) {
         queryDriverPtr->disconnect();
         return JsonUtils::errorResponse(std::format("Metadata connection failed: {}", metadataDriverPtr->getLastError()));
     }
 
-    auto connectionId = m_registry->add(queryDriverPtr, metadataDriverPtr);
+    auto connectionId = m_registry->add(queryDriverPtr, metadataDriverPtr, prepared->driverType);
     if (prepared->tunnel) {
         m_registry->attachTunnel(connectionId, std::move(prepared->tunnel));
     }
@@ -119,13 +133,13 @@ std::string ConnectionProvider::handleTestConnection(std::string_view params) {
         return JsonUtils::successResponse(std::format(R"({{"success":false,"message":"{}"}})", JsonUtils::escapeString(prepared.error())));
     }
 
-    SQLServerDriver driver{};
-    if (driver.connect(prepared->odbcString)) {
-        driver.disconnect();
+    auto driver = DriverFactory::createDriver(prepared->driverType);
+    if (driver->connect(prepared->odbcString)) {
+        driver->disconnect();
         return JsonUtils::successResponse(R"({"success":true,"message":"Connection successful"})");
     }
 
-    return JsonUtils::successResponse(std::format(R"({{"success":false,"message":"{}"}})", JsonUtils::escapeString(driver.getLastError())));
+    return JsonUtils::successResponse(std::format(R"({{"success":false,"message":"{}"}})", JsonUtils::escapeString(driver->getLastError())));
 }
 
 }  // namespace velocitydb
