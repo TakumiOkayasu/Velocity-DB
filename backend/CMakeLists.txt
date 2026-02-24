@@ -14,7 +14,9 @@ set(LIB_SOURCES
     webview_app.cpp
     ipc_handler.cpp
     # Database
+    database/odbc_helpers.cpp
     database/sqlserver_driver.cpp
+    database/sqlserver_dialect.cpp
     database/connection_pool.cpp
     database/connection_registry.cpp
     database/result_cache.cpp
@@ -70,6 +72,8 @@ set(HEADERS
     # Database
     database/driver_interface.h
     database/sqlserver_driver.h
+    database/odbc_helpers.h
+    database/sqlserver_dialect.h
     database/connection_pool.h
     database/connection_registry.h
     database/result_cache.h

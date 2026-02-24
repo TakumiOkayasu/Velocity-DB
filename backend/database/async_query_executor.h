@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sqlserver_driver.h"
+#include "driver_interface.h"
 
 #include <atomic>
 #include <chrono>
@@ -48,7 +48,7 @@ public:
 
     /// Submits a query for asynchronous execution, returns a unique query ID
     /// Uses shared_ptr to ensure driver lifetime extends through async execution
-    [[nodiscard]] std::string submitQuery(std::shared_ptr<SQLServerDriver> driver, std::string_view sql);
+    [[nodiscard]] std::string submitQuery(std::shared_ptr<IDatabaseDriver> driver, std::string_view sql);
 
     /// Gets the current status and result of a query
     [[nodiscard]] AsyncQueryResult getQueryResult(std::string_view queryId);
@@ -74,7 +74,7 @@ private:
         std::optional<QueryResultVariant> cachedResult;  // Cache result after first get()
         bool multipleResults = false;
         std::atomic<QueryStatus> status{QueryStatus::Pending};
-        std::shared_ptr<SQLServerDriver> driver;  // shared_ptr to prevent use-after-free
+        std::shared_ptr<IDatabaseDriver> driver;  // shared_ptr to prevent use-after-free
         std::string sql;
         std::string errorMessage;
         std::chrono::steady_clock::time_point startTime;

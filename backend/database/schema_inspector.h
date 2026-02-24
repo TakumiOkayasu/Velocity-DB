@@ -1,7 +1,6 @@
 #pragma once
 
 #include "driver_interface.h"
-#include "sqlserver_driver.h"
 
 #include <memory>
 #include <string>
@@ -50,7 +49,7 @@ public:
     SchemaInspector() = default;
     ~SchemaInspector() override = default;
 
-    void setDriver(std::shared_ptr<SQLServerDriver> driver) { m_driver = std::move(driver); }
+    void setDriver(std::shared_ptr<IDatabaseDriver> driver) { m_driver = std::move(driver); }
 
     // ISchemaInspector interface
     [[nodiscard]] std::vector<std::string> getDatabases() override;
@@ -68,7 +67,7 @@ public:
     [[nodiscard]] std::string generateDeleteStatement(std::string_view table) override;
 
 private:
-    std::shared_ptr<SQLServerDriver> m_driver;
+    std::shared_ptr<IDatabaseDriver> m_driver;
 };
 
 }  // namespace velocitydb

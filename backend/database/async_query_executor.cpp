@@ -31,7 +31,7 @@ AsyncQueryExecutor::~AsyncQueryExecutor() {
     }
 }
 
-std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<SQLServerDriver> driver, std::string_view sql) {
+std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<IDatabaseDriver> driver, std::string_view sql) {
     auto queryId = std::format("query_{}", m_queryIdCounter++);
 
     auto task = std::make_shared<QueryTask>();
