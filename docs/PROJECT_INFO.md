@@ -2,7 +2,7 @@
 
 ## 概要
 
-Windows専用の高性能RDBMS管理ツール（DataGripライクなUI/UX）。SQL Serverをプライマリターゲットとする。
+Windows専用の高性能RDBMS管理ツール（DataGripライクなUI/UX）。SQL Server / PostgreSQL / MySQLに対応（ODBC経由）。
 
 ## 技術スタック
 

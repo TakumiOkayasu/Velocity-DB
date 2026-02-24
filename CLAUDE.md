@@ -6,7 +6,7 @@ Velocity-DB固有の指示。グローバルルール (`~/.claude/CLAUDE.md`) �
 
 ## プロジェクト概要
 
-Windows専用RDBMS管理ツール（DataGripライクUI）。SQL Server対象。
+Windows専用RDBMS管理ツール（DataGripライクUI）。SQL Server / PostgreSQL / MySQL対応（ODBC経由）。
 
 - Backend: C++23 + ODBC + WebView2
 - Frontend: React 18 + TypeScript + TanStack Table
