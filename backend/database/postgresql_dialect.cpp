@@ -380,47 +380,42 @@ auto PostgreSqlDialect::searchObjectsQuery(std::string_view pattern, bool caseSe
     };
 
     if (categories & SearchCategory::Tables) {
-        appendUnion(std::format(
-            "SELECT 'BASE TABLE' AS object_type, table_schema AS schema_name, table_name AS object_name, '' AS parent_name "
-            "FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_name {} '%{}%' {} AND {}",
-            like_op, p, esc, excluded));
+        appendUnion(std::format("SELECT 'BASE TABLE' AS object_type, table_schema AS schema_name, table_name AS object_name, '' AS parent_name "
+                                "FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_name {} '%{}%' {} AND {}",
+                                like_op, p, esc, excluded));
     }
     if (categories & SearchCategory::Views) {
-        appendUnion(std::format(
-            "SELECT 'VIEW' AS object_type, table_schema AS schema_name, table_name AS object_name, '' AS parent_name "
-            "FROM information_schema.tables WHERE table_type = 'VIEW' AND table_name {} '%{}%' {} AND {}",
-            like_op, p, esc, excluded));
+        appendUnion(std::format("SELECT 'VIEW' AS object_type, table_schema AS schema_name, table_name AS object_name, '' AS parent_name "
+                                "FROM information_schema.tables WHERE table_type = 'VIEW' AND table_name {} '%{}%' {} AND {}",
+                                like_op, p, esc, excluded));
     }
     if (categories & SearchCategory::Procedures) {
-        appendUnion(std::format(
-            "SELECT 'PROCEDURE' AS object_type, routine_schema AS schema_name, routine_name AS object_name, '' AS parent_name "
-            "FROM information_schema.routines WHERE routine_type = 'PROCEDURE' AND routine_name {} '%{}%' {} AND routine_schema NOT IN ('pg_catalog', 'information_schema')",
-            like_op, p, esc));
+        appendUnion(std::format("SELECT 'PROCEDURE' AS object_type, routine_schema AS schema_name, routine_name AS object_name, '' AS parent_name "
+                                "FROM information_schema.routines WHERE routine_type = 'PROCEDURE' AND routine_name {} '%{}%' {} "
+                                "AND routine_schema NOT IN ('pg_catalog', 'information_schema')",
+                                like_op, p, esc));
     }
     if (categories & SearchCategory::Functions) {
-        appendUnion(std::format(
-            "SELECT 'FUNCTION' AS object_type, routine_schema AS schema_name, routine_name AS object_name, '' AS parent_name "
-            "FROM information_schema.routines WHERE routine_type = 'FUNCTION' AND routine_name {} '%{}%' {} AND routine_schema NOT IN ('pg_catalog', 'information_schema')",
-            like_op, p, esc));
+        appendUnion(std::format("SELECT 'FUNCTION' AS object_type, routine_schema AS schema_name, routine_name AS object_name, '' AS parent_name "
+                                "FROM information_schema.routines WHERE routine_type = 'FUNCTION' AND routine_name {} '%{}%' {} "
+                                "AND routine_schema NOT IN ('pg_catalog', 'information_schema')",
+                                like_op, p, esc));
     }
     if (categories & SearchCategory::Columns) {
-        appendUnion(std::format(
-            "SELECT 'COLUMN' AS object_type, table_schema AS schema_name, column_name AS object_name, table_name AS parent_name "
-            "FROM information_schema.columns WHERE column_name {} '%{}%' {} AND {}",
-            like_op, p, esc, excluded));
+        appendUnion(std::format("SELECT 'COLUMN' AS object_type, table_schema AS schema_name, column_name AS object_name, table_name AS parent_name "
+                                "FROM information_schema.columns WHERE column_name {} '%{}%' {} AND {}",
+                                like_op, p, esc, excluded));
     }
     if (categories & SearchCategory::Indexes) {
-        appendUnion(std::format(
-            "SELECT 'INDEX' AS object_type, schemaname AS schema_name, indexname AS object_name, tablename AS parent_name "
-            "FROM pg_indexes WHERE indexname {} '%{}%' {} AND schemaname NOT IN ('pg_catalog', 'information_schema')",
-            like_op, p, esc));
+        appendUnion(std::format("SELECT 'INDEX' AS object_type, schemaname AS schema_name, indexname AS object_name, tablename AS parent_name "
+                                "FROM pg_indexes WHERE indexname {} '%{}%' {} AND schemaname NOT IN ('pg_catalog', 'information_schema')",
+                                like_op, p, esc));
     }
 
     if (unions.empty())
         return "SELECT NULL AS object_type, NULL AS schema_name, NULL AS object_name, NULL AS parent_name WHERE false";
 
-    return std::format("SELECT * FROM ({}) AS search_results ORDER BY schema_name, object_name LIMIT {}",
-                       unions, std::clamp(maxResults, 1, 1000));
+    return std::format("SELECT * FROM ({}) AS search_results ORDER BY schema_name, object_name LIMIT {}", unions, std::clamp(maxResults, 1, 1000));
 }
 
 auto PostgreSqlDialect::quickSearchQuery(std::string_view prefix, int limit) const -> std::string {
