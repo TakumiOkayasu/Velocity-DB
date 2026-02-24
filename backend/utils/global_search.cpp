@@ -1,7 +1,5 @@
 #include "global_search.h"
 
-#include "sql_validation.h"
-
 #include <algorithm>
 #include <cctype>
 #include <format>
@@ -9,14 +7,14 @@
 
 namespace velocitydb {
 
-std::vector<SearchResult> GlobalSearch::searchObjects(SQLServerDriver* driver, const std::string& pattern, const SearchOptions& options) {
+std::vector<SearchResult> GlobalSearch::searchObjects(IDatabaseDriver* driver, IObjectSearchable* dialect, const std::string& pattern, const SearchOptions& options) {
     std::vector<SearchResult> results;
 
-    if (driver == nullptr || pattern.empty()) {
+    if (driver == nullptr || dialect == nullptr || pattern.empty()) {
         return results;
     }
 
-    std::string query = buildSearchQuery(pattern, options);
+    std::string query = dialect->searchObjectsQuery(pattern, options.caseSensitive, options.maxResults, options.toCategories());
     auto queryResult = driver->execute(query);
 
     for (const auto& row : queryResult.rows) {
@@ -53,25 +51,14 @@ std::vector<SearchResult> GlobalSearch::searchQueryHistory(const std::vector<std
     return results;
 }
 
-std::vector<std::string> GlobalSearch::quickSearch(SQLServerDriver* driver, const std::string& prefix, int limit) {
+std::vector<std::string> GlobalSearch::quickSearch(IDatabaseDriver* driver, IObjectSearchable* dialect, const std::string& prefix, int limit) {
     std::vector<std::string> results;
 
-    if (driver == nullptr || prefix.empty()) {
+    if (driver == nullptr || dialect == nullptr || prefix.empty()) {
         return results;
     }
 
-    // Quick search for table and column names
-    auto escaped = escapeSqlString(escapeLikePattern(prefix));
-    auto query = std::format(R"(
-        SELECT TOP {} name FROM (
-            SELECT TABLE_NAME as name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE '{}%'
-            UNION
-            SELECT COLUMN_NAME as name FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME LIKE '{}%'
-        ) AS combined
-        ORDER BY name
-    )",
-                             std::clamp(limit, 1, 100), escaped, escaped);
-
+    auto query = dialect->quickSearchQuery(prefix, std::clamp(limit, 1, 100));
     auto queryResult = driver->execute(query);
 
     results.reserve(queryResult.rows.size());
@@ -81,80 +68,6 @@ std::vector<std::string> GlobalSearch::quickSearch(SQLServerDriver* driver, cons
     }
 
     return results;
-}
-
-std::string GlobalSearch::buildSearchQuery(const std::string& pattern, const SearchOptions& options) const {
-    auto likePattern = "%" + escapeSqlString(escapeLikePattern(pattern)) + "%";
-    std::vector<std::string> unions;
-
-    if (options.searchTables) {
-        unions.push_back(std::format(R"(
-            SELECT 'TABLE' as object_type, TABLE_SCHEMA as schema_name, TABLE_NAME as object_name, '' as parent_name
-            FROM INFORMATION_SCHEMA.TABLES
-            WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME {} LIKE '{}'
-        )",
-                                     options.caseSensitive ? "COLLATE Latin1_General_CS_AS" : "", likePattern));
-    }
-
-    if (options.searchViews) {
-        unions.push_back(std::format(R"(
-            SELECT 'VIEW' as object_type, TABLE_SCHEMA as schema_name, TABLE_NAME as object_name, '' as parent_name
-            FROM INFORMATION_SCHEMA.VIEWS
-            WHERE TABLE_NAME {} LIKE '{}'
-        )",
-                                     options.caseSensitive ? "COLLATE Latin1_General_CS_AS" : "", likePattern));
-    }
-
-    if (options.searchProcedures) {
-        unions.push_back(std::format(R"(
-            SELECT 'PROCEDURE' as object_type, ROUTINE_SCHEMA as schema_name, ROUTINE_NAME as object_name, '' as parent_name
-            FROM INFORMATION_SCHEMA.ROUTINES
-            WHERE ROUTINE_TYPE = 'PROCEDURE' AND ROUTINE_NAME {} LIKE '{}'
-        )",
-                                     options.caseSensitive ? "COLLATE Latin1_General_CS_AS" : "", likePattern));
-    }
-
-    if (options.searchFunctions) {
-        unions.push_back(std::format(R"(
-            SELECT 'FUNCTION' as object_type, ROUTINE_SCHEMA as schema_name, ROUTINE_NAME as object_name, '' as parent_name
-            FROM INFORMATION_SCHEMA.ROUTINES
-            WHERE ROUTINE_TYPE = 'FUNCTION' AND ROUTINE_NAME {} LIKE '{}'
-        )",
-                                     options.caseSensitive ? "COLLATE Latin1_General_CS_AS" : "", likePattern));
-    }
-
-    if (options.searchColumns) {
-        unions.push_back(std::format(R"(
-            SELECT 'COLUMN' as object_type, TABLE_SCHEMA as schema_name, COLUMN_NAME as object_name, TABLE_NAME as parent_name
-            FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE COLUMN_NAME {} LIKE '{}'
-        )",
-                                     options.caseSensitive ? "COLLATE Latin1_General_CS_AS" : "", likePattern));
-    }
-
-    if (options.searchIndexes) {
-        unions.push_back(std::format(R"(
-            SELECT 'INDEX' as object_type, OBJECT_SCHEMA_NAME(object_id) as schema_name, name as object_name, OBJECT_NAME(object_id) as parent_name
-            FROM sys.indexes
-            WHERE name IS NOT NULL AND name {} LIKE '{}'
-        )",
-                                     options.caseSensitive ? "COLLATE Latin1_General_CS_AS" : "", likePattern));
-    }
-
-    if (unions.empty()) {
-        return "SELECT 'NONE' as object_type, '' as schema_name, '' as object_name, '' as parent_name WHERE 1=0";
-    }
-
-    std::string query = "SELECT TOP " + std::to_string(options.maxResults) + " * FROM (\n";
-    for (size_t i = 0; i < unions.size(); ++i) {
-        if (i > 0) {
-            query += "\n    UNION ALL\n";
-        }
-        query += unions[i];
-    }
-    query += "\n) AS search_results ORDER BY object_type, object_name";
-
-    return query;
 }
 
 bool GlobalSearch::matchesPattern(const std::string& text, const std::string& pattern, bool caseSensitive) const {

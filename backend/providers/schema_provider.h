@@ -2,14 +2,12 @@
 
 #include "../interfaces/providers/schema_provider.h"
 
-#include <memory>
 #include <string>
 #include <string_view>
 
 namespace velocitydb {
 
 class IConnectionProvider;
-class SchemaInspector;
 
 /// Provider for database schema inspection
 class SchemaProvider : public ISchemaProvider {
@@ -36,7 +34,6 @@ public:
 
 private:
     IConnectionProvider& m_connections;
-    std::unique_ptr<SchemaInspector> m_schemaInspector;
 };
 
 }  // namespace velocitydb
