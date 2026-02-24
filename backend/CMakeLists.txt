@@ -17,6 +17,9 @@ set(LIB_SOURCES
     database/odbc_helpers.cpp
     database/sqlserver_driver.cpp
     database/sqlserver_dialect.cpp
+    database/postgresql_driver.cpp
+    database/postgresql_dialect.cpp
+    database/driver_factory.cpp
     database/connection_pool.cpp
     database/connection_registry.cpp
     database/result_cache.cpp
@@ -74,6 +77,8 @@ set(HEADERS
     database/sqlserver_driver.h
     database/odbc_helpers.h
     database/sqlserver_dialect.h
+    database/postgresql_driver.h
+    database/postgresql_dialect.h
     database/connection_pool.h
     database/connection_registry.h
     database/result_cache.h

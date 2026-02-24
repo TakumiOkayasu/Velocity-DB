@@ -13,15 +13,15 @@
 
 namespace velocitydb {
 
-class SQLServerDriver : public IDatabaseDriver {
+class PostgreSqlDriver : public IDatabaseDriver {
 public:
-    SQLServerDriver();
-    ~SQLServerDriver() override;
+    PostgreSqlDriver();
+    ~PostgreSqlDriver() override;
 
-    SQLServerDriver(const SQLServerDriver&) = delete;
-    SQLServerDriver& operator=(const SQLServerDriver&) = delete;
-    SQLServerDriver(SQLServerDriver&&) = delete;
-    SQLServerDriver& operator=(SQLServerDriver&&) = delete;
+    PostgreSqlDriver(const PostgreSqlDriver&) = delete;
+    PostgreSqlDriver& operator=(const PostgreSqlDriver&) = delete;
+    PostgreSqlDriver(PostgreSqlDriver&&) = delete;
+    PostgreSqlDriver& operator=(PostgreSqlDriver&&) = delete;
 
     // IDatabaseDriver interface
     [[nodiscard]] bool connect(std::string_view connectionString) override;
@@ -32,7 +32,7 @@ public:
     void cancel() override;
 
     [[nodiscard]] std::string getLastError() const override;
-    [[nodiscard]] DriverType getType() const noexcept override { return DriverType::SQLServer; }
+    [[nodiscard]] DriverType getType() const noexcept override { return DriverType::PostgreSQL; }
 
 private:
     SQLHENV m_env = SQL_NULL_HENV;
@@ -40,7 +40,7 @@ private:
     std::atomic<SQLHSTMT> m_stmt{SQL_NULL_HSTMT};
     std::atomic<bool> m_connected{false};
     std::string m_lastError;
-    mutable std::mutex m_executeMutex;  // Serializes concurrent execute()/disconnect()/getLastError() calls
+    mutable std::mutex m_executeMutex;
 };
 
 }  // namespace velocitydb
