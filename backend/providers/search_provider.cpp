@@ -1,6 +1,7 @@
 #include "search_provider.h"
 
-#include "../database/sqlserver_driver.h"
+#include "../database/driver_interface.h"
+#include "../interfaces/object_searchable.h"
 #include "../interfaces/providers/connection_provider.h"
 #include "../utils/global_search.h"
 #include "../utils/json_utils.h"
@@ -32,6 +33,9 @@ std::string SearchProvider::handleSearchObjects(std::string_view params) {
             return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
         }
 
+        auto driverType = m_connections.getDriverType(connectionId);
+        auto dialect = DriverFactory::createObjectSearchable(driverType);
+
         SearchOptions options{};
         if (auto val = doc["searchTables"].get_bool(); !val.error())
             options.searchTables = val.value();
@@ -48,7 +52,7 @@ std::string SearchProvider::handleSearchObjects(std::string_view params) {
         if (auto val = doc["maxResults"].get_int64(); !val.error())
             options.maxResults = static_cast<int>(val.value());
 
-        auto results = m_globalSearch->searchObjects(driver.get(), pattern, options);
+        auto results = m_globalSearch->searchObjects(driver.get(), dialect.get(), pattern, options);
 
         auto json = JsonUtils::buildArray(results, [](std::string& out, const SearchResult& r) {
             out += std::format(R"({{"objectType":"{}","schemaName":"{}","objectName":"{}","parentName":"{}"}})", JsonUtils::escapeString(r.objectType), JsonUtils::escapeString(r.schemaName),
@@ -82,7 +86,10 @@ std::string SearchProvider::handleQuickSearch(std::string_view params) {
             return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
         }
 
-        auto results = m_globalSearch->quickSearch(driver.get(), prefix, limit);
+        auto driverType = m_connections.getDriverType(connectionId);
+        auto dialect = DriverFactory::createObjectSearchable(driverType);
+
+        auto results = m_globalSearch->quickSearch(driver.get(), dialect.get(), prefix, limit);
 
         auto json = JsonUtils::buildArray(results, [](std::string& out, const std::string& r) { out += std::format(R"("{}")", JsonUtils::escapeString(r)); });
 

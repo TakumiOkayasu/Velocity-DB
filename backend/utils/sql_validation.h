@@ -2,6 +2,7 @@
 
 #include "encoding.h"
 #include "logger.h"
+#include "sql_escape.h"
 
 #include <ranges>
 #include <string>
@@ -157,17 +158,9 @@ struct SplitIdentifier {
     return {std::string(defaultSchema), std::move(unquoted)};
 }
 
-/// SQL文字列リテラル用エスケープ (シングルクォートを二重化)
+/// SQL文字列リテラル用エスケープ (escapeSql のエイリアス、後方互換)
 [[nodiscard]] inline std::string escapeSqlString(std::string_view value) {
-    std::string result;
-    result.reserve(value.size());
-    for (char c : value) {
-        if (c == '\'')
-            result += "''";
-        else
-            result += c;
-    }
-    return result;
+    return escapeSql(value);
 }
 
 /// SQL LIKE パターン用エスケープ (%, _, [ をブラケットエスケープ)

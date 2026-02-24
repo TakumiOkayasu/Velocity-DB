@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../database/sqlserver_driver.h"
+#include "../database/driver_interface.h"
 
 #include <string>
 

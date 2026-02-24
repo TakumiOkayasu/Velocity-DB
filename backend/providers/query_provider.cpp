@@ -1,10 +1,11 @@
 #include "query_provider.h"
 
 #include "../database/connection_utils.h"
+#include "../database/driver_interface.h"
 #include "../database/query_history.h"
 #include "../database/result_cache.h"
-#include "../database/sqlserver_driver.h"
 #include "../interfaces/providers/connection_provider.h"
+#include "../interfaces/sql_formattable.h"
 #include "../parsers/sql_parser.h"
 #include "../utils/json_utils.h"
 #include "../utils/logger.h"
@@ -168,6 +169,9 @@ std::string QueryProvider::handleExecuteQueryPaginated(std::string_view params) 
         if (auto endRowOpt = doc["endRow"].get_int64(); !endRowOpt.error())
             endRow = endRowOpt.value();
 
+        auto driverType = m_connections.getDriverType(connectionId);
+        auto formatter = DriverFactory::createSqlFormattable(driverType);
+
         std::string orderByClause;
         if (auto sortModel = doc["sortModel"].get_array(); !sortModel.error()) {
             std::string sortClauses;
@@ -177,7 +181,7 @@ std::string QueryProvider::handleExecuteQueryPaginated(std::string_view params) 
                 if (!colId.error() && !sort.error()) {
                     if (!sortClauses.empty())
                         sortClauses += ", ";
-                    sortClauses += quoteBracketIdentifier(std::string(colId.value())) + " " + (sort.value() == std::string_view("asc") ? "ASC" : "DESC");
+                    sortClauses += formatter->quoteIdentifier(std::string(colId.value())) + " " + (sort.value() == std::string_view("asc") ? "ASC" : "DESC");
                 }
             }
             if (!sortClauses.empty())
@@ -191,9 +195,9 @@ std::string QueryProvider::handleExecuteQueryPaginated(std::string_view params) 
 
         std::string paginatedQuery;
         if (orderByClause.empty()) {
-            paginatedQuery = std::format("{} ORDER BY (SELECT NULL) OFFSET {} ROWS FETCH NEXT {} ROWS ONLY", sqlQuery, startRow, endRow - startRow);
+            paginatedQuery = formatter->paginateQuery(sqlQuery, startRow, endRow - startRow);
         } else {
-            paginatedQuery = std::format("{}{} OFFSET {} ROWS FETCH NEXT {} ROWS ONLY", sqlQuery, orderByClause, startRow, endRow - startRow);
+            paginatedQuery = formatter->paginateQuery(sqlQuery + orderByClause, startRow, endRow - startRow);
         }
 
         auto queryResult = driver->execute(paginatedQuery);
@@ -221,7 +225,9 @@ std::string QueryProvider::handleGetRowCount(std::string_view params) {
             return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
         }
 
-        auto countQuery = std::format("SELECT COUNT_BIG(*) AS total_rows FROM ({}) AS subquery WITH(NOLOCK)", sqlQuery);
+        auto driverType = m_connections.getDriverType(connectionId);
+        auto formatter = DriverFactory::createSqlFormattable(driverType);
+        auto countQuery = formatter->rowCountQuery(sqlQuery);
         auto queryResult = driver->execute(countQuery);
 
         if (queryResult.rows.empty() || queryResult.rows[0].values.empty()) {

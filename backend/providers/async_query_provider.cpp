@@ -1,7 +1,7 @@
 #include "async_query_provider.h"
 
 #include "../database/async_query_executor.h"
-#include "../database/sqlserver_driver.h"
+#include "../database/driver_interface.h"
 #include "../interfaces/providers/connection_provider.h"
 #include "../utils/json_utils.h"
 #include "simdjson.h"

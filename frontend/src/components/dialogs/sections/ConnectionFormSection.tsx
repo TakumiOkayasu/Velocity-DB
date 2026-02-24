@@ -1,5 +1,18 @@
+import type { DatabaseType } from '../../../types';
 import type { ConnectionConfig } from '../ConnectionDialog';
 import styles from '../ConnectionDialog.module.css';
+
+const DB_PLACEHOLDER: Record<DatabaseType, string> = {
+  sqlserver: 'master',
+  postgresql: 'postgres',
+  mysql: '',
+};
+
+const DB_DEFAULT_PORT: Record<DatabaseType, number> = {
+  sqlserver: 1433,
+  postgresql: 5432,
+  mysql: 3306,
+};
 
 interface ConnectionFormSectionProps {
   config: ConnectionConfig;
@@ -14,6 +27,8 @@ export function ConnectionFormSection({
   onChange,
   onSavePasswordChange,
 }: ConnectionFormSectionProps) {
+  const dbType = config.dbType;
+
   return (
     <>
       <div className={styles.formGroup}>
@@ -37,7 +52,9 @@ export function ConnectionFormSection({
           <input
             type="number"
             value={config.port}
-            onChange={(e) => onChange('port', Number.parseInt(e.target.value, 10) || 1433)}
+            onChange={(e) =>
+              onChange('port', Number.parseInt(e.target.value, 10) || DB_DEFAULT_PORT[dbType])
+            }
           />
         </div>
       </div>
@@ -48,22 +65,24 @@ export function ConnectionFormSection({
           type="text"
           value={config.database}
           onChange={(e) => onChange('database', e.target.value)}
-          placeholder="master"
+          placeholder={DB_PLACEHOLDER[dbType] ?? ''}
         />
       </div>
 
-      <div className={styles.formGroup}>
-        <label className={styles.checkboxLabel}>
-          <input
-            type="checkbox"
-            checked={config.useWindowsAuth}
-            onChange={(e) => onChange('useWindowsAuth', e.target.checked)}
-          />
-          Windows認証を使用
-        </label>
-      </div>
+      {dbType === 'sqlserver' && (
+        <div className={styles.formGroup}>
+          <label className={styles.checkboxLabel}>
+            <input
+              type="checkbox"
+              checked={config.useWindowsAuth}
+              onChange={(e) => onChange('useWindowsAuth', e.target.checked)}
+            />
+            Windows認証を使用
+          </label>
+        </div>
+      )}
 
-      {!config.useWindowsAuth && (
+      {!(dbType === 'sqlserver' && config.useWindowsAuth) && (
         <>
           <div className={styles.formGroup}>
             <label>ユーザー名</label>
