@@ -27,7 +27,7 @@ std::string buildODBCConnectionString(const DatabaseConnectionParams& params) {
     switch (params.dbType) {
         case DbType::PostgreSQL: {
             auto [host, port] = splitHostPort(params.server, defaultDbPort(DbType::PostgreSQL));
-            connectionString = std::format("Driver={{PostgreSQL ODBC Driver(UNICODE)}};Server={};Port={};Database={};", escapeOdbcValue(host), escapeOdbcValue(std::to_string(port)),
+            connectionString = std::format("Driver={{PostgreSQL Unicode(x64)}};Server={};Port={};Database={};", escapeOdbcValue(host), escapeOdbcValue(std::to_string(port)),
                                            escapeOdbcValue(params.database));
             connectionString += std::format("Uid={};Pwd={};", escapeOdbcValue(params.username), escapeOdbcValue(params.password));
             break;
