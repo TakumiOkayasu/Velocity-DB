@@ -1,6 +1,6 @@
 # Velocity-DB
 
-Windows向け高性能RDBMSマネジメントツール。DataGripライクなUI/UXを目指し、SQL Serverをメインターゲットとしています。
+Windows向け高性能RDBMSマネジメントツール。DataGripライクなUI/UXを目指し、SQL Server / PostgreSQL / MySQLに対応しています。
 
 ## 特徴
 
@@ -19,9 +19,9 @@ Windows向け高性能RDBMSマネジメントツール。DataGripライクなUI/
 ## 動作要件
 
 - Windows 10/11 (x64)
-- SQL Server 2016以降（ODBC接続）
+- SQL Server 2019+ / PostgreSQL 15+ / MySQL 8.4+（ODBC接続）
 - WebView2 Runtime（Windows 10 1803以降は標準搭載）
-- Microsoft ODBC Driver for SQL Server（下記「ランタイム依存」参照）
+- 接続先DBに対応するODBCドライバ（下記「ランタイム依存」参照）
 
 ## ランタイム依存
 
@@ -31,24 +31,41 @@ Windows向け高性能RDBMSマネジメントツール。DataGripライクなUI/
 
 | コンポーネント | 用途 | インストール方法 |
 |---------------|------|-----------------|
-| **ODBC Driver 18 for SQL Server** | SQL Server接続 | `winget install Microsoft.ODBC.SQLServer.18` |
 | **WebView2 Runtime** | UI表示 | Windows 10 1803以降は標準搭載。未インストールの場合: `winget install Microsoft.EdgeWebView2Runtime` |
 | **Visual C++ 再頒布可能パッケージ** | C++ランタイム | `winget install Microsoft.VCRedist.2015+.x64` |
+
+### ODBCドライバ（接続先DBに応じて選択）
+
+※ 接続先DBに対応するドライバのみインストールすればOK
+
+| コンポーネント | 用途 | インストール方法 |
+|---------------|------|-----------------|
+| **ODBC Driver 18 for SQL Server** | SQL Server接続 | `winget install Microsoft.ODBC.SQLServer.18` |
+| **PostgreSQL ODBC Driver (psqlODBC)** | PostgreSQL接続 | `winget install PostgreSQL.psqlODBC` |
+| **MySQL Connector/ODBC 8.4** | MySQL接続 | [公式サイト](https://dev.mysql.com/downloads/connector/odbc/)からダウンロード |
 
 ### インストールコマンド（まとめて実行）
 
 ```powershell
 # PowerShellを管理者として実行
-winget install Microsoft.ODBC.SQLServer.18
+
+# 必須
 winget install Microsoft.EdgeWebView2Runtime
 winget install Microsoft.VCRedist.2015+.x64
+
+# 接続先DBに応じて必要なドライバをインストール
+winget install Microsoft.ODBC.SQLServer.18   # SQL Server
+winget install PostgreSQL.psqlODBC            # PostgreSQL
+# MySQL: https://dev.mysql.com/downloads/connector/odbc/ から手動DL
 ```
 
 ### 手動インストール
 
 上記コマンドが使えない場合は、以下からダウンロードしてください：
 
-- **ODBC Driver**: [Microsoft ODBC Driver for SQL Server](https://learn.microsoft.com/ja-jp/sql/connect/odbc/download-odbc-driver-for-sql-server)
+- **ODBC Driver (SQL Server)**: [Microsoft ODBC Driver for SQL Server](https://learn.microsoft.com/ja-jp/sql/connect/odbc/download-odbc-driver-for-sql-server)
+- **PostgreSQL ODBC**: [psqlODBC](https://www.postgresql.org/ftp/odbc/releases/)
+- **MySQL ODBC**: [MySQL Connector/ODBC](https://dev.mysql.com/downloads/connector/odbc/)
 - **WebView2 Runtime**: [Microsoft Edge WebView2](https://developer.microsoft.com/ja-jp/microsoft-edge/webview2/)
 - **VC++ 再頒布可能**: [Visual C++ 再頒布可能パッケージ](https://learn.microsoft.com/ja-jp/cpp/windows/latest-supported-vc-redist)
 
@@ -63,7 +80,7 @@ winget install Microsoft.VCRedist.2015+.x64
 インストール済みのODBCドライバを確認するには：
 
 ```powershell
-Get-OdbcDriver | Where-Object { $_.Name -like '*SQL Server*' }
+Get-OdbcDriver | Format-Table Name, Platform
 ```
 
 CPUがAVX2に対応しているか確認するには：
