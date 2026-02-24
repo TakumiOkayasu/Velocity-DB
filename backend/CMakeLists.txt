@@ -79,6 +79,16 @@ set(HEADERS
     database/transaction_manager.h
     database/odbc_driver_detector.h
     database/connection_utils.h
+    # Interfaces (Driver ISP)
+    interfaces/connectable.h
+    interfaces/query_executable.h
+    interfaces/error_reportable.h
+    # Interfaces (Dialect ISP)
+    interfaces/schema_queryable.h
+    interfaces/relation_queryable.h
+    interfaces/ddl_queryable.h
+    interfaces/sql_formattable.h
+    interfaces/object_searchable.h
     # Interfaces (Provider)
     interfaces/system_context.h
     interfaces/providers/connection_provider.h
@@ -126,6 +136,7 @@ set(HEADERS
     utils/settings_manager.h
     utils/session_manager.h
     utils/glaze_meta.h
+    utils/sql_escape.h
     utils/global_search.h
     utils/credential_protector.h
     utils/logger.h
