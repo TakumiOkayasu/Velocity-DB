@@ -324,16 +324,12 @@ std::string_view SqlServerDialect::defaultSchema() const noexcept {
 
 std::string SqlServerDialect::paginateQuery(std::string_view sql, int64_t offset, int64_t limit) const {
     // Quote-aware ORDER BY detection to avoid false positives on string literals
-    return std::string(sql)
-        .append(hasOrderByOutsideQuotes(sql) ? "" : " ORDER BY (SELECT NULL)")
-        .append(std::format(" OFFSET {} ROWS FETCH NEXT {} ROWS ONLY", offset, limit));
+    return std::string(sql).append(hasOrderByOutsideQuotes(sql) ? "" : " ORDER BY (SELECT NULL)").append(std::format(" OFFSET {} ROWS FETCH NEXT {} ROWS ONLY", offset, limit));
 }
 
 std::string SqlServerDialect::rowCountQuery(std::string_view sql) const {
     // String concatenation to avoid std::format_error on SQL containing { or }
-    return std::string("SELECT COUNT_BIG(*) AS total_rows FROM (")
-        .append(sql)
-        .append(") AS subquery WITH(NOLOCK)");
+    return std::string("SELECT COUNT_BIG(*) AS total_rows FROM (").append(sql).append(") AS subquery WITH(NOLOCK)");
 }
 
 // ---------------------------------------------------------------------------
@@ -352,47 +348,40 @@ std::string SqlServerDialect::searchObjectsQuery(std::string_view pattern, bool 
     };
 
     if (categories & SearchCategory::Tables) {
-        appendUnion(std::format(
-            "SELECT 'TABLE' as object_type, TABLE_SCHEMA as schema_name, TABLE_NAME as object_name, '' as parent_name "
-            "FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME{} LIKE '{}'",
-            collate, likePattern));
+        appendUnion(std::format("SELECT 'TABLE' as object_type, TABLE_SCHEMA as schema_name, TABLE_NAME as object_name, '' as parent_name "
+                                "FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME{} LIKE '{}'",
+                                collate, likePattern));
     }
     if (categories & SearchCategory::Views) {
-        appendUnion(std::format(
-            "SELECT 'VIEW' as object_type, TABLE_SCHEMA as schema_name, TABLE_NAME as object_name, '' as parent_name "
-            "FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME{} LIKE '{}'",
-            collate, likePattern));
+        appendUnion(std::format("SELECT 'VIEW' as object_type, TABLE_SCHEMA as schema_name, TABLE_NAME as object_name, '' as parent_name "
+                                "FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME{} LIKE '{}'",
+                                collate, likePattern));
     }
     if (categories & SearchCategory::Procedures) {
-        appendUnion(std::format(
-            "SELECT 'PROCEDURE' as object_type, ROUTINE_SCHEMA as schema_name, ROUTINE_NAME as object_name, '' as parent_name "
-            "FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_TYPE = 'PROCEDURE' AND ROUTINE_NAME{} LIKE '{}'",
-            collate, likePattern));
+        appendUnion(std::format("SELECT 'PROCEDURE' as object_type, ROUTINE_SCHEMA as schema_name, ROUTINE_NAME as object_name, '' as parent_name "
+                                "FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_TYPE = 'PROCEDURE' AND ROUTINE_NAME{} LIKE '{}'",
+                                collate, likePattern));
     }
     if (categories & SearchCategory::Functions) {
-        appendUnion(std::format(
-            "SELECT 'FUNCTION' as object_type, ROUTINE_SCHEMA as schema_name, ROUTINE_NAME as object_name, '' as parent_name "
-            "FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_TYPE = 'FUNCTION' AND ROUTINE_NAME{} LIKE '{}'",
-            collate, likePattern));
+        appendUnion(std::format("SELECT 'FUNCTION' as object_type, ROUTINE_SCHEMA as schema_name, ROUTINE_NAME as object_name, '' as parent_name "
+                                "FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_TYPE = 'FUNCTION' AND ROUTINE_NAME{} LIKE '{}'",
+                                collate, likePattern));
     }
     if (categories & SearchCategory::Columns) {
-        appendUnion(std::format(
-            "SELECT 'COLUMN' as object_type, TABLE_SCHEMA as schema_name, COLUMN_NAME as object_name, TABLE_NAME as parent_name "
-            "FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME{} LIKE '{}'",
-            collate, likePattern));
+        appendUnion(std::format("SELECT 'COLUMN' as object_type, TABLE_SCHEMA as schema_name, COLUMN_NAME as object_name, TABLE_NAME as parent_name "
+                                "FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME{} LIKE '{}'",
+                                collate, likePattern));
     }
     if (categories & SearchCategory::Indexes) {
-        appendUnion(std::format(
-            "SELECT 'INDEX' as object_type, OBJECT_SCHEMA_NAME(object_id) as schema_name, name as object_name, OBJECT_NAME(object_id) as parent_name "
-            "FROM sys.indexes WHERE name IS NOT NULL AND name{} LIKE '{}'",
-            collate, likePattern));
+        appendUnion(std::format("SELECT 'INDEX' as object_type, OBJECT_SCHEMA_NAME(object_id) as schema_name, name as object_name, OBJECT_NAME(object_id) as parent_name "
+                                "FROM sys.indexes WHERE name IS NOT NULL AND name{} LIKE '{}'",
+                                collate, likePattern));
     }
 
     if (unions.empty())
         return "SELECT NULL AS object_type, NULL AS schema_name, NULL AS object_name, NULL AS parent_name WHERE 1=0";
 
-    return std::format("SELECT TOP {} * FROM ({}) AS search_results ORDER BY object_type, object_name",
-                       std::clamp(maxResults, 1, 1000), unions);
+    return std::format("SELECT TOP {} * FROM ({}) AS search_results ORDER BY object_type, object_name", std::clamp(maxResults, 1, 1000), unions);
 }
 
 std::string SqlServerDialect::quickSearchQuery(std::string_view prefix, int limit) const {
