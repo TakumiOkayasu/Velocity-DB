@@ -52,7 +52,9 @@ export function ConnectionFormSection({
           <input
             type="number"
             value={config.port}
-            onChange={(e) => onChange('port', Number.parseInt(e.target.value, 10) || DB_DEFAULT_PORT[dbType])}
+            onChange={(e) =>
+              onChange('port', Number.parseInt(e.target.value, 10) || DB_DEFAULT_PORT[dbType])
+            }
           />
         </div>
       </div>

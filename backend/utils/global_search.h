@@ -30,12 +30,18 @@ struct SearchOptions {
     /// Convert bool flags to SearchCategory bitmask
     [[nodiscard]] uint8_t toCategories() const noexcept {
         uint8_t categories = 0;
-        if (searchTables) categories |= SearchCategory::Tables;
-        if (searchViews) categories |= SearchCategory::Views;
-        if (searchProcedures) categories |= SearchCategory::Procedures;
-        if (searchFunctions) categories |= SearchCategory::Functions;
-        if (searchColumns) categories |= SearchCategory::Columns;
-        if (searchIndexes) categories |= SearchCategory::Indexes;
+        if (searchTables)
+            categories |= SearchCategory::Tables;
+        if (searchViews)
+            categories |= SearchCategory::Views;
+        if (searchProcedures)
+            categories |= SearchCategory::Procedures;
+        if (searchFunctions)
+            categories |= SearchCategory::Functions;
+        if (searchColumns)
+            categories |= SearchCategory::Columns;
+        if (searchIndexes)
+            categories |= SearchCategory::Indexes;
         return categories;
     }
 };
