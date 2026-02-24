@@ -5,7 +5,7 @@
 
 namespace velocitydb {
 
-class SQLServerDriver;
+class IDatabaseDriver;
 
 enum class TransactionState { None, Active, Committed, RolledBack };
 
@@ -14,7 +14,7 @@ public:
     TransactionManager() = default;
     ~TransactionManager();
 
-    void setDriver(std::shared_ptr<SQLServerDriver> driver) { m_driver = std::move(driver); }
+    void setDriver(std::shared_ptr<IDatabaseDriver> driver) { m_driver = std::move(driver); }
 
     void begin();
     void commit();
@@ -27,7 +27,7 @@ public:
     [[nodiscard]] bool isAutoCommit() const noexcept { return m_autoCommit; }
 
 private:
-    std::shared_ptr<SQLServerDriver> m_driver;
+    std::shared_ptr<IDatabaseDriver> m_driver;
     TransactionState m_state = TransactionState::None;
     bool m_autoCommit = true;
 };

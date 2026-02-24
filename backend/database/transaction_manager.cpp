@@ -1,6 +1,6 @@
 #include "transaction_manager.h"
 
-#include "sqlserver_driver.h"
+#include "driver_interface.h"
 
 #include <stdexcept>
 
@@ -28,6 +28,8 @@ void TransactionManager::begin() {
         throw std::runtime_error("Transaction already active");
     }
 
+    // BEGIN TRANSACTION is unambiguous on both SQL Server and PostgreSQL
+    // (plain BEGIN is a block statement in SQL Server batch context)
     [[maybe_unused]] auto result = m_driver->execute("BEGIN TRANSACTION");
     if (!m_driver->getLastError().empty()) [[unlikely]] {
         throw std::runtime_error(std::string(m_driver->getLastError()));
@@ -47,7 +49,7 @@ void TransactionManager::commit() {
         throw std::runtime_error("No active transaction");
     }
 
-    [[maybe_unused]] auto result = m_driver->execute("COMMIT TRANSACTION");
+    [[maybe_unused]] auto result = m_driver->execute("COMMIT");
     if (!m_driver->getLastError().empty()) [[unlikely]] {
         throw std::runtime_error(std::string(m_driver->getLastError()));
     }
@@ -66,7 +68,7 @@ void TransactionManager::rollback() {
         throw std::runtime_error("No active transaction");
     }
 
-    [[maybe_unused]] auto result = m_driver->execute("ROLLBACK TRANSACTION");
+    [[maybe_unused]] auto result = m_driver->execute("ROLLBACK");
     if (!m_driver->getLastError().empty()) [[unlikely]] {
         throw std::runtime_error(std::string(m_driver->getLastError()));
     }

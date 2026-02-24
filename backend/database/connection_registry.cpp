@@ -11,17 +11,21 @@ ConnectionRegistry::~ConnectionRegistry() {
     clear();
 }
 
-std::string ConnectionRegistry::add(DriverPtr queryDriver, DriverPtr metadataDriver) {
+std::string ConnectionRegistry::add(DriverPtr queryDriver, DriverPtr metadataDriver, DriverType driverType) {
     std::lock_guard lock(m_mutex);
     auto id = std::format("conn_{}", m_counter.fetch_add(1));
     m_queryConnections[id] = std::move(queryDriver);
     m_metadataConnections[id] = std::move(metadataDriver);
+    m_driverTypes[id] = driverType;
     return id;
 }
 
 void ConnectionRegistry::remove(std::string_view id) {
     std::lock_guard lock(m_mutex);
     auto idStr = std::string(id);
+
+    // Remove driver type
+    m_driverTypes.erase(idStr);
 
     // Close and remove SSH tunnel first
     if (auto tunnelIt = m_tunnels.find(idStr); tunnelIt != m_tunnels.end()) {
@@ -67,6 +71,14 @@ std::expected<ConnectionRegistry::DriverPtr, std::string> ConnectionRegistry::ge
     return getQueryDriver(id);
 }
 
+std::expected<DriverType, std::string> ConnectionRegistry::getDriverType(std::string_view id) const {
+    std::shared_lock lock(m_mutex);
+    if (auto it = m_driverTypes.find(std::string(id)); it != m_driverTypes.end()) {
+        return it->second;
+    }
+    return std::unexpected(std::format("Connection '{}' not found", id));
+}
+
 bool ConnectionRegistry::exists(std::string_view id) const {
     std::shared_lock lock(m_mutex);
     return m_queryConnections.contains(std::string(id));
@@ -93,6 +105,9 @@ SshTunnel* ConnectionRegistry::getTunnel(std::string_view connectionId) const {
 
 void ConnectionRegistry::clear() {
     std::lock_guard lock(m_mutex);
+
+    // Clear driver types
+    m_driverTypes.clear();
 
     // Close all tunnels
     m_tunnels.clear();

@@ -20,7 +20,6 @@ set(LIB_SOURCES
     database/postgresql_driver.cpp
     database/postgresql_dialect.cpp
     database/driver_factory.cpp
-    database/connection_pool.cpp
     database/connection_registry.cpp
     database/result_cache.cpp
     database/async_query_executor.cpp
@@ -79,7 +78,6 @@ set(HEADERS
     database/sqlserver_dialect.h
     database/postgresql_driver.h
     database/postgresql_dialect.h
-    database/connection_pool.h
     database/connection_registry.h
     database/result_cache.h
     database/async_query_executor.h
