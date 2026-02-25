@@ -15,6 +15,7 @@ interface SavedProfile {
   savePassword?: boolean;
   isProduction?: boolean;
   isReadOnly?: boolean;
+  dbType?: 'sqlserver' | 'postgresql' | 'mysql';
   ssh?: {
     enabled: boolean;
     host: string;
@@ -95,6 +96,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
         username: confirmingProfile.username,
         password,
         useWindowsAuth: confirmingProfile.useWindowsAuth,
+        dbType: confirmingProfile.dbType ?? 'sqlserver',
         isProduction: confirmingProfile.isProduction ?? false,
         isReadOnly: confirmingProfile.isReadOnly ?? false,
         ssh: confirmingProfile.ssh?.enabled
