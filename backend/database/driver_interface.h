@@ -3,6 +3,7 @@
 #include "../interfaces/connectable.h"
 #include "../interfaces/error_reportable.h"
 
+#include <chrono>
 #include <cstdint>
 #include <expected>
 #include <memory>
@@ -68,13 +69,21 @@ struct ResultSet {
 
 class IQueryExecutable {
 public:
+    static constexpr std::chrono::seconds kDefaultQueryTimeout{300};
+
     virtual ~IQueryExecutable() = default;
 
     IQueryExecutable(const IQueryExecutable&) = delete;
     IQueryExecutable& operator=(const IQueryExecutable&) = delete;
 
     [[nodiscard]] virtual ResultSet execute(std::string_view sql) = 0;
+
+    /// Thread-safe: execute() がブロック中でもロックなしで呼び出し可能であること。
     virtual void cancel() = 0;
+
+    /// execute() と排他的に実行されること（実装側で m_executeMutex 等で保護）。
+    virtual void setQueryTimeout(std::chrono::seconds timeout) = 0;
+    [[nodiscard]] virtual std::chrono::seconds queryTimeout() const noexcept = 0;
 
 protected:
     IQueryExecutable() = default;

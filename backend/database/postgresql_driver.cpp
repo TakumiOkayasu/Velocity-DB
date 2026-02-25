@@ -103,8 +103,8 @@ bool PostgreSqlDriver::connect(std::string_view connectionString) {
     }
 
     PQsetClientEncoding(conn, "UTF8");
-    // クエリタイムアウト 300秒 (SQL Server の SQL_ATTR_QUERY_TIMEOUT と統一)
-    PQexec(conn, "SET statement_timeout = '300s'");
+    auto timeoutCmd = std::format("SET statement_timeout = '{}s'", m_queryTimeout.count());
+    PQclear(PQexec(conn, timeoutCmd.c_str()));
 
     m_conn.store(conn, std::memory_order_release);
     m_connected.store(true, std::memory_order_release);
@@ -190,6 +190,20 @@ ResultSet PostgreSqlDriver::execute(std::string_view sql) {
     result.executionTimeMs = static_cast<double>(duration.count()) / 1000.0;
 
     return result;
+}
+
+void PostgreSqlDriver::setQueryTimeout(std::chrono::seconds timeout) {
+    std::lock_guard lock(m_executeMutex);
+    m_queryTimeout = timeout;
+    auto* conn = m_conn.load(std::memory_order_acquire);
+    if (conn) {
+        auto cmd = std::format("SET statement_timeout = '{}s'", timeout.count());
+        PQclear(PQexec(conn, cmd.c_str()));
+    }
+}
+
+std::chrono::seconds PostgreSqlDriver::queryTimeout() const noexcept {
+    return m_queryTimeout;
 }
 
 void PostgreSqlDriver::cancel() {
