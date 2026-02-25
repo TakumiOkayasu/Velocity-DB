@@ -21,21 +21,27 @@ std::string escapeOdbcValue(std::string_view value) {
     return result;
 }
 
-std::string buildODBCConnectionString(const DatabaseConnectionParams& params) {
+std::expected<std::string, std::string> buildODBCConnectionString(const DatabaseConnectionParams& params) {
     std::string connectionString;
 
     switch (params.dbType) {
         case DbType::PostgreSQL: {
+            auto driver = detectBestPostgreSqlDriver();
+            if (driver.empty()) {
+                return std::unexpected("PostgreSQL ODBC driver not found. Install psqlODBC from https://www.postgresql.org/ftp/odbc/");
+            }
             auto [host, port] = splitHostPort(params.server, defaultDbPort(DbType::PostgreSQL));
-            connectionString = std::format("Driver={{PostgreSQL ODBC Driver(UNICODE)}};Server={};Port={};Database={};", escapeOdbcValue(host), escapeOdbcValue(std::to_string(port)),
-                                           escapeOdbcValue(params.database));
+            connectionString = std::format("Driver={{{}}};Server={};Port={};Database={};", driver, escapeOdbcValue(host), escapeOdbcValue(std::to_string(port)), escapeOdbcValue(params.database));
             connectionString += std::format("Uid={};Pwd={};", escapeOdbcValue(params.username), escapeOdbcValue(params.password));
             break;
         }
         case DbType::MySQL: {
+            auto driver = detectBestMySqlDriver();
+            if (driver.empty()) {
+                return std::unexpected("MySQL ODBC driver not found. Install MySQL Connector/ODBC from https://dev.mysql.com/downloads/connector/odbc/");
+            }
             auto [host, port] = splitHostPort(params.server, defaultDbPort(DbType::MySQL));
-            connectionString =
-                std::format("Driver={{MySQL ODBC 8.0 Unicode Driver}};Server={};Port={};Database={};", escapeOdbcValue(host), escapeOdbcValue(std::to_string(port)), escapeOdbcValue(params.database));
+            connectionString = std::format("Driver={{{}}};Server={};Port={};Database={};", driver, escapeOdbcValue(host), escapeOdbcValue(std::to_string(port)), escapeOdbcValue(params.database));
             connectionString += std::format("User={};Password={};", escapeOdbcValue(params.username), escapeOdbcValue(params.password));
             break;
         }

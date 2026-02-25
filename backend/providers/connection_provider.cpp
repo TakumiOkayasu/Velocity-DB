@@ -45,12 +45,14 @@ struct PreparedConnection {
         log<LogLevel::DEBUG>(std::format("[DB] SSH tunnel established, redirecting to: {}", effectiveParams.server));
     }
 
-    auto odbcString = buildODBCConnectionString(effectiveParams);
+    auto odbcResult = buildODBCConnectionString(effectiveParams);
+    if (!odbcResult)
+        return std::unexpected(odbcResult.error());
     log<LogLevel::DEBUG>(std::format("[DB] ODBC connection target: {}", effectiveParams.server));
     log<LogLevel::DEBUG>("[DB] Attempting ODBC connection...");
     log_flush();
 
-    return PreparedConnection{std::move(odbcString), std::move(tunnel), toDriverType(params.dbType)};
+    return PreparedConnection{std::move(*odbcResult), std::move(tunnel), toDriverType(params.dbType)};
 }
 
 }  // namespace
