@@ -21,6 +21,22 @@ std::string escapeOdbcValue(std::string_view value) {
     return result;
 }
 
+std::string quoteOdbcValue(std::string_view value) {
+    if (value.find_first_of("';") == std::string_view::npos) {
+        return std::string(value);
+    }
+    std::string result = "'";
+    for (auto c : value) {
+        if (c == '\'') {
+            result += "''";
+        } else {
+            result += c;
+        }
+    }
+    result += "'";
+    return result;
+}
+
 std::expected<std::string, std::string> buildODBCConnectionString(const DatabaseConnectionParams& params) {
     std::string connectionString;
 
@@ -31,8 +47,8 @@ std::expected<std::string, std::string> buildODBCConnectionString(const Database
                 return std::unexpected("PostgreSQL ODBC driver not found. Install psqlODBC from https://www.postgresql.org/ftp/odbc/");
             }
             auto [host, port] = splitHostPort(params.server, defaultDbPort(DbType::PostgreSQL));
-            connectionString = std::format("Driver={{{}}};Server={};Port={};Database={};", driver, escapeOdbcValue(host), escapeOdbcValue(std::to_string(port)), escapeOdbcValue(params.database));
-            connectionString += std::format("Uid={};Pwd={};", escapeOdbcValue(params.username), escapeOdbcValue(params.password));
+            connectionString = std::format("Driver={{{}}};Server={};Port={};Database={};", driver, quoteOdbcValue(host), port, quoteOdbcValue(params.database));
+            connectionString += std::format("Uid={};Pwd={};", quoteOdbcValue(params.username), quoteOdbcValue(params.password));
             break;
         }
         case DbType::MySQL: {
@@ -41,8 +57,8 @@ std::expected<std::string, std::string> buildODBCConnectionString(const Database
                 return std::unexpected("MySQL ODBC driver not found. Install MySQL Connector/ODBC from https://dev.mysql.com/downloads/connector/odbc/");
             }
             auto [host, port] = splitHostPort(params.server, defaultDbPort(DbType::MySQL));
-            connectionString = std::format("Driver={{{}}};Server={};Port={};Database={};", driver, escapeOdbcValue(host), escapeOdbcValue(std::to_string(port)), escapeOdbcValue(params.database));
-            connectionString += std::format("User={};Password={};", escapeOdbcValue(params.username), escapeOdbcValue(params.password));
+            connectionString = std::format("Driver={{{}}};Server={};Port={};Database={};", driver, quoteOdbcValue(host), port, quoteOdbcValue(params.database));
+            connectionString += std::format("User={};Password={};", quoteOdbcValue(params.username), quoteOdbcValue(params.password));
             break;
         }
         case DbType::SQLServer:

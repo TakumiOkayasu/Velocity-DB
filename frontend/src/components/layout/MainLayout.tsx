@@ -155,7 +155,7 @@ export function MainLayout() {
     }
   }, [activeQueryId, results, isDataView]);
 
-  const handleConnect = async (config: ConnectionConfig) => {
+  const connectToDatabase = async (config: ConnectionConfig) => {
     try {
       await addConnection({
         name: config.name,
@@ -165,6 +165,7 @@ export function MainLayout() {
         username: config.username,
         password: config.password,
         useWindowsAuth: config.useWindowsAuth,
+        dbType: config.dbType,
         isProduction: config.isProduction,
         isReadOnly: config.isReadOnly,
         ssh: config.ssh.enabled
@@ -590,7 +591,7 @@ export function MainLayout() {
           <ConnectionDialog
             isOpen={isConnectionDialogOpen}
             onClose={() => setIsConnectionDialogOpen(false)}
-            onConnect={handleConnect}
+            onConnect={connectToDatabase}
           />
         </Suspense>
       )}
