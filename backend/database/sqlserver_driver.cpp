@@ -80,7 +80,7 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
     // Publish new stmt so cancel() can see it immediately
     m_stmt.store(stmt, std::memory_order_release);
 
-    constexpr SQLULEN queryTimeout = 300;
+    auto queryTimeout = static_cast<SQLULEN>(m_queryTimeout.count());
     SQLSetStmtAttr(stmt, SQL_ATTR_QUERY_TIMEOUT, toSqlPointer(queryTimeout), 0);
 
     auto wideSql = utf8ToWide(sql);
@@ -178,6 +178,15 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
 
 void SQLServerDriver::cancel() {
     odbc::cancelStatement(m_stmt.load(std::memory_order_acquire));
+}
+
+void SQLServerDriver::setQueryTimeout(std::chrono::seconds timeout) {
+    std::lock_guard lock(m_executeMutex);
+    m_queryTimeout = timeout;
+}
+
+std::chrono::seconds SQLServerDriver::queryTimeout() const noexcept {
+    return m_queryTimeout;
 }
 
 std::string SQLServerDriver::getLastError() const {

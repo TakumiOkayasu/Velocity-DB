@@ -103,11 +103,10 @@ bool PostgreSqlDriver::connect(std::string_view connectionString) {
     }
 
     PQsetClientEncoding(conn, "UTF8");
+    auto timeoutCmd = std::format("SET statement_timeout = '{}s'", m_queryTimeout.count());
+    PQclear(PQexec(conn, timeoutCmd.c_str()));
 
-    {
-        std::lock_guard lock(m_executeMutex);
-        m_conn = conn;
-    }
+    m_conn.store(conn, std::memory_order_release);
     m_connected.store(true, std::memory_order_release);
     return true;
 }
@@ -115,10 +114,9 @@ bool PostgreSqlDriver::connect(std::string_view connectionString) {
 void PostgreSqlDriver::disconnect() {
     std::lock_guard lock(m_executeMutex);
     if (m_connected.exchange(false, std::memory_order_acq_rel)) {
-        if (m_conn) {
-            PQfinish(m_conn);
-            m_conn = nullptr;
-        }
+        auto* conn = m_conn.exchange(nullptr, std::memory_order_acq_rel);
+        if (conn)
+            PQfinish(conn);
     }
 }
 
@@ -132,9 +130,10 @@ ResultSet PostgreSqlDriver::execute(std::string_view sql) {
 
     const auto startTime = std::chrono::high_resolution_clock::now();
 
-    PGresultPtr pgResult(PQexec(m_conn, std::string(sql).c_str()));
+    auto* conn = m_conn.load(std::memory_order_acquire);
+    PGresultPtr pgResult(PQexec(conn, std::string(sql).c_str()));
     if (!pgResult) [[unlikely]] {
-        m_lastError = PQerrorMessage(m_conn);
+        m_lastError = PQerrorMessage(conn);
         throw std::runtime_error(m_lastError);
     }
 
@@ -193,13 +192,25 @@ ResultSet PostgreSqlDriver::execute(std::string_view sql) {
     return result;
 }
 
-void PostgreSqlDriver::cancel() {
-    PGcancel* cancelObj = nullptr;
-    {
-        std::lock_guard lock(m_executeMutex);
-        if (m_conn)
-            cancelObj = PQgetCancel(m_conn);
+void PostgreSqlDriver::setQueryTimeout(std::chrono::seconds timeout) {
+    std::lock_guard lock(m_executeMutex);
+    m_queryTimeout = timeout;
+    auto* conn = m_conn.load(std::memory_order_acquire);
+    if (conn) {
+        auto cmd = std::format("SET statement_timeout = '{}s'", timeout.count());
+        PQclear(PQexec(conn, cmd.c_str()));
     }
+}
+
+std::chrono::seconds PostgreSqlDriver::queryTimeout() const noexcept {
+    return m_queryTimeout;
+}
+
+void PostgreSqlDriver::cancel() {
+    auto* conn = m_conn.load(std::memory_order_acquire);
+    if (!conn)
+        return;
+    auto* cancelObj = PQgetCancel(conn);
     if (cancelObj) {
         char errbuf[256];
         PQcancel(cancelObj, errbuf, sizeof(errbuf));
