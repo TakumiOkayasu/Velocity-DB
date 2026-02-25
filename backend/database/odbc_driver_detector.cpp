@@ -8,14 +8,12 @@
 
 #include <array>
 #include <format>
+#include <mutex>
+#include <span>
 
 namespace velocitydb {
 
 namespace {
-
-// Cache the detected driver to avoid repeated registry lookups
-std::string g_cachedDriver;
-bool g_driverDetected = false;
 
 bool isDriverAvailable(std::string_view driverName) {
     SQLHENV env = SQL_NULL_HENV;
@@ -52,28 +50,40 @@ bool isDriverAvailable(std::string_view driverName) {
     return found;
 }
 
+/// Finds the first available driver from a priority list, with optional fallback.
+std::string findBestDriver(std::span<const char* const> candidates, std::string_view fallback = "") {
+    for (const auto& name : candidates) {
+        if (isDriverAvailable(name))
+            return name;
+    }
+    return std::string(fallback);
+}
+
 }  // namespace
 
 std::string detectBestSqlServerDriver() {
-    if (g_driverDetected) {
-        return g_cachedDriver;
-    }
+    static std::once_flag flag;
+    static std::string cached;
+    static constexpr std::array candidates = {"ODBC Driver 18 for SQL Server", "ODBC Driver 17 for SQL Server", "ODBC Driver 13 for SQL Server", "SQL Server"};
+    std::call_once(flag, [&] { cached = findBestDriver(candidates, "SQL Server"); });
+    return cached;
+}
 
-    // Try drivers in order of preference (newest first)
-    static constexpr std::array drivers = {"ODBC Driver 18 for SQL Server", "ODBC Driver 17 for SQL Server", "ODBC Driver 13 for SQL Server", "SQL Server"};
+std::string detectBestPostgreSqlDriver() {
+    static std::once_flag flag;
+    static std::string cached;
+    static constexpr std::array candidates = {"PostgreSQL Unicode(x64)", "PostgreSQL ANSI(x64)", "PostgreSQL Unicode", "PostgreSQL ANSI"};
+    std::call_once(flag, [&] { cached = findBestDriver(candidates); });
+    return cached;
+}
 
-    for (const auto& driver : drivers) {
-        if (isDriverAvailable(driver)) {
-            g_cachedDriver = driver;
-            g_driverDetected = true;
-            return g_cachedDriver;
-        }
-    }
-
-    // Fallback to generic driver name (may not work)
-    g_cachedDriver = "SQL Server";
-    g_driverDetected = true;
-    return g_cachedDriver;
+std::string detectBestMySqlDriver() {
+    static std::once_flag flag;
+    static std::string cached;
+    static constexpr std::array candidates = {"MySQL ODBC 9.2 Unicode Driver", "MySQL ODBC 9.1 Unicode Driver", "MySQL ODBC 9.0 Unicode Driver", "MySQL ODBC 8.4 Unicode Driver",
+                                              "MySQL ODBC 8.0 Unicode Driver"};
+    std::call_once(flag, [&] { cached = findBestDriver(candidates); });
+    return cached;
 }
 
 std::string buildDriverConnectionPrefix(std::string_view server, std::string_view database) {

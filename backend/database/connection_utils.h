@@ -68,7 +68,8 @@ struct DatabaseConnectionParams {
 [[nodiscard]] std::string escapeOdbcValue(std::string_view value);
 
 /// Builds ODBC connection string from parameters.
-[[nodiscard]] std::string buildODBCConnectionString(const DatabaseConnectionParams& params);
+/// Returns unexpected if the required ODBC driver is not installed.
+[[nodiscard]] std::expected<std::string, std::string> buildODBCConnectionString(const DatabaseConnectionParams& params);
 
 /// Parses JSON into DatabaseConnectionParams.
 [[nodiscard]] std::expected<DatabaseConnectionParams, std::string> extractConnectionParams(std::string_view jsonParams);
