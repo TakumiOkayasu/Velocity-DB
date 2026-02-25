@@ -64,8 +64,11 @@ struct DatabaseConnectionParams {
     SshConnectionParams ssh;
 };
 
-/// Escapes special characters in ODBC connection string values.
+/// Escapes a value for SQL Server ODBC connection strings using {brace} syntax.
 [[nodiscard]] std::string escapeOdbcValue(std::string_view value);
+
+/// Escapes a value for PostgreSQL/MySQL ODBC connection strings using 'single-quote' syntax.
+[[nodiscard]] std::string quoteOdbcValue(std::string_view value);
 
 /// Builds ODBC connection string from parameters.
 /// Returns unexpected if the required ODBC driver is not installed.
