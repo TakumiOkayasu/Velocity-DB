@@ -33,7 +33,7 @@ public:
     [[nodiscard]] DriverType getType() const noexcept override { return DriverType::PostgreSQL; }
 
 private:
-    PGconn* m_conn = nullptr;
+    std::atomic<PGconn*> m_conn{nullptr};
     std::atomic<bool> m_connected{false};
     std::string m_lastError;
     mutable std::mutex m_executeMutex;
