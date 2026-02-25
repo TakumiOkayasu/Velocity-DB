@@ -1,3 +1,7 @@
+# Find libpq (required for PostgreSQL native connection)
+find_package(PostgreSQL REQUIRED)
+message(STATUS "PostgreSQL (libpq) found: ${PostgreSQL_INCLUDE_DIRS}")
+
 # Find libssh2 (optional - via vcpkg)
 find_package(Libssh2 CONFIG QUIET)
 if(Libssh2_FOUND)
@@ -167,6 +171,7 @@ target_link_libraries(VelocityDBCore PUBLIC
     simdjson
     pugixml
     glaze::glaze
+    PostgreSQL::PostgreSQL
     odbc32
     odbccp32
     crypt32

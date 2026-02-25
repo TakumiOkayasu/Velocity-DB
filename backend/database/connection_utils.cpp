@@ -37,18 +37,30 @@ std::string quoteOdbcValue(std::string_view value) {
     return result;
 }
 
-std::expected<std::string, std::string> buildODBCConnectionString(const DatabaseConnectionParams& params) {
+std::string quoteLibpqValue(std::string_view value) {
+    std::string result = "'";
+    for (auto c : value) {
+        if (c == '\'') {
+            result += "\\'";
+        } else if (c == '\\') {
+            result += "\\\\";
+        } else {
+            result += c;
+        }
+    }
+    result += "'";
+    return result;
+}
+
+std::expected<std::string, std::string> buildConnectionString(const DatabaseConnectionParams& params) {
     std::string connectionString;
 
     switch (params.dbType) {
         case DbType::PostgreSQL: {
-            auto driver = detectBestPostgreSqlDriver();
-            if (driver.empty()) {
-                return std::unexpected("PostgreSQL ODBC driver not found. Install psqlODBC from https://www.postgresql.org/ftp/odbc/");
-            }
             auto [host, port] = splitHostPort(params.server, defaultDbPort(DbType::PostgreSQL));
-            connectionString = std::format("Driver={{{}}};Server={};Port={};Database={};", driver, quoteOdbcValue(host), port, quoteOdbcValue(params.database));
-            connectionString += std::format("Uid={};Pwd={};", quoteOdbcValue(params.username), quoteOdbcValue(params.password));
+            connectionString = std::format("host={} port={} dbname={} user={} password={} connect_timeout=30",
+                quoteLibpqValue(host), port, quoteLibpqValue(params.database),
+                quoteLibpqValue(params.username), quoteLibpqValue(params.password));
             break;
         }
         case DbType::MySQL: {

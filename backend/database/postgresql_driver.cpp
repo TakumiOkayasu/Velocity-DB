@@ -1,28 +1,90 @@
 #include "postgresql_driver.h"
 
-#include "odbc_helpers.h"
-
-#include <algorithm>
-#include <array>
+#include <charconv>
 #include <chrono>
+#include <format>
 #include <stdexcept>
-#include <vector>
+#include <string>
 
 namespace velocitydb {
 
-PostgreSqlDriver::PostgreSqlDriver() {
-    m_env = odbc::allocateEnvironment();
-    m_dbc = odbc::allocateConnection(m_env);
+namespace {
+
+/// Convert PostgreSQL OID to human-readable type name.
+std::string oidToTypeName(Oid oid) {
+    switch (oid) {
+        case 16:
+            return "boolean";
+        case 17:
+            return "bytea";
+        case 18:
+            return "char";
+        case 20:
+            return "bigint";
+        case 21:
+            return "smallint";
+        case 23:
+            return "integer";
+        case 25:
+            return "text";
+        case 26:
+            return "oid";
+        case 114:
+            return "json";
+        case 142:
+            return "xml";
+        case 700:
+            return "real";
+        case 701:
+            return "double precision";
+        case 790:
+            return "money";
+        case 829:
+            return "macaddr";
+        case 869:
+            return "inet";
+        case 650:
+            return "cidr";
+        case 1042:
+            return "char";
+        case 1043:
+            return "varchar";
+        case 1082:
+            return "date";
+        case 1083:
+            return "time";
+        case 1114:
+            return "timestamp";
+        case 1184:
+            return "timestamptz";
+        case 1186:
+            return "interval";
+        case 1560:
+            return "bit";
+        case 1562:
+            return "varbit";
+        case 1700:
+            return "numeric";
+        case 2950:
+            return "uuid";
+        case 3802:
+            return "jsonb";
+        default:
+            return std::format("oid({})", oid);
+    }
 }
+
+struct PGresultDeleter {
+    void operator()(PGresult* r) const {
+        if (r) PQclear(r);
+    }
+};
+using PGresultPtr = std::unique_ptr<PGresult, PGresultDeleter>;
+
+}  // namespace
 
 PostgreSqlDriver::~PostgreSqlDriver() {
     disconnect();
-    if (m_dbc != SQL_NULL_HDBC) {
-        SQLFreeHandle(SQL_HANDLE_DBC, m_dbc);
-    }
-    if (m_env != SQL_NULL_HENV) {
-        SQLFreeHandle(SQL_HANDLE_ENV, m_env);
-    }
 }
 
 bool PostgreSqlDriver::connect(std::string_view connectionString) {
@@ -30,27 +92,31 @@ bool PostgreSqlDriver::connect(std::string_view connectionString) {
         disconnect();
     }
 
-    odbc::setConnectionTimeout(m_dbc);
-
-    std::string error;
-    if (!odbc::connectWithString(m_dbc, connectionString, error)) {
+    auto* conn = PQconnectdb(std::string(connectionString).c_str());
+    if (PQstatus(conn) != CONNECTION_OK) {
         std::lock_guard lock(m_executeMutex);
-        m_lastError = std::move(error);
+        m_lastError = PQerrorMessage(conn);
+        PQfinish(conn);
         return false;
     }
 
+    PQsetClientEncoding(conn, "UTF8");
+
+    {
+        std::lock_guard lock(m_executeMutex);
+        m_conn = conn;
+    }
     m_connected.store(true, std::memory_order_release);
     return true;
 }
 
 void PostgreSqlDriver::disconnect() {
     std::lock_guard lock(m_executeMutex);
-    auto stmt = m_stmt.exchange(SQL_NULL_HSTMT, std::memory_order_acq_rel);
-    if (stmt != SQL_NULL_HSTMT) {
-        SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-    }
     if (m_connected.exchange(false, std::memory_order_acq_rel)) {
-        odbc::disconnect(m_dbc);
+        if (m_conn) {
+            PQfinish(m_conn);
+            m_conn = nullptr;
+        }
     }
 }
 
@@ -64,107 +130,58 @@ ResultSet PostgreSqlDriver::execute(std::string_view sql) {
 
     const auto startTime = std::chrono::high_resolution_clock::now();
 
-    auto oldStmt = m_stmt.exchange(SQL_NULL_HSTMT, std::memory_order_acq_rel);
-    if (oldStmt != SQL_NULL_HSTMT) {
-        SQLFreeHandle(SQL_HANDLE_STMT, oldStmt);
-    }
-
-    SQLHSTMT stmt = SQL_NULL_HSTMT;
-    SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, m_dbc, &stmt);
-    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) [[unlikely]] {
-        m_stmt.store(SQL_NULL_HSTMT, std::memory_order_release);
-        m_lastError = odbc::getDiagnosticMessage(ret, SQL_HANDLE_DBC, m_dbc);
+    PGresultPtr pgResult(PQexec(m_conn, std::string(sql).c_str()));
+    if (!pgResult) [[unlikely]] {
+        m_lastError = PQerrorMessage(m_conn);
         throw std::runtime_error(m_lastError);
     }
 
-    m_stmt.store(stmt, std::memory_order_release);
-
-    constexpr SQLULEN queryTimeout = 300;
-    SQLSetStmtAttr(stmt, SQL_ATTR_QUERY_TIMEOUT, toSqlPointer(queryTimeout), 0);
-
-    auto wideSql = utf8ToWide(sql);
-    ret = SQLExecDirectW(stmt, toSqlWchar(wideSql.data()), SQL_NTS);
-    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO && ret != SQL_NO_DATA) [[unlikely]] {
-        m_lastError = odbc::getDiagnosticMessage(ret, SQL_HANDLE_STMT, stmt);
+    auto status = PQresultStatus(pgResult.get());
+    if (status != PGRES_TUPLES_OK && status != PGRES_COMMAND_OK) [[unlikely]] {
+        m_lastError = PQresultErrorMessage(pgResult.get());
+        if (m_lastError.empty())
+            m_lastError = std::format("Query failed with status: {}", PQresStatus(status));
         throw std::runtime_error(m_lastError);
     }
 
-    SQLSMALLINT numCols = 0;
-    ret = SQLNumResultCols(stmt, &numCols);
-    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) [[unlikely]] {
-        m_lastError = odbc::getDiagnosticMessage(ret, SQL_HANDLE_STMT, stmt);
-        throw std::runtime_error(std::string("Failed to get column count: ") + m_lastError);
-    }
+    if (status == PGRES_TUPLES_OK) {
+        int numCols = PQnfields(pgResult.get());
+        int numRows = PQntuples(pgResult.get());
 
-    result.columns.reserve(static_cast<size_t>(numCols));
-    for (SQLSMALLINT i = 1; i <= numCols; ++i) {
-        std::array<SQLWCHAR, 256> colName{};
-        SQLSMALLINT colNameLen = 0;
-        SQLSMALLINT dataType = 0;
-        SQLULEN colSize = 0;
-        SQLSMALLINT decimalDigits = 0;
-        SQLSMALLINT nullable = 0;
-
-        ret = SQLDescribeColW(stmt, i, colName.data(), static_cast<SQLSMALLINT>(colName.size()), &colNameLen, &dataType, &colSize, &decimalDigits, &nullable);
-        if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) [[unlikely]] {
-            m_lastError = odbc::getDiagnosticMessage(ret, SQL_HANDLE_STMT, stmt);
-            throw std::runtime_error(std::string("Failed to describe column: ") + m_lastError);
+        result.columns.reserve(static_cast<size_t>(numCols));
+        for (int i = 0; i < numCols; ++i) {
+            ColumnInfo col;
+            col.name = PQfname(pgResult.get(), i);
+            col.type = oidToTypeName(PQftype(pgResult.get(), i));
+            int rawSize = PQfsize(pgResult.get(), i);
+            col.size = (rawSize > 0) ? rawSize : 0;
+            col.nullable = true;
+            col.isPrimaryKey = false;
+            result.columns.push_back(std::move(col));
         }
 
-        colNameLen = (std::min)(colNameLen, static_cast<SQLSMALLINT>(colName.size() - 1));
-        auto columnName = sqlWcharToUtf8(colName.data(), static_cast<size_t>(colNameLen));
-
-        if (columnName.empty()) {
-            columnName = std::format("Column{}", i);
-        }
-
-        result.columns.push_back(
-            {.name = columnName, .type = odbc::convertSQLTypeToDisplayName(dataType), .size = static_cast<int>(colSize), .nullable = (nullable == SQL_NULLABLE), .isPrimaryKey = false});
-    }
-
-    constexpr size_t INITIAL_BUFFER_CHARS = 4096;
-    std::vector<SQLWCHAR> buffer(INITIAL_BUFFER_CHARS);
-    SQLLEN indicator = 0;
-
-    while ((ret = SQLFetch(stmt)) == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
-        ResultRow row;
-        row.values.reserve(static_cast<size_t>(numCols));
-
-        for (SQLSMALLINT i = 1; i <= numCols; ++i) {
-            ret = SQLGetData(stmt, i, SQL_C_WCHAR, buffer.data(), buffer.size() * sizeof(SQLWCHAR), &indicator);
-            if (indicator == SQL_NULL_DATA) {
-                row.values.emplace_back();
-            } else if (ret == SQL_SUCCESS_WITH_INFO && indicator > static_cast<SQLLEN>((buffer.size() - 1) * sizeof(SQLWCHAR))) {
-                size_t requiredChars = (static_cast<size_t>(indicator) / sizeof(SQLWCHAR)) + 1;
-                std::vector<SQLWCHAR> largeBuffer(requiredChars);
-                size_t alreadyReadChars = buffer.size() - 1;
-                std::copy(buffer.begin(), buffer.begin() + static_cast<ptrdiff_t>(alreadyReadChars), largeBuffer.begin());
-                SQLLEN remainingIndicator = 0;
-                ret = SQLGetData(stmt, i, SQL_C_WCHAR, largeBuffer.data() + alreadyReadChars, (requiredChars - alreadyReadChars) * sizeof(SQLWCHAR), &remainingIndicator);
-                size_t strLen = 0;
-                for (size_t j = 0; j < largeBuffer.size() && largeBuffer[j] != 0; ++j) {
-                    strLen = j + 1;
+        result.rows.reserve(static_cast<size_t>(numRows));
+        for (int r = 0; r < numRows; ++r) {
+            ResultRow row;
+            row.values.reserve(static_cast<size_t>(numCols));
+            for (int c = 0; c < numCols; ++c) {
+                if (PQgetisnull(pgResult.get(), r, c)) {
+                    row.values.emplace_back();
+                } else {
+                    row.values.emplace_back(PQgetvalue(pgResult.get(), r, c));
                 }
-                row.values.emplace_back(sqlWcharToUtf8(largeBuffer.data(), strLen));
-            } else if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
-                size_t strLen = 0;
-                for (size_t j = 0; j < buffer.size() && buffer[j] != 0; ++j) {
-                    strLen = j + 1;
-                }
-                row.values.emplace_back(sqlWcharToUtf8(buffer.data(), strLen));
-            } else {
-                row.values.emplace_back();
             }
+            result.rows.push_back(std::move(row));
         }
-        result.rows.push_back(std::move(row));
-    }
 
-    SQLLEN rowCount = 0;
-    ret = SQLRowCount(stmt, &rowCount);
-    if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
-        result.affectedRows = rowCount;
-    } else {
-        result.affectedRows = 0;
+        result.affectedRows = numRows;
+    } else if (status == PGRES_COMMAND_OK) {
+        const char* cmdTuples = PQcmdTuples(pgResult.get());
+        if (cmdTuples && cmdTuples[0] != '\0') {
+            int64_t rows = 0;
+            std::from_chars(cmdTuples, cmdTuples + std::strlen(cmdTuples), rows);
+            result.affectedRows = rows;
+        }
     }
 
     const auto endTime = std::chrono::high_resolution_clock::now();
@@ -175,7 +192,17 @@ ResultSet PostgreSqlDriver::execute(std::string_view sql) {
 }
 
 void PostgreSqlDriver::cancel() {
-    odbc::cancelStatement(m_stmt.load(std::memory_order_acquire));
+    PGcancel* cancelObj = nullptr;
+    {
+        std::lock_guard lock(m_executeMutex);
+        if (m_conn)
+            cancelObj = PQgetCancel(m_conn);
+    }
+    if (cancelObj) {
+        char errbuf[256];
+        PQcancel(cancelObj, errbuf, sizeof(errbuf));
+        PQfreeCancel(cancelObj);
+    }
 }
 
 std::string PostgreSqlDriver::getLastError() const {

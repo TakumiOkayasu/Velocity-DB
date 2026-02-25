@@ -69,14 +69,6 @@ std::string detectBestSqlServerDriver() {
     return cached;
 }
 
-std::string detectBestPostgreSqlDriver() {
-    static std::once_flag flag;
-    static std::string cached;
-    static constexpr std::array candidates = {"PostgreSQL Unicode(x64)", "PostgreSQL ANSI(x64)", "PostgreSQL Unicode", "PostgreSQL ANSI"};
-    std::call_once(flag, [&] { cached = findBestDriver(candidates); });
-    return cached;
-}
-
 std::string detectBestMySqlDriver() {
     static std::once_flag flag;
     static std::string cached;

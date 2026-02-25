@@ -67,12 +67,15 @@ struct DatabaseConnectionParams {
 /// Escapes a value for SQL Server ODBC connection strings using {brace} syntax.
 [[nodiscard]] std::string escapeOdbcValue(std::string_view value);
 
-/// Escapes a value for PostgreSQL/MySQL ODBC connection strings using 'single-quote' syntax.
+/// Escapes a value for MySQL ODBC connection strings using 'single-quote' syntax.
 [[nodiscard]] std::string quoteOdbcValue(std::string_view value);
 
-/// Builds ODBC connection string from parameters.
-/// Returns unexpected if the required ODBC driver is not installed.
-[[nodiscard]] std::expected<std::string, std::string> buildODBCConnectionString(const DatabaseConnectionParams& params);
+/// Escapes a value for libpq conninfo strings (backslash escaping inside single quotes).
+[[nodiscard]] std::string quoteLibpqValue(std::string_view value);
+
+/// Builds connection string from parameters.
+/// PostgreSQL: libpq conninfo format. SQL Server/MySQL: ODBC format.
+[[nodiscard]] std::expected<std::string, std::string> buildConnectionString(const DatabaseConnectionParams& params);
 
 /// Parses JSON into DatabaseConnectionParams.
 [[nodiscard]] std::expected<DatabaseConnectionParams, std::string> extractConnectionParams(std::string_view jsonParams);
