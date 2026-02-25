@@ -58,9 +58,7 @@ std::expected<std::string, std::string> buildConnectionString(const DatabaseConn
     switch (params.dbType) {
         case DbType::PostgreSQL: {
             auto [host, port] = splitHostPort(params.server, defaultDbPort(DbType::PostgreSQL));
-            connectionString = std::format("host={} port={} dbname={} user={} password={} connect_timeout=30",
-                quoteLibpqValue(host), port, quoteLibpqValue(params.database),
-                quoteLibpqValue(params.username), quoteLibpqValue(params.password));
+            connectionString = std::format("host={} port={} dbname={} user={} password={} connect_timeout=30", quoteLibpqValue(host), port, quoteLibpqValue(params.database), quoteLibpqValue(params.username), quoteLibpqValue(params.password));
             break;
         }
         case DbType::MySQL: {

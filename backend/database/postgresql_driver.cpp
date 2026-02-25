@@ -76,7 +76,9 @@ std::string oidToTypeName(Oid oid) {
 
 struct PGresultDeleter {
     void operator()(PGresult* r) const {
-        if (r) PQclear(r);
+        if (r) {
+            PQclear(r);
+        }
     }
 };
 using PGresultPtr = std::unique_ptr<PGresult, PGresultDeleter>;
