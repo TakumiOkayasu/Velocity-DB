@@ -74,7 +74,7 @@ IncludeCategories:
   - Regex: '^<(sql|sqlext)\.h>'
     Priority: 2
   # Third-party headers
-  - Regex: '^<(simdjson|pugixml|webview).*>'
+  - Regex: '^<(simdjson|pugixml|webview|libpq).*>'
     Priority: 3
   # C++ standard headers
   - Regex: '^<[a-z_]+>'

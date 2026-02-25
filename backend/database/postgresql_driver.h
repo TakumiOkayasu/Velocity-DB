@@ -2,9 +2,7 @@
 
 #include "driver_interface.h"
 
-#include <Windows.h>
-#include <sql.h>
-#include <sqlext.h>
+#include <libpq-fe.h>
 
 #include <atomic>
 #include <mutex>
@@ -15,7 +13,7 @@ namespace velocitydb {
 
 class PostgreSqlDriver : public IDatabaseDriver {
 public:
-    PostgreSqlDriver();
+    PostgreSqlDriver() = default;
     ~PostgreSqlDriver() override;
 
     PostgreSqlDriver(const PostgreSqlDriver&) = delete;
@@ -35,9 +33,7 @@ public:
     [[nodiscard]] DriverType getType() const noexcept override { return DriverType::PostgreSQL; }
 
 private:
-    SQLHENV m_env = SQL_NULL_HENV;
-    SQLHDBC m_dbc = SQL_NULL_HDBC;
-    std::atomic<SQLHSTMT> m_stmt{SQL_NULL_HSTMT};
+    PGconn* m_conn = nullptr;
     std::atomic<bool> m_connected{false};
     std::string m_lastError;
     mutable std::mutex m_executeMutex;

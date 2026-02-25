@@ -6,7 +6,8 @@
     {
       "name": "libssh2",
       "features": ["openssl"]
-    }
+    },
+    "libpq"
   ],
   "builtin-baseline": "01f602195983451bc83e72f4214af2cbc495aa94"
 }

@@ -26,12 +26,12 @@ namespace {
 }
 
 struct PreparedConnection {
-    std::string odbcString;
+    std::string connectionString;
     std::unique_ptr<SshTunnel> tunnel;
     DriverType driverType;
 };
 
-/// SSH tunnel + ODBC connection string construction
+/// SSH tunnel + connection string construction
 [[nodiscard]] std::expected<PreparedConnection, std::string> prepareConnection(const DatabaseConnectionParams& params) {
     DatabaseConnectionParams effectiveParams = params;
     std::unique_ptr<SshTunnel> tunnel;
@@ -45,14 +45,14 @@ struct PreparedConnection {
         log<LogLevel::DEBUG>(std::format("[DB] SSH tunnel established, redirecting to: {}", effectiveParams.server));
     }
 
-    auto odbcResult = buildODBCConnectionString(effectiveParams);
-    if (!odbcResult)
-        return std::unexpected(odbcResult.error());
-    log<LogLevel::DEBUG>(std::format("[DB] ODBC connection target: {}", effectiveParams.server));
-    log<LogLevel::DEBUG>("[DB] Attempting ODBC connection...");
+    auto connStr = buildConnectionString(effectiveParams);
+    if (!connStr)
+        return std::unexpected(connStr.error());
+    log<LogLevel::DEBUG>(std::format("[DB] Connection target: {}", effectiveParams.server));
+    log<LogLevel::DEBUG>("[DB] Attempting connection...");
     log_flush();
 
-    return PreparedConnection{std::move(*odbcResult), std::move(tunnel), toDriverType(params.dbType)};
+    return PreparedConnection{std::move(*connStr), std::move(tunnel), toDriverType(params.dbType)};
 }
 
 }  // namespace
@@ -95,13 +95,13 @@ std::string ConnectionProvider::handleConnect(std::string_view params) {
 
     auto queryDriver = DriverFactory::createDriver(prepared->driverType);
     std::shared_ptr<IDatabaseDriver> queryDriverPtr(std::move(queryDriver));
-    if (!queryDriverPtr->connect(prepared->odbcString)) {
+    if (!queryDriverPtr->connect(prepared->connectionString)) {
         return JsonUtils::errorResponse(std::format("Connection failed: {}", queryDriverPtr->getLastError()));
     }
 
     auto metadataDriver = DriverFactory::createDriver(prepared->driverType);
     std::shared_ptr<IDatabaseDriver> metadataDriverPtr(std::move(metadataDriver));
-    if (!metadataDriverPtr->connect(prepared->odbcString)) {
+    if (!metadataDriverPtr->connect(prepared->connectionString)) {
         queryDriverPtr->disconnect();
         return JsonUtils::errorResponse(std::format("Metadata connection failed: {}", metadataDriverPtr->getLastError()));
     }
@@ -136,7 +136,7 @@ std::string ConnectionProvider::handleTestConnection(std::string_view params) {
     }
 
     auto driver = DriverFactory::createDriver(prepared->driverType);
-    if (driver->connect(prepared->odbcString)) {
+    if (driver->connect(prepared->connectionString)) {
         driver->disconnect();
         return JsonUtils::successResponse(R"({"success":true,"message":"Connection successful"})");
     }

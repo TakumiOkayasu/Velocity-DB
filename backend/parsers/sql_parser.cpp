@@ -114,8 +114,23 @@ bool SQLParser::isReadOnlyQuery(std::string_view sql) {
 }
 
 std::vector<std::string> SQLParser::splitStatements(std::string_view sql) {
+    // Strip psql meta-commands (lines starting with '\')
+    // pg_dump output contains client-side commands like \restrict, \connect
+    // that cannot be executed via ODBC
+    std::string filtered;
+    filtered.reserve(sql.size());
+    for (auto line : sql | std::views::split('\n')) {
+        std::string_view lineView{line.begin(), line.end()};
+        auto trimmedLine = trim(lineView);
+        if (!trimmedLine.empty() && trimmedLine.front() == '\\') {
+            continue;
+        }
+        filtered.append(lineView);
+        filtered.push_back('\n');
+    }
+
     std::vector<std::string> statements;
-    for (auto part : sql | std::views::split(';')) {
+    for (auto part : std::string_view{filtered} | std::views::split(';')) {
         auto trimmed = trim({part.begin(), part.end()});
         if (!trimmed.empty())
             statements.emplace_back(trimmed);

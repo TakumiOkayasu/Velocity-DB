@@ -9,10 +9,6 @@ namespace velocitydb {
 /// version 17, then "SQL Server" as last resort.
 [[nodiscard]] std::string detectBestSqlServerDriver();
 
-/// Detects the best available PostgreSQL ODBC driver on the system.
-/// Returns empty string if no driver is found.
-[[nodiscard]] std::string detectBestPostgreSqlDriver();
-
 /// Detects the best available MySQL ODBC driver on the system.
 /// Returns empty string if no driver is found.
 [[nodiscard]] std::string detectBestMySqlDriver();
