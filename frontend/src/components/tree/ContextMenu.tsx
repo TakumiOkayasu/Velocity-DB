@@ -1,13 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
+import type { MenuItem } from '../../types';
 import styles from './ContextMenu.module.css';
-
-export interface MenuItem {
-  label: string;
-  icon?: React.ReactNode;
-  action: () => void;
-  disabled?: boolean;
-  divider?: boolean;
-}
 
 interface ContextMenuProps {
   x: number;
