@@ -1,7 +1,11 @@
 #include "postgresql_driver.h"
 
+#include "copy_from_stdin_handler.h"
+#include "pg_result_ptr.h"
+
 #include <charconv>
 #include <chrono>
+#include <cstring>
 #include <format>
 #include <stdexcept>
 #include <string>
@@ -74,16 +78,11 @@ std::string oidToTypeName(Oid oid) {
     }
 }
 
-struct PGresultDeleter {
-    void operator()(PGresult* r) const {
-        if (r) {
-            PQclear(r);
-        }
-    }
-};
-using PGresultPtr = std::unique_ptr<PGresult, PGresultDeleter>;
-
 }  // namespace
+
+PostgreSqlDriver::PostgreSqlDriver() {
+    m_handlers.push_back(std::make_unique<CopyFromStdinHandler>(m_conn, m_lastError));
+}
 
 PostgreSqlDriver::~PostgreSqlDriver() {
     disconnect();
@@ -122,12 +121,19 @@ void PostgreSqlDriver::disconnect() {
 
 ResultSet PostgreSqlDriver::execute(std::string_view sql) {
     std::lock_guard lock(m_executeMutex);
-    ResultSet result;
 
     if (!m_connected.load(std::memory_order_acquire)) [[unlikely]] {
         throw std::runtime_error("Not connected to database");
     }
 
+    // OCP: handler chain — new protocols require only handler registration
+    for (auto& handler : m_handlers) {
+        if (handler->canHandle(sql))
+            return handler->execute(sql);
+    }
+
+    // Default: standard PQexec() path
+    ResultSet result;
     const auto startTime = std::chrono::high_resolution_clock::now();
 
     auto* conn = m_conn.load(std::memory_order_acquire);

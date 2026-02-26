@@ -6,6 +6,7 @@
 #include "../database/result_cache.h"
 #include "../interfaces/providers/connection_provider.h"
 #include "../interfaces/sql_formattable.h"
+#include "../parsers/split_utils.h"
 #include "../parsers/sql_parser.h"
 #include "../utils/json_utils.h"
 #include "../utils/logger.h"
@@ -42,7 +43,8 @@ std::string QueryProvider::handleExecuteQuery(std::string_view params) {
             return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
         }
 
-        auto statements = SQLParser::splitStatements(sqlQuery);
+        // Inject CopyBlockDetector for PostgreSQL connections
+        auto statements = splitStatementsForDriver(sqlQuery, m_connections.getDriverType(connectionId));
         log<LogLevel::INFO>(std::format("Split SQL into {} statements", statements.size()));
 
         // Multiple statements

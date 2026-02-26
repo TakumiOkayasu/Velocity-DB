@@ -84,6 +84,7 @@ ruff check scripts/ && ruff format --check scripts/  # Python
 ### C++ (backend/)
 
 - **C++23機能を使用**: `std::expected`, `std::format`, `std::ranges`
+- **STLを積極的に使用**: 自前実装よりライブラリ・標準機能を優先
 - **RAII原則**: スマートポインタ、リソース管理
 - **ODBC戻り値は必ずチェック**: `SQL_SUCCESS`の確認必須
 - **変数は基本`auto`**: 型推論を活用

@@ -1,20 +1,23 @@
 #pragma once
 
+#include "../interfaces/statement_handler.h"
 #include "driver_interface.h"
 
 #include <libpq-fe.h>
 
 #include <atomic>
 #include <chrono>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace velocitydb {
 
 class PostgreSqlDriver : public IDatabaseDriver {
 public:
-    PostgreSqlDriver() = default;
+    PostgreSqlDriver();
     ~PostgreSqlDriver() override;
 
     PostgreSqlDriver(const PostgreSqlDriver&) = delete;
@@ -41,6 +44,9 @@ private:
     std::string m_lastError;
     std::chrono::seconds m_queryTimeout{kDefaultQueryTimeout};
     mutable std::mutex m_executeMutex;
+
+    /// OCP: special statement protocol handlers
+    std::vector<std::unique_ptr<IStatementHandler>> m_handlers;
 };
 
 }  // namespace velocitydb
