@@ -1,5 +1,6 @@
 #include "async_query_executor.h"
 
+#include "../parsers/split_utils.h"
 #include "../parsers/sql_parser.h"
 
 #include <format>
@@ -40,8 +41,8 @@ std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<IDatabaseDriver> dri
     task->startTime = std::chrono::steady_clock::now();
     task->status = QueryStatus::Running;
 
-    // Split SQL into multiple statements
-    auto statements = SQLParser::splitStatements(sql);
+    // Split SQL into multiple statements (inject CopyBlockDetector for PostgreSQL)
+    auto statements = splitStatementsForDriver(sql, driver->getType());
     task->multipleResults = statements.size() > 1;
 
     // Capture shared_ptr by value to ensure driver and task lifetime extends through async execution

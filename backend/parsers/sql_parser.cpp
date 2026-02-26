@@ -1,43 +1,24 @@
 #include "sql_parser.h"
 
-#include <algorithm>
-#include <cctype>
+#include "../utils/string_utils.h"
+
 #include <ranges>
 #include <regex>
 
 namespace velocitydb {
 
-std::string_view SQLParser::trim(std::string_view str) {
-    constexpr auto isSpace = [](unsigned char c) { return std::isspace(c) != 0; };
-    auto start = std::ranges::find_if_not(str, isSpace);
-    auto end = std::ranges::find_if_not(str | std::views::reverse, isSpace).base();
-    if (start >= end)
-        return {};
-    return str.substr(start - str.begin(), end - start);
-}
-
-std::string SQLParser::toUpper(std::string_view str) {
-    std::string result(str);
-    std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) { return std::toupper(c); });
-    return result;
-}
-
 ParsedSQL SQLParser::parseSQL(std::string_view sql) {
     ParsedSQL result;
     result.originalSQL = std::string(sql);
 
-    // Trim whitespace
     std::string_view trimmedSQL = trim(sql);
     if (trimmedSQL.empty()) {
         result.type = "EMPTY";
         return result;
     }
 
-    // Convert to uppercase for case-insensitive matching
     auto upperSQL = toUpper(trimmedSQL);
 
-    // Check for USE statement using regex
-    // Pattern: USE <database_name> (with optional semicolon)
     static const std::regex usePattern(R"(^\s*USE\s+(\[?[\w]+\]?)\s*;?\s*$)", std::regex::icase);
 
     std::smatch match;
@@ -47,7 +28,6 @@ ParsedSQL SQLParser::parseSQL(std::string_view sql) {
         result.type = "USE";
         result.database = match[1].str();
 
-        // Remove brackets if present: [database] -> database
         if (result.database.front() == '[' && result.database.back() == ']') {
             result.database = result.database.substr(1, result.database.length() - 2);
         }
@@ -55,7 +35,6 @@ ParsedSQL SQLParser::parseSQL(std::string_view sql) {
         return result;
     }
 
-    // Detect other common statement types
     if (upperSQL.starts_with("SELECT")) {
         result.type = "SELECT";
     } else if (upperSQL.starts_with("INSERT")) {
@@ -106,35 +85,80 @@ bool SQLParser::isReadOnlyQuery(std::string_view sql) {
         return true;
     if (!std::ranges::starts_with(trimmed, "with"sv, ci))
         return false;
-    // WITH ... may be CTE + DML. Check that no INSERT/UPDATE/DELETE/MERGE appears outside string literals.
-    // Simple heuristic: find last top-level SELECT/INSERT/UPDATE/DELETE/MERGE keyword.
     auto upper = toUpper(trimmed);
     constexpr std::string_view dmlKeywords[] = {"INSERT", "UPDATE", "DELETE", "MERGE"};
     return std::ranges::none_of(dmlKeywords, [&](auto kw) { return upper.find(kw) != std::string::npos; });
 }
 
+// Backward-compatible: no block detection
 std::vector<std::string> SQLParser::splitStatements(std::string_view sql) {
-    // Strip psql meta-commands (lines starting with '\')
-    // pg_dump output contains client-side commands like \restrict, \connect
-    // that cannot be executed via ODBC
-    std::string filtered;
-    filtered.reserve(sql.size());
-    for (auto line : sql | std::views::split('\n')) {
-        std::string_view lineView{line.begin(), line.end()};
+    return splitStatements(sql, {});
+}
+
+// OCP: block detection delegated to injected detectors
+std::vector<std::string> SQLParser::splitStatements(std::string_view sql, std::span<const IBlockDetector* const> detectors) {
+    std::vector<std::string> statements;
+    std::string buffer;
+    bool inBlockMode = false;
+    const IBlockDetector* activeDetector = nullptr;
+
+    for (auto lineRange : sql | std::views::split('\n')) {
+        std::string_view lineView{lineRange.begin(), lineRange.end()};
         auto trimmedLine = trim(lineView);
+
+        if (inBlockMode) {
+            buffer.append(lineView);
+            buffer.push_back('\n');
+            if (activeDetector->terminatesBlock(trimmedLine)) {
+                auto trimmed = trim(buffer);
+                if (!trimmed.empty())
+                    statements.emplace_back(trimmed);
+                buffer.clear();
+                inBlockMode = false;
+                activeDetector = nullptr;
+            }
+            continue;
+        }
+
+        // psql meta-commands (\-prefixed lines) are filtered out
         if (!trimmedLine.empty() && trimmedLine.front() == '\\') {
             continue;
         }
-        filtered.append(lineView);
-        filtered.push_back('\n');
+
+        buffer.append(lineView);
+        buffer.push_back('\n');
+
+        if (trimmedLine.ends_with(";")) {
+            std::string currentBuffer = std::move(buffer);
+            buffer.clear();
+
+            for (auto part : std::string_view{currentBuffer} | std::views::split(';')) {
+                auto partTrimmed = trim({part.begin(), part.end()});
+                if (partTrimmed.empty())
+                    continue;
+
+                // Check detectors for block start
+                bool blockStarted = false;
+                for (auto* detector : detectors) {
+                    if (detector->startsBlock(partTrimmed)) {
+                        inBlockMode = true;
+                        activeDetector = detector;
+                        buffer = std::string(partTrimmed) + ";\n";
+                        blockStarted = true;
+                        break;
+                    }
+                }
+                if (!blockStarted) {
+                    statements.emplace_back(partTrimmed);
+                }
+            }
+        }
     }
 
-    std::vector<std::string> statements;
-    for (auto part : std::string_view{filtered} | std::views::split(';')) {
-        auto trimmed = trim({part.begin(), part.end()});
-        if (!trimmed.empty())
-            statements.emplace_back(trimmed);
-    }
+    auto remaining = trim(buffer);
+    if (!remaining.empty())
+        statements.emplace_back(remaining);
+
     return statements;
 }
 

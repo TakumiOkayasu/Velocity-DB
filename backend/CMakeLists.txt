@@ -23,6 +23,7 @@ set(LIB_SOURCES
     database/sqlserver_dialect.cpp
     database/postgresql_driver.cpp
     database/postgresql_dialect.cpp
+    database/copy_from_stdin_handler.cpp
     database/driver_factory.cpp
     database/connection_registry.cpp
     database/result_cache.cpp
@@ -51,6 +52,7 @@ set(LIB_SOURCES
     parsers/er_diagram_parser_factory.cpp
     parsers/sql_formatter.cpp
     parsers/sql_parser.cpp
+    parsers/copy_block_detector.cpp
     # Exporters
     exporters/csv_exporter.cpp
     exporters/json_exporter.cpp
@@ -82,6 +84,8 @@ set(HEADERS
     database/sqlserver_dialect.h
     database/postgresql_driver.h
     database/postgresql_dialect.h
+    database/copy_from_stdin_handler.h
+    database/pg_result_ptr.h
     database/connection_registry.h
     database/result_cache.h
     database/async_query_executor.h
@@ -100,6 +104,8 @@ set(HEADERS
     interfaces/ddl_queryable.h
     interfaces/sql_formattable.h
     interfaces/object_searchable.h
+    interfaces/block_detector.h
+    interfaces/statement_handler.h
     # Interfaces (Provider)
     interfaces/system_context.h
     interfaces/providers/connection_provider.h
@@ -134,6 +140,8 @@ set(HEADERS
     parsers/er_diagram_parser_factory.h
     parsers/sql_formatter.h
     parsers/sql_parser.h
+    parsers/copy_block_detector.h
+    parsers/split_utils.h
     # Exporters
     exporters/csv_exporter.h
     exporters/json_exporter.h
@@ -151,6 +159,7 @@ set(HEADERS
     utils/global_search.h
     utils/credential_protector.h
     utils/logger.h
+    utils/string_utils.h
 )
 
 # Add SSH tunnel header if libssh2 is available
