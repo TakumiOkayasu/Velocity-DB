@@ -76,6 +76,19 @@
   background: var(--bg-hover);
 }
 
+.elapsedTime {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.elapsedWarning {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: #e2b340;
+  font-weight: 600;
+}
+
 .error {
   color: var(--error-color);
 }
