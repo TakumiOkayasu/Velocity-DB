@@ -222,18 +222,23 @@ std::string SQLParser::extractDatabaseName(std::string_view sql) {
 
 bool SQLParser::isReadOnlyQuery(std::string_view sql) {
     auto trimmed = trim(sql);
-    constexpr auto ci = [](unsigned char a, unsigned char b) constexpr {
-        constexpr auto lo = [](unsigned char c) constexpr -> unsigned char { return (c >= 'A' && c <= 'Z') ? static_cast<unsigned char>(c + 32) : c; };
-        return lo(a) == lo(b);
-    };
+    auto lo = [](unsigned char c) -> char { return static_cast<char>(std::tolower(c)); };
     using namespace std::string_view_literals;
-    if (std::ranges::starts_with(trimmed, "select"sv, ci))
+    if (std::ranges::starts_with(trimmed, "select"sv, {}, lo, lo))
         return true;
-    if (!std::ranges::starts_with(trimmed, "with"sv, ci))
+    if (!std::ranges::starts_with(trimmed, "with"sv, {}, lo, lo))
         return false;
     auto upper = toUpper(trimmed);
     constexpr std::string_view dmlKeywords[] = {"INSERT", "UPDATE", "DELETE", "MERGE"};
     return std::ranges::none_of(dmlKeywords, [&](auto kw) { return upper.find(kw) != std::string::npos; });
+}
+
+bool SQLParser::isTransactionControl(std::string_view sql) {
+    auto trimmed = trim(sql);
+    auto lo = [](unsigned char c) -> char { return static_cast<char>(std::tolower(c)); };
+    using namespace std::string_view_literals;
+    constexpr std::string_view prefixes[] = {"begin"sv, "commit"sv, "rollback"sv, "start transaction"sv};
+    return std::ranges::any_of(prefixes, [&](auto p) { return std::ranges::starts_with(trimmed, p, {}, lo, lo); });
 }
 
 // Backward-compatible: no block detection

@@ -31,6 +31,9 @@ public:
     /// Check if the SQL starts with SELECT or WITH (i.e. read-only query).
     [[nodiscard]] static bool isReadOnlyQuery(std::string_view sql);
 
+    /// Check if the SQL is a transaction control statement (BEGIN/COMMIT/ROLLBACK/START TRANSACTION)
+    [[nodiscard]] static bool isTransactionControl(std::string_view sql);
+
     /// Split SQL text into individual statements (semicolon-delimited)
     /// No block detection — backward-compatible with existing callers
     [[nodiscard]] static std::vector<std::string> splitStatements(std::string_view sql);
