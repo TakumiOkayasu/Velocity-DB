@@ -94,11 +94,7 @@ export function InputDialog({
           <button className={styles.cancelButton} onClick={onCancel}>
             {cancelLabel}
           </button>
-          <button
-            className={styles.confirmButton}
-            onClick={tryConfirm}
-            disabled={!value.trim()}
-          >
+          <button className={styles.confirmButton} onClick={tryConfirm} disabled={!value.trim()}>
             {confirmLabel}
           </button>
         </div>
