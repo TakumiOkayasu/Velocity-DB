@@ -74,6 +74,7 @@ private:
         std::optional<QueryResultVariant> cachedResult;  // Cache result after first get()
         bool multipleResults = false;
         std::atomic<QueryStatus> status{QueryStatus::Pending};
+        std::atomic<bool> cancelled{false};
         std::shared_ptr<IDatabaseDriver> driver;  // shared_ptr to prevent use-after-free
         std::string sql;
         std::string errorMessage;

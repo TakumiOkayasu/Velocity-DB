@@ -3,6 +3,7 @@
 #include "../parsers/split_utils.h"
 #include "../parsers/sql_parser.h"
 
+#include <algorithm>
 #include <format>
 
 namespace velocitydb {
@@ -24,6 +25,7 @@ AsyncQueryExecutor::~AsyncQueryExecutor() {
         if (task->future.valid()) {
             // Cancel if still running
             if (task->status == QueryStatus::Running && task->driver) {
+                task->cancelled.store(true, std::memory_order_release);
                 task->driver->cancel();
             }
             // Wait for completion (this can block, but we're not holding the mutex)
@@ -45,15 +47,24 @@ std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<IDatabaseDriver> dri
     auto statements = splitStatementsForDriver(sql, driver->getType());
     task->multipleResults = statements.size() > 1;
 
+    // Auto-wrap in transaction if multiple statements and no user-supplied transaction control
+    auto wrapTransaction = statements.size() > 1 && std::ranges::none_of(statements, &SQLParser::isTransactionControl);
+
     // Capture shared_ptr by value to ensure driver and task lifetime extends through async execution
     if (statements.size() > 1) {
         // Multiple statements: execute sequentially and collect all results
-        task->future = std::async(std::launch::async, [driver, statements, task]() -> QueryResultVariant {
+        task->future = std::async(std::launch::async, [driver, statements, task, wrapTransaction]() -> QueryResultVariant {
             try {
+                if (wrapTransaction)
+                    (void)driver->execute("BEGIN");
+
                 std::vector<StatementResult> allResults;
                 allResults.reserve(statements.size());
 
                 for (const auto& stmt : statements) {
+                    if (task->cancelled.load(std::memory_order_acquire))
+                        throw std::runtime_error("Query cancelled");
+
                     ResultSet currentResult;
 
                     if (SQLParser::isUseStatement(stmt)) {
@@ -75,10 +86,18 @@ std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<IDatabaseDriver> dri
                     allResults.push_back(StatementResult{.statement = stmt, .result = std::move(currentResult)});
                 }
 
+                if (wrapTransaction)
+                    (void)driver->execute("COMMIT");
+
                 task->endTime = std::chrono::steady_clock::now();
                 task->status = QueryStatus::Completed;
                 return allResults;
             } catch (const std::exception& e) {
+                if (wrapTransaction)
+                    try {
+                        (void)driver->execute("ROLLBACK");
+                    } catch (...) {
+                    }
                 task->endTime = std::chrono::steady_clock::now();
                 task->errorMessage = e.what();
                 task->status = QueryStatus::Failed;
@@ -172,6 +191,7 @@ bool AsyncQueryExecutor::cancelQuery(std::string_view queryId) {
 
     auto& task = iter->second;
     if (task->status == QueryStatus::Running && task->driver) {
+        task->cancelled.store(true, std::memory_order_release);
         task->driver->cancel();
         task->status = QueryStatus::Cancelled;
         task->endTime = std::chrono::steady_clock::now();

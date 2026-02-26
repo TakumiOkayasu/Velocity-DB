@@ -14,6 +14,7 @@
 #include "../utils/sql_validation.h"
 #include "simdjson.h"
 
+#include <algorithm>
 #include <chrono>
 #include <format>
 
@@ -54,9 +55,13 @@ std::string QueryProvider::handleExecuteQuery(std::string_view params) {
                 ResultSet result;
             };
             std::vector<StatementResult> allResults;
+            auto wrapTransaction = std::ranges::none_of(statements, &SQLParser::isTransactionControl);
 
             size_t stmtIdx = 0;
             try {
+                if (wrapTransaction)
+                    (void)driver->execute("BEGIN");
+
                 for (const auto& stmt : statements) {
                     auto stmtStart = std::chrono::high_resolution_clock::now();
                     ResultSet currentResult;
@@ -77,6 +82,9 @@ std::string QueryProvider::handleExecuteQuery(std::string_view params) {
                     ++stmtIdx;
                 }
 
+                if (wrapTransaction)
+                    (void)driver->execute("COMMIT");
+
                 std::string jsonResponse = R"({"multipleResults":true,"results":[)";
                 for (size_t i = 0; i < allResults.size(); ++i) {
                     if (i > 0)
@@ -90,6 +98,11 @@ std::string QueryProvider::handleExecuteQuery(std::string_view params) {
                 jsonResponse += "]}";
                 return JsonUtils::successResponse(jsonResponse);
             } catch (const std::exception& e) {
+                if (wrapTransaction)
+                    try {
+                        (void)driver->execute("ROLLBACK");
+                    } catch (...) {
+                    }
                 return JsonUtils::errorResponse(std::format("Statement {} of {}: {}", stmtIdx + 1, statements.size(), e.what()));
             }
         }

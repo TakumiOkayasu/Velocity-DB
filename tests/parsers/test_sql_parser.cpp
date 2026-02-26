@@ -170,6 +170,42 @@ TEST_F(SQLParserSplitTest, NoSemicolonSingleStatement) {
     EXPECT_NE(stmts[0].find("SELECT 1"), std::string::npos);
 }
 
+// ===== isTransactionControl =====
+
+TEST(SQLParserTest, IsTransactionControlBegin) {
+    EXPECT_TRUE(SQLParser::isTransactionControl("BEGIN"));
+    EXPECT_TRUE(SQLParser::isTransactionControl("begin"));
+    EXPECT_TRUE(SQLParser::isTransactionControl("BEGIN TRANSACTION"));
+    EXPECT_TRUE(SQLParser::isTransactionControl("  BEGIN  "));
+}
+
+TEST(SQLParserTest, IsTransactionControlCommit) {
+    EXPECT_TRUE(SQLParser::isTransactionControl("COMMIT"));
+    EXPECT_TRUE(SQLParser::isTransactionControl("commit"));
+    EXPECT_TRUE(SQLParser::isTransactionControl("  COMMIT  "));
+}
+
+TEST(SQLParserTest, IsTransactionControlRollback) {
+    EXPECT_TRUE(SQLParser::isTransactionControl("ROLLBACK"));
+    EXPECT_TRUE(SQLParser::isTransactionControl("rollback"));
+    EXPECT_TRUE(SQLParser::isTransactionControl("  ROLLBACK  "));
+}
+
+TEST(SQLParserTest, IsTransactionControlStartTransaction) {
+    EXPECT_TRUE(SQLParser::isTransactionControl("START TRANSACTION"));
+    EXPECT_TRUE(SQLParser::isTransactionControl("start transaction"));
+    EXPECT_TRUE(SQLParser::isTransactionControl("  START TRANSACTION  "));
+    EXPECT_TRUE(SQLParser::isTransactionControl("Start Transaction"));
+}
+
+TEST(SQLParserTest, IsTransactionControlNegative) {
+    EXPECT_FALSE(SQLParser::isTransactionControl("SELECT 1"));
+    EXPECT_FALSE(SQLParser::isTransactionControl("SET x = 1"));
+    EXPECT_FALSE(SQLParser::isTransactionControl("INSERT INTO t VALUES (1)"));
+    EXPECT_FALSE(SQLParser::isTransactionControl("CREATE TABLE t (id int)"));
+    EXPECT_FALSE(SQLParser::isTransactionControl(""));
+}
+
 // ===== CopyBlockDetector unit tests =====
 
 class CopyBlockDetectorTest : public ::testing::Test {
