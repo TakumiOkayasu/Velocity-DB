@@ -29,12 +29,15 @@ import { GridStatusBar } from './GridStatusBar';
 import { GridTable } from './GridTable';
 import { GridToolbar } from './GridToolbar';
 import { useColumnAutoSize } from './hooks/useColumnAutoSize';
+import { useElapsedTimer } from './hooks/useElapsedTimer';
 import { useGridEdit } from './hooks/useGridEdit';
 import { useGridKeyboard } from './hooks/useGridKeyboard';
 import { useRelatedRows } from './hooks/useRelatedRows';
 import styles from './ResultGrid.module.css';
 import { ResultTabs } from './ResultTabs';
 import { ValueEditorDialog } from './ValueEditorDialog';
+
+const ELAPSED_WARNING_SECONDS = 30;
 
 interface ResultGridProps {
   queryId?: string;
@@ -74,6 +77,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [showColumnFilters, setShowColumnFilters] = useState(false);
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const elapsedSeconds = useElapsedTimer(isExecuting);
 
   // --- Derived data ---
   const multipleResult = queryResult && 'multipleResults' in queryResult ? queryResult : null;
@@ -337,6 +341,13 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
       <div className={styles.message}>
         <span className={styles.spinner}>{'\u23F3'}</span>
         <span>クエリ実行中...</span>
+        <span
+          className={
+            elapsedSeconds >= ELAPSED_WARNING_SECONDS ? styles.elapsedWarning : styles.elapsedTime
+          }
+        >
+          {elapsedSeconds}s
+        </span>
         {queryConnectionId && (
           <button onClick={() => cancelQuery(queryConnectionId)} className={styles.cancelButton}>
             キャンセル
