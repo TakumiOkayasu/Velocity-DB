@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { bridge } from '../../api/bridge';
+import { useColumnActions, validateIdentifier } from '../../hooks/useColumnActions';
 import { useConnectionStore } from '../../store/connectionStore';
-import type { Connection, DatabaseObject } from '../../types';
+import type { Connection, DatabaseObject, MenuItem } from '../../types';
 import { connectionColor } from '../../utils/colorContrast';
 import { log } from '../../utils/logger';
-import { ContextMenu, type MenuItem } from './ContextMenu';
+import { buildSelectSql } from '../../utils/sqlIdentifier';
+import { parseTableNodeId, updateNodeChildren } from '../../utils/treeNode';
+import { InputDialog } from '../dialogs/InputDialog';
+import { QueryConfirmDialog } from '../dialogs/QueryConfirmDialog';
+import { ContextMenu } from './ContextMenu';
 import styles from './ObjectTree.module.css';
 import { TreeNode } from './TreeNode';
 
@@ -89,17 +94,23 @@ export function ConnectionTreeSection({
 
   // Load columns for a table
   const loadColumns = useCallback(
-    async (tableName: string): Promise<DatabaseObject[]> => {
+    async (schemaName: string, tableName: string): Promise<DatabaseObject[]> => {
       try {
         log.debug(`[ConnectionTreeSection] Loading columns for table: ${tableName}`);
         const columns = await bridge.getColumns(connection.id, tableName);
         log.debug(`[ConnectionTreeSection] Loaded ${columns.length} columns for ${tableName}`);
         return columns.map((col) => {
-          // Always use physical column name in tree view
           return {
-            id: `${connection.id}-${tableName}-${col.name}`,
+            id: `${connection.id}-${schemaName}-${tableName}-${col.name}`,
             name: `${col.name} (${col.type}${col.isPrimaryKey ? ', PK' : ''}${col.nullable ? '' : ', NOT NULL'})`,
             type: 'column' as const,
+            metadata: {
+              schema: schemaName,
+              tableName,
+              isPrimaryKey: col.isPrimaryKey,
+              nullable: col.nullable,
+              columnType: col.type,
+            },
           };
         });
       } catch (error) {
@@ -109,6 +120,22 @@ export function ConnectionTreeSection({
     },
     [connection.id]
   );
+
+  // Hook: column DDL actions + menu items + dialog state (提供層)
+  const {
+    columnAction,
+    getColumnMenuItems,
+    handleRenameInput,
+    handleRenameConfirm,
+    handleDropConfirm,
+    dismiss,
+  } = useColumnActions({
+    connectionId: connection.id,
+    dbType: connection.dbType,
+    isReadOnly: connection.isReadOnly,
+    loadColumns,
+    setTreeData,
+  });
 
   // Build tree when connection changes
   useEffect(() => {
@@ -167,25 +194,14 @@ export function ConnectionTreeSection({
       if (isExpanding && node.type === 'table' && (!node.children || node.children.length === 0)) {
         setLoadingNodes((prev) => new Set(prev).add(id));
 
-        // Extract table name from node name
-        const tableName = node.name.includes('.') ? node.name.split('.')[1] : node.name;
-        const columns = await loadColumns(tableName);
+        // Extract schema and table name from structured node ID (W4)
+        const parsed = parseTableNodeId(id, connection.id);
+        const schemaName = parsed?.schema ?? 'dbo';
+        const tableName = parsed?.tableName ?? node.name;
+        const columns = await loadColumns(schemaName, tableName);
 
-        // Update tree data with columns
-        setTreeData((prev) => {
-          const updateNode = (nodes: DatabaseObject[]): DatabaseObject[] => {
-            return nodes.map((n) => {
-              if (n.id === id) {
-                return { ...n, children: columns };
-              }
-              if (n.children) {
-                return { ...n, children: updateNode(n.children) };
-              }
-              return n;
-            });
-          };
-          return updateNode(prev);
-        });
+        // Update tree data with shared helper (W2)
+        setTreeData((prev) => updateNodeChildren(prev, id, columns));
 
         setLoadingNodes((prev) => {
           const next = new Set(prev);
@@ -194,7 +210,7 @@ export function ConnectionTreeSection({
         });
       }
     },
-    [expandedNodes, loadColumns]
+    [expandedNodes, loadColumns, connection.id]
   );
 
   const filterTree = useCallback(
@@ -269,11 +285,7 @@ export function ConnectionTreeSection({
         items.push({
           label: 'SELECT文をコピー',
           action: async () => {
-            const tableName = node.name.includes('.')
-              ? `[${node.name.replace('.', '].[')}]`
-              : `[${node.name}]`;
-            const sql = `SELECT * FROM ${tableName}`;
-            await navigator.clipboard.writeText(sql);
+            await navigator.clipboard.writeText(buildSelectSql(node.name, connection.dbType));
           },
         });
 
@@ -339,19 +351,12 @@ export function ConnectionTreeSection({
       }
 
       if (node.type === 'column') {
-        items.push({
-          label: 'カラム名をコピー',
-          action: async () => {
-            // Extract column name from display name "colname (type, ...)"
-            const colName = node.name.split(' ')[0];
-            await navigator.clipboard.writeText(colName);
-          },
-        });
+        items.push(...getColumnMenuItems(node));
       }
 
       return items;
     },
-    [connection.id, onTableOpen, loadTables]
+    [connection.id, connection.dbType, onTableOpen, loadTables, getColumnMenuItems]
   );
 
   const connColor = useMemo(
@@ -387,6 +392,39 @@ export function ConnectionTreeSection({
           onClose={handleCloseContextMenu}
         />
       )}
+
+      <InputDialog
+        isOpen={columnAction?.type === 'rename-input'}
+        title="カラム名を変更"
+        message={`"${columnAction?.type === 'rename-input' ? columnAction.colName : ''}" の新しい名前を入力してください`}
+        defaultValue={columnAction?.type === 'rename-input' ? columnAction.colName : ''}
+        placeholder="新しいカラム名"
+        confirmLabel="変更"
+        validate={validateIdentifier}
+        onConfirm={handleRenameInput}
+        onCancel={dismiss}
+      />
+
+      <QueryConfirmDialog
+        isOpen={columnAction?.type === 'rename-confirm'}
+        title="カラム名変更の確認"
+        message="以下のSQLを実行します。よろしいですか？"
+        details={columnAction?.type === 'rename-confirm' ? columnAction.sql : undefined}
+        confirmLabel="実行"
+        onConfirm={handleRenameConfirm}
+        onCancel={dismiss}
+      />
+
+      <QueryConfirmDialog
+        isOpen={columnAction?.type === 'drop-confirm'}
+        title="カラム削除の確認"
+        message={`カラム "${columnAction?.type === 'drop-confirm' ? columnAction.colName : ''}" を削除します。この操作は元に戻せません。`}
+        details={columnAction?.type === 'drop-confirm' ? columnAction.sql : undefined}
+        isDestructive
+        confirmLabel="削除"
+        onConfirm={handleDropConfirm}
+        onCancel={dismiss}
+      />
     </div>
   );
 }

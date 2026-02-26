@@ -196,6 +196,15 @@ export interface HistoryItem {
   isFavorite: boolean;
 }
 
+// Context menu item type (shared between components and hooks)
+export interface MenuItem {
+  label: string;
+  icon?: React.ReactNode;
+  action: () => void;
+  disabled?: boolean;
+  divider?: boolean;
+}
+
 // Database object types
 export interface TableInfo {
   schema: string;
