@@ -74,6 +74,102 @@ TEST_F(SQLParserSplitTest, NoCopyDetectorFallback) {
     ASSERT_EQ(stmts.size(), 2);
 }
 
+// ===== String literal / comment / dollar-quote awareness =====
+
+TEST_F(SQLParserSplitTest, SemicolonInsideSingleQuotedString) {
+    std::string sql = "SELECT pg_catalog.set_config('search_path', '', false);";
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 1);
+    EXPECT_NE(stmts[0].find("set_config"), std::string::npos);
+}
+
+TEST_F(SQLParserSplitTest, EscapedQuoteWithSemicolon) {
+    std::string sql = "SELECT 'it''s ; tricky';";
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 1);
+    EXPECT_NE(stmts[0].find("it''s ; tricky"), std::string::npos);
+}
+
+TEST_F(SQLParserSplitTest, DollarQuotedString) {
+    std::string sql = "SELECT $$ BEGIN; END; $$;";
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 1);
+    EXPECT_NE(stmts[0].find("BEGIN; END;"), std::string::npos);
+}
+
+TEST_F(SQLParserSplitTest, NamedDollarQuotedString) {
+    std::string sql =
+        "CREATE FUNCTION f() RETURNS void AS $body$ BEGIN; END; $body$ LANGUAGE plpgsql;";
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 1);
+    EXPECT_NE(stmts[0].find("BEGIN; END;"), std::string::npos);
+}
+
+TEST_F(SQLParserSplitTest, SingleLineCommentWithSemicolon) {
+    auto stmts = SQLParser::splitStatements("-- comment;\n", pgDetectors);
+    ASSERT_EQ(stmts.size(), 0);
+}
+
+TEST_F(SQLParserSplitTest, BlockCommentWithSemicolon) {
+    std::string sql = "SELECT /* ; */ 1;";
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 1);
+    EXPECT_NE(stmts[0].find("SELECT"), std::string::npos);
+}
+
+TEST_F(SQLParserSplitTest, NestedBlockComments) {
+    std::string sql = "SELECT /* /* ; */ ; */ 1;";
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 1);
+    EXPECT_NE(stmts[0].find("SELECT"), std::string::npos);
+}
+
+TEST_F(SQLParserSplitTest, PgDumpSetConfig) {
+    std::string sql =
+        "SET statement_timeout = 0;\n"
+        "SET lock_timeout = 0;\n"
+        "SET client_encoding = 'UTF8';\n"
+        "SELECT pg_catalog.set_config('search_path', '', false);\n";
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 4);
+    EXPECT_NE(stmts[3].find("set_config"), std::string::npos);
+    EXPECT_NE(stmts[3].find("'search_path'"), std::string::npos);
+}
+
+TEST_F(SQLParserSplitTest, DollarSignNotAQuote) {
+    std::string sql = "SELECT $1; SELECT $2;";
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 2);
+    EXPECT_NE(stmts[0].find("$1"), std::string::npos);
+    EXPECT_NE(stmts[1].find("$2"), std::string::npos);
+}
+
+TEST_F(SQLParserSplitTest, CopyBlockStillWorks) {
+    std::string sql =
+        "SELECT 1;\n"
+        "COPY t (id) FROM stdin;\n"
+        "1\n"
+        "\\.\n"
+        "SELECT 2;\n";
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 3);
+    EXPECT_NE(stmts[0].find("SELECT 1"), std::string::npos);
+    EXPECT_NE(stmts[1].find("COPY t"), std::string::npos);
+    EXPECT_NE(stmts[2].find("SELECT 2"), std::string::npos);
+}
+
+TEST_F(SQLParserSplitTest, EmptyAndWhitespace) {
+    EXPECT_TRUE(SQLParser::splitStatements("", pgDetectors).empty());
+    EXPECT_TRUE(SQLParser::splitStatements("   \n  \n  ", pgDetectors).empty());
+}
+
+TEST_F(SQLParserSplitTest, NoSemicolonSingleStatement) {
+    std::string sql = "SELECT 1";
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 1);
+    EXPECT_NE(stmts[0].find("SELECT 1"), std::string::npos);
+}
+
 // ===== CopyBlockDetector unit tests =====
 
 class CopyBlockDetectorTest : public ::testing::Test {
