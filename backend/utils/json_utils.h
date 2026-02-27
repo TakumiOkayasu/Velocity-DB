@@ -18,7 +18,11 @@ public:
     [[nodiscard]] static std::string errorResponse(std::string_view message);
     [[nodiscard]] static std::string escapeString(std::string_view str);
 
+    /// Maximum rows returned per result set (truncated beyond this).
+    static constexpr size_t QUERY_ROW_LIMIT = 10'000;
+
     /// Serialize a ResultSet to JSON with pre-allocated buffer for performance.
+    /// Rows exceeding QUERY_ROW_LIMIT are truncated with a "truncated" flag.
     /// @param result The query result to serialize
     /// @param cached Whether the result was from cache
     /// @return JSON string representation
@@ -27,7 +31,8 @@ public:
     /// Append column definitions as JSON array field: "columns":[...]
     static void appendColumns(std::string& json, const std::vector<ColumnInfo>& columns);
 
-    /// Append ResultSet columns/rows/affectedRows/executionTimeMs as JSON fields (no outer braces).
+    /// Append ResultSet columns/rows/affectedRows/executionTimeMs/truncated as JSON fields (no outer braces).
+    /// Rows exceeding QUERY_ROW_LIMIT are truncated.
     /// Use when embedding ResultSet data into a larger JSON object.
     static void appendResultSetFields(std::string& json, const ResultSet& result);
 

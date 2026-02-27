@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useHistoryStore } from '../../store/historyStore';
 import { useQueryStore } from '../../store/queryStore';
 
 // Mock the bridge module
@@ -31,7 +30,6 @@ describe('queryStore', () => {
       errors: {},
       isExecuting: false,
     });
-    useHistoryStore.setState({ history: [], searchKeyword: '' });
     vi.clearAllMocks();
   });
 
@@ -106,17 +104,15 @@ describe('queryStore', () => {
     });
   });
 
-  describe('executeQuery with history integration', () => {
-    it('should record successful query to history', async () => {
+  describe('executeQuery', () => {
+    it('should store result on successful execution', async () => {
       const { addQuery, updateQuery, executeQuery } = useQueryStore.getState();
 
-      // Setup
       addQuery('conn_1');
       const { queries } = useQueryStore.getState();
       const queryId = queries[0].id;
       updateQuery(queryId, 'SELECT * FROM users');
 
-      // Mock async query flow
       mockedBridge.executeAsyncQuery.mockResolvedValue({ queryId: 'async_1' });
       mockedBridge.getAsyncQueryResult.mockResolvedValue({
         queryId: 'async_1',
@@ -127,28 +123,22 @@ describe('queryStore', () => {
         executionTimeMs: 50,
       });
 
-      // Execute
       await executeQuery(queryId, 'conn_1');
 
-      // Verify history was recorded
-      const { history } = useHistoryStore.getState();
-      expect(history).toHaveLength(1);
-      expect(history[0].sql).toBe('SELECT * FROM users');
-      expect(history[0].success).toBe(true);
-      expect(history[0].connectionId).toBe('conn_1');
-      expect(history[0].executionTimeMs).toBe(50);
+      const { results, isExecuting } = useQueryStore.getState();
+      expect(results[queryId]).toBeDefined();
+      expect('rows' in results[queryId] && results[queryId].rows).toHaveLength(2);
+      expect(isExecuting).toBe(false);
     });
 
-    it('should record failed query to history', async () => {
+    it('should set error on async query failure', async () => {
       const { addQuery, updateQuery, executeQuery } = useQueryStore.getState();
 
-      // Setup
       addQuery('conn_1');
       const { queries } = useQueryStore.getState();
       const queryId = queries[0].id;
       updateQuery(queryId, 'SELECT * FROM nonexistent');
 
-      // Mock failed query
       mockedBridge.executeAsyncQuery.mockResolvedValue({ queryId: 'async_1' });
       mockedBridge.getAsyncQueryResult.mockResolvedValue({
         queryId: 'async_1',
@@ -156,15 +146,12 @@ describe('queryStore', () => {
         error: 'Table not found',
       });
 
-      // Execute
       await executeQuery(queryId, 'conn_1');
 
-      // Verify history was recorded with failure
-      const { history } = useHistoryStore.getState();
-      expect(history).toHaveLength(1);
-      expect(history[0].sql).toBe('SELECT * FROM nonexistent');
-      expect(history[0].success).toBe(false);
-      expect(history[0].errorMessage).toBe('Table not found');
+      const { errors, isExecuting, executingQueryIds } = useQueryStore.getState();
+      expect(errors[queryId]).toBe('Table not found');
+      expect(isExecuting).toBe(false);
+      expect(executingQueryIds.has(queryId)).toBe(false);
     });
 
     it('should set per-query error state on failure', async () => {
@@ -186,15 +173,14 @@ describe('queryStore', () => {
     });
   });
 
-  describe('executeSelectedText with history integration', () => {
-    it('should record selected text execution to history (async)', async () => {
+  describe('executeSelectedText', () => {
+    it('should store result on successful execution', async () => {
       const { addQuery, executeSelectedText } = useQueryStore.getState();
 
       addQuery('conn_1');
       const { queries } = useQueryStore.getState();
       const queryId = queries[0].id;
 
-      // Mock async query flow (same as executeQuery)
       mockedBridge.executeAsyncQuery.mockResolvedValue({ queryId: 'async_1' });
       mockedBridge.getAsyncQueryResult.mockResolvedValue({
         queryId: 'async_1',
@@ -207,12 +193,10 @@ describe('queryStore', () => {
 
       await executeSelectedText(queryId, 'conn_1', 'SELECT 42');
 
-      // Verify history
-      const { history } = useHistoryStore.getState();
-      expect(history).toHaveLength(1);
-      expect(history[0].sql).toBe('SELECT 42');
-      expect(history[0].success).toBe(true);
-      expect(history[0].executionTimeMs).toBe(25);
+      const { results, isExecuting } = useQueryStore.getState();
+      expect(results[queryId]).toBeDefined();
+      expect('rows' in results[queryId] && results[queryId].rows).toHaveLength(1);
+      expect(isExecuting).toBe(false);
     });
 
     it('should handle multiple results (async)', async () => {
@@ -252,17 +236,9 @@ describe('queryStore', () => {
 
       await executeSelectedText(queryId, 'conn_1', 'SELECT 1; SELECT 2');
 
-      // Verify result
       const { results } = useQueryStore.getState();
       expect(results[queryId]).toBeDefined();
       expect('multipleResults' in results[queryId] && results[queryId].multipleResults).toBe(true);
-
-      // Verify history
-      const { history } = useHistoryStore.getState();
-      expect(history).toHaveLength(1);
-      expect(history[0].sql).toBe('SELECT 1; SELECT 2');
-      expect(history[0].success).toBe(true);
-      expect(history[0].executionTimeMs).toBe(25); // 10 + 15
     });
 
     it('should not execute empty text', async () => {
@@ -275,17 +251,15 @@ describe('queryStore', () => {
       await executeSelectedText(queryId, 'conn_1', '   ');
 
       expect(mockedBridge.executeAsyncQuery).not.toHaveBeenCalled();
-      expect(useHistoryStore.getState().history).toHaveLength(0);
     });
 
-    it('should record failed query to history', async () => {
+    it('should set error on failed execution', async () => {
       const { addQuery, executeSelectedText } = useQueryStore.getState();
 
       addQuery('conn_1');
       const { queries } = useQueryStore.getState();
       const queryId = queries[0].id;
 
-      // Mock failed query
       mockedBridge.executeAsyncQuery.mockResolvedValue({ queryId: 'async_1' });
       mockedBridge.getAsyncQueryResult.mockResolvedValue({
         queryId: 'async_1',
@@ -295,13 +269,6 @@ describe('queryStore', () => {
 
       await executeSelectedText(queryId, 'conn_1', 'INVALID SQL');
 
-      // Verify history was recorded with failure
-      const { history } = useHistoryStore.getState();
-      expect(history).toHaveLength(1);
-      expect(history[0].success).toBe(false);
-      expect(history[0].errorMessage).toBe('Syntax error');
-
-      // Verify per-query error state
       const { errors, isExecuting } = useQueryStore.getState();
       expect(errors[queryId]).toBe('Syntax error');
       expect(isExecuting).toBe(false);

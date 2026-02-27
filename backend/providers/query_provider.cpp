@@ -12,6 +12,7 @@
 #include "../utils/logger.h"
 #include "../utils/simd_filter.h"
 #include "../utils/sql_validation.h"
+#include "../utils/string_utils.h"
 #include "simdjson.h"
 
 #include <algorithm>
@@ -22,11 +23,25 @@ using namespace std::literals;
 
 namespace velocitydb {
 
-QueryProvider::QueryProvider(IConnectionProvider& connections) : m_connections(connections), m_resultCache(std::make_unique<ResultCache>()), m_queryHistory(std::make_unique<QueryHistory>()) {}
+QueryProvider::QueryProvider(IConnectionProvider& connections, QueryHistory& queryHistory) : m_connections(connections), m_resultCache(std::make_unique<ResultCache>()), m_queryHistory(queryHistory) {}
 
 QueryProvider::~QueryProvider() = default;
 
+void QueryProvider::recordHistory(const std::string& sql, const std::string& connectionId, double execTimeMs, bool success, std::string_view errorMsg, int64_t affectedRows) {
+    m_queryHistory.add({.id = generateHistoryId(),
+                        .sql = truncateHistorySql(sql),
+                        .connectionId = connectionId,
+                        .executionTimeMs = execTimeMs,
+                        .success = success,
+                        .errorMessage = std::string(errorMsg),
+                        .affectedRows = affectedRows,
+                        .isFavorite = false});
+}
+
 std::string QueryProvider::handleExecuteQuery(std::string_view params) {
+    std::string connectionId;
+    std::string sqlQuery;
+
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
@@ -36,8 +51,8 @@ std::string QueryProvider::handleExecuteQuery(std::string_view params) {
         if (connectionIdResult.error() || sqlQueryResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing required fields: connectionId or sql");
         }
-        auto connectionId = std::string(connectionIdResult.value());
-        auto sqlQuery = std::string(sqlQueryResult.value());
+        connectionId = std::string(connectionIdResult.value());
+        sqlQuery = std::string(sqlQueryResult.value());
 
         auto driver = m_connections.getQueryDriver(connectionId);
         if (!driver) [[unlikely]] {
@@ -78,12 +93,21 @@ std::string QueryProvider::handleExecuteQuery(std::string_view params) {
                     }
                     auto stmtEnd = std::chrono::high_resolution_clock::now();
                     currentResult.executionTimeMs = std::chrono::duration<double, std::milli>(stmtEnd - stmtStart).count();
-                    allResults.push_back({.statement = stmt, .result = std::move(currentResult)});
+                    allResults.push_back({.statement = std::string(firstLine(stmt)), .result = std::move(currentResult)});
                     ++stmtIdx;
                 }
 
                 if (wrapTransaction)
                     (void)driver->execute("COMMIT");
+
+                // Record history for multi-statement execution
+                double totalExecMs = 0.0;
+                int64_t totalAffected = 0;
+                for (const auto& r : allResults) {
+                    totalExecMs += r.result.executionTimeMs;
+                    totalAffected += static_cast<int64_t>(r.result.affectedRows);
+                }
+                recordHistory(sqlQuery, connectionId, totalExecMs, true, {}, totalAffected);
 
                 std::string jsonResponse = R"({"multipleResults":true,"results":[)";
                 for (size_t i = 0; i < allResults.size(); ++i) {
@@ -103,7 +127,9 @@ std::string QueryProvider::handleExecuteQuery(std::string_view params) {
                         (void)driver->execute("ROLLBACK");
                     } catch (...) {
                     }
-                return JsonUtils::errorResponse(std::format("Statement {} of {}: {}", stmtIdx + 1, statements.size(), e.what()));
+                auto errorMsg = std::format("Statement {} of {}: {}", stmtIdx + 1, statements.size(), e.what());
+                recordHistory(sqlQuery, connectionId, 0.0, false, errorMsg);
+                return JsonUtils::errorResponse(errorMsg);
             }
         }
 
@@ -119,9 +145,12 @@ std::string QueryProvider::handleExecuteQuery(std::string_view params) {
                 useResult.rows.push_back(messageRow);
                 useResult.affectedRows = 0;
                 useResult.executionTimeMs = 0.0;
+                recordHistory(sqlQuery, connectionId, 0.0, true);
                 return JsonUtils::successResponse(JsonUtils::serializeResultSet(useResult, false));
             } catch (const std::exception& e) {
-                return JsonUtils::errorResponse(std::format("Failed to switch database: {}", e.what()));
+                auto errorMsg = std::format("Failed to switch database: {}", e.what());
+                recordHistory(sqlQuery, connectionId, 0.0, false, errorMsg);
+                return JsonUtils::errorResponse(errorMsg);
             }
         }
 
@@ -150,16 +179,13 @@ std::string QueryProvider::handleExecuteQuery(std::string_view params) {
 
         std::string jsonResponse = JsonUtils::serializeResultSet(queryResult, false);
 
-        HistoryItem historyEntry{.id = std::format("hist_{}", std::chrono::system_clock::now().time_since_epoch().count()),
-                                 .sql = sqlQuery,
-                                 .executionTimeMs = queryResult.executionTimeMs,
-                                 .success = true,
-                                 .affectedRows = static_cast<int64_t>(queryResult.affectedRows),
-                                 .isFavorite = false};
-        m_queryHistory->add(historyEntry);
+        recordHistory(sqlQuery, connectionId, queryResult.executionTimeMs, true, {}, static_cast<int64_t>(queryResult.affectedRows));
 
         return JsonUtils::successResponse(jsonResponse);
     } catch (const std::exception& e) {
+        if (!sqlQuery.empty()) {
+            recordHistory(sqlQuery, connectionId, 0.0, false, e.what());
+        }
         return JsonUtils::errorResponse(e.what());
     }
 }
@@ -346,12 +372,50 @@ std::string QueryProvider::handleClearCache(std::string_view) {
 }
 
 std::string QueryProvider::handleGetQueryHistory(std::string_view) {
-    auto historyEntries = m_queryHistory->getAll();
+    auto historyEntries = m_queryHistory.getAll();
     auto jsonResponse = JsonUtils::buildArray(historyEntries, [](std::string& out, const HistoryItem& e) {
-        out += std::format(R"({{"id":"{}","sql":"{}","executionTimeMs":{},"success":{},"affectedRows":{},"isFavorite":{}}})", e.id, JsonUtils::escapeString(e.sql), e.executionTimeMs,
-                           e.success ? "true" : "false", e.affectedRows, e.isFavorite ? "true" : "false");
+        auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(e.timestamp.time_since_epoch()).count();
+        out += std::format(R"({{"id":"{}","sql":"{}","connectionId":"{}","timestamp":{},"executionTimeMs":{},"success":{},"errorMessage":"{}","affectedRows":{},"isFavorite":{}}})", e.id,
+                           JsonUtils::escapeString(e.sql), JsonUtils::escapeString(e.connectionId), timestamp, e.executionTimeMs, e.success ? "true" : "false", JsonUtils::escapeString(e.errorMessage),
+                           e.affectedRows, e.isFavorite ? "true" : "false");
     });
     return JsonUtils::successResponse(jsonResponse);
+}
+
+std::string QueryProvider::handleRemoveQueryHistory(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        auto doc = parser.parse(params);
+        auto idResult = doc["id"].get_string();
+        if (idResult.error()) [[unlikely]] {
+            return JsonUtils::errorResponse("Missing required field: id");
+        }
+        m_queryHistory.remove(idResult.value());
+        return JsonUtils::successResponse(R"({"removed":true})");
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string QueryProvider::handleClearQueryHistory(std::string_view) {
+    m_queryHistory.clear();
+    return JsonUtils::successResponse(R"({"cleared":true})");
+}
+
+std::string QueryProvider::handleSetQueryHistoryFavorite(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        auto doc = parser.parse(params);
+        auto idResult = doc["id"].get_string();
+        auto isFavoriteResult = doc["isFavorite"].get_bool();
+        if (idResult.error() || isFavoriteResult.error()) [[unlikely]] {
+            return JsonUtils::errorResponse("Missing required fields: id or isFavorite");
+        }
+        m_queryHistory.setFavorite(idResult.value(), isFavoriteResult.value());
+        return JsonUtils::successResponse(R"({"updated":true})");
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
 }
 
 }  // namespace velocitydb

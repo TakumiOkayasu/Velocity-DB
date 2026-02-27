@@ -2,6 +2,7 @@
 
 #include "../database/async_query_executor.h"
 #include "../database/driver_interface.h"
+#include "../database/query_history.h"
 #include "../interfaces/providers/connection_provider.h"
 #include "../utils/json_utils.h"
 #include "simdjson.h"
@@ -10,7 +11,8 @@
 
 namespace velocitydb {
 
-AsyncQueryProvider::AsyncQueryProvider(IConnectionProvider& connections) : m_connections(connections), m_asyncExecutor(std::make_unique<AsyncQueryExecutor>()) {}
+AsyncQueryProvider::AsyncQueryProvider(IConnectionProvider& connections, QueryHistory& queryHistory)
+    : m_connections(connections), m_queryHistory(queryHistory), m_asyncExecutor(std::make_unique<AsyncQueryExecutor>()) {}
 
 AsyncQueryProvider::~AsyncQueryProvider() = default;
 
@@ -33,6 +35,7 @@ std::string AsyncQueryProvider::handleExecuteAsyncQuery(std::string_view params)
         }
 
         std::string queryId = m_asyncExecutor->submitQuery(driver, sqlQuery);
+        m_queryMeta[queryId] = {.connectionId = connectionId, .sql = truncateHistorySql(sqlQuery)};
         return JsonUtils::successResponse(std::format(R"({{"queryId":"{}"}})", queryId));
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
@@ -98,6 +101,33 @@ std::string AsyncQueryProvider::handleGetAsyncQueryResult(std::string_view param
             JsonUtils::appendResultSetFields(jsonResponse, *asyncResult.result);
         }
 
+        // Record history on completion/failure; erase meta on any terminal status to prevent leaks
+        if (auto metaIt = m_queryMeta.find(queryId); metaIt != m_queryMeta.end()) {
+            bool terminal = asyncResult.status == QueryStatus::Completed || asyncResult.status == QueryStatus::Failed || asyncResult.status == QueryStatus::Cancelled;
+            if (asyncResult.status == QueryStatus::Completed || asyncResult.status == QueryStatus::Failed) {
+                double totalExecMs = 0.0;
+                int64_t totalAffected = 0;
+                if (asyncResult.result.has_value()) {
+                    totalExecMs = asyncResult.result->executionTimeMs;
+                    totalAffected = static_cast<int64_t>(asyncResult.result->affectedRows);
+                }
+                for (const auto& r : asyncResult.results) {
+                    totalExecMs += r.result.executionTimeMs;
+                    totalAffected += static_cast<int64_t>(r.result.affectedRows);
+                }
+                m_queryHistory.add({.id = generateHistoryId(),
+                                    .sql = metaIt->second.sql,
+                                    .connectionId = metaIt->second.connectionId,
+                                    .executionTimeMs = totalExecMs,
+                                    .success = (asyncResult.status == QueryStatus::Completed),
+                                    .errorMessage = asyncResult.errorMessage,
+                                    .affectedRows = totalAffected,
+                                    .isFavorite = false});
+            }
+            if (terminal)
+                m_queryMeta.erase(metaIt);
+        }
+
         jsonResponse += "}";
         return JsonUtils::successResponse(jsonResponse);
     } catch (const std::exception& e) {
@@ -130,7 +160,9 @@ std::string AsyncQueryProvider::handleRemoveAsyncQuery(std::string_view params) 
         if (queryIdResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing required field: queryId");
         }
-        bool removed = m_asyncExecutor->removeQuery(std::string(queryIdResult.value()));
+        auto qid = std::string(queryIdResult.value());
+        bool removed = m_asyncExecutor->removeQuery(qid);
+        m_queryMeta.erase(qid);
         return JsonUtils::successResponse(std::format(R"({{"removed":{}}})", removed ? "true" : "false"));
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());

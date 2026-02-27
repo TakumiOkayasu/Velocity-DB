@@ -80,8 +80,10 @@ void JsonUtils::appendResultSetFields(std::string& json, const ResultSet& result
     appendColumns(json, result.columns);
     json += R"(,"rows":[)";
 
-    // Rows array - minimize allocations and function calls
-    for (size_t rowIndex = 0; rowIndex < result.rows.size(); ++rowIndex) {
+    auto rowCount = std::min(result.rows.size(), QUERY_ROW_LIMIT);
+    bool truncated = result.rows.size() > QUERY_ROW_LIMIT;
+
+    for (size_t rowIndex = 0; rowIndex < rowCount; ++rowIndex) {
         if (rowIndex > 0)
             json += ',';
         json += '[';
@@ -100,14 +102,17 @@ void JsonUtils::appendResultSetFields(std::string& json, const ResultSet& result
     json += std::to_string(result.affectedRows);
     json += R"(,"executionTimeMs":)";
     json += std::to_string(result.executionTimeMs);
+    json += R"(,"truncated":)";
+    json += truncated ? "true" : "false";
 }
 
 std::string JsonUtils::serializeResultSet(const ResultSet& result, bool cached) {
     // Buffer size estimation: base (~150) + columns (~65 each) + rows (per-cell ~2x + overhead)
+    auto rowLimit = std::min(result.rows.size(), QUERY_ROW_LIMIT);
     size_t estimatedSize = 150 + result.columns.size() * 65;
-    for (const auto& row : result.rows) {
+    for (size_t i = 0; i < rowLimit; ++i) {
         estimatedSize += 10;
-        for (const auto& val : row.values) {
+        for (const auto& val : result.rows[i].values) {
             estimatedSize += val.size() * 2 + 5;
         }
     }

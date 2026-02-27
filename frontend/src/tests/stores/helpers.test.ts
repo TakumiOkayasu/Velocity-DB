@@ -103,17 +103,17 @@ describe('toQueryResult', () => {
       executionTimeMs: 50,
     };
 
-    const { queryResult, totalAffectedRows, totalExecutionTimeMs } = toQueryResult(pollResult);
+    const queryResult = toQueryResult(pollResult);
 
-    expect(totalAffectedRows).toBe(0);
-    expect(totalExecutionTimeMs).toBe(50);
     expect('columns' in queryResult && queryResult.columns[0].name).toBe('id');
     expect('columns' in queryResult && queryResult.columns[0].comment).toBe('ID列');
     expect('columns' in queryResult && queryResult.columns[0].size).toBe(0);
     expect('rows' in queryResult && queryResult.rows).toHaveLength(2);
+    expect('affectedRows' in queryResult && queryResult.affectedRows).toBe(0);
+    expect('executionTimeMs' in queryResult && queryResult.executionTimeMs).toBe(50);
   });
 
-  it('should convert multiple results and sum totals', () => {
+  it('should convert multiple results', () => {
     const pollResult: AsyncPollResult = {
       multipleResults: true,
       results: [
@@ -138,10 +138,8 @@ describe('toQueryResult', () => {
       ],
     };
 
-    const { queryResult, totalAffectedRows, totalExecutionTimeMs } = toQueryResult(pollResult);
+    const queryResult = toQueryResult(pollResult);
 
-    expect(totalAffectedRows).toBe(8);
-    expect(totalExecutionTimeMs).toBe(30);
     expect('multipleResults' in queryResult && queryResult.multipleResults).toBe(true);
   });
 
@@ -153,7 +151,7 @@ describe('toQueryResult', () => {
       executionTimeMs: 0,
     };
 
-    const { queryResult } = toQueryResult(pollResult);
+    const queryResult = toQueryResult(pollResult);
     const col = 'columns' in queryResult ? queryResult.columns[0] : null;
     expect(col?.comment).toBe('ユーザー名');
     expect(col?.nullable).toBe(true);

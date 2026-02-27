@@ -140,6 +140,7 @@ export type AsyncPollResult =
       rows: string[][];
       affectedRows: number;
       executionTimeMs: number;
+      truncated?: boolean;
     }
   | {
       multipleResults: true;
@@ -150,6 +151,7 @@ export type AsyncPollResult =
           rows: string[][];
           affectedRows: number;
           executionTimeMs: number;
+          truncated?: boolean;
         };
       }>;
     };
@@ -168,6 +170,7 @@ export type AsyncQueryResultResponse =
           rows: string[][];
           affectedRows: number;
           executionTimeMs: number;
+          truncated?: boolean;
         };
       }>;
     }
@@ -179,6 +182,7 @@ export type AsyncQueryResultResponse =
       rows: string[][];
       affectedRows: number;
       executionTimeMs: number;
+      truncated?: boolean;
     }
   | { queryId: string; status: 'failed'; error: string }
   | { queryId: string; status: 'cancelled' };
@@ -188,10 +192,10 @@ export interface HistoryItem {
   id: string;
   sql: string;
   connectionId: string;
-  timestamp: Date;
+  timestamp: number;
   executionTimeMs: number;
   success: boolean;
-  errorMessage?: string;
+  errorMessage: string;
   affectedRows: number;
   isFavorite: boolean;
 }

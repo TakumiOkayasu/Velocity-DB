@@ -6,6 +6,8 @@
 
 namespace velocitydb {
 
+class QueryHistory;
+
 /// Concrete implementation of ISystemContext, owning all provider instances.
 class SystemContext : public ISystemContext {
 public:
@@ -30,6 +32,7 @@ public:
 
 private:
     std::unique_ptr<IConnectionProvider> m_connections;
+    std::unique_ptr<QueryHistory> m_queryHistory;
     std::unique_ptr<IQueryProvider> m_queries;
     std::unique_ptr<IAsyncQueryProvider> m_asyncQueries;
     std::unique_ptr<ISchemaProvider> m_schema;

@@ -1,127 +1,103 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useHistoryStore } from '../../store/historyStore';
+
+// Mock bridge
+vi.mock('../../api/bridge', () => ({
+  bridge: {
+    getQueryHistory: vi.fn().mockResolvedValue([]),
+    removeQueryHistory: vi.fn().mockResolvedValue({ removed: true }),
+    clearQueryHistory: vi.fn().mockResolvedValue({ cleared: true }),
+    setQueryHistoryFavorite: vi.fn().mockResolvedValue({ updated: true }),
+  },
+}));
+
+// Import after mock
+const { bridge } = await import('../../api/bridge');
 
 describe('historyStore', () => {
   beforeEach(() => {
-    // Reset store before each test
     useHistoryStore.setState({ history: [], searchKeyword: '' });
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    // Clean up after each test
     useHistoryStore.setState({ history: [], searchKeyword: '' });
   });
 
-  describe('addHistory', () => {
-    it('should add a history item with generated id', () => {
-      const { addHistory } = useHistoryStore.getState();
+  describe('fetchHistory', () => {
+    it('should fetch history from backend and update store', async () => {
+      vi.mocked(bridge.getQueryHistory).mockResolvedValue([
+        {
+          id: 'hist_1',
+          sql: 'SELECT * FROM users',
+          connectionId: 'conn_1',
+          timestamp: 1706270400000,
+          executionTimeMs: 150,
+          success: true,
+          errorMessage: '',
+          affectedRows: 10,
+          isFavorite: false,
+        },
+      ]);
 
-      addHistory({
-        sql: 'SELECT * FROM users',
-        connectionId: 'conn_1',
-        timestamp: new Date('2026-01-09T12:00:00'),
-        executionTimeMs: 150,
-        affectedRows: 10,
-        success: true,
-        isFavorite: false,
-      });
+      await useHistoryStore.getState().fetchHistory();
 
       const { history } = useHistoryStore.getState();
       expect(history).toHaveLength(1);
       expect(history[0].sql).toBe('SELECT * FROM users');
-      expect(history[0].id).toMatch(/^history-\d+$/);
-      expect(history[0].success).toBe(true);
-    });
-
-    it('should prepend new items to history', () => {
-      const { addHistory } = useHistoryStore.getState();
-
-      addHistory({
-        sql: 'SELECT 1',
-        connectionId: 'conn_1',
-        timestamp: new Date(),
-        executionTimeMs: 10,
-        affectedRows: 0,
-        success: true,
-        isFavorite: false,
-      });
-
-      addHistory({
-        sql: 'SELECT 2',
-        connectionId: 'conn_1',
-        timestamp: new Date(),
-        executionTimeMs: 20,
-        affectedRows: 0,
-        success: true,
-        isFavorite: false,
-      });
-
-      const { history } = useHistoryStore.getState();
-      expect(history).toHaveLength(2);
-      expect(history[0].sql).toBe('SELECT 2'); // Most recent first
-      expect(history[1].sql).toBe('SELECT 1');
-    });
-
-    it('should record failed queries with error message', () => {
-      const { addHistory } = useHistoryStore.getState();
-
-      addHistory({
-        sql: 'SELECT * FROM nonexistent',
-        connectionId: 'conn_1',
-        timestamp: new Date(),
-        executionTimeMs: 0,
-        affectedRows: 0,
-        success: false,
-        errorMessage: 'Table not found',
-        isFavorite: false,
-      });
-
-      const { history } = useHistoryStore.getState();
-      expect(history[0].success).toBe(false);
-      expect(history[0].errorMessage).toBe('Table not found');
+      expect(history[0].connectionId).toBe('conn_1');
+      expect(history[0].timestamp).toBe(1706270400000);
     });
   });
 
   describe('getStats', () => {
     it('should return correct stats for mixed success/failure', () => {
-      const { addHistory, getStats } = useHistoryStore.getState();
+      useHistoryStore.setState({
+        history: [
+          {
+            id: '1',
+            sql: 'SELECT 1',
+            connectionId: 'c',
+            timestamp: Date.now(),
+            executionTimeMs: 10,
+            affectedRows: 0,
+            success: true,
+            errorMessage: '',
+            isFavorite: false,
+          },
+          {
+            id: '2',
+            sql: 'SELECT 2',
+            connectionId: 'c',
+            timestamp: Date.now(),
+            executionTimeMs: 10,
+            affectedRows: 0,
+            success: true,
+            errorMessage: '',
+            isFavorite: false,
+          },
+          {
+            id: '3',
+            sql: 'FAIL 1',
+            connectionId: 'c',
+            timestamp: Date.now(),
+            executionTimeMs: 0,
+            affectedRows: 0,
+            success: false,
+            errorMessage: '',
+            isFavorite: false,
+          },
+        ],
+      });
 
-      // Add 3 successful queries
-      for (let i = 0; i < 3; i++) {
-        addHistory({
-          sql: `SELECT ${i}`,
-          connectionId: 'conn_1',
-          timestamp: new Date(),
-          executionTimeMs: 10,
-          affectedRows: 0,
-          success: true,
-          isFavorite: false,
-        });
-      }
-
-      // Add 2 failed queries
-      for (let i = 0; i < 2; i++) {
-        addHistory({
-          sql: `FAIL ${i}`,
-          connectionId: 'conn_1',
-          timestamp: new Date(),
-          executionTimeMs: 0,
-          affectedRows: 0,
-          success: false,
-          isFavorite: false,
-        });
-      }
-
-      const stats = getStats();
-      expect(stats.total).toBe(5);
-      expect(stats.success).toBe(3);
-      expect(stats.failed).toBe(2);
+      const stats = useHistoryStore.getState().getStats();
+      expect(stats.total).toBe(3);
+      expect(stats.success).toBe(2);
+      expect(stats.failed).toBe(1);
     });
 
     it('should return zeros for empty history', () => {
-      const { getStats } = useHistoryStore.getState();
-      const stats = getStats();
-
+      const stats = useHistoryStore.getState().getStats();
       expect(stats.total).toBe(0);
       expect(stats.success).toBe(0);
       expect(stats.failed).toBe(0);
@@ -129,149 +105,105 @@ describe('historyStore', () => {
   });
 
   describe('setFavorite', () => {
-    it('should toggle favorite status', () => {
-      const { addHistory, setFavorite } = useHistoryStore.getState();
+    it('should call backend and refetch', async () => {
+      vi.mocked(bridge.getQueryHistory).mockResolvedValue([
+        {
+          id: 'hist_1',
+          sql: 'SELECT 1',
+          connectionId: 'conn_1',
+          timestamp: 1706270400000,
+          executionTimeMs: 10,
+          success: true,
+          errorMessage: '',
+          affectedRows: 0,
+          isFavorite: true,
+        },
+      ]);
 
-      addHistory({
-        sql: 'SELECT * FROM users',
-        connectionId: 'conn_1',
-        timestamp: new Date(),
-        executionTimeMs: 10,
-        affectedRows: 0,
-        success: true,
-        isFavorite: false,
-      });
+      await useHistoryStore.getState().setFavorite('hist_1', true);
 
-      const { history } = useHistoryStore.getState();
-      const itemId = history[0].id;
-
-      setFavorite(itemId, true);
-      expect(useHistoryStore.getState().history[0].isFavorite).toBe(true);
-
-      setFavorite(itemId, false);
-      expect(useHistoryStore.getState().history[0].isFavorite).toBe(false);
+      expect(bridge.setQueryHistoryFavorite).toHaveBeenCalledWith('hist_1', true);
+      expect(bridge.getQueryHistory).toHaveBeenCalled();
     });
   });
 
   describe('clearHistory', () => {
-    it('should keep favorites when clearing', () => {
-      const { addHistory, setFavorite, clearHistory } = useHistoryStore.getState();
+    it('should call backend and refetch', async () => {
+      vi.mocked(bridge.getQueryHistory).mockResolvedValue([]);
 
-      addHistory({
-        sql: 'SELECT 1',
-        connectionId: 'conn_1',
-        timestamp: new Date(),
-        executionTimeMs: 10,
-        affectedRows: 0,
-        success: true,
-        isFavorite: false,
-      });
+      await useHistoryStore.getState().clearHistory();
 
-      addHistory({
-        sql: 'SELECT 2 -- favorite',
-        connectionId: 'conn_1',
-        timestamp: new Date(),
-        executionTimeMs: 10,
-        affectedRows: 0,
-        success: true,
-        isFavorite: false,
-      });
-
-      // Mark second item as favorite
-      const { history } = useHistoryStore.getState();
-      setFavorite(history[0].id, true);
-
-      clearHistory();
-
-      const newHistory = useHistoryStore.getState().history;
-      expect(newHistory).toHaveLength(1);
-      expect(newHistory[0].sql).toBe('SELECT 2 -- favorite');
+      expect(bridge.clearQueryHistory).toHaveBeenCalled();
+      expect(bridge.getQueryHistory).toHaveBeenCalled();
     });
   });
 
   describe('getFilteredHistory', () => {
     it('should filter by search keyword', () => {
-      const { addHistory, setSearchKeyword, getFilteredHistory } = useHistoryStore.getState();
-
-      addHistory({
-        sql: 'SELECT * FROM users',
-        connectionId: 'conn_1',
-        timestamp: new Date(),
-        executionTimeMs: 10,
-        affectedRows: 0,
-        success: true,
-        isFavorite: false,
+      useHistoryStore.setState({
+        history: [
+          {
+            id: '1',
+            sql: 'SELECT * FROM users',
+            connectionId: 'c',
+            timestamp: Date.now(),
+            executionTimeMs: 10,
+            affectedRows: 0,
+            success: true,
+            errorMessage: '',
+            isFavorite: false,
+          },
+          {
+            id: '2',
+            sql: 'SELECT * FROM orders',
+            connectionId: 'c',
+            timestamp: Date.now(),
+            executionTimeMs: 10,
+            affectedRows: 0,
+            success: true,
+            errorMessage: '',
+            isFavorite: false,
+          },
+        ],
+        searchKeyword: 'users',
       });
 
-      addHistory({
-        sql: 'SELECT * FROM orders',
-        connectionId: 'conn_1',
-        timestamp: new Date(),
-        executionTimeMs: 10,
-        affectedRows: 0,
-        success: true,
-        isFavorite: false,
-      });
-
-      setSearchKeyword('users');
-      const filtered = getFilteredHistory();
-
+      const filtered = useHistoryStore.getState().getFilteredHistory();
       expect(filtered).toHaveLength(1);
       expect(filtered[0].sql).toContain('users');
     });
 
     it('should be case insensitive', () => {
-      const { addHistory, setSearchKeyword, getFilteredHistory } = useHistoryStore.getState();
-
-      addHistory({
-        sql: 'SELECT * FROM USERS',
-        connectionId: 'conn_1',
-        timestamp: new Date(),
-        executionTimeMs: 10,
-        affectedRows: 0,
-        success: true,
-        isFavorite: false,
+      useHistoryStore.setState({
+        history: [
+          {
+            id: '1',
+            sql: 'SELECT * FROM USERS',
+            connectionId: 'c',
+            timestamp: Date.now(),
+            executionTimeMs: 10,
+            affectedRows: 0,
+            success: true,
+            errorMessage: '',
+            isFavorite: false,
+          },
+        ],
+        searchKeyword: 'users',
       });
 
-      setSearchKeyword('users');
-      const filtered = getFilteredHistory();
-
+      const filtered = useHistoryStore.getState().getFilteredHistory();
       expect(filtered).toHaveLength(1);
     });
   });
 
   describe('removeHistory', () => {
-    it('should remove specific item by id', () => {
-      const { addHistory, removeHistory } = useHistoryStore.getState();
+    it('should call backend and refetch', async () => {
+      vi.mocked(bridge.getQueryHistory).mockResolvedValue([]);
 
-      addHistory({
-        sql: 'SELECT 1',
-        connectionId: 'conn_1',
-        timestamp: new Date(),
-        executionTimeMs: 10,
-        affectedRows: 0,
-        success: true,
-        isFavorite: false,
-      });
+      await useHistoryStore.getState().removeHistory('hist_1');
 
-      addHistory({
-        sql: 'SELECT 2',
-        connectionId: 'conn_1',
-        timestamp: new Date(),
-        executionTimeMs: 10,
-        affectedRows: 0,
-        success: true,
-        isFavorite: false,
-      });
-
-      const { history } = useHistoryStore.getState();
-      const idToRemove = history[0].id;
-
-      removeHistory(idToRemove);
-
-      const newHistory = useHistoryStore.getState().history;
-      expect(newHistory).toHaveLength(1);
-      expect(newHistory[0].sql).toBe('SELECT 1');
+      expect(bridge.removeQueryHistory).toHaveBeenCalledWith('hist_1');
+      expect(bridge.getQueryHistory).toHaveBeenCalled();
     });
   });
 });

@@ -2,6 +2,7 @@
 
 #include "../parsers/split_utils.h"
 #include "../parsers/sql_parser.h"
+#include "../utils/string_utils.h"
 
 #include <algorithm>
 #include <format>
@@ -83,7 +84,7 @@ std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<IDatabaseDriver> dri
                         currentResult = driver->execute(stmt);
                     }
 
-                    allResults.push_back(StatementResult{.statement = stmt, .result = std::move(currentResult)});
+                    allResults.push_back(StatementResult{.statement = std::string(firstLine(stmt)), .result = std::move(currentResult)});
                 }
 
                 if (wrapTransaction)

@@ -1,10 +1,22 @@
+import { useEffect } from 'react';
 import { useHistoryStore } from '../../store/historyStore';
 import { HistoryItem } from './HistoryItem';
 import styles from './QueryHistory.module.css';
 
 export function QueryHistory() {
-  const { searchKeyword, setSearchKeyword, getFilteredHistory, clearHistory, getStats } =
-    useHistoryStore();
+  const {
+    searchKeyword,
+    setSearchKeyword,
+    getFilteredHistory,
+    clearHistory,
+    getStats,
+    fetchHistory,
+  } = useHistoryStore();
+
+  useEffect(() => {
+    void fetchHistory();
+  }, [fetchHistory]);
+
   const history = getFilteredHistory();
   const stats = getStats();
 

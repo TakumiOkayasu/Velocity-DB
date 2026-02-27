@@ -15,7 +15,7 @@ class QueryHistory;
 /// Provider for query execution, cache, history, and filtering
 class QueryProvider : public IQueryProvider {
 public:
-    explicit QueryProvider(IConnectionProvider& connections);
+    QueryProvider(IConnectionProvider& connections, QueryHistory& queryHistory);
     ~QueryProvider() override;
 
     QueryProvider(const QueryProvider&) = delete;
@@ -31,11 +31,16 @@ public:
     [[nodiscard]] std::string handleGetCacheStats(std::string_view params) override;
     [[nodiscard]] std::string handleClearCache(std::string_view params) override;
     [[nodiscard]] std::string handleGetQueryHistory(std::string_view params) override;
+    [[nodiscard]] std::string handleRemoveQueryHistory(std::string_view params) override;
+    [[nodiscard]] std::string handleClearQueryHistory(std::string_view params) override;
+    [[nodiscard]] std::string handleSetQueryHistoryFavorite(std::string_view params) override;
 
 private:
+    void recordHistory(const std::string& sql, const std::string& connectionId, double execTimeMs, bool success, std::string_view errorMsg = {}, int64_t affectedRows = 0);
+
     IConnectionProvider& m_connections;
     std::unique_ptr<ResultCache> m_resultCache;
-    std::unique_ptr<QueryHistory> m_queryHistory;
+    QueryHistory& m_queryHistory;
 };
 
 }  // namespace velocitydb

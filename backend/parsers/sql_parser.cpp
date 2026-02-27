@@ -99,25 +99,26 @@ size_t advanceLexer(LexerState& lex, std::string_view sql, size_t i) {
     return 0;
 }
 
-/// Remove psql meta-command lines (\-prefixed), preserving \. (COPY terminator).
+/// True if line is a psql meta-command (lowercase \cmd), excluding \. (COPY terminator).
+bool isPsqlMetaCommand(std::string_view line) {
+    auto t = trim(line);
+    if (t.size() < 2 || t.front() != '\\' || t == "\\.")
+        return false;
+    return std::islower(static_cast<unsigned char>(t[1])) != 0;
+}
+
+/// Remove psql meta-command lines, preserving \. (COPY terminator).
 std::string filterPsqlMetaCommands(std::string_view sql) {
     std::string result;
     result.reserve(sql.size());
     size_t pos = 0;
     while (pos < sql.size()) {
-        auto lineEnd = sql.find('\n', pos);
-        bool hasNewline = (lineEnd != std::string_view::npos);
-        if (!hasNewline)
-            lineEnd = sql.size();
-        auto line = sql.substr(pos, lineEnd - pos);
-        auto trimmedLine = trim(line);
-        bool isMetaCommand = !trimmedLine.empty() && trimmedLine.front() == '\\' && trimmedLine != "\\.";
-        if (!isMetaCommand) {
+        auto nl = sql.find('\n', pos);
+        auto end = (nl != std::string_view::npos) ? nl + 1 : sql.size();
+        auto line = sql.substr(pos, end - pos);
+        if (!isPsqlMetaCommand(line))
             result.append(line);
-            if (hasNewline)
-                result.push_back('\n');
-        }
-        pos = hasNewline ? lineEnd + 1 : sql.size();
+        pos = end;
     }
     return result;
 }
@@ -211,8 +212,9 @@ ParsedSQL SQLParser::parseSQL(std::string_view sql) {
 }
 
 bool SQLParser::isUseStatement(std::string_view sql) {
-    auto parsed = parseSQL(sql);
-    return parsed.type == "USE";
+    auto trimmed = trim(sql);
+    using namespace std::string_view_literals;
+    return trimmed.size() > 3 && std::ranges::starts_with(trimmed, "use"sv, {}, toLowerChar, toLowerChar) && std::isspace(static_cast<unsigned char>(trimmed[3]));
 }
 
 std::string SQLParser::extractDatabaseName(std::string_view sql) {
@@ -222,23 +224,20 @@ std::string SQLParser::extractDatabaseName(std::string_view sql) {
 
 bool SQLParser::isReadOnlyQuery(std::string_view sql) {
     auto trimmed = trim(sql);
-    auto lo = [](unsigned char c) -> char { return static_cast<char>(std::tolower(c)); };
     using namespace std::string_view_literals;
-    if (std::ranges::starts_with(trimmed, "select"sv, {}, lo, lo))
+    if (std::ranges::starts_with(trimmed, "select"sv, {}, toLowerChar, toLowerChar))
         return true;
-    if (!std::ranges::starts_with(trimmed, "with"sv, {}, lo, lo))
+    if (!std::ranges::starts_with(trimmed, "with"sv, {}, toLowerChar, toLowerChar))
         return false;
-    auto upper = toUpper(trimmed);
     constexpr std::string_view dmlKeywords[] = {"INSERT", "UPDATE", "DELETE", "MERGE"};
-    return std::ranges::none_of(dmlKeywords, [&](auto kw) { return upper.find(kw) != std::string::npos; });
+    return std::ranges::none_of(dmlKeywords, [&](auto kw) { return !std::ranges::search(trimmed, kw, {}, toLowerChar, toLowerChar).empty(); });
 }
 
 bool SQLParser::isTransactionControl(std::string_view sql) {
     auto trimmed = trim(sql);
-    auto lo = [](unsigned char c) -> char { return static_cast<char>(std::tolower(c)); };
     using namespace std::string_view_literals;
     constexpr std::string_view prefixes[] = {"begin"sv, "commit"sv, "rollback"sv, "start transaction"sv};
-    return std::ranges::any_of(prefixes, [&](auto p) { return std::ranges::starts_with(trimmed, p, {}, lo, lo); });
+    return std::ranges::any_of(prefixes, [&](auto p) { return std::ranges::starts_with(trimmed, p, {}, toLowerChar, toLowerChar); });
 }
 
 // Backward-compatible: no block detection

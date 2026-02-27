@@ -18,6 +18,9 @@ public:
     [[nodiscard]] virtual std::string handleGetCacheStats(std::string_view params) = 0;
     [[nodiscard]] virtual std::string handleClearCache(std::string_view params) = 0;
     [[nodiscard]] virtual std::string handleGetQueryHistory(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string handleRemoveQueryHistory(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string handleClearQueryHistory(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string handleSetQueryHistoryFavorite(std::string_view params) = 0;
 };
 
 }  // namespace velocitydb

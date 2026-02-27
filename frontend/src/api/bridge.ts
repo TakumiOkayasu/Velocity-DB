@@ -212,18 +212,7 @@ class Bridge {
       keyPassphrase?: string;
     };
   }): Promise<{ connectionId: string }> {
-    // Build server string with port if provided
-    const defaultPort =
-      connectionInfo.dbType === 'postgresql'
-        ? 5432
-        : connectionInfo.dbType === 'mysql'
-          ? 3306
-          : 1433;
-    const serverWithPort =
-      connectionInfo.port && connectionInfo.port !== defaultPort
-        ? `${connectionInfo.server},${connectionInfo.port}`
-        : connectionInfo.server;
-    return this.call('connect', { ...connectionInfo, server: serverWithPort });
+    return this.call('connect', connectionInfo);
   }
 
   async disconnect(connectionId: string): Promise<void> {
@@ -249,21 +238,7 @@ class Bridge {
       keyPassphrase?: string;
     };
   }): Promise<{ success: boolean; message: string }> {
-    // Build server string with port if provided
-    const defaultPort =
-      connectionInfo.dbType === 'postgresql'
-        ? 5432
-        : connectionInfo.dbType === 'mysql'
-          ? 3306
-          : 1433;
-    const serverWithPort =
-      connectionInfo.port && connectionInfo.port !== defaultPort
-        ? `${connectionInfo.server},${connectionInfo.port}`
-        : connectionInfo.server;
-    return this.call('testConnection', {
-      ...connectionInfo,
-      server: serverWithPort,
-    });
+    return this.call('testConnection', connectionInfo);
   }
 
   // Query methods
@@ -400,12 +375,28 @@ class Bridge {
     {
       id: string;
       sql: string;
+      connectionId: string;
       timestamp: number;
       executionTimeMs: number;
       success: boolean;
+      errorMessage: string;
+      affectedRows: number;
+      isFavorite: boolean;
     }[]
   > {
     return this.call('getQueryHistory', {});
+  }
+
+  async removeQueryHistory(id: string): Promise<{ removed: boolean }> {
+    return this.call('removeQueryHistory', { id });
+  }
+
+  async clearQueryHistory(): Promise<{ cleared: boolean }> {
+    return this.call('clearQueryHistory', {});
+  }
+
+  async setQueryHistoryFavorite(id: string, isFavorite: boolean): Promise<{ updated: boolean }> {
+    return this.call('setQueryHistoryFavorite', { id, isFavorite });
   }
 
   // ER diagram methods
