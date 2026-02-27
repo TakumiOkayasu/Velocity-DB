@@ -1,5 +1,6 @@
 #include "system_context.h"
 
+#include "../database/query_history.h"
 #include "../providers/async_query_provider.h"
 #include "../providers/connection_provider.h"
 #include "../providers/export_provider.h"
@@ -15,8 +16,9 @@ namespace velocitydb {
 
 SystemContext::SystemContext()
     : m_connections(std::make_unique<ConnectionProvider>())
-    , m_queries(std::make_unique<QueryProvider>(*m_connections))
-    , m_asyncQueries(std::make_unique<AsyncQueryProvider>(*m_connections))
+    , m_queryHistory(std::make_unique<QueryHistory>())
+    , m_queries(std::make_unique<QueryProvider>(*m_connections, *m_queryHistory))
+    , m_asyncQueries(std::make_unique<AsyncQueryProvider>(*m_connections, *m_queryHistory))
     , m_schema(std::make_unique<SchemaProvider>(*m_connections))
     , m_transactions(std::make_unique<TransactionProvider>(*m_connections))
     , m_exports(std::make_unique<ExportProvider>(*m_connections))

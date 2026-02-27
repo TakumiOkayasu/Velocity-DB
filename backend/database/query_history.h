@@ -1,6 +1,8 @@
 #pragma once
 
+#include <atomic>
 #include <chrono>
+#include <format>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -8,6 +10,25 @@
 #include <vector>
 
 namespace velocitydb {
+
+/// Truncate SQL to a safe size for history storage.
+constexpr size_t MAX_HISTORY_SQL_BYTES = 10240;  // 10KB
+
+[[nodiscard]] inline std::string truncateHistorySql(std::string_view sql) {
+    if (sql.size() <= MAX_HISTORY_SQL_BYTES)
+        return std::string(sql);
+    // Back off from MAX to avoid splitting a multi-byte UTF-8 character.
+    auto pos = MAX_HISTORY_SQL_BYTES;
+    while (pos > 0 && (static_cast<unsigned char>(sql[pos]) & 0xC0) == 0x80)
+        --pos;
+    return std::string(sql.substr(0, pos));
+}
+
+/// Generate a unique history ID (timestamp + monotonic counter).
+[[nodiscard]] inline std::string generateHistoryId() {
+    static std::atomic<uint64_t> counter{0};
+    return std::format("hist_{}_{}", std::chrono::system_clock::now().time_since_epoch().count(), counter.fetch_add(1, std::memory_order_relaxed));
+}
 
 struct HistoryItem {
     std::string id;

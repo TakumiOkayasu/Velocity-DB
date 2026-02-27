@@ -12,8 +12,8 @@ export const HistoryItem = memo(function HistoryItem({ item }: HistoryItemProps)
   const { setFavorite, removeHistory } = useHistoryStore();
   const { addQuery, queries, updateQuery, executeQuery } = useQueryStore();
 
-  const formatTimestamp = (date: Date): string => {
-    return date.toLocaleString('ja-JP', {
+  const formatTimestamp = (epochMs: number): string => {
+    return new Date(epochMs).toLocaleString('ja-JP', {
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',

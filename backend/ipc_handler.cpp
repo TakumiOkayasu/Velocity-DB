@@ -68,6 +68,9 @@ void IPCHandler::registerRoutes() {
     m_routes["getCacheStats"] = [this](auto p) { return m_ctx.queries().handleGetCacheStats(p); };
     m_routes["clearCache"] = [this](auto p) { return m_ctx.queries().handleClearCache(p); };
     m_routes["getQueryHistory"] = [this](auto p) { return m_ctx.queries().handleGetQueryHistory(p); };
+    m_routes["removeQueryHistory"] = [this](auto p) { return m_ctx.queries().handleRemoveQueryHistory(p); };
+    m_routes["clearQueryHistory"] = [this](auto p) { return m_ctx.queries().handleClearQueryHistory(p); };
+    m_routes["setQueryHistoryFavorite"] = [this](auto p) { return m_ctx.queries().handleSetQueryHistoryFavorite(p); };
 
     // Filter
     m_routes["filterResultSet"] = [this](auto p) { return m_ctx.queries().handleFilterResultSet(p); };

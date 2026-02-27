@@ -120,6 +120,16 @@ std::expected<DatabaseConnectionParams, std::string> extractConnectionParams(std
             }
         }
 
+        // Combine port into server string ("host,port") — must be after dbType parsing.
+        // When port equals the default for the dbType, skip combining: splitHostPort()
+        // in buildConnectionString() already falls back to defaultDbPort().
+        if (auto port = doc["port"].get_int64(); !port.error()) {
+            auto portVal = static_cast<int>(port.value());
+            if (portVal >= 1 && portVal <= 65535 && portVal != defaultDbPort(result.dbType)) {
+                result.server = std::format("{},{}", result.server, portVal);
+            }
+        }
+
         // Extract SSH settings
         auto sshObj = doc["ssh"];
         if (!sshObj.error()) {

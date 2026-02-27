@@ -18,11 +18,18 @@ namespace velocitydb {
     return str.substr(start - str.begin(), end - start);
 }
 
+/// Case-insensitive char projection for std::ranges algorithms
+inline constexpr auto toLowerChar = [](unsigned char c) -> char { return static_cast<char>(std::tolower(c)); };
+
 /// Convert string to uppercase
 [[nodiscard]] inline std::string toUpper(std::string_view str) {
-    std::string result(str);
-    std::ranges::transform(result, result.begin(), [](unsigned char c) { return std::toupper(c); });
-    return result;
+    return str | std::views::transform([](unsigned char c) -> char { return static_cast<char>(std::toupper(c)); }) | std::ranges::to<std::string>();
+}
+
+/// Extract the first line as a display label (for multi-line statements like COPY blocks).
+[[nodiscard]] inline std::string_view firstLine(std::string_view str) {
+    auto nl = str.find('\n');
+    return nl != std::string_view::npos ? str.substr(0, nl) : str;
 }
 
 }  // namespace velocitydb

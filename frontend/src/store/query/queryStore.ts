@@ -1,9 +1,7 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { bridge } from '../../api/bridge';
-import { useHistoryStore } from '../historyStore';
 import type { AbortRegistrable } from './interfaces/AbortRegistrable';
-import type { HistoryRecordable } from './interfaces/HistoryRecordable';
 import { createDataViewSlice } from './slices/dataViewSlice';
 import { createERDiagramSlice } from './slices/erDiagramSlice';
 import { createFileIOSlice } from './slices/fileIOSlice';
@@ -11,11 +9,6 @@ import { createFormatSlice } from './slices/formatSlice';
 import { createExecuteSlice } from './slices/queryExecuteSlice';
 import { createManageSlice } from './slices/queryManageSlice';
 import type { QueryState } from './types';
-
-// DI: History adapter (Omusubi Context Layer — bridge between stores)
-const historyAdapter: HistoryRecordable = {
-  addHistory: (entry) => useHistoryStore.getState().addHistory(entry),
-};
 
 // DI: Abort controller registry (Omusubi Context Layer — owns mutable state)
 const abortControllers = new Map<string, AbortController>();
@@ -44,7 +37,7 @@ export const useQueryStore = create<QueryState>((set, get) => ({
 
   // Slices (Device Layer implementations injected via DI)
   ...createManageSlice(set, get, { abort: abortAdapter }),
-  ...createExecuteSlice(set, get, { bridge, history: historyAdapter, abort: abortAdapter }),
+  ...createExecuteSlice(set, get, { bridge, abort: abortAdapter }),
   ...createDataViewSlice(set, get, { bridge, abort: abortAdapter }),
   ...createFileIOSlice(set, get, { bridge }),
   ...createFormatSlice(set, get),

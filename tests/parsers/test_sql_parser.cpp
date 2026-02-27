@@ -265,5 +265,69 @@ TEST_F(CopyBlockDetectorTest, ExtractPartsCommandOnly) {
     EXPECT_TRUE(parts.data.empty());
 }
 
+// ===== filterPsqlMetaCommands via splitStatements =====
+
+TEST_F(SQLParserSplitTest, FilterPsqlMetaCommands_PreservesCopyNull) {
+    // \N is NULL in COPY data — must NOT be filtered
+    std::string sql =
+        "COPY t (id, val) FROM stdin;\n"
+        "1\t\\N\n"
+        "2\tdata\n"
+        "\\.\n";
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 1);
+    EXPECT_NE(stmts[0].find("\\N"), std::string::npos);
+}
+
+TEST_F(SQLParserSplitTest, FilterPsqlMetaCommands_RemovesRestrict) {
+    std::string sql =
+        "\\restrict token\n"
+        "SELECT 1;\n";
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 1);
+    EXPECT_NE(stmts[0].find("SELECT 1"), std::string::npos);
+    EXPECT_EQ(stmts[0].find("restrict"), std::string::npos);
+}
+
+// ===== isUseStatement performance =====
+
+TEST(SQLParserTest, IsUseStatement_LargeCopyInput) {
+    // 1MB COPY block must return false immediately (no regex/toUpper)
+    std::string largeCopy = "COPY t (id) FROM stdin;\n";
+    largeCopy.append(1024 * 1024, 'x');
+    EXPECT_FALSE(SQLParser::isUseStatement(largeCopy));
+}
+
+TEST(SQLParserTest, IsUseStatementPositive) {
+    EXPECT_TRUE(SQLParser::isUseStatement("USE mydb"));
+    EXPECT_TRUE(SQLParser::isUseStatement("use mydb"));
+    EXPECT_TRUE(SQLParser::isUseStatement("  USE  [mydb]  "));
+}
+
+TEST(SQLParserTest, IsUseStatementNegative) {
+    EXPECT_FALSE(SQLParser::isUseStatement("SELECT 1"));
+    EXPECT_FALSE(SQLParser::isUseStatement("USEFUL"));
+    EXPECT_FALSE(SQLParser::isUseStatement(""));
+}
+
+// ===== pg_dump format integration =====
+
+TEST_F(SQLParserSplitTest, SplitStatements_PgDumpFormat) {
+    std::string sql =
+        "SET statement_timeout = 0;\n"
+        "CREATE TABLE t (id int);\n"
+        "COPY t (id) FROM stdin;\n"
+        "1\n"
+        "2\n"
+        "\\.\n"
+        "ALTER TABLE t ADD CONSTRAINT pk PRIMARY KEY (id);\n";
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 4);
+    EXPECT_NE(stmts[0].find("SET"), std::string::npos);
+    EXPECT_NE(stmts[1].find("CREATE TABLE"), std::string::npos);
+    EXPECT_NE(stmts[2].find("COPY t"), std::string::npos);
+    EXPECT_NE(stmts[3].find("ALTER TABLE"), std::string::npos);
+}
+
 }  // namespace test
 }  // namespace velocitydb

@@ -20,7 +20,7 @@ TEST_F(PostgreSqlDriverTest, DisconnectWhenNotConnected) {
 }
 
 TEST_F(PostgreSqlDriverTest, ExecuteThrowsWhenNotConnected) {
-    EXPECT_THROW(driver.execute("SELECT 1"), std::runtime_error);
+    EXPECT_THROW((void)driver.execute("SELECT 1"), std::runtime_error);
 }
 
 TEST_F(PostgreSqlDriverTest, CopyFromStdinThrowsWhenNotConnected) {
@@ -28,7 +28,7 @@ TEST_F(PostgreSqlDriverTest, CopyFromStdinThrowsWhenNotConnected) {
         "COPY t (id) FROM stdin;\n"
         "1\n"
         "\\.";
-    EXPECT_THROW(driver.execute(copySql), std::runtime_error);
+    EXPECT_THROW((void)driver.execute(copySql), std::runtime_error);
 }
 
 // --- CopyBlockDetector detection via driver handler chain ---
@@ -49,8 +49,8 @@ TEST_F(PostgreSqlDriverTest, DISABLED_CopyFromStdinInsertRows) {
     ASSERT_TRUE(driver.connect(
         "host=localhost dbname=testdb user=postgres password=postgres"));
 
-    driver.execute("DROP TABLE IF EXISTS copy_test");
-    driver.execute("CREATE TABLE copy_test (id int, name text)");
+    (void)driver.execute("DROP TABLE IF EXISTS copy_test");
+    (void)driver.execute("CREATE TABLE copy_test (id int, name text)");
 
     std::string copySql =
         "COPY copy_test (id, name) FROM stdin;\n"
@@ -64,7 +64,7 @@ TEST_F(PostgreSqlDriverTest, DISABLED_CopyFromStdinInsertRows) {
     auto selectResult = driver.execute("SELECT count(*) FROM copy_test");
     EXPECT_EQ(selectResult.rows[0].values[0], "2");
 
-    driver.execute("DROP TABLE copy_test");
+    (void)driver.execute("DROP TABLE copy_test");
     driver.disconnect();
 }
 
