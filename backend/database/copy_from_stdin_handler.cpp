@@ -20,6 +20,7 @@ bool CopyFromStdinHandler::canHandle(std::string_view sql) const {
 ResultSet CopyFromStdinHandler::execute(std::string_view sql) {
     const auto startTime = std::chrono::high_resolution_clock::now();
     auto [copyCmd, data] = CopyBlockDetector::extractParts(sql);
+
     auto* conn = m_conn.load(std::memory_order_acquire);
 
     // 1. Execute COPY command -> transition to PGRES_COPY_IN state

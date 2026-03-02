@@ -1,12 +1,14 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 
 namespace velocitydb {
 
 class IDatabaseDriver;
+struct DatabaseConnectionParams;
 enum class DriverType;
 
 /// Interface for database connection lifecycle and driver access
@@ -25,6 +27,9 @@ public:
     /// @note Throws on failure (unlike getQueryDriver/getMetadataDriver which return nullptr).
     ///       Always called after driver existence is confirmed, so failure indicates a logic error.
     [[nodiscard]] virtual DriverType getDriverType(std::string_view connectionId) const = 0;
+
+    /// Get stored effective connection parameters (for psql delegation)
+    [[nodiscard]] virtual std::optional<DatabaseConnectionParams> getConnectionParams(std::string_view connectionId) const = 0;
 };
 
 }  // namespace velocitydb

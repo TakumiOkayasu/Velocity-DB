@@ -11,6 +11,7 @@ vi.mock('../../api/bridge', () => ({
     getColumns: vi.fn(),
     saveQueryToFile: vi.fn(),
     loadQueryFromFile: vi.fn(),
+    buildDataViewSql: vi.fn(),
   },
 }));
 
@@ -29,10 +30,23 @@ function mockDataViewQuery(columns: { name: string; type: string }[], rows: stri
     affectedRows: 0,
     executionTimeMs: 10,
   });
+  mockedBridge.buildDataViewSql.mockImplementation(
+    async (_connId: string, tableName: string, limit: number, whereClause?: string) => {
+      const quoted = tableName
+        .split('.')
+        .map((p: string) => `[${p}]`)
+        .join('.');
+      const sql = whereClause
+        ? `SELECT TOP ${limit} * FROM ${quoted} WHERE ${whereClause}`
+        : `SELECT TOP ${limit} * FROM ${quoted}`;
+      return { sql };
+    }
+  );
 }
 
 function mockDataViewError(error: Error) {
   mockedBridge.getColumns.mockResolvedValue([]);
+  mockedBridge.buildDataViewSql.mockResolvedValue({ sql: 'SELECT TOP 10001 * FROM [test]' });
   mockedBridge.executeAsyncQuery.mockRejectedValue(error);
 }
 
@@ -54,7 +68,7 @@ describe('DataView operations', () => {
   });
 
   describe('openTableData', () => {
-    it('should create a data view tab with SELECT TOP', async () => {
+    it('should create a data view tab via buildDataViewSql', async () => {
       mockDataViewQuery([{ name: 'id', type: 'int' }], [['1']]);
 
       const { openTableData } = useQueryStore.getState();
@@ -64,9 +78,15 @@ describe('DataView operations', () => {
       expect(state.queries).toHaveLength(1);
       expect(state.queries[0].isDataView).toBe(true);
       expect(state.queries[0].sourceTable).toBe('dbo.Users');
-      expect(state.queries[0].content).toContain('SELECT TOP');
-      expect(state.queries[0].content).toContain('[dbo].[Users]');
+      expect(state.queries[0].content).toContain('SELECT');
+      expect(state.queries[0].content).toContain('dbo');
       expect(state.activeQueryId).toBe(state.queries[0].id);
+      expect(mockedBridge.buildDataViewSql).toHaveBeenCalledWith(
+        'conn_1',
+        'dbo.Users',
+        10001,
+        undefined
+      );
     });
 
     it('should reuse existing tab for same table', async () => {
@@ -97,6 +117,12 @@ describe('DataView operations', () => {
       const state = useQueryStore.getState();
       expect(state.queries).toHaveLength(2);
       expect(state.queries[1].content).toContain('WHERE id = 1');
+      expect(mockedBridge.buildDataViewSql).toHaveBeenCalledWith(
+        'conn_1',
+        'dbo.Users',
+        10001,
+        'id = 1'
+      );
     });
 
     it('should set error on failure', async () => {

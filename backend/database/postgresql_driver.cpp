@@ -144,6 +144,15 @@ ResultSet PostgreSqlDriver::execute(std::string_view sql) {
     }
 
     auto status = PQresultStatus(pgResult.get());
+
+    // COPY FROM stdin that bypassed CopyFromStdinHandler — abort gracefully
+    if (status == PGRES_COPY_IN) [[unlikely]] {
+        PQputCopyEnd(conn, "COPY FROM stdin not supported without data block");
+        PGresultPtr drain(PQgetResult(conn));
+        m_lastError = "COPY FROM stdin requires data block (command + data + \\.)";
+        throw std::runtime_error(m_lastError);
+    }
+
     if (status != PGRES_TUPLES_OK && status != PGRES_COMMAND_OK) [[unlikely]] {
         m_lastError = PQresultErrorMessage(pgResult.get());
         if (m_lastError.empty())

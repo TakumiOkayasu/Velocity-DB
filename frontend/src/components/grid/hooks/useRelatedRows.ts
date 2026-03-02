@@ -6,14 +6,17 @@ import { log } from '../../../utils/logger';
 interface UseRelatedRowsOptions {
   connectionId: string | null;
   tableName: string | null;
-  onOpenRelatedTable: (tableName: string, whereClause: string) => void;
+  onOpenRelatedTable: (tableName: string, whereClause: string) => Promise<void> | void;
 }
 
 interface UseRelatedRowsResult {
   foreignKeys: ForeignKeyInfo[];
   isForeignKeyColumn: (columnName: string) => boolean;
   getForeignKeyInfo: (columnName: string) => ForeignKeyInfo | null;
-  navigateToRelatedRow: (columnName: string, rowData: Record<string, string | null>) => void;
+  navigateToRelatedRow: (
+    columnName: string,
+    rowData: Record<string, string | null>
+  ) => Promise<void>;
 }
 
 export function useRelatedRows({
@@ -59,33 +62,39 @@ export function useRelatedRows({
   );
 
   const navigateToRelatedRow = useCallback(
-    (columnName: string, rowData: Record<string, string | null>) => {
+    async (columnName: string, rowData: Record<string, string | null>) => {
+      if (!connectionId) return;
+
       const fkInfo = getForeignKeyInfo(columnName);
       if (!fkInfo) {
         log.debug(`[useRelatedRows] No FK info for column: ${columnName}`);
         return;
       }
 
-      // Build WHERE clause for referenced table
-      const whereClauses: string[] = [];
-      for (let i = 0; i < fkInfo.columns.length; i++) {
-        const fkColumn = fkInfo.columns[i];
-        const refColumn = fkInfo.referencedColumns[i];
-        const fkValue = rowData[fkColumn];
-
-        if (fkValue === null) {
-          whereClauses.push(`[${refColumn}] IS NULL`);
-        } else {
-          whereClauses.push(`[${refColumn}] = N'${fkValue.replace(/'/g, "''")}'`);
+      try {
+        // W7: Guard against FK/referenced column count mismatch
+        if (fkInfo.columns.length !== fkInfo.referencedColumns.length) {
+          log.error(
+            `[useRelatedRows] FK column count mismatch: ${fkInfo.columns.length} vs ${fkInfo.referencedColumns.length}`
+          );
+          return;
         }
+
+        // Build WHERE clause via backend (dialect-aware)
+        const conditions = fkInfo.columns.map((fkCol, i) => ({
+          column: fkInfo.referencedColumns[i],
+          value: rowData[fkCol],
+        }));
+
+        const { whereClause } = await bridge.buildWhereClause(connectionId, conditions);
+        log.debug(`[useRelatedRows] Navigate to ${fkInfo.referencedTable} WHERE ${whereClause}`);
+
+        await onOpenRelatedTable(fkInfo.referencedTable, whereClause);
+      } catch (error) {
+        log.error(`[useRelatedRows] Failed to navigate: ${error}`);
       }
-
-      const whereClause = whereClauses.join(' AND ');
-      log.debug(`[useRelatedRows] Navigate to ${fkInfo.referencedTable} WHERE ${whereClause}`);
-
-      onOpenRelatedTable(fkInfo.referencedTable, whereClause);
     },
-    [getForeignKeyInfo, onOpenRelatedTable]
+    [connectionId, getForeignKeyInfo, onOpenRelatedTable]
   );
 
   return {

@@ -83,7 +83,7 @@ describe('SQL Exporter', () => {
     expect(lines[0]).toContain('INSERT INTO [dbo.Users]');
     expect(lines[0]).toContain('[id], [name]');
     expect(lines[0]).toContain("N'Alice'");
-    expect(lines[1]).toContain('NULL');
+    expect(lines[1]).toContain("N''");
   });
 
   it('should escape single quotes', () => {
@@ -93,6 +93,29 @@ describe('SQL Exporter', () => {
     };
     const result = sqlExporter.generate(rs, defaultOptions);
     expect(result).toContain("N'O''Brien'");
+  });
+
+  it('should use PostgreSQL syntax when dbType is postgresql', () => {
+    const result = sqlExporter.generate(sampleResultSet, {
+      ...defaultOptions,
+      dbType: 'postgresql',
+    });
+    const lines = result.split('\n');
+    expect(lines[0]).toContain('INSERT INTO "dbo.Users"');
+    expect(lines[0]).toContain('"id", "name"');
+    expect(lines[0]).toContain("'Alice'");
+    expect(lines[0]).not.toContain("N'");
+  });
+
+  it('should use MySQL syntax when dbType is mysql', () => {
+    const result = sqlExporter.generate(sampleResultSet, {
+      ...defaultOptions,
+      dbType: 'mysql',
+    });
+    const lines = result.split('\n');
+    expect(lines[0]).toContain('INSERT INTO `dbo.Users`');
+    expect(lines[0]).toContain('`id`, `name`');
+    expect(lines[0]).toContain("'Alice'");
   });
 });
 

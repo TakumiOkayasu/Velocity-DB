@@ -21,6 +21,11 @@ public:
     [[nodiscard]] virtual std::string handleRemoveQueryHistory(std::string_view params) = 0;
     [[nodiscard]] virtual std::string handleClearQueryHistory(std::string_view params) = 0;
     [[nodiscard]] virtual std::string handleSetQueryHistoryFavorite(std::string_view params) = 0;
+
+    // SQL builder (dialect-aware)
+    [[nodiscard]] virtual std::string handleBuildDataViewSql(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string handleBuildWhereClause(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string handleBuildDmlStatements(std::string_view params) = 0;
 };
 
 }  // namespace velocitydb

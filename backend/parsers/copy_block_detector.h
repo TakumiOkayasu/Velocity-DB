@@ -23,4 +23,7 @@ public:
     [[nodiscard]] static CopyParts extractParts(std::string_view compoundStatement);
 };
 
+/// Quick check if SQL contains COPY ... FROM STDIN (for psql delegation decision)
+[[nodiscard]] bool containsCopyFromStdin(std::string_view sql);
+
 }  // namespace velocitydb

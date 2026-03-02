@@ -35,6 +35,11 @@ public:
     [[nodiscard]] std::string handleClearQueryHistory(std::string_view params) override;
     [[nodiscard]] std::string handleSetQueryHistoryFavorite(std::string_view params) override;
 
+    // SQL builder (dialect-aware)
+    [[nodiscard]] std::string handleBuildDataViewSql(std::string_view params) override;
+    [[nodiscard]] std::string handleBuildWhereClause(std::string_view params) override;
+    [[nodiscard]] std::string handleBuildDmlStatements(std::string_view params) override;
+
 private:
     void recordHistory(const std::string& sql, const std::string& connectionId, double execTimeMs, bool success, std::string_view errorMsg = {}, int64_t affectedRows = 0);
 

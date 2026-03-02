@@ -1,3 +1,4 @@
+import { bridge as apiBridge } from '../../../api/bridge';
 import type { Query } from '../../../types';
 import { log } from '../../../utils/logger';
 import {
@@ -12,14 +13,6 @@ import type { ColumnBridgeable } from '../interfaces/ColumnBridgeable';
 import type { DataViewable } from '../interfaces/DataViewable';
 import type { QueryBridgeable } from '../interfaces/QueryBridgeable';
 import type { GetState, SetState } from '../types';
-
-/** Wrap each part of a dotted identifier in brackets (e.g. `dbo.Users` → `[dbo].[Users]`) */
-function quoteIdentifier(tableName: string): string {
-  return tableName
-    .split('.')
-    .map((part) => `[${part.replace(/\]/g, ']]')}]`)
-    .join('.');
-}
 
 interface DataViewSliceDeps {
   bridge: QueryBridgeable & ColumnBridgeable;
@@ -55,35 +48,37 @@ export function createDataViewSlice(
       }
 
       const id = generateQueryId();
-      const safeName = quoteIdentifier(tableName);
-      const sql = whereClause
-        ? `SELECT TOP ${DATA_VIEW_ROW_LIMIT + 1} * FROM ${safeName} WHERE ${whereClause}`
-        : `SELECT TOP ${DATA_VIEW_ROW_LIMIT + 1} * FROM ${safeName}`;
-      const tabName = whereClause ? `${tableName} (フィルタ済)` : tableName;
-      const newQuery: Query = {
-        id,
-        name: tabName,
-        content: sql,
-        connectionId,
-        isDirty: false,
-        sourceTable: tableName, // Raw name for identification; SQL uses quoteIdentifier()
-        isDataView: true,
-        useServerSideRowModel: false,
-        logicalName,
-      };
-
-      log.info(`[QueryStore] Creating new query tab: ${id} for table ${tableName}`);
-
       const controller = new AbortController();
       abort.register(id, controller);
 
-      set((state) => ({
-        ...startExecution(state, id),
-        queries: [...state.queries, newQuery],
-        activeQueryId: id,
-      }));
-
       try {
+        const { sql } = await apiBridge.buildDataViewSql(
+          connectionId,
+          tableName,
+          DATA_VIEW_ROW_LIMIT + 1,
+          whereClause
+        );
+        const tabName = whereClause ? `${tableName} (フィルタ済)` : tableName;
+        const newQuery: Query = {
+          id,
+          name: tabName,
+          content: sql,
+          connectionId,
+          isDirty: false,
+          sourceTable: tableName,
+          isDataView: true,
+          useServerSideRowModel: false,
+          logicalName,
+        };
+
+        log.info(`[QueryStore] Creating new query tab: ${id} for table ${tableName}`);
+
+        set((state) => ({
+          ...startExecution(state, id),
+          queries: [...state.queries, newQuery],
+          activeQueryId: id,
+        }));
+
         log.debug(`[QueryStore] Fetching table data for ${tableName}`);
         const fetchStart = performance.now();
 
@@ -125,20 +120,24 @@ export function createDataViewSlice(
       const query = get().queries.find((q) => q.id === id);
       if (!query?.sourceTable) return;
 
-      const baseSql = `SELECT TOP ${DATA_VIEW_ROW_LIMIT + 1} * FROM ${quoteIdentifier(query.sourceTable)}`;
-      const sql = whereClause.trim() ? `${baseSql} WHERE ${whereClause}` : baseSql;
-
       const controller = new AbortController();
       abort.register(id, controller);
 
-      set((state) => ({
-        ...startExecution(state, id),
-        queries: state.queries.map((q) =>
-          q.id === id ? { ...q, content: sql, isDirty: true } : q
-        ),
-      }));
-
       try {
+        const { sql } = await apiBridge.buildDataViewSql(
+          connectionId,
+          query.sourceTable,
+          DATA_VIEW_ROW_LIMIT + 1,
+          whereClause.trim() || undefined
+        );
+
+        set((state) => ({
+          ...startExecution(state, id),
+          queries: state.queries.map((q) =>
+            q.id === id ? { ...q, content: sql, isDirty: true } : q
+          ),
+        }));
+
         const resultSet = await fetchTableWithComments(
           bridge,
           connectionId,

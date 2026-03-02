@@ -22,20 +22,23 @@ export async function fetchTableWithComments(
   }
   const result = pollResult;
 
-  const commentMap = new Map(columnDefinitions.map((col) => [col.name, col.comment]));
+  const colDefMap = new Map(columnDefinitions.map((col) => [col.name, col]));
 
   const isTruncated = result.rows.length > DATA_VIEW_ROW_LIMIT;
   const displayRows = isTruncated ? result.rows.slice(0, DATA_VIEW_ROW_LIMIT) : result.rows;
 
   return {
-    columns: result.columns.map((c) => ({
-      name: c.name,
-      type: c.type,
-      size: 0,
-      nullable: true,
-      isPrimaryKey: false,
-      comment: commentMap.get(c.name) || undefined,
-    })),
+    columns: result.columns.map((c) => {
+      const def = colDefMap.get(c.name);
+      return {
+        name: c.name,
+        type: c.type,
+        size: def?.size ?? 0,
+        nullable: def?.nullable ?? true,
+        isPrimaryKey: def?.isPrimaryKey ?? false,
+        comment: def?.comment || undefined,
+      };
+    }),
     rows: displayRows,
     affectedRows: result.affectedRows,
     executionTimeMs: result.executionTimeMs,

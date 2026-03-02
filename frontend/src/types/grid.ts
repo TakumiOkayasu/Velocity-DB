@@ -5,7 +5,7 @@
 /** 行データの型（カラム名→値のマッピング） */
 export type RowData = Record<string, string | null>;
 
-// SQL Server の数値型キーワード
+// 数値型キーワード (SQL Server + PostgreSQL + MySQL)
 const NUMERIC_TYPE_KEYWORDS = [
   'int',
   'bigint',
@@ -18,9 +18,13 @@ const NUMERIC_TYPE_KEYWORDS = [
   'money',
   'smallmoney',
   'bit',
+  'serial',
+  'bigserial',
+  'double precision',
+  'double',
 ] as const;
 
-// SQL Server の日付型キーワード
+// 日付型キーワード (SQL Server + PostgreSQL + MySQL)
 const DATE_TYPE_KEYWORDS = [
   'date',
   'datetime',
@@ -28,11 +32,13 @@ const DATE_TYPE_KEYWORDS = [
   'smalldatetime',
   'time',
   'datetimeoffset',
+  'timestamp',
+  'interval',
 ] as const;
 
 /**
- * SQL Serverの数値型かどうかを判定
- * @param type - カラムの型文字列（例: "int", "decimal(18,2)"）
+ * 数値型かどうかを判定
+ * @param type - カラムの型文字列（例: "int", "decimal(18,2)", "serial"）
  */
 export function isNumericType(type: string): boolean {
   const lower = type.toLowerCase();
@@ -40,8 +46,8 @@ export function isNumericType(type: string): boolean {
 }
 
 /**
- * SQL Serverの日付型かどうかを判定
- * @param type - カラムの型文字列（例: "datetime", "date"）
+ * 日付型かどうかを判定
+ * @param type - カラムの型文字列（例: "datetime", "date", "timestamp"）
  */
 export function isDateType(type: string): boolean {
   const lower = type.toLowerCase();
@@ -66,8 +72,8 @@ export interface TableIdentifier {
  * parseTableName("MyDB.dbo.Users") // { schema: "dbo", table: "Users" }
  */
 export function parseTableName(fullTableName: string, defaultSchema = 'dbo'): TableIdentifier {
-  // 角括弧を除去
-  const cleaned = fullTableName.replace(/[[\]]/g, '');
+  // 識別子クォートを除去 (SQL Server [], PostgreSQL "", MySQL ``)
+  const cleaned = fullTableName.replace(/[[\]"`]/g, '');
   const parts = cleaned.split('.');
 
   if (parts.length >= 2) {
