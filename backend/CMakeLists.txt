@@ -242,8 +242,10 @@ set_target_properties(VelocityDBCore PROPERTIES
 )
 
 # Copy frontend dist to output directory (if it exists)
+# Clean destination first to remove stale hashed chunks from previous builds
 if(EXISTS "${CMAKE_SOURCE_DIR}/frontend/dist")
     add_custom_command(TARGET VelocityDB POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E rm -rf $<TARGET_FILE_DIR:VelocityDB>/frontend
         COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/frontend/dist
         $<TARGET_FILE_DIR:VelocityDB>/frontend

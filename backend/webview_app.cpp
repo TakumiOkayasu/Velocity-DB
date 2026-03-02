@@ -69,9 +69,9 @@ std::expected<std::filesystem::path, std::string> WebViewApp::locateFrontendDire
     const auto executableDirectory = computeExecutablePath().parent_path();
 
     constexpr std::array<const wchar_t*, 3> searchPaths = {
-        L"frontend/index.html",
+        L"../../frontend/dist/index.html",  // Dev: source dist (always fresh)
+        L"frontend/index.html",             // Release: copied by CMake POST_BUILD
         L"../../../frontend/dist/index.html",
-        L"../../frontend/dist/index.html",
     };
 
     for (const auto* searchPath : searchPaths) {
