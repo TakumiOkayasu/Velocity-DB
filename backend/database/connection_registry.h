@@ -1,11 +1,13 @@
 #pragma once
 
 #include "../network/ssh_tunnel.h"
+#include "connection_utils.h"
 #include "driver_interface.h"
 
 #include <atomic>
 #include <expected>
 #include <memory>
+#include <optional>
 #include <shared_mutex>
 #include <string>
 #include <string_view>
@@ -56,6 +58,12 @@ public:
     /// Get the SSH tunnel for a connection (may be nullptr)
     [[nodiscard]] SshTunnel* getTunnel(std::string_view connectionId) const;
 
+    /// Store effective connection parameters for a connection (for psql delegation)
+    void storeParams(std::string_view connectionId, const DatabaseConnectionParams& params);
+
+    /// Get stored connection parameters
+    [[nodiscard]] std::optional<DatabaseConnectionParams> getParams(std::string_view connectionId) const;
+
     /// Remove and close all connections
     void clear();
 
@@ -65,6 +73,7 @@ private:
     std::unordered_map<std::string, DriverPtr> m_metadataConnections;
     std::unordered_map<std::string, DriverType> m_driverTypes;
     std::unordered_map<std::string, std::unique_ptr<SshTunnel>> m_tunnels;
+    std::unordered_map<std::string, DatabaseConnectionParams> m_connectionParams;
     std::atomic<int> m_counter{1};
 };
 

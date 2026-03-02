@@ -31,6 +31,10 @@ class IObjectSearchable;
 
 enum class DriverType { SQLServer, PostgreSQL, MySQL };
 
+[[nodiscard]] inline constexpr std::string_view beginTransactionSQL(DriverType type) noexcept {
+    return type == DriverType::SQLServer ? "BEGIN TRANSACTION" : "BEGIN";
+}
+
 [[nodiscard]] constexpr std::string_view driverTypeToString(DriverType type) noexcept {
     switch (type) {
         case DriverType::SQLServer:

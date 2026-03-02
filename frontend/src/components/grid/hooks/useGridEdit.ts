@@ -55,9 +55,7 @@ export function useGridEdit({
     markRowDeleted,
     unmarkRowDeleted,
     addNewRow,
-    generateUpdateSQL,
-    generateInsertSQL,
-    generateDeleteSQL,
+    getDmlParams,
     setTableContext,
     clearTableContext,
     primaryKeyColumns,
@@ -113,34 +111,27 @@ export function useGridEdit({
   const handleApplyChanges = useCallback(async () => {
     if (!activeConnectionId || !currentQuery?.sourceTable) return;
 
+    const dmlParams = getDmlParams();
+    if (!dmlParams) return;
+
     setIsApplying(true);
     setApplyError(null);
 
     try {
-      const updateSQL = generateUpdateSQL();
-      const insertSQL = generateInsertSQL();
-      const deleteSQL = generateDeleteSQL();
+      const { statements } = await bridge.buildDmlStatements(activeConnectionId, dmlParams);
 
-      for (const sql of [...updateSQL, ...insertSQL, ...deleteSQL]) {
-        await bridge.executeQuery(activeConnectionId, sql);
+      if (statements.length > 0) {
+        await bridge.executeQuery(activeConnectionId, statements.join('\n'));
       }
 
       revertAll();
       setEditMode(false);
-      setIsApplying(false);
     } catch (err) {
       setApplyError(err instanceof Error ? err.message : 'Failed to apply changes');
+    } finally {
       setIsApplying(false);
     }
-  }, [
-    activeConnectionId,
-    currentQuery,
-    generateUpdateSQL,
-    generateInsertSQL,
-    generateDeleteSQL,
-    revertAll,
-    setEditMode,
-  ]);
+  }, [activeConnectionId, currentQuery, getDmlParams, revertAll, setEditMode]);
 
   // Set table context for editing when resultSet or sourceTable changes
   useEffect(() => {
@@ -164,6 +155,14 @@ export function useGridEdit({
 
   const getInsertedRows = useCallback(() => new Map(insertedRows), [insertedRows]);
 
+  // Wrap updateCell to auto-inject rowData for correct originalData tracking
+  const updateCellWithRow = useCallback(
+    (rowIndex: number, field: string, oldValue: string | null, newValue: string | null) => {
+      updateCell(rowIndex, field, oldValue, newValue, rowData[rowIndex]);
+    },
+    [updateCell, rowData]
+  );
+
   return {
     isEditMode,
     hasChanges,
@@ -173,7 +172,7 @@ export function useGridEdit({
     isRowInserted,
     getInsertedRows,
     getCellChange,
-    updateCell,
+    updateCell: updateCellWithRow,
     handleToggleEditMode,
     handleRevertChanges,
     handleDeleteRow,

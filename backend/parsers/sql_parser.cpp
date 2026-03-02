@@ -107,8 +107,14 @@ bool isPsqlMetaCommand(std::string_view line) {
     return std::islower(static_cast<unsigned char>(t[1])) != 0;
 }
 
-/// Remove psql meta-command lines, preserving \. (COPY terminator).
-std::string filterPsqlMetaCommands(std::string_view sql) {
+/// True if the entire line is a SQL line comment (-- ...).
+bool isSqlLineComment(std::string_view line) {
+    return trim(line).starts_with("--");
+}
+
+/// Remove psql meta-commands and standalone SQL comment lines.
+/// Preserves \. (COPY terminator) and inline comments (e.g. "SELECT 1; -- ok").
+std::string filterNonExecutableLines(std::string_view sql) {
     std::string result;
     result.reserve(sql.size());
     size_t pos = 0;
@@ -116,7 +122,7 @@ std::string filterPsqlMetaCommands(std::string_view sql) {
         auto nl = sql.find('\n', pos);
         auto end = (nl != std::string_view::npos) ? nl + 1 : sql.size();
         auto line = sql.substr(pos, end - pos);
-        if (!isPsqlMetaCommand(line))
+        if (!isPsqlMetaCommand(line) && !isSqlLineComment(line))
             result.append(line);
         pos = end;
     }
@@ -247,7 +253,7 @@ std::vector<std::string> SQLParser::splitStatements(std::string_view sql) {
 
 // OCP: block detection delegated to injected detectors
 std::vector<std::string> SQLParser::splitStatements(std::string_view sql, std::span<const IBlockDetector* const> detectors) {
-    auto filtered = filterPsqlMetaCommands(sql);
+    auto filtered = filterNonExecutableLines(sql);
     std::string_view text(filtered);
 
     std::vector<std::string> result;

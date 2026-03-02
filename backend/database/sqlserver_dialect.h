@@ -42,6 +42,9 @@ public:
 
     // ISqlFormattable
     [[nodiscard]] std::string quoteIdentifier(std::string_view id) const override;
+    [[nodiscard]] std::string quoteLiteral(std::string_view value) const override;
+    [[nodiscard]] std::string buildSelectAll(std::string_view quotedTable, int64_t limit) const override;
+    [[nodiscard]] std::string buildSelectAllWhere(std::string_view quotedTable, std::string_view whereClause, int64_t limit) const override;
     [[nodiscard]] std::string_view defaultSchema() const noexcept override;
     [[nodiscard]] std::string paginateQuery(std::string_view sql, int64_t offset, int64_t limit) const override;
     [[nodiscard]] std::string rowCountQuery(std::string_view sql) const override;

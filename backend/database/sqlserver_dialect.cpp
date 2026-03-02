@@ -318,6 +318,18 @@ std::string SqlServerDialect::quoteIdentifier(std::string_view id) const {
     return result;
 }
 
+std::string SqlServerDialect::quoteLiteral(std::string_view value) const {
+    return std::string("N'").append(escapeSql(value)).append("'");
+}
+
+std::string SqlServerDialect::buildSelectAll(std::string_view quotedTable, int64_t limit) const {
+    return std::format("SELECT TOP {} * FROM ", limit).append(quotedTable);
+}
+
+std::string SqlServerDialect::buildSelectAllWhere(std::string_view quotedTable, std::string_view whereClause, int64_t limit) const {
+    return std::format("SELECT TOP {} * FROM ", limit).append(quotedTable).append(" WHERE ").append(whereClause);
+}
+
 std::string_view SqlServerDialect::defaultSchema() const noexcept {
     return "dbo";
 }

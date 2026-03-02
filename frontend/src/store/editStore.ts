@@ -58,10 +58,18 @@ interface EditState {
   isRowDeleted: (rowIndex: number) => boolean;
   isRowInserted: (rowIndex: number) => boolean;
 
-  // Generate SQL
-  generateUpdateSQL: () => string[];
-  generateInsertSQL: () => string[];
-  generateDeleteSQL: () => string[];
+  // Build DML params for backend delegation
+  getDmlParams: () => {
+    schema: string;
+    table: string;
+    pkColumns: string[];
+    updates: {
+      changes: Record<string, string | null>;
+      originalData: Record<string, string | null>;
+    }[];
+    inserts: Record<string, string | null>[];
+    deletes: Record<string, string | null>[];
+  } | null;
 }
 
 let insertRowCounter = -1;
@@ -246,101 +254,54 @@ export const useEditStore = create<EditState>((set, get) => ({
     return get().insertedRows.has(rowIndex);
   },
 
-  generateUpdateSQL: () => {
-    const { tableName, schemaName, primaryKeyColumns, pendingChanges } = get();
-    if (!tableName) return [];
+  getDmlParams: () => {
+    const { tableName, schemaName, primaryKeyColumns, pendingChanges, deletedRows, insertedRows } =
+      get();
+    if (!tableName) return null;
 
-    const fullTableName = schemaName ? `[${schemaName}].[${tableName}]` : `[${tableName}]`;
-    const statements: string[] = [];
-
+    const updates: {
+      changes: Record<string, string | null>;
+      originalData: Record<string, string | null>;
+    }[] = [];
     pendingChanges.forEach((rowChange) => {
       if (Object.keys(rowChange.changes).length === 0) return;
-
-      const setClauses = Object.values(rowChange.changes)
-        .map((change) => {
-          const value =
-            change.newValue === null ? 'NULL' : `N'${change.newValue.replace(/'/g, "''")}'`;
-          return `[${change.columnName}] = ${value}`;
-        })
-        .join(', ');
-
-      // Build WHERE clause using primary keys or all original data columns
-      const whereColumns =
-        primaryKeyColumns.length > 0
-          ? primaryKeyColumns
-          : Object.keys(rowChange.originalData).filter((k) => !k.startsWith('__'));
-
-      const whereClauses = whereColumns
-        .map((col) => {
-          // First check if column was changed, use original value
-          const change = rowChange.changes[col];
-          const value = change?.originalValue ?? rowChange.originalData[col] ?? null;
-          if (value === null) {
-            return `[${col}] IS NULL`;
-          }
-          return `[${col}] = N'${String(value).replace(/'/g, "''")}'`;
-        })
-        .join(' AND ');
-
-      if (whereClauses) {
-        statements.push(`UPDATE ${fullTableName} SET ${setClauses} WHERE ${whereClauses};`);
+      const changes: Record<string, string | null> = {};
+      for (const change of Object.values(rowChange.changes)) {
+        changes[change.columnName] = change.newValue;
       }
+      // Build originalData with original values for changed PK/WHERE columns
+      const originalData: Record<string, string | null> = { ...rowChange.originalData };
+      for (const change of Object.values(rowChange.changes)) {
+        originalData[change.columnName] = change.originalValue;
+      }
+      updates.push({ changes, originalData });
     });
 
-    return statements;
-  },
-
-  generateInsertSQL: () => {
-    const { tableName, schemaName, insertedRows } = get();
-    if (!tableName) return [];
-
-    const fullTableName = schemaName ? `[${schemaName}].[${tableName}]` : `[${tableName}]`;
-    const statements: string[] = [];
-
+    const inserts: Record<string, string | null>[] = [];
     insertedRows.forEach((rowData) => {
-      const columns = Object.keys(rowData).filter((k) => !k.startsWith('__'));
-      const values = columns.map((col) => {
-        const value = rowData[col];
-        return value === null ? 'NULL' : `N'${value.replace(/'/g, "''")}'`;
-      });
-
-      statements.push(
-        `INSERT INTO ${fullTableName} ([${columns.join('], [')}]) VALUES (${values.join(', ')});`
-      );
-    });
-
-    return statements;
-  },
-
-  generateDeleteSQL: () => {
-    const { tableName, schemaName, primaryKeyColumns, deletedRows } = get();
-    if (!tableName) return [];
-
-    const fullTableName = schemaName ? `[${schemaName}].[${tableName}]` : `[${tableName}]`;
-    const statements: string[] = [];
-
-    deletedRows.forEach((rowData) => {
-      // Build WHERE clause using primary key columns or all columns if no PK
-      const whereColumns =
-        primaryKeyColumns.length > 0
-          ? primaryKeyColumns
-          : Object.keys(rowData).filter((k) => !k.startsWith('__'));
-
-      const whereClauses = whereColumns
-        .map((col) => {
-          const value = rowData[col];
-          if (value === null || value === undefined) {
-            return `[${col}] IS NULL`;
-          }
-          return `[${col}] = N'${String(value).replace(/'/g, "''")}'`;
-        })
-        .join(' AND ');
-
-      if (whereClauses) {
-        statements.push(`DELETE FROM ${fullTableName} WHERE ${whereClauses};`);
+      const row: Record<string, string | null> = {};
+      for (const [key, value] of Object.entries(rowData)) {
+        if (!key.startsWith('__')) row[key] = value;
       }
+      inserts.push(row);
     });
 
-    return statements;
+    const deletes: Record<string, string | null>[] = [];
+    deletedRows.forEach((rowData) => {
+      const row: Record<string, string | null> = {};
+      for (const [key, value] of Object.entries(rowData)) {
+        if (!key.startsWith('__')) row[key] = value;
+      }
+      deletes.push(row);
+    });
+
+    return {
+      schema: schemaName ?? '',
+      table: tableName,
+      pkColumns: primaryKeyColumns,
+      updates,
+      inserts,
+      deletes,
+    };
   },
 }));

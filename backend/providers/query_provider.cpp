@@ -2,10 +2,12 @@
 
 #include "../database/connection_utils.h"
 #include "../database/driver_interface.h"
+#include "../database/psql_subprocess.h"
 #include "../database/query_history.h"
 #include "../database/result_cache.h"
 #include "../interfaces/providers/connection_provider.h"
 #include "../interfaces/sql_formattable.h"
+#include "../parsers/copy_block_detector.h"
 #include "../parsers/split_utils.h"
 #include "../parsers/sql_parser.h"
 #include "../utils/json_utils.h"
@@ -18,6 +20,8 @@
 #include <algorithm>
 #include <chrono>
 #include <format>
+
+#undef max
 
 using namespace std::literals;
 
@@ -59,8 +63,24 @@ std::string QueryProvider::handleExecuteQuery(std::string_view params) {
             return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
         }
 
+        // Delegate entire SQL to psql for COPY FROM stdin (libpq can't handle pg_dump format)
+        auto driverType = m_connections.getDriverType(connectionId);
+        if (driverType == DriverType::PostgreSQL && containsCopyFromStdin(sqlQuery)) {
+            auto connParams = m_connections.getConnectionParams(connectionId);
+            if (!connParams) {
+                return JsonUtils::errorResponse("Connection parameters not found for psql delegation");
+            }
+            auto psqlResult = executePsql(toPsqlConnectionInfo(*connParams), sqlQuery);
+            if (psqlResult) {
+                recordHistory(sqlQuery, connectionId, psqlResult->executionTimeMs, true, {}, psqlResult->affectedRows);
+                return JsonUtils::successResponse(JsonUtils::serializeResultSet(*psqlResult, false));
+            }
+            recordHistory(sqlQuery, connectionId, 0.0, false, psqlResult.error());
+            return JsonUtils::errorResponse(psqlResult.error());
+        }
+
         // Inject CopyBlockDetector for PostgreSQL connections
-        auto statements = splitStatementsForDriver(sqlQuery, m_connections.getDriverType(connectionId));
+        auto statements = splitStatementsForDriver(sqlQuery, driverType);
         log<LogLevel::INFO>(std::format("Split SQL into {} statements", statements.size()));
 
         // Multiple statements
@@ -75,7 +95,7 @@ std::string QueryProvider::handleExecuteQuery(std::string_view params) {
             size_t stmtIdx = 0;
             try {
                 if (wrapTransaction)
-                    (void)driver->execute("BEGIN");
+                    (void)driver->execute(beginTransactionSQL(m_connections.getDriverType(connectionId)));
 
                 for (const auto& stmt : statements) {
                     auto stmtStart = std::chrono::high_resolution_clock::now();
@@ -100,7 +120,7 @@ std::string QueryProvider::handleExecuteQuery(std::string_view params) {
                 if (wrapTransaction)
                     (void)driver->execute("COMMIT");
 
-                // Record history for multi-statement execution
+                // Record history
                 double totalExecMs = 0.0;
                 int64_t totalAffected = 0;
                 for (const auto& r : allResults) {
@@ -125,7 +145,7 @@ std::string QueryProvider::handleExecuteQuery(std::string_view params) {
                 if (wrapTransaction)
                     try {
                         (void)driver->execute("ROLLBACK");
-                    } catch (...) {
+                    } catch (...) {  // NOLINT(bugprone-empty-catch)
                     }
                 auto errorMsg = std::format("Statement {} of {}: {}", stmtIdx + 1, statements.size(), e.what());
                 recordHistory(sqlQuery, connectionId, 0.0, false, errorMsg);
@@ -413,6 +433,253 @@ std::string QueryProvider::handleSetQueryHistoryFavorite(std::string_view params
         }
         m_queryHistory.setFavorite(idResult.value(), isFavoriteResult.value());
         return JsonUtils::successResponse(R"({"updated":true})");
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string QueryProvider::handleBuildDataViewSql(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        auto doc = parser.parse(params);
+
+        auto connectionIdResult = doc["connectionId"].get_string();
+        auto tableNameResult = doc["tableName"].get_string();
+        auto limitResult = doc["limit"].get_int64();
+        if (connectionIdResult.error() || tableNameResult.error() || limitResult.error()) [[unlikely]] {
+            return JsonUtils::errorResponse("Missing required fields: connectionId, tableName, or limit");
+        }
+        auto connectionId = std::string(connectionIdResult.value());
+        auto tableName = std::string(tableNameResult.value());
+        auto limit = std::max(limitResult.value(), int64_t{0});
+
+        auto driverType = m_connections.getDriverType(connectionId);
+        auto formatter = DriverFactory::createSqlFormattable(driverType);
+        auto quotedTable = formatter->quoteIdentifier(tableName);
+
+        std::string sql;
+        if (auto whereResult = doc["whereClause"].get_string(); !whereResult.error() && !whereResult.value().empty()) {
+            sql = formatter->buildSelectAllWhere(quotedTable, whereResult.value(), limit);
+        } else {
+            sql = formatter->buildSelectAll(quotedTable, limit);
+        }
+
+        return JsonUtils::successResponse(std::format(R"({{"sql":"{}"}})", JsonUtils::escapeString(sql)));
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string QueryProvider::handleBuildWhereClause(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        auto doc = parser.parse(params);
+
+        auto connectionIdResult = doc["connectionId"].get_string();
+        auto conditionsResult = doc["conditions"].get_array();
+        if (connectionIdResult.error() || conditionsResult.error()) [[unlikely]] {
+            return JsonUtils::errorResponse("Missing required fields: connectionId or conditions");
+        }
+        auto connectionId = std::string(connectionIdResult.value());
+
+        auto driverType = m_connections.getDriverType(connectionId);
+        auto formatter = DriverFactory::createSqlFormattable(driverType);
+
+        std::string whereClause;
+        for (auto condition : conditionsResult.value()) {
+            auto columnResult = condition["column"].get_string();
+            if (columnResult.error())
+                continue;
+
+            if (!whereClause.empty()) {
+                whereClause += " AND ";
+            }
+
+            auto quotedCol = formatter->quoteIdentifier(std::string(columnResult.value()));
+
+            // null → IS NULL, string → quoted literal, numeric → unquoted
+            auto valueEl = condition["value"];
+            if (valueEl.error() || valueEl.is_null()) {
+                whereClause += quotedCol + " IS NULL";
+            } else if (auto v = valueEl.get_string(); !v.error()) {
+                whereClause += quotedCol + " = " + formatter->quoteLiteral(v.value());
+            } else if (!valueEl.get_int64().error() || !valueEl.get_uint64().error() || !valueEl.get_double().error() || !valueEl.get_bool().error()) {
+                // Numeric/bool: embed directly without quoting (safe — no string content)
+                whereClause += quotedCol + " = " + simdjson::minify(valueEl.value());
+            } else {
+                // Unknown type: fall back to quoted literal for safety
+                whereClause += quotedCol + " = " + formatter->quoteLiteral(simdjson::minify(valueEl.value()));
+            }
+        }
+
+        return JsonUtils::successResponse(std::format(R"({{"whereClause":"{}"}})", JsonUtils::escapeString(whereClause)));
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string QueryProvider::handleBuildDmlStatements(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        auto doc = parser.parse(params);
+
+        auto connectionIdResult = doc["connectionId"].get_string();
+        auto schemaResult = doc["schema"].get_string();
+        auto tableResult = doc["table"].get_string();
+        if (connectionIdResult.error() || tableResult.error()) [[unlikely]] {
+            return JsonUtils::errorResponse("Missing required fields: connectionId or table");
+        }
+        auto connectionId = std::string(connectionIdResult.value());
+        auto schema = schemaResult.error() ? std::string() : std::string(schemaResult.value());
+        auto table = std::string(tableResult.value());
+
+        auto driverType = m_connections.getDriverType(connectionId);
+        auto formatter = DriverFactory::createSqlFormattable(driverType);
+
+        auto fullTableName = schema.empty() ? formatter->quoteIdentifier(table) : formatter->quoteIdentifier(schema) + "." + formatter->quoteIdentifier(table);
+
+        // Collect PK columns
+        std::vector<std::string> pkColumns;
+        if (auto pkResult = doc["pkColumns"].get_array(); !pkResult.error()) {
+            for (auto pk : pkResult.value()) {
+                if (auto s = pk.get_string(); !s.error())
+                    pkColumns.emplace_back(s.value());
+            }
+        }
+
+        std::string statementsJson = "[";
+        bool firstStmt = true;
+
+        auto appendStmt = [&](const std::string& sql) {
+            if (!firstStmt)
+                statementsJson += ",";
+            firstStmt = false;
+            statementsJson += "\"" + JsonUtils::escapeString(sql) + "\"";
+        };
+
+        // UPDATE statements
+        if (auto updatesResult = doc["updates"].get_array(); !updatesResult.error()) {
+            for (auto update : updatesResult.value()) {
+                auto changesObj = update["changes"].get_object();
+                auto originalObj = update["originalData"].get_object();
+                if (changesObj.error())
+                    continue;
+
+                // SET clause
+                std::string setClauses;
+                for (auto field : changesObj.value()) {
+                    if (!setClauses.empty())
+                        setClauses += ", ";
+                    auto col = formatter->quoteIdentifier(std::string(field.key));
+                    if (field.value.is_null()) {
+                        setClauses += col + " = NULL";
+                    } else if (auto v = field.value.get_string(); !v.error()) {
+                        setClauses += col + " = " + formatter->quoteLiteral(v.value());
+                    } else {
+                        setClauses += col + " = " + formatter->quoteLiteral(simdjson::minify(field.value));
+                    }
+                }
+
+                // WHERE clause from PK or all original columns
+                std::string whereClauses;
+                auto buildWhere = [&](std::string_view colName) {
+                    if (!whereClauses.empty())
+                        whereClauses += " AND ";
+                    auto col = formatter->quoteIdentifier(std::string(colName));
+                    // Use original value for the WHERE
+                    if (!originalObj.error()) {
+                        auto origVal = originalObj.value()[colName];
+                        if (origVal.is_null() || origVal.error()) {
+                            whereClauses += col + " IS NULL";
+                        } else if (auto v = origVal.get_string(); !v.error()) {
+                            whereClauses += col + " = " + formatter->quoteLiteral(v.value());
+                        } else {
+                            whereClauses += col + " = " + formatter->quoteLiteral(simdjson::minify(origVal.value()));
+                        }
+                    }
+                };
+
+                if (!pkColumns.empty()) {
+                    for (const auto& pk : pkColumns)
+                        buildWhere(pk);
+                } else if (!originalObj.error()) {
+                    for (auto field : originalObj.value())
+                        buildWhere(field.key);
+                }
+
+                if (!setClauses.empty() && !whereClauses.empty()) {
+                    appendStmt("UPDATE " + fullTableName + " SET " + setClauses + " WHERE " + whereClauses + ";");
+                }
+            }
+        }
+
+        // INSERT statements
+        if (auto insertsResult = doc["inserts"].get_array(); !insertsResult.error()) {
+            for (auto insert : insertsResult.value()) {
+                auto obj = insert.get_object();
+                if (obj.error())
+                    continue;
+
+                std::string columns, values;
+                for (auto field : obj.value()) {
+                    if (!columns.empty()) {
+                        columns += ", ";
+                        values += ", ";
+                    }
+                    columns += formatter->quoteIdentifier(std::string(field.key));
+                    if (field.value.is_null()) {
+                        values += "NULL";
+                    } else if (auto v = field.value.get_string(); !v.error()) {
+                        values += formatter->quoteLiteral(v.value());
+                    } else {
+                        values += formatter->quoteLiteral(simdjson::minify(field.value));
+                    }
+                }
+
+                if (!columns.empty()) {
+                    appendStmt("INSERT INTO " + fullTableName + " (" + columns + ") VALUES (" + values + ");");
+                }
+            }
+        }
+
+        // DELETE statements
+        if (auto deletesResult = doc["deletes"].get_array(); !deletesResult.error()) {
+            for (auto del : deletesResult.value()) {
+                auto obj = del.get_object();
+                if (obj.error())
+                    continue;
+
+                std::string whereClauses;
+                auto buildWhere = [&](std::string_view colName) {
+                    if (!whereClauses.empty())
+                        whereClauses += " AND ";
+                    auto col = formatter->quoteIdentifier(std::string(colName));
+                    auto val = obj.value()[colName];
+                    if (val.is_null() || val.error()) {
+                        whereClauses += col + " IS NULL";
+                    } else if (auto v = val.get_string(); !v.error()) {
+                        whereClauses += col + " = " + formatter->quoteLiteral(v.value());
+                    } else {
+                        whereClauses += col + " = " + formatter->quoteLiteral(simdjson::minify(val.value()));
+                    }
+                };
+
+                if (!pkColumns.empty()) {
+                    for (const auto& pk : pkColumns)
+                        buildWhere(pk);
+                } else {
+                    for (auto field : obj.value())
+                        buildWhere(field.key);
+                }
+
+                if (!whereClauses.empty()) {
+                    appendStmt("DELETE FROM " + fullTableName + " WHERE " + whereClauses + ";");
+                }
+            }
+        }
+
+        statementsJson += "]";
+        return JsonUtils::successResponse(std::format(R"({{"statements":{}}})", statementsJson));
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
     }

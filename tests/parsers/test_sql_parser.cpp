@@ -221,6 +221,15 @@ TEST_F(CopyBlockDetectorTest, StartsBlockPositive) {
     EXPECT_TRUE(detector.startsBlock("COPY t FROM stdin;\n1\tdata\n\\."));
 }
 
+TEST_F(CopyBlockDetectorTest, StartsBlockWithLeadingComments) {
+    // pg_dump injects comments before COPY blocks
+    EXPECT_TRUE(detector.startsBlock("--\n-- Data for Name: bp; Type: TABLE DATA\n--\n\nCOPY public.bp (id) FROM stdin;"));
+    EXPECT_TRUE(detector.startsBlock("-- comment\nCOPY t FROM stdin;"));
+    EXPECT_TRUE(detector.startsBlock("\n\n-- c1\n-- c2\nCOPY t FROM stdin;\n1\n\\."));
+    // Comments only → false
+    EXPECT_FALSE(detector.startsBlock("-- just a comment\n-- another"));
+}
+
 TEST_F(CopyBlockDetectorTest, StartsBlockNegative) {
     EXPECT_FALSE(detector.startsBlock("COPY t TO stdout;"));
     EXPECT_FALSE(detector.startsBlock("COPY t FROM '/path/to/file';"));
@@ -265,6 +274,24 @@ TEST_F(CopyBlockDetectorTest, ExtractPartsCommandOnly) {
     EXPECT_TRUE(parts.data.empty());
 }
 
+TEST_F(CopyBlockDetectorTest, ExtractPartsSkipsLeadingComments) {
+    std::string compound =
+        "--\n"
+        "-- Data for Name: bp; Type: TABLE DATA\n"
+        "--\n"
+        "\n"
+        "COPY t (id, name) FROM stdin;\n"
+        "1\tAlice\n"
+        "2\tBob\n"
+        "\\.";
+
+    auto parts = CopyBlockDetector::extractParts(compound);
+    EXPECT_EQ(parts.command, "COPY t (id, name) FROM stdin;");
+    // Exact data verification — no leading newline, no trailing \.
+    EXPECT_EQ(parts.data, "1\tAlice\n2\tBob\n");
+    EXPECT_NE(parts.data[0], '\n') << "Data must not start with newline (causes COPY empty line error)";
+}
+
 // ===== filterPsqlMetaCommands via splitStatements =====
 
 TEST_F(SQLParserSplitTest, FilterPsqlMetaCommands_PreservesCopyNull) {
@@ -287,6 +314,26 @@ TEST_F(SQLParserSplitTest, FilterPsqlMetaCommands_RemovesRestrict) {
     ASSERT_EQ(stmts.size(), 1);
     EXPECT_NE(stmts[0].find("SELECT 1"), std::string::npos);
     EXPECT_EQ(stmts[0].find("restrict"), std::string::npos);
+}
+
+TEST_F(SQLParserSplitTest, FilterNonExecutableLines_RemovesSqlComments) {
+    std::string sql =
+        "-- comment line\n"
+        "SELECT 1;\n"
+        "-- another comment\n"
+        "SELECT 2;\n";
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 2);
+    EXPECT_EQ(stmts[0].find("--"), std::string::npos);
+    EXPECT_EQ(stmts[1].find("--"), std::string::npos);
+}
+
+TEST_F(SQLParserSplitTest, FilterNonExecutableLines_PreservesInlineComments) {
+    std::string sql = "SELECT 1; -- inline comment stays in statement\n";
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 1);
+    // Inline comment is part of the statement (but harmless for execution)
+    EXPECT_NE(stmts[0].find("SELECT 1"), std::string::npos);
 }
 
 // ===== isUseStatement performance =====
@@ -327,6 +374,172 @@ TEST_F(SQLParserSplitTest, SplitStatements_PgDumpFormat) {
     EXPECT_NE(stmts[1].find("CREATE TABLE"), std::string::npos);
     EXPECT_NE(stmts[2].find("COPY t"), std::string::npos);
     EXPECT_NE(stmts[3].find("ALTER TABLE"), std::string::npos);
+}
+
+TEST_F(SQLParserSplitTest, SplitStatements_PgDumpFormatWithComments) {
+    // Real pg_dump output has comments before COPY blocks
+    std::string sql =
+        "SET statement_timeout = 0;\n"
+        "\n"
+        "CREATE TABLE public.bp (id int, name text);\n"
+        "\n"
+        "--\n"
+        "-- Data for Name: bp; Type: TABLE DATA; Schema: public; Owner: postgres\n"
+        "--\n"
+        "\n"
+        "COPY public.bp (id, name) FROM stdin;\n"
+        "1\tAlice\n"
+        "2\tBob\n"
+        "\\.\n"
+        "\n"
+        "ALTER TABLE public.bp ADD CONSTRAINT bp_pkey PRIMARY KEY (id);\n";
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 4);
+    EXPECT_NE(stmts[0].find("SET"), std::string::npos);
+    EXPECT_NE(stmts[1].find("CREATE TABLE"), std::string::npos);
+    EXPECT_NE(stmts[2].find("COPY public.bp"), std::string::npos);
+    EXPECT_NE(stmts[2].find("1\tAlice"), std::string::npos);
+    EXPECT_NE(stmts[3].find("ALTER TABLE"), std::string::npos);
+}
+
+// E2E: splitStatements → canHandle → extractParts (full pg_dump pipeline)
+TEST_F(SQLParserSplitTest, E2E_PgDumpCopyWithComments_DataIntegrity) {
+    std::string sql =
+        "SET statement_timeout = 0;\n"
+        "\n"
+        "--\n"
+        "-- Name: bp; Type: TABLE; Schema: public; Owner: postgres\n"
+        "--\n"
+        "\n"
+        "CREATE TABLE public.bp (id int, name text);\n"
+        "\n"
+        "--\n"
+        "-- Data for Name: bp; Type: TABLE DATA; Schema: public; Owner: postgres\n"
+        "--\n"
+        "\n"
+        "COPY public.bp (id, name) FROM stdin;\n"
+        "1\tAlice\n"
+        "2\tBob\n"
+        "3\tCharlie\n"
+        "\\.\n"
+        "\n"
+        "ALTER TABLE public.bp ADD CONSTRAINT bp_pkey PRIMARY KEY (id);\n";
+
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 4) << "Expected: SET, CREATE TABLE, COPY block, ALTER TABLE";
+
+    // COPY compound statement must not contain comment lines (filtered out)
+    auto& copyStmt = stmts[2];
+    EXPECT_EQ(copyStmt.find("--"), std::string::npos) << "Comments must be filtered before splitting";
+    EXPECT_TRUE(copyDetector.startsBlock(copyStmt)) << "canHandle must return true for: " << copyStmt.substr(0, 100);
+
+    // extractParts must separate command from data correctly
+    auto parts = CopyBlockDetector::extractParts(copyStmt);
+    EXPECT_EQ(parts.command, "COPY public.bp (id, name) FROM stdin;");
+
+    // Data must NOT start with newline (would cause "empty line 1" error)
+    ASSERT_FALSE(parts.data.empty()) << "Data must not be empty";
+    EXPECT_NE(parts.data[0], '\n') << "Data must not start with newline";
+
+    // Exact data content verification
+    EXPECT_EQ(parts.data, "1\tAlice\n2\tBob\n3\tCharlie\n");
+}
+
+// E2E: Multiple COPY blocks in one pg_dump (tables with/without data)
+TEST_F(SQLParserSplitTest, E2E_PgDumpMultipleCopyBlocks) {
+    std::string sql =
+        "CREATE TABLE t1 (id int);\n"
+        "CREATE TABLE t2 (id int, val text);\n"
+        "\n"
+        "--\n"
+        "-- Data for Name: t1; Type: TABLE DATA\n"
+        "--\n"
+        "\n"
+        "COPY t1 (id) FROM stdin;\n"
+        "10\n"
+        "20\n"
+        "\\.\n"
+        "\n"
+        "--\n"
+        "-- Data for Name: t2; Type: TABLE DATA\n"
+        "--\n"
+        "\n"
+        "COPY t2 (id, val) FROM stdin;\n"
+        "1\thello\n"
+        "2\tworld\n"
+        "\\.\n";
+
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 4) << "Expected: CREATE t1, CREATE t2, COPY t1, COPY t2";
+
+    // COPY t1
+    EXPECT_TRUE(copyDetector.startsBlock(stmts[2]));
+    auto parts1 = CopyBlockDetector::extractParts(stmts[2]);
+    EXPECT_EQ(parts1.command, "COPY t1 (id) FROM stdin;");
+    EXPECT_EQ(parts1.data, "10\n20\n");
+
+    // COPY t2
+    EXPECT_TRUE(copyDetector.startsBlock(stmts[3]));
+    auto parts2 = CopyBlockDetector::extractParts(stmts[3]);
+    EXPECT_EQ(parts2.command, "COPY t2 (id, val) FROM stdin;");
+    EXPECT_EQ(parts2.data, "1\thello\n2\tworld\n");
+}
+
+// Edge: COPY with semicolons in comment (pg_dump standard)
+TEST_F(SQLParserSplitTest, E2E_CommentWithSemicolonsBeforeCopy) {
+    std::string sql =
+        "CREATE TABLE t (id int);\n"
+        "--\n"
+        "-- Data for Name: t; Type: TABLE DATA; Schema: public; Owner: postgres\n"
+        "--\n"
+        "\n"
+        "COPY t (id) FROM stdin;\n"
+        "42\n"
+        "\\.\n";
+
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 2) << "CREATE + COPY block";
+
+    auto parts = CopyBlockDetector::extractParts(stmts[1]);
+    EXPECT_EQ(parts.command, "COPY t (id) FROM stdin;");
+    EXPECT_EQ(parts.data, "42\n");
+}
+
+// Edge: Empty table COPY (no data rows)
+TEST_F(SQLParserSplitTest, E2E_EmptyCopyWithComments) {
+    std::string sql =
+        "--\n"
+        "-- Data for Name: empty_tbl; Type: TABLE DATA\n"
+        "--\n"
+        "\n"
+        "COPY empty_tbl (id) FROM stdin;\n"
+        "\\.\n";
+
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 1);
+
+    auto parts = CopyBlockDetector::extractParts(stmts[0]);
+    EXPECT_EQ(parts.command, "COPY empty_tbl (id) FROM stdin;");
+    EXPECT_TRUE(parts.data.empty());
+}
+
+// Edge: Data containing backslash-N (NULL marker)
+TEST_F(SQLParserSplitTest, E2E_CopyWithNullValues) {
+    std::string sql =
+        "--\n"
+        "-- Data\n"
+        "--\n"
+        "COPY t (id, val) FROM stdin;\n"
+        "1\t\\N\n"
+        "2\tdata\n"
+        "\\.\n";
+
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 1);
+
+    auto parts = CopyBlockDetector::extractParts(stmts[0]);
+    EXPECT_EQ(parts.command, "COPY t (id, val) FROM stdin;");
+    EXPECT_EQ(parts.data, "1\t\\N\n2\tdata\n");
 }
 
 }  // namespace test

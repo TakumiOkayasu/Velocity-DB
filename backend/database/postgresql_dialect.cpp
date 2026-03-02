@@ -347,6 +347,18 @@ auto PostgreSqlDialect::quoteIdentifier(std::string_view id) const -> std::strin
     return result;
 }
 
+auto PostgreSqlDialect::quoteLiteral(std::string_view value) const -> std::string {
+    return std::string("'").append(escapeSql(value)).append("'");
+}
+
+auto PostgreSqlDialect::buildSelectAll(std::string_view quotedTable, int64_t limit) const -> std::string {
+    return std::string("SELECT * FROM ").append(quotedTable).append(std::format(" LIMIT {}", limit));
+}
+
+auto PostgreSqlDialect::buildSelectAllWhere(std::string_view quotedTable, std::string_view whereClause, int64_t limit) const -> std::string {
+    return std::string("SELECT * FROM ").append(quotedTable).append(" WHERE ").append(whereClause).append(std::format(" LIMIT {}", limit));
+}
+
 auto PostgreSqlDialect::defaultSchema() const noexcept -> std::string_view {
     return "public";
 }

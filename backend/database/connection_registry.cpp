@@ -4,6 +4,7 @@
 #include "driver_interface.h"
 
 #include <format>
+#include <optional>
 
 namespace velocitydb {
 
@@ -24,8 +25,9 @@ void ConnectionRegistry::remove(std::string_view id) {
     std::lock_guard lock(m_mutex);
     auto idStr = std::string(id);
 
-    // Remove driver type
+    // Remove driver type and connection params
     m_driverTypes.erase(idStr);
+    m_connectionParams.erase(idStr);
 
     // Close and remove SSH tunnel first
     if (auto tunnelIt = m_tunnels.find(idStr); tunnelIt != m_tunnels.end()) {
@@ -94,6 +96,19 @@ void ConnectionRegistry::attachTunnel(std::string_view connectionId, std::unique
     m_tunnels[std::string(connectionId)] = std::move(tunnel);
 }
 
+void ConnectionRegistry::storeParams(std::string_view connectionId, const DatabaseConnectionParams& params) {
+    std::lock_guard lock(m_mutex);
+    m_connectionParams[std::string(connectionId)] = params;
+}
+
+std::optional<DatabaseConnectionParams> ConnectionRegistry::getParams(std::string_view connectionId) const {
+    std::shared_lock lock(m_mutex);
+    if (auto it = m_connectionParams.find(std::string(connectionId)); it != m_connectionParams.end()) {
+        return it->second;
+    }
+    return std::nullopt;
+}
+
 SshTunnel* ConnectionRegistry::getTunnel(std::string_view connectionId) const {
     std::shared_lock lock(m_mutex);
 
@@ -106,8 +121,9 @@ SshTunnel* ConnectionRegistry::getTunnel(std::string_view connectionId) const {
 void ConnectionRegistry::clear() {
     std::lock_guard lock(m_mutex);
 
-    // Clear driver types
+    // Clear driver types and connection params
     m_driverTypes.clear();
+    m_connectionParams.clear();
 
     // Close all tunnels
     m_tunnels.clear();

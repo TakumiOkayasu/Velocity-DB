@@ -57,7 +57,7 @@ std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<IDatabaseDriver> dri
         task->future = std::async(std::launch::async, [driver, statements, task, wrapTransaction]() -> QueryResultVariant {
             try {
                 if (wrapTransaction)
-                    (void)driver->execute("BEGIN");
+                    (void)driver->execute(beginTransactionSQL(driver->getType()));
 
                 std::vector<StatementResult> allResults;
                 allResults.reserve(statements.size());
@@ -97,7 +97,7 @@ std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<IDatabaseDriver> dri
                 if (wrapTransaction)
                     try {
                         (void)driver->execute("ROLLBACK");
-                    } catch (...) {
+                    } catch (...) {  // NOLINT(bugprone-empty-catch)
                     }
                 task->endTime = std::chrono::steady_clock::now();
                 task->errorMessage = e.what();
@@ -126,6 +126,32 @@ std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<IDatabaseDriver> dri
     std::lock_guard lock(m_mutex);
     m_queries[queryId] = task;
 
+    return queryId;
+}
+
+std::string AsyncQueryExecutor::submitTask(std::function<QueryResultVariant()> task) {
+    auto queryId = std::format("query_{}", m_queryIdCounter++);
+
+    auto queryTask = std::make_shared<QueryTask>();
+    queryTask->startTime = std::chrono::steady_clock::now();
+    queryTask->status = QueryStatus::Running;
+
+    queryTask->future = std::async(std::launch::async, [queryTask, fn = std::move(task)]() -> QueryResultVariant {
+        try {
+            auto result = fn();
+            queryTask->endTime = std::chrono::steady_clock::now();
+            queryTask->status = QueryStatus::Completed;
+            return result;
+        } catch (const std::exception& e) {
+            queryTask->endTime = std::chrono::steady_clock::now();
+            queryTask->errorMessage = e.what();
+            queryTask->status = QueryStatus::Failed;
+            return ResultSet{};
+        }
+    });
+
+    std::lock_guard lock(m_mutex);
+    m_queries[queryId] = queryTask;
     return queryId;
 }
 

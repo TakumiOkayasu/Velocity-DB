@@ -24,6 +24,7 @@ set(LIB_SOURCES
     database/postgresql_driver.cpp
     database/postgresql_dialect.cpp
     database/copy_from_stdin_handler.cpp
+    database/psql_subprocess.cpp
     database/driver_factory.cpp
     database/connection_registry.cpp
     database/result_cache.cpp
@@ -85,6 +86,7 @@ set(HEADERS
     database/postgresql_driver.h
     database/postgresql_dialect.h
     database/copy_from_stdin_handler.h
+    database/psql_subprocess.h
     database/pg_result_ptr.h
     database/connection_registry.h
     database/result_cache.h

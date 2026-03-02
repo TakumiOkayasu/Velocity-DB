@@ -29,6 +29,7 @@ struct PreparedConnection {
     std::string connectionString;
     std::unique_ptr<SshTunnel> tunnel;
     DriverType driverType;
+    DatabaseConnectionParams effectiveParams;
 };
 
 /// SSH tunnel + connection string construction
@@ -52,7 +53,7 @@ struct PreparedConnection {
     log<LogLevel::DEBUG>("[DB] Attempting connection...");
     log_flush();
 
-    return PreparedConnection{std::move(*connStr), std::move(tunnel), toDriverType(params.dbType)};
+    return PreparedConnection{std::move(*connStr), std::move(tunnel), toDriverType(params.dbType), effectiveParams};
 }
 
 }  // namespace
@@ -82,6 +83,10 @@ DriverType ConnectionProvider::getDriverType(std::string_view connectionId) cons
     return *result;
 }
 
+std::optional<DatabaseConnectionParams> ConnectionProvider::getConnectionParams(std::string_view connectionId) const {
+    return m_registry->getParams(connectionId);
+}
+
 std::string ConnectionProvider::handleConnect(std::string_view params) {
     auto connectionParams = extractConnectionParams(params);
     if (!connectionParams) {
@@ -107,6 +112,7 @@ std::string ConnectionProvider::handleConnect(std::string_view params) {
     }
 
     auto connectionId = m_registry->add(queryDriverPtr, metadataDriverPtr, prepared->driverType);
+    m_registry->storeParams(connectionId, prepared->effectiveParams);
     if (prepared->tunnel) {
         m_registry->attachTunnel(connectionId, std::move(prepared->tunnel));
     }

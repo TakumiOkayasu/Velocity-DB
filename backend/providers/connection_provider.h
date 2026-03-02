@@ -3,6 +3,7 @@
 #include "../interfaces/providers/connection_provider.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -30,6 +31,7 @@ public:
     [[nodiscard]] std::shared_ptr<IDatabaseDriver> getMetadataDriver(std::string_view connectionId) override;
 
     [[nodiscard]] DriverType getDriverType(std::string_view connectionId) const override;
+    [[nodiscard]] std::optional<DatabaseConnectionParams> getConnectionParams(std::string_view connectionId) const override;
 
 private:
     std::unique_ptr<ConnectionRegistry> m_registry;

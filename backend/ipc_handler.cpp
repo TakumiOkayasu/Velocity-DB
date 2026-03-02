@@ -75,6 +75,11 @@ void IPCHandler::registerRoutes() {
     // Filter
     m_routes["filterResultSet"] = [this](auto p) { return m_ctx.queries().handleFilterResultSet(p); };
 
+    // SQL builder (dialect-aware)
+    m_routes["buildDataViewSql"] = [this](auto p) { return m_ctx.queries().handleBuildDataViewSql(p); };
+    m_routes["buildWhereClause"] = [this](auto p) { return m_ctx.queries().handleBuildWhereClause(p); };
+    m_routes["buildDmlStatements"] = [this](auto p) { return m_ctx.queries().handleBuildDmlStatements(p); };
+
     // Export
     m_routes["exportCSV"] = [this](auto p) { return m_ctx.exports().handleExportCSV(p); };
     m_routes["exportJSON"] = [this](auto p) { return m_ctx.exports().handleExportJSON(p); };

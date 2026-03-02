@@ -2,8 +2,10 @@
 
 #include "../database/async_query_executor.h"
 #include "../database/driver_interface.h"
+#include "../database/psql_subprocess.h"
 #include "../database/query_history.h"
 #include "../interfaces/providers/connection_provider.h"
+#include "../parsers/copy_block_detector.h"
 #include "../utils/json_utils.h"
 #include "simdjson.h"
 
@@ -34,7 +36,27 @@ std::string AsyncQueryProvider::handleExecuteAsyncQuery(std::string_view params)
             return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
         }
 
-        std::string queryId = m_asyncExecutor->submitQuery(driver, sqlQuery);
+        // Delegate entire SQL to psql for COPY FROM stdin (libpq can't handle pg_dump format)
+        auto driverType = m_connections.getDriverType(connectionId);
+        std::string queryId;
+        if (driverType == DriverType::PostgreSQL && containsCopyFromStdin(sqlQuery)) {
+            auto connParams = m_connections.getConnectionParams(connectionId);
+            if (!connParams) {
+                return JsonUtils::errorResponse("Connection parameters not found for psql delegation");
+            }
+            auto connInfo = toPsqlConnectionInfo(*connParams);
+            auto sqlCopy = std::string(sqlQuery);
+            queryId = m_asyncExecutor->submitTask([connInfo = std::move(connInfo), sqlCopy = std::move(sqlCopy)]() -> QueryResultVariant {
+                auto result = executePsql(connInfo, sqlCopy);
+                if (!result)
+                    throw std::runtime_error(result.error());
+                return *result;
+            });
+        }
+
+        if (queryId.empty())
+            queryId = m_asyncExecutor->submitQuery(driver, sqlQuery);
+
         m_queryMeta[queryId] = {.connectionId = connectionId, .sql = truncateHistorySql(sqlQuery)};
         return JsonUtils::successResponse(std::format(R"({{"queryId":"{}"}})", queryId));
     } catch (const std::exception& e) {

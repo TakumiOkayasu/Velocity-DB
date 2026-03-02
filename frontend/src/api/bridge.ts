@@ -365,6 +365,40 @@ class Bridge {
     return this.call('exportExcel', { data, filepath });
   }
 
+  // SQL builder methods (dialect-aware, delegated to backend)
+  async buildDataViewSql(
+    connectionId: string,
+    tableName: string,
+    limit: number,
+    whereClause?: string
+  ): Promise<{ sql: string }> {
+    return this.call('buildDataViewSql', { connectionId, tableName, limit, whereClause });
+  }
+
+  async buildWhereClause(
+    connectionId: string,
+    conditions: { column: string; value: string | null }[]
+  ): Promise<{ whereClause: string }> {
+    return this.call('buildWhereClause', { connectionId, conditions });
+  }
+
+  async buildDmlStatements(
+    connectionId: string,
+    params: {
+      schema: string;
+      table: string;
+      pkColumns: string[];
+      updates?: {
+        changes: Record<string, string | null>;
+        originalData: Record<string, string | null>;
+      }[];
+      inserts?: Record<string, string | null>[];
+      deletes?: Record<string, string | null>[];
+    }
+  ): Promise<{ statements: string[] }> {
+    return this.call('buildDmlStatements', { connectionId, ...params });
+  }
+
   // SQL methods
   async uppercaseKeywords(sql: string): Promise<{ sql: string }> {
     return this.call('uppercaseKeywords', { sql });

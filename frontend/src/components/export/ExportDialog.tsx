@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useConnectionStore } from '../../store/connectionStore';
 import type { ResultSet } from '../../types';
 import styles from './ExportDialog.module.css';
 import { type ExportFormat, type ExportOptions, getExporter } from './exporters';
@@ -10,6 +11,11 @@ interface ExportDialogProps {
 }
 
 export function ExportDialog({ isOpen, onClose, resultSet }: ExportDialogProps) {
+  // W8: .find() returns existing array reference — stable with Zustand's Object.is equality
+  const activeConnection = useConnectionStore((s) => {
+    const id = s.activeConnectionId;
+    return id ? s.connections.find((c) => c.id === id) : undefined;
+  });
   const [options, setOptions] = useState<ExportOptions>({
     format: 'csv',
     includeHeaders: true,
@@ -21,8 +27,11 @@ export function ExportDialog({ isOpen, onClose, resultSet }: ExportDialogProps) 
 
   const generateExport = useCallback((): string => {
     if (!resultSet) return '';
-    return getExporter(options.format).generate(resultSet, options);
-  }, [resultSet, options]);
+    return getExporter(options.format).generate(resultSet, {
+      ...options,
+      dbType: activeConnection?.dbType,
+    });
+  }, [resultSet, options, activeConnection?.dbType]);
 
   const handleCopy = useCallback(async () => {
     const text = generateExport();
