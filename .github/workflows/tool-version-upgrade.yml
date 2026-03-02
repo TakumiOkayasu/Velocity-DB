@@ -48,8 +48,8 @@ jobs:
       - name: Read current versions
         id: current
         run: |
-          # Bun: from ci.yml
-          BUN=$(grep 'bun-version:' .github/workflows/ci.yml | head -1 | awk '{print $2}')
+          # Bun: from ci.yml (strip quotes in case of "latest" or '1.x.y')
+          BUN=$(grep 'bun-version:' .github/workflows/ci.yml | head -1 | awk '{print $2}' | tr -d "\"'")
           echo "bun=$BUN" >> "$GITHUB_OUTPUT"
           echo "Current Bun: $BUN"
 
@@ -74,11 +74,11 @@ jobs:
           echo "Latest Bun: $BUN"
 
           # vcpkg: HEAD commit SHA of main branch
-          VCPKG=$(gh api repos/microsoft/vcpkg/commits/main --jq '.sha')
+          VCPKG=$(gh api repos/microsoft/vcpkg/git/refs/heads/main --jq '.object.sha')
           echo "vcpkg=$VCPKG" >> "$GITHUB_OUTPUT"
           echo "Latest vcpkg baseline: $VCPKG"
 
-          # vcpkg: commit date for staleness check
+          # vcpkg: commit date for staleness check (Commits API is fine here — SHA lookup, not branch name)
           VCPKG_CURRENT_DATE=$(gh api "repos/microsoft/vcpkg/commits/${{ steps.current.outputs.vcpkg }}" --jq '.commit.committer.date' 2>/dev/null || echo "")
           echo "vcpkg_current_date=$VCPKG_CURRENT_DATE" >> "$GITHUB_OUTPUT"
           echo "Current vcpkg commit date: $VCPKG_CURRENT_DATE"
@@ -97,7 +97,10 @@ jobs:
         run: |
           # Bun
           if [[ "$INPUT_TOOL" == "all" || "$INPUT_TOOL" == "bun" ]]; then
-            if [[ "${{ steps.current.outputs.bun }}" != "${{ steps.latest.outputs.bun }}" ]]; then
+            if [[ "${{ steps.current.outputs.bun }}" == "latest" ]]; then
+              echo "bun=false" >> "$GITHUB_OUTPUT"
+              echo "Bun uses 'latest' pin - no version update needed"
+            elif [[ "${{ steps.current.outputs.bun }}" != "${{ steps.latest.outputs.bun }}" ]]; then
               echo "bun=true" >> "$GITHUB_OUTPUT"
               echo "Bun needs update: ${{ steps.current.outputs.bun }} -> ${{ steps.latest.outputs.bun }}"
             else
@@ -164,7 +167,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          EXISTING=$(gh pr list --head "chore/upgrade-bun" --state open --json number --jq '.[0].number // empty')
+          EXISTING=$(gh pr list --search "head:chore/upgrade-bun- is:open" --json number --jq '.[0].number // empty')
           if [[ -n "$EXISTING" ]]; then
             echo "PR #${EXISTING} already open for Bun. Skipping."
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -216,30 +219,26 @@ jobs:
 
           gh pr create \
             --title "chore(deps): upgrade Bun to ${NEW_VERSION}" \
-            --body "$(cat <<'PREOF'
+            --body "$(cat <<EOF
           ## Tool Version Upgrade
 
           | Field | Value |
           |-------|-------|
           | Tool | Bun |
-          | Previous | OLDVER |
-          | New | NEWVER |
+          | Previous | ${OLD_VERSION} |
+          | New | ${NEW_VERSION} |
 
           ### Validation
-          - [x] `bun install` succeeded
-          - [x] `bun run build` succeeded
-          - [x] `bun run test --run` passed
+          - [x] \`bun install\` succeeded
+          - [x] \`bun run build\` succeeded
+          - [x] \`bun run test --run\` passed
 
           ### Auto-generated
           This PR was automatically created by the tool-version-upgrade workflow.
-          PREOF
+          EOF
           )" \
             --label "dependencies" \
             --reviewer "TakumiOkayasu"
-
-          # Replace placeholders in PR body (heredoc can't expand env vars with single quotes)
-          PR_NUM=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number')
-          gh pr edit "$PR_NUM" --body "$(gh pr view "$PR_NUM" --json body --jq '.body' | sed "s/OLDVER/${OLD_VERSION}/;s/NEWVER/${NEW_VERSION}/")"
 
   # ==========================================================
   # Upgrade vcpkg baseline
@@ -257,7 +256,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $existing = gh pr list --head "chore/upgrade-vcpkg" --state open --json number --jq '.[0].number // empty'
+          $existing = gh pr list --search "head:chore/upgrade-vcpkg- is:open" --json number --jq '.[0].number // empty'
           if ($existing) {
             Write-Host "PR #$existing already open for vcpkg. Skipping."
             echo "skip=true" >> $env:GITHUB_OUTPUT
@@ -352,7 +351,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          EXISTING=$(gh pr list --head "chore/upgrade-clang-format" --state open --json number --jq '.[0].number // empty')
+          EXISTING=$(gh pr list --search "head:chore/upgrade-clang-format- is:open" --json number --jq '.[0].number // empty')
           if [[ -n "$EXISTING" ]]; then
             echo "PR #${EXISTING} already open for clang-format. Skipping."
             echo "skip=true" >> "$GITHUB_OUTPUT"
