@@ -139,7 +139,7 @@ jobs:
           wait $TEST_PID
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-build
           path: frontend/dist/
@@ -215,7 +215,7 @@ jobs:
         run: ctest --test-dir build --output-on-failure --parallel
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: backend-build
           path: build/Release/
@@ -251,7 +251,7 @@ jobs:
           Get-ChildItem -Recurse package | ForEach-Object { $_.FullName }
 
       - name: Upload packaged application
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Velocity-DB-windows-x64
           path: package/
