@@ -348,8 +348,8 @@ std::expected<ResultSet, std::string> executePsql(const PsqlConnectionInfo& conn
         TerminateProcess(pi.hProcess, 1);
         WaitForSingleObject(pi.hProcess, 5000);
         // Drain remaining pipe data to prevent zombie handles
-        readPipe(stdoutRead);
-        readPipe(stderrRead);
+        (void)readPipe(stdoutRead);
+        (void)readPipe(stderrRead);
         return std::unexpected("psql process timed out after 300 seconds");
     }
 
