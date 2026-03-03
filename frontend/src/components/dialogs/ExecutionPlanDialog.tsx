@@ -33,7 +33,7 @@ export function ExecutionPlanDialog({ isOpen, onClose, sql }: ExecutionPlanDialo
 
         if (result.rows.length > 0) {
           // Combine all plan text rows
-          const plan = result.rows.map((row) => row.join(' ')).join('\n');
+          const plan = result.rows.map((row) => row.map((v) => v ?? '').join(' ')).join('\n');
           setPlanText(plan);
         } else {
           setPlanText('実行計画を取得できません');

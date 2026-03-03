@@ -31,6 +31,9 @@ public:
     /// Append column definitions as JSON array field: "columns":[...]
     static void appendColumns(std::string& json, const std::vector<ColumnInfo>& columns);
 
+    /// Append a single row value as JSON (null literal or quoted escaped string).
+    static void appendJsonValue(std::string& json, const ResultRow& row, size_t colIndex);
+
     /// Append ResultSet columns/rows/affectedRows/executionTimeMs/truncated as JSON fields (no outer braces).
     /// Rows exceeding QUERY_ROW_LIMIT are truncated.
     /// Use when embedding ResultSet data into a larger JSON object.

@@ -1,5 +1,6 @@
 #include "result_cache.h"
 
+#include <climits>
 #include <ranges>
 
 namespace velocitydb {
@@ -81,6 +82,7 @@ size_t ResultCache::estimateSize(const ResultSet& result) {
         for (const auto& val : row.values) {
             size += val.size();
         }
+        size += (row.nullFlags.size() + CHAR_BIT - 1) / CHAR_BIT;
     }
 
     return size;

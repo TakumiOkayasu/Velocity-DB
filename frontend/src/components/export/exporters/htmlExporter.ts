@@ -20,7 +20,7 @@ export const htmlExporter: Exportable = {
     const dataRows = rows
       .map((row) => {
         const cells = row.map((val) => {
-          const display = val === null || val === '' ? nullValue : val;
+          const display = val === null ? nullValue : val;
           return `<td>${escapeHtml(String(display))}</td>`;
         });
         return `<tr>${cells.join('')}</tr>`;

@@ -131,11 +131,13 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
     while ((ret = SQLFetch(stmt)) == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
         ResultRow row;
         row.values.reserve(static_cast<size_t>(numCols));
+        row.nullFlags.reserve(static_cast<size_t>(numCols));
 
         for (SQLSMALLINT i = 1; i <= numCols; ++i) {
             ret = SQLGetData(stmt, i, SQL_C_WCHAR, buffer.data(), buffer.size() * sizeof(SQLWCHAR), &indicator);
             if (indicator == SQL_NULL_DATA) {
                 row.values.emplace_back();
+                row.nullFlags.push_back(true);
             } else if (ret == SQL_SUCCESS_WITH_INFO && indicator > static_cast<SQLLEN>((buffer.size() - 1) * sizeof(SQLWCHAR))) {
                 size_t requiredChars = (static_cast<size_t>(indicator) / sizeof(SQLWCHAR)) + 1;
                 std::vector<SQLWCHAR> largeBuffer(requiredChars);
@@ -148,14 +150,17 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
                     strLen = j + 1;
                 }
                 row.values.emplace_back(sqlWcharToUtf8(largeBuffer.data(), strLen));
+                row.nullFlags.push_back(false);
             } else if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
                 size_t strLen = 0;
                 for (size_t j = 0; j < buffer.size() && buffer[j] != 0; ++j) {
                     strLen = j + 1;
                 }
                 row.values.emplace_back(sqlWcharToUtf8(buffer.data(), strLen));
+                row.nullFlags.push_back(false);
             } else {
                 row.values.emplace_back();
+                row.nullFlags.push_back(true);
             }
         }
         result.rows.push_back(std::move(row));

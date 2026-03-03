@@ -8,7 +8,7 @@ export const jsonExporter: Exportable = {
       const obj: Record<string, string | null> = {};
       columns.forEach((col, idx) => {
         const val = row[idx];
-        obj[col.name] = val === '' ? null : val;
+        obj[col.name] = val;
       });
       return obj;
     });

@@ -8,11 +8,17 @@ export const csvExporter: Exportable = {
 
     const lines: string[] = [];
     if (includeHeaders) {
-      lines.push(columns.map((c) => `"${c.name}"`).join(delimiter));
+      lines.push(columns.map((c) => `"${c.name.replace(/"/g, '""')}"`).join(delimiter));
     }
+    const needsQuoting =
+      nullValue.includes(delimiter) ||
+      nullValue.includes('"') ||
+      nullValue.includes('\n') ||
+      nullValue.includes('\r');
+    const escapedNullValue = needsQuoting ? `"${nullValue.replace(/"/g, '""')}"` : nullValue;
     for (const row of rows) {
       const values = row.map((val) => {
-        if (val === null || val === '') return nullValue;
+        if (val === null) return escapedNullValue;
         const escaped = String(val).replace(/"/g, '""');
         return `"${escaped}"`;
       });

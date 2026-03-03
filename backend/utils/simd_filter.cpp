@@ -79,7 +79,7 @@ std::vector<size_t> SIMDFilter::filterEquals(const ResultSet& data, size_t colum
     result.reserve(data.rows.size() / 4);  // Estimate 25% match rate
 
     for (size_t i = 0; i < data.rows.size(); ++i) {
-        if (columnIndex < data.rows[i].values.size()) {
+        if (columnIndex < data.rows[i].values.size() && !data.rows[i].isNull(columnIndex)) {
             const auto& cellValue = data.rows[i].values[columnIndex];
             if (cellValue == value) {
                 result.push_back(i);
@@ -95,7 +95,7 @@ std::vector<size_t> SIMDFilter::filterContains(const ResultSet& data, size_t col
     result.reserve(data.rows.size() / 4);
 
     for (size_t i = 0; i < data.rows.size(); ++i) {
-        if (columnIndex < data.rows[i].values.size()) {
+        if (columnIndex < data.rows[i].values.size() && !data.rows[i].isNull(columnIndex)) {
             const auto& cellValue = data.rows[i].values[columnIndex];
             if (cellValue.find(substring) != std::string::npos) {
                 result.push_back(i);
@@ -111,7 +111,7 @@ std::vector<size_t> SIMDFilter::filterRange(const ResultSet& data, size_t column
     result.reserve(data.rows.size() / 4);
 
     for (size_t i = 0; i < data.rows.size(); ++i) {
-        if (columnIndex < data.rows[i].values.size()) {
+        if (columnIndex < data.rows[i].values.size() && !data.rows[i].isNull(columnIndex)) {
             const auto& cellValue = data.rows[i].values[columnIndex];
             if (cellValue >= minValue && cellValue <= maxValue) {
                 result.push_back(i);

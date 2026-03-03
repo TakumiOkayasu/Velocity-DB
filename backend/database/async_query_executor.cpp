@@ -77,6 +77,7 @@ std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<IDatabaseDriver> dri
                         currentResult.columns.push_back({.name = "Message", .type = "VARCHAR", .size = 255, .nullable = false, .isPrimaryKey = false});
                         ResultRow messageRow;
                         messageRow.values.push_back(std::format("Database changed to {}", dbName));
+                        messageRow.nullFlags.push_back(false);
                         currentResult.rows.push_back(messageRow);
                         currentResult.affectedRows = 0;
                         currentResult.executionTimeMs = 0.0;

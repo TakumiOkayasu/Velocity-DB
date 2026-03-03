@@ -28,13 +28,13 @@ bool JSONExporter::exportData(const ResultSet& data, const std::string& filepath
 
         for (size_t colIdx = 0; colIdx < data.columns.size(); ++colIdx) {
             const auto& col = data.columns[colIdx];
-            const auto& value = row.values[colIdx];
 
             file << indent << indent << "\"" << escapeJSON(col.name) << "\": ";
 
-            if (value.empty()) {
+            if (row.isNull(colIdx)) {
                 file << "null";
             } else {
+                const auto& value = row.values[colIdx];
                 // Try to determine if value is numeric
                 bool isNumeric = true;
                 bool hasDecimal = false;

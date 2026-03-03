@@ -106,6 +106,7 @@ std::string QueryProvider::handleExecuteQuery(std::string_view params) {
                         currentResult.columns.push_back({.name = "Message", .type = "VARCHAR", .size = 255, .nullable = false, .isPrimaryKey = false});
                         ResultRow messageRow;
                         messageRow.values.push_back(std::format("Database changed to {}", dbName));
+                        messageRow.nullFlags.push_back(false);
                         currentResult.rows.push_back(messageRow);
                         currentResult.affectedRows = 0;
                     } else {
@@ -162,6 +163,7 @@ std::string QueryProvider::handleExecuteQuery(std::string_view params) {
                 useResult.columns.push_back({.name = "Message", .type = "VARCHAR", .size = 255, .nullable = false, .isPrimaryKey = false});
                 ResultRow messageRow;
                 messageRow.values.push_back(std::format("Database changed to {}", dbName));
+                messageRow.nullFlags.push_back(false);
                 useResult.rows.push_back(messageRow);
                 useResult.affectedRows = 0;
                 useResult.executionTimeMs = 0.0;
@@ -366,7 +368,7 @@ std::string QueryProvider::handleFilterResultSet(std::string_view params) {
             for (size_t colIndex = 0; colIndex < row.values.size(); ++colIndex) {
                 if (colIndex > 0)
                     jsonResponse += ',';
-                jsonResponse += std::format(R"("{}")", JsonUtils::escapeString(row.values[colIndex]));
+                JsonUtils::appendJsonValue(jsonResponse, row, colIndex);
             }
             jsonResponse += ']';
         }
