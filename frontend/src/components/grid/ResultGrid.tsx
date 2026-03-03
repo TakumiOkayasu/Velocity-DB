@@ -105,7 +105,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
       };
       for (let colIdx = 0; colIdx < cols.length; colIdx++) {
         const value = row[colIdx];
-        obj[cols[colIdx].name] = value === '' || value === undefined ? null : value;
+        obj[cols[colIdx].name] = value ?? null;
       }
       result[rowIndex] = obj;
     }

@@ -15,6 +15,19 @@ protected:
         std::filesystem::remove(testFilePath);
     }
 
+    /// Read next CSV line, stripping BOM (first line only) and trailing CR
+    static std::string readLine(std::ifstream& file, bool stripBom = false) {
+        std::string line;
+        std::getline(file, line);
+        if (stripBom && line.size() >= 3 && line.substr(0, 3) == "\xEF\xBB\xBF") {
+            line = line.substr(3);
+        }
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+        return line;
+    }
+
     ResultSet createTestResultSet() {
         ResultSet result;
 
@@ -30,10 +43,12 @@ protected:
 
         ResultRow row1;
         row1.values = {"1", "Alice"};
+        row1.nullFlags = {false, false};
         result.rows.push_back(row1);
 
         ResultRow row2;
         row2.values = {"2", "Bob"};
+        row2.nullFlags = {false, false};
         result.rows.push_back(row2);
 
         return result;
@@ -49,29 +64,9 @@ TEST_F(CSVExporterTest, ExportsBasicCSV) {
     std::ifstream file(testFilePath);
     EXPECT_TRUE(file.is_open());
 
-    std::string line;
-    std::getline(file, line);
-    // Skip BOM if present
-    if (line.substr(0, 3) == "\xEF\xBB\xBF") {
-        line = line.substr(3);
-    }
-    // Remove trailing \r if present (Windows line ending)
-    if (!line.empty() && line.back() == '\r') {
-        line.pop_back();
-    }
-    EXPECT_EQ(line, "\"id\",\"name\"");
-
-    std::getline(file, line);
-    if (!line.empty() && line.back() == '\r') {
-        line.pop_back();
-    }
-    EXPECT_EQ(line, "\"1\",\"Alice\"");
-
-    std::getline(file, line);
-    if (!line.empty() && line.back() == '\r') {
-        line.pop_back();
-    }
-    EXPECT_EQ(line, "\"2\",\"Bob\"");
+    EXPECT_EQ(readLine(file, true), "\"id\",\"name\"");
+    EXPECT_EQ(readLine(file), "\"1\",\"Alice\"");
+    EXPECT_EQ(readLine(file), "\"2\",\"Bob\"");
 
     file.close();
 }
@@ -86,18 +81,8 @@ TEST_F(CSVExporterTest, ExportsWithoutHeader) {
     EXPECT_TRUE(success);
 
     std::ifstream file(testFilePath);
-    std::string line;
-    std::getline(file, line);
-    // Skip BOM if present
-    if (line.substr(0, 3) == "\xEF\xBB\xBF") {
-        line = line.substr(3);
-    }
-    // Remove trailing \r if present (Windows line ending)
-    if (!line.empty() && line.back() == '\r') {
-        line.pop_back();
-    }
     // First line should be data, not header
-    EXPECT_EQ(line, "\"1\",\"Alice\"");
+    EXPECT_EQ(readLine(file, true), "\"1\",\"Alice\"");
 
     file.close();
 }
@@ -111,6 +96,7 @@ TEST_F(CSVExporterTest, EscapesQuotes) {
 
     ResultRow row;
     row.values = {"He said \"Hello\""};
+    row.nullFlags = {false};
     data.rows.push_back(row);
 
     exporter.exportData(data, testFilePath);
@@ -131,9 +117,15 @@ TEST_F(CSVExporterTest, HandlesNullValues) {
     col.name = "value";
     data.columns.push_back(col);
 
-    ResultRow row;
-    row.values = {""};  // Empty string represents NULL
-    data.rows.push_back(row);
+    ResultRow nullRow;
+    nullRow.values = {""};
+    nullRow.nullFlags = {true};  // SQL NULL
+    data.rows.push_back(nullRow);
+
+    ResultRow emptyRow;
+    emptyRow.values = {""};
+    emptyRow.nullFlags = {false};  // Empty string, NOT NULL
+    data.rows.push_back(emptyRow);
 
     ExportOptions options;
     options.nullValue = "NULL";
@@ -141,10 +133,9 @@ TEST_F(CSVExporterTest, HandlesNullValues) {
     exporter.exportData(data, testFilePath, options);
 
     std::ifstream file(testFilePath);
-    std::string content((std::istreambuf_iterator<char>(file)),
-                        std::istreambuf_iterator<char>());
-
-    EXPECT_NE(content.find("NULL"), std::string::npos);
+    EXPECT_EQ(readLine(file, true), "\"value\"");   // header
+    EXPECT_EQ(readLine(file), "NULL");               // SQL NULL → nullValue (unquoted marker)
+    EXPECT_EQ(readLine(file), "\"\"");               // Empty string → quoted empty
 
     file.close();
 }
@@ -159,18 +150,7 @@ TEST_F(CSVExporterTest, HandlesCustomDelimiter) {
     exporter.exportData(data, testFilePath, options);
 
     std::ifstream file(testFilePath);
-    std::string line;
-    std::getline(file, line);
-    // Skip BOM
-    if (line.substr(0, 3) == "\xEF\xBB\xBF") {
-        line = line.substr(3);
-    }
-    // Remove trailing \r if present (Windows line ending)
-    if (!line.empty() && line.back() == '\r') {
-        line.pop_back();
-    }
-
-    EXPECT_NE(line.find(";"), std::string::npos);
+    EXPECT_NE(readLine(file, true).find(";"), std::string::npos);
 
     file.close();
 }

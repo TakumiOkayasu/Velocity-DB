@@ -248,7 +248,7 @@ class Bridge {
     useCache = true
   ): Promise<{
     columns: { name: string; type: string; comment?: string }[];
-    rows: string[][];
+    rows: (string | null)[][];
     affectedRows: number;
     executionTimeMs: number;
     cached: boolean;
@@ -264,7 +264,7 @@ class Bridge {
     sortModel?: Array<{ colId: string; sort: 'asc' | 'desc' }>
   ): Promise<{
     columns: { name: string; type: string }[];
-    rows: string[][];
+    rows: (string | null)[][];
     affectedRows: number;
     executionTimeMs: number;
   }> {
@@ -495,7 +495,7 @@ class Bridge {
     filterValueMax?: string
   ): Promise<{
     columns: { name: string; type: string }[];
-    rows: string[][];
+    rows: (string | null)[][];
     totalRows: number;
     filteredRows: number;
     simdAvailable: boolean;

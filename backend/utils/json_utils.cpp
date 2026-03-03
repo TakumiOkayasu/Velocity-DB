@@ -16,6 +16,16 @@ std::string JsonUtils::errorResponse(std::string_view message) {
     return std::format(R"({{"success":false,"error":"{}"}})", escapeString(message));
 }
 
+void JsonUtils::appendJsonValue(std::string& json, const ResultRow& row, size_t colIndex) {
+    if (row.isNull(colIndex)) {
+        json += "null";
+    } else {
+        json += '"';
+        json += escapeString(row.values[colIndex]);
+        json += '"';
+    }
+}
+
 std::string JsonUtils::escapeString(std::string_view str) {
     // Fast path: check if string needs escaping
     constexpr auto needsEscaping = [](char c) { return c == '"' || c == '\\' || c == '\b' || c == '\f' || c == '\n' || c == '\r' || c == '\t' || static_cast<unsigned char>(c) < 0x20; };
@@ -91,9 +101,7 @@ void JsonUtils::appendResultSetFields(std::string& json, const ResultSet& result
         for (size_t colIndex = 0; colIndex < row.values.size(); ++colIndex) {
             if (colIndex > 0)
                 json += ',';
-            json += '"';
-            json += escapeString(row.values[colIndex]);
-            json += '"';
+            appendJsonValue(json, row, colIndex);
         }
         json += ']';
     }

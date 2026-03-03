@@ -110,7 +110,7 @@ export interface ERColumn extends Omit<Column, 'type'> {
 
 export interface ResultSet {
   columns: Column[];
-  rows: string[][];
+  rows: (string | null)[][];
   affectedRows: number;
   executionTimeMs: number;
   truncated?: boolean;
@@ -137,7 +137,7 @@ export type AsyncPollResult =
   | {
       multipleResults?: false;
       columns: AsyncColumn[];
-      rows: string[][];
+      rows: (string | null)[][];
       affectedRows: number;
       executionTimeMs: number;
       truncated?: boolean;
@@ -148,7 +148,7 @@ export type AsyncPollResult =
         statement: string;
         data: {
           columns: AsyncColumn[];
-          rows: string[][];
+          rows: (string | null)[][];
           affectedRows: number;
           executionTimeMs: number;
           truncated?: boolean;
@@ -167,7 +167,7 @@ export type AsyncQueryResultResponse =
         statement: string;
         data: {
           columns: AsyncColumn[];
-          rows: string[][];
+          rows: (string | null)[][];
           affectedRows: number;
           executionTimeMs: number;
           truncated?: boolean;
@@ -179,7 +179,7 @@ export type AsyncQueryResultResponse =
       status: 'completed';
       multipleResults?: false;
       columns: AsyncColumn[];
-      rows: string[][];
+      rows: (string | null)[][];
       affectedRows: number;
       executionTimeMs: number;
       truncated?: boolean;

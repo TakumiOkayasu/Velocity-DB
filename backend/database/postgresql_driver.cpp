@@ -180,11 +180,14 @@ ResultSet PostgreSqlDriver::execute(std::string_view sql) {
         for (int r = 0; r < numRows; ++r) {
             ResultRow row;
             row.values.reserve(static_cast<size_t>(numCols));
+            row.nullFlags.reserve(static_cast<size_t>(numCols));
             for (int c = 0; c < numCols; ++c) {
                 if (PQgetisnull(pgResult.get(), r, c)) {
                     row.values.emplace_back();
+                    row.nullFlags.push_back(true);
                 } else {
                     row.values.emplace_back(PQgetvalue(pgResult.get(), r, c));
+                    row.nullFlags.push_back(false);
                 }
             }
             result.rows.push_back(std::move(row));

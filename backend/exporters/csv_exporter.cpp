@@ -15,6 +15,11 @@ bool CSVExporter::exportData(const ResultSet& data, const std::string& filepath,
         return false;
     }
 
+    // Pre-escape nullValue: quote only when it contains CSV-special characters (not by quoteStrings)
+    ExportOptions nullOpts{options};
+    nullOpts.quoteStrings = false;
+    auto escapedNullValue = escapeCSV(options.nullValue, nullOpts);
+
     // Write BOM for UTF-8 if needed
     if (options.encoding == "UTF-8") {
         file << "\xEF\xBB\xBF";
@@ -34,10 +39,10 @@ bool CSVExporter::exportData(const ResultSet& data, const std::string& filepath,
     // Write rows
     for (const auto& row : data.rows) {
         for (size_t i = 0; i < row.values.size(); ++i) {
-            const auto& value = row.values[i];
-            if (value.empty()) {
-                file << options.nullValue;
+            if (row.isNull(i)) {
+                file << escapedNullValue;
             } else {
+                const auto& value = row.values[i];
                 file << escapeCSV(value, options);
             }
             if (i < row.values.size() - 1) {

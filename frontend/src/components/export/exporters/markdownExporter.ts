@@ -17,7 +17,7 @@ export const markdownExporter: Exportable = {
     }
     for (const row of rows) {
       const values = row.map((val) =>
-        val === null || val === '' ? nullValue : escapeMarkdownCell(String(val))
+        val === null ? escapeMarkdownCell(nullValue) : escapeMarkdownCell(String(val))
       );
       lines.push(`| ${values.join(' | ')} |`);
     }

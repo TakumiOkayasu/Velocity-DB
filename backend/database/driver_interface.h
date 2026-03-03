@@ -60,6 +60,9 @@ struct ColumnInfo {
 
 struct ResultRow {
     std::vector<std::string> values;
+    std::vector<bool> nullFlags;  // true = SQL NULL
+
+    [[nodiscard]] bool isNull(size_t index) const noexcept { return index < nullFlags.size() && nullFlags[index]; }
 };
 
 struct ResultSet {

@@ -144,7 +144,7 @@ function GridTableInner({
                       ? edit.getCellChange(originalIndex, field)
                       : null;
                   const isChanged = change !== null;
-                  const isNull = value === null || value === '';
+                  const isNull = value === null;
                   const align = (cell.column.columnDef.meta as { align?: string })?.align ?? 'left';
                   const isEditing =
                     edit.editingCell?.rowIndex === originalIndex &&
