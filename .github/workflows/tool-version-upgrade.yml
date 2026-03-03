@@ -73,8 +73,10 @@ jobs:
           echo "bun=$BUN" >> "$GITHUB_OUTPUT"
           echo "Latest Bun: $BUN"
 
-          # vcpkg: HEAD commit SHA of main branch
-          VCPKG=$(gh api repos/microsoft/vcpkg/git/refs/heads/main --jq '.object.sha')
+          # vcpkg: HEAD commit SHA of default branch
+          VCPKG_DEFAULT=$(gh api repos/microsoft/vcpkg --jq '.default_branch') || { echo "::error::Failed to get vcpkg default branch"; exit 1; }
+          [[ -z "$VCPKG_DEFAULT" ]] && { echo "::error::vcpkg default_branch is empty"; exit 1; }
+          VCPKG=$(gh api "repos/microsoft/vcpkg/git/refs/heads/${VCPKG_DEFAULT}" --jq '.object.sha')
           echo "vcpkg=$VCPKG" >> "$GITHUB_OUTPUT"
           echo "Latest vcpkg baseline: $VCPKG"
 
