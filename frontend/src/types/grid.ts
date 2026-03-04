@@ -5,6 +5,13 @@
 /** 行データの型（カラム名→値のマッピング） */
 export type RowData = Record<string, string | null>;
 
+/** カラムメタデータ（コンテキストメニュー等で使用） */
+export interface ColumnMeta {
+  name: string;
+  comment: string;
+  type: string;
+}
+
 // 数値型キーワード (SQL Server + PostgreSQL + MySQL)
 const NUMERIC_TYPE_KEYWORDS = [
   'int',

@@ -21,7 +21,7 @@ import {
 } from '../../store/queryStore';
 import { useSessionStore } from '../../store/sessionStore';
 import type { ResultSet } from '../../types';
-import { isNumericType, type RowData } from '../../types/grid';
+import { type ColumnMeta, isNumericType, type RowData } from '../../types/grid';
 import { log } from '../../utils/logger';
 import { ExportDialog } from '../export/ExportDialog';
 import { GridFilterBar } from './GridFilterBar';
@@ -128,6 +128,15 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     });
   }, [resultSet, showLogicalNamesInGrid]);
 
+  const columnsMeta = useMemo<ColumnMeta[]>(() => {
+    if (!resultSet) return [];
+    return resultSet.columns.map((col) => ({
+      name: col.name,
+      comment: col.comment ?? '',
+      type: col.type,
+    }));
+  }, [resultSet]);
+
   // --- Hooks ---
   const { columnSizing, setColumnSizing } = useColumnAutoSize({
     resultSet,
@@ -205,7 +214,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     [valueEditorState, updateCell]
   );
 
-  const { editingCell, editValue, setEditValue, handleStartEdit, handleConfirmEdit } =
+  const { editingCell, editValue, setEditValue, handleStartEdit, handleCommitEdit } =
     useGridKeyboard({
       isEditMode,
       selectedRows,
@@ -293,11 +302,11 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     () => ({
       onSetEditValue: setEditValue,
       onStartEdit: handleStartEdit,
-      onConfirmEdit: handleConfirmEdit,
+      onCommitEdit: handleCommitEdit,
       onRowClick: handleRowClick,
       onCellClick: handleCellClick,
     }),
-    [setEditValue, handleStartEdit, handleConfirmEdit, handleRowClick, handleCellClick]
+    [setEditValue, handleStartEdit, handleCommitEdit, handleRowClick, handleCellClick]
   );
 
   const handleWhereKeyDown = useCallback(
@@ -422,6 +431,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         totalSize={virtualTotalSize}
         showColumnFilters={showColumnFilters}
         showLogicalNamesInGrid={showLogicalNamesInGrid}
+        columnsMeta={columnsMeta}
         edit={gridEditState}
         selection={gridSelectionState}
         callbacks={gridCallbacks}

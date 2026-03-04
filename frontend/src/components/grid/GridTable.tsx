@@ -1,7 +1,9 @@
 import { flexRender, type Row, type Table } from '@tanstack/react-table';
 import type { VirtualItem } from '@tanstack/react-virtual';
 import { memo, type RefObject } from 'react';
-import type { RowData } from '../../types/grid';
+import type { ColumnMeta, RowData } from '../../types/grid';
+import { ContextMenu } from '../common/ContextMenu';
+import { useGridContextMenu } from './hooks/useGridContextMenu';
 import styles from './ResultGrid.module.css';
 
 export interface GridEditContext {
@@ -21,10 +23,11 @@ export interface GridSelectionState {
   selectedColumn: string | null;
 }
 
+
 interface GridTableCallbacks {
   onSetEditValue: (value: string) => void;
   onStartEdit: (originalIndex: number, field: string, value: string | null) => void;
-  onConfirmEdit: () => void;
+  onCommitEdit: () => void;
   onRowClick: (rowIndex: number) => void;
   onCellClick: (rowIndex: number, field: string) => void;
 }
@@ -37,6 +40,7 @@ interface GridTableProps {
   totalSize: number;
   showColumnFilters: boolean;
   showLogicalNamesInGrid: boolean;
+  columnsMeta: ColumnMeta[];
   edit: GridEditContext;
   selection: GridSelectionState;
   callbacks: GridTableCallbacks;
@@ -50,6 +54,7 @@ function GridTableInner({
   totalSize,
   showColumnFilters,
   showLogicalNamesInGrid,
+  columnsMeta,
   edit,
   selection,
   callbacks,
@@ -57,6 +62,14 @@ function GridTableInner({
   const paddingTop = virtualRows.length > 0 ? (virtualRows[0]?.start ?? 0) : 0;
   const paddingBottom =
     virtualRows.length > 0 ? totalSize - (virtualRows[virtualRows.length - 1]?.end ?? 0) : 0;
+
+  const {
+    contextMenu,
+    handleHeaderContextMenu,
+    handleCellContextMenu,
+    closeContextMenu,
+    getContextMenuItems,
+  } = useGridContextMenu(columnsMeta, rows, table);
 
   return (
     <div ref={tableContainerRef} className={styles.tableContainer}>
@@ -77,6 +90,7 @@ function GridTableInner({
                       maxWidth: header.column.columnDef.maxSize,
                     }}
                     onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                    onContextMenu={(e) => handleHeaderContextMenu(e, header.column.id)}
                   >
                     <div className={styles.thContent}>
                       {flexRender(header.column.columnDef.header, header.getContext())}
@@ -176,6 +190,7 @@ function GridTableInner({
                         e.stopPropagation();
                         callbacks.onCellClick(rowIndex, field);
                       }}
+                      onContextMenu={(e) => handleCellContextMenu(e, rowIndex, field)}
                       onDoubleClick={() => {
                         if (isEditable) {
                           callbacks.onStartEdit(originalIndex, field, value as string | null);
@@ -188,7 +203,7 @@ function GridTableInner({
                           className={styles.cellInput}
                           value={edit.editValue}
                           onChange={(e) => callbacks.onSetEditValue(e.target.value)}
-                          onBlur={callbacks.onConfirmEdit}
+                          onBlur={callbacks.onCommitEdit}
                           autoFocus
                         />
                       ) : isNull ? (
@@ -209,6 +224,14 @@ function GridTableInner({
           )}
         </tbody>
       </table>
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={getContextMenuItems()}
+          onClose={closeContextMenu}
+        />
+      )}
     </div>
   );
 }
