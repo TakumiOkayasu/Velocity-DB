@@ -7,6 +7,7 @@ interface GridStatusBarProps {
   filteredRowCount: number;
   isFiltered: boolean;
   isEditMode: boolean;
+  isReadOnly: boolean;
   connectionLabel?: string;
 }
 
@@ -15,6 +16,7 @@ function GridStatusBarInner({
   filteredRowCount,
   isFiltered,
   isEditMode,
+  isReadOnly,
   connectionLabel,
 }: GridStatusBarProps) {
   return (
@@ -42,6 +44,7 @@ function GridStatusBarInner({
           <span>{resultSet.affectedRows} 件更新</span>
         </>
       )}
+      {isReadOnly && <span className={styles.readOnlyIndicator}>読取専用</span>}
       {isEditMode && <span className={styles.editModeIndicator}>編集モード</span>}
     </div>
   );
