@@ -216,6 +216,28 @@
   border-left: 2px solid #6a9955;
 }
 
+.readOnlyBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  background-color: rgba(86, 156, 214, 0.2);
+  border: 1px solid rgba(86, 156, 214, 0.4);
+  border-radius: 3px;
+  color: #569cd6;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.readOnlyIndicator {
+  color: #569cd6;
+  font-weight: bold;
+  margin-left: auto;
+  padding: 2px 8px;
+  background-color: rgba(86, 156, 214, 0.2);
+  border-radius: 2px;
+  font-size: 11px;
+}
+
 .editModeIndicator {
   color: #dcdcaa;
   font-weight: bold;

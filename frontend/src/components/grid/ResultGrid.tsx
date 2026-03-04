@@ -54,6 +54,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   const activeConn = useConnectionStore(
     (state) => state.connections.find((c) => c.id === queryConnectionId) ?? null
   );
+  const isReadOnly = activeConn?.isReadOnly ?? false;
   const queryResult = useQueryResult(targetQueryId);
   const isExecuting = useIsQueryExecuting(targetQueryId);
   const error = useQueryError(targetQueryId);
@@ -165,6 +166,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     activeConnectionId: queryConnectionId,
     rowData: baseRowData,
     selectedRows,
+    isReadOnly,
   });
 
   const rowData = useMemo<RowData[]>(() => {
@@ -402,6 +404,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         applyError={applyError}
         showLogicalNamesInGrid={showLogicalNamesInGrid}
         showColumnFilters={showColumnFilters}
+        isReadOnly={isReadOnly}
         onRefresh={handleRefresh}
         onToggleEditMode={handleToggleEditMode}
         onDeleteRow={handleDeleteRow}
@@ -442,6 +445,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         filteredRowCount={rows.length}
         isFiltered={columnFilters.length > 0}
         isEditMode={isEditMode}
+        isReadOnly={isReadOnly}
         connectionLabel={activeConn ? `${activeConn.server}/${activeConn.database}` : undefined}
       />
 

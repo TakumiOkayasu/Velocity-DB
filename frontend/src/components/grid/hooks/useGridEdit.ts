@@ -11,6 +11,7 @@ interface UseGridEditOptions {
   activeConnectionId: string | null;
   rowData: RowData[];
   selectedRows: Set<number>;
+  isReadOnly: boolean;
 }
 
 interface UseGridEditResult {
@@ -41,6 +42,7 @@ export function useGridEdit({
   activeConnectionId,
   rowData,
   selectedRows,
+  isReadOnly,
 }: UseGridEditOptions): UseGridEditResult {
   const {
     isEditMode,
@@ -65,17 +67,23 @@ export function useGridEdit({
   const [applyError, setApplyError] = useState<string | null>(null);
 
   const handleToggleEditMode = useCallback(() => {
+    if (isReadOnly && !isEditMode) return;
     setEditMode(!isEditMode);
     if (isEditMode) {
       revertAll();
+      setApplyError(null);
     }
-  }, [isEditMode, setEditMode, revertAll]);
+  }, [isEditMode, isReadOnly, setEditMode, revertAll]);
 
   const handleRevertChanges = useCallback(() => {
     revertAll();
   }, [revertAll]);
 
   const handleDeleteRow = useCallback(() => {
+    if (isReadOnly) {
+      setApplyError('読み取り専用モードのため変更できません');
+      return;
+    }
     for (const rowIndex of selectedRows) {
       if (isRowDeleted(rowIndex)) {
         unmarkRowDeleted(rowIndex);
@@ -83,9 +91,13 @@ export function useGridEdit({
         markRowDeleted(rowIndex, rowData[rowIndex]);
       }
     }
-  }, [selectedRows, isRowDeleted, markRowDeleted, unmarkRowDeleted, rowData]);
+  }, [isReadOnly, selectedRows, isRowDeleted, markRowDeleted, unmarkRowDeleted, rowData]);
 
   const handleCloneRow = useCallback(() => {
+    if (isReadOnly) {
+      setApplyError('読み取り専用モードのため変更できません');
+      return;
+    }
     if (selectedRows.size === 0) return;
 
     for (const rowIndex of selectedRows) {
@@ -106,9 +118,13 @@ export function useGridEdit({
 
       addNewRow(clonedRow);
     }
-  }, [selectedRows, rowData, primaryKeyColumns, addNewRow]);
+  }, [isReadOnly, selectedRows, rowData, primaryKeyColumns, addNewRow]);
 
   const handleApplyChanges = useCallback(async () => {
+    if (isReadOnly) {
+      setApplyError('読み取り専用モードのため変更を適用できません');
+      return;
+    }
     if (!activeConnectionId || !currentQuery?.sourceTable) return;
 
     const dmlParams = getDmlParams();
@@ -131,7 +147,7 @@ export function useGridEdit({
     } finally {
       setIsApplying(false);
     }
-  }, [activeConnectionId, currentQuery, getDmlParams, revertAll, setEditMode]);
+  }, [isReadOnly, activeConnectionId, currentQuery, getDmlParams, revertAll, setEditMode]);
 
   // Set table context for editing when resultSet or sourceTable changes
   useEffect(() => {
@@ -158,9 +174,10 @@ export function useGridEdit({
   // Wrap updateCell to auto-inject rowData for correct originalData tracking
   const updateCellWithRow = useCallback(
     (rowIndex: number, field: string, oldValue: string | null, newValue: string | null) => {
+      if (isReadOnly) return;
       updateCell(rowIndex, field, oldValue, newValue, rowData[rowIndex]);
     },
-    [updateCell, rowData]
+    [isReadOnly, updateCell, rowData]
   );
 
   return {

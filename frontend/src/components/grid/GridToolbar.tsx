@@ -9,6 +9,7 @@ interface GridToolbarProps {
   applyError: string | null;
   showLogicalNamesInGrid: boolean;
   showColumnFilters: boolean;
+  isReadOnly: boolean;
   onRefresh: () => void;
   onToggleEditMode: () => void;
   onDeleteRow: () => void;
@@ -27,6 +28,7 @@ function GridToolbarInner({
   applyError,
   showLogicalNamesInGrid,
   showColumnFilters,
+  isReadOnly,
   onRefresh,
   onToggleEditMode,
   onDeleteRow,
@@ -52,17 +54,26 @@ function GridToolbarInner({
         type="button"
         onClick={onToggleEditMode}
         className={`${styles.toolbarButton} ${isEditMode ? styles.active : ''}`}
-        title={isEditMode ? '編集モード終了' : '編集モード開始'}
+        disabled={isReadOnly && !isEditMode}
+        title={
+          isReadOnly && !isEditMode
+            ? '読み取り専用モード: 編集できません'
+            : isEditMode
+              ? '編集モード終了'
+              : '編集モード開始'
+        }
       >
         {isEditMode ? '編集終了' : '編集'}
       </button>
+      {isReadOnly && <span className={styles.readOnlyBadge}>読取専用</span>}
       {isEditMode && (
         <>
           <button
             type="button"
             onClick={onDeleteRow}
             className={styles.toolbarButton}
-            title="選択行を削除（削除マーク）"
+            disabled={isReadOnly}
+            title={isReadOnly ? '読み取り専用モード: 変更できません' : '選択行を削除（削除マーク）'}
           >
             行削除
           </button>
@@ -79,8 +90,8 @@ function GridToolbarInner({
             type="button"
             onClick={onApplyChanges}
             className={`${styles.toolbarButton} ${styles.applyButton}`}
-            disabled={!hasChanges || isApplying}
-            title="変更をデータベースに適用"
+            disabled={isReadOnly || !hasChanges || isApplying}
+            title={isReadOnly ? '読み取り専用モード: 変更できません' : '変更をデータベースに適用'}
           >
             {isApplying ? '適用中...' : '適用'}
           </button>
