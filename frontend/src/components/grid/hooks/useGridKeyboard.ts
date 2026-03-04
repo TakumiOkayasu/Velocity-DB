@@ -1,5 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import { useCallback, useState } from 'react';
+import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard';
 import { useKeyboardHandler } from '../../../hooks/useKeyboardHandler';
 import type { RowData } from '../../../types/grid';
 
@@ -31,10 +32,10 @@ interface UseGridKeyboardResult {
   editingCell: EditingCell | null;
   editValue: string;
   setEditValue: React.Dispatch<React.SetStateAction<string>>;
-  handleCopySelection: () => void;
+  handleCopySelection: () => Promise<void>;
   handlePaste: () => Promise<void>;
   handleStartEdit: (rowIndex: number, columnId: string, currentValue: string | null) => void;
-  handleConfirmEdit: () => void;
+  handleCommitEdit: () => void;
   handleCancelEdit: () => void;
 }
 
@@ -53,8 +54,9 @@ export function useGridKeyboard({
 }: UseGridKeyboardOptions): UseGridKeyboardResult {
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [editValue, setEditValue] = useState<string>('');
+  const copyToClipboard = useCopyToClipboard();
 
-  const handleCopySelection = useCallback(() => {
+  const handleCopySelection = useCallback(async () => {
     const selectedRowIndices = Array.from(selectedRows).sort((a, b) => a - b);
     if (selectedRowIndices.length === 0) return;
 
@@ -68,8 +70,8 @@ export function useGridKeyboard({
     });
 
     const tsv = [headerRow, ...dataRows].map((row) => row.join('\t')).join('\n');
-    navigator.clipboard.writeText(tsv);
-  }, [selectedRows, columns, rowData]);
+    await copyToClipboard(tsv, `${selectedRowIndices.length}行をコピーしました`);
+  }, [selectedRows, columns, rowData, copyToClipboard]);
 
   const handlePaste = useCallback(async () => {
     if (!isEditMode) return;
@@ -110,7 +112,7 @@ export function useGridKeyboard({
     [isEditMode]
   );
 
-  const handleConfirmEdit = useCallback(() => {
+  const handleCommitEdit = useCallback(() => {
     if (!editingCell) return;
 
     const { rowIndex, columnId } = editingCell;
@@ -136,7 +138,7 @@ export function useGridKeyboard({
     if (editingCell) {
       if (e.key === 'Enter') {
         e.preventDefault();
-        handleConfirmEdit();
+        handleCommitEdit();
       } else if (e.key === 'Escape') {
         e.preventDefault();
         handleCancelEdit();
@@ -194,7 +196,7 @@ export function useGridKeyboard({
     handleCopySelection,
     handlePaste,
     handleStartEdit,
-    handleConfirmEdit,
+    handleCommitEdit,
     handleCancelEdit,
   };
 }

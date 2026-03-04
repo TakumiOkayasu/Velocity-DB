@@ -13,7 +13,7 @@ function ResultTabsInner({ results, activeIndex, onSelect }: ResultTabsProps) {
     <div className={styles.resultTabs}>
       {results.map((result, index) => (
         <button
-          key={`${result.statement}-${index}`}
+          key={result.statement}
           className={`${styles.resultTab} ${activeIndex === index ? styles.activeResultTab : ''}`}
           onClick={() => onSelect(index)}
           title={result.statement}

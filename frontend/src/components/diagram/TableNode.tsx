@@ -96,14 +96,14 @@ export const TableNode = memo(function TableNode({ data, selected }: TableNodePr
       </div>
 
       <div className={styles.columns}>
-        {primaryKeys.map((col, i) => (
-          <ColumnRow key={`pk-${i}-${col.name}`} col={col} isPK />
+        {primaryKeys.map((col) => (
+          <ColumnRow key={`pk-${col.name}`} col={col} isPK />
         ))}
 
         {primaryKeys.length > 0 && regularColumns.length > 0 && <div className={styles.divider} />}
 
-        {regularColumns.map((col, i) => (
-          <ColumnRow key={`col-${i}-${col.name}`} col={col} isPK={false} />
+        {regularColumns.map((col) => (
+          <ColumnRow key={`col-${col.name}`} col={col} isPK={false} />
         ))}
       </div>
     </div>

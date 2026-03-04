@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { ToastContainer } from './components/common/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { MainLayout } from './components/layout/MainLayout';
 import { useConnectionStore } from './store/connectionStore';
@@ -26,6 +27,7 @@ function App() {
   return (
     <ErrorBoundary>
       <MainLayout />
+      <ToastContainer />
     </ErrorBoundary>
   );
 }
