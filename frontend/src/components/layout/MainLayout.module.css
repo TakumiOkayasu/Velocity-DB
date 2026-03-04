@@ -111,11 +111,11 @@
   flex-shrink: 0;
 }
 
-.iconButton svg {
+.toolbarGroup button.iconButton svg {
   color: var(--icon-color);
 }
 
-.iconButton:hover:not(:disabled) svg {
+.toolbarGroup button.iconButton:hover:not(:disabled) svg {
   color: var(--icon-color-hover);
 }
 
@@ -129,7 +129,7 @@
   background-color: var(--execute-button-hover);
 }
 
-.executeButton svg {
+.toolbarGroup button.executeButton svg {
   color: var(--success-color);
 }
 

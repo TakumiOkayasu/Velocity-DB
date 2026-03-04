@@ -23,7 +23,6 @@ export interface GridSelectionState {
   selectedColumn: string | null;
 }
 
-
 interface GridTableCallbacks {
   onSetEditValue: (value: string) => void;
   onStartEdit: (originalIndex: number, field: string, value: string | null) => void;

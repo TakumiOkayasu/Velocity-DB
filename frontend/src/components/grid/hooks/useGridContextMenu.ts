@@ -1,9 +1,8 @@
 import type { Row, Table } from '@tanstack/react-table';
 import { useCallback, useRef, useState } from 'react';
 import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard';
-import type { RowData } from '../../../types/grid';
+import type { ColumnMeta, RowData } from '../../../types/grid';
 import type { ContextMenuItem } from '../../common/ContextMenu';
-import type { ColumnMeta } from '../../../types/grid';
 
 type ContextMenuState =
   | { x: number; y: number; type: 'header'; columnId: string }
