@@ -13,11 +13,10 @@ const baseProps = {
   } as unknown as ResultSet,
   filteredRowCount: 0,
   isFiltered: false,
-  isEditMode: false,
   isReadOnly: false,
 };
 
-describe('GridStatusBar read-only indicator', () => {
+describe('GridStatusBar', () => {
   it('isReadOnly=true で「読取専用」インジケーター表示', () => {
     render(<GridStatusBar {...baseProps} isReadOnly={true} />);
     expect(screen.getByText('読取専用')).toBeInTheDocument();

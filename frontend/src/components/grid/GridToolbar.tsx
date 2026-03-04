@@ -3,7 +3,7 @@ import styles from './ResultGrid.module.css';
 
 interface GridToolbarProps {
   showRefresh: boolean;
-  isEditMode: boolean;
+  canEdit: boolean;
   hasChanges: boolean;
   isApplying: boolean;
   applyError: string | null;
@@ -11,7 +11,7 @@ interface GridToolbarProps {
   showColumnFilters: boolean;
   isReadOnly: boolean;
   onRefresh: () => void;
-  onToggleEditMode: () => void;
+  onInsertRow: () => void;
   onDeleteRow: () => void;
   onRevertChanges: () => void;
   onApplyChanges: () => void;
@@ -22,7 +22,7 @@ interface GridToolbarProps {
 
 function GridToolbarInner({
   showRefresh,
-  isEditMode,
+  canEdit,
   hasChanges,
   isApplying,
   applyError,
@@ -30,7 +30,7 @@ function GridToolbarInner({
   showColumnFilters,
   isReadOnly,
   onRefresh,
-  onToggleEditMode,
+  onInsertRow,
   onDeleteRow,
   onRevertChanges,
   onApplyChanges,
@@ -40,89 +40,100 @@ function GridToolbarInner({
 }: GridToolbarProps) {
   return (
     <div className={styles.toolbar}>
+      {/* Group 1: Data operations */}
       {showRefresh && (
         <button
           type="button"
           onClick={onRefresh}
-          className={styles.toolbarButton}
+          className={styles.iconButton}
           title="データを再取得 (F5)"
         >
-          更新
+          ↻
         </button>
       )}
-      <button
-        type="button"
-        onClick={onToggleEditMode}
-        className={`${styles.toolbarButton} ${isEditMode ? styles.active : ''}`}
-        disabled={isReadOnly && !isEditMode}
-        title={
-          isReadOnly && !isEditMode
-            ? '読み取り専用モード: 編集できません'
-            : isEditMode
-              ? '編集モード終了'
-              : '編集モード開始'
-        }
-      >
-        {isEditMode ? '編集終了' : '編集'}
-      </button>
-      {isReadOnly && <span className={styles.readOnlyBadge}>読取専用</span>}
-      {isEditMode && (
+      {canEdit && (
         <>
           <button
             type="button"
-            onClick={onDeleteRow}
-            className={styles.toolbarButton}
+            onClick={onInsertRow}
+            className={styles.iconButton}
             disabled={isReadOnly}
-            title={isReadOnly ? '読み取り専用モード: 変更できません' : '選択行を削除（削除マーク）'}
+            title="新しい行を追加 (Insert)"
           >
-            行削除
+            +
           </button>
           <button
             type="button"
+            onClick={onDeleteRow}
+            className={styles.iconButton}
+            disabled={isReadOnly}
+            title="選択行を削除 (Delete)"
+          >
+            🗑
+          </button>
+        </>
+      )}
+
+      {/* Separator */}
+      {canEdit && hasChanges && <span className={styles.toolbarSeparator} />}
+
+      {/* Group 2: Change management (visible only when changes exist) */}
+      {hasChanges && (
+        <>
+          <button
+            type="button"
             onClick={onRevertChanges}
-            className={styles.toolbarButton}
-            disabled={!hasChanges}
+            className={styles.iconButton}
             title="すべての変更を元に戻す"
           >
-            元に戻す
+            ↩
           </button>
           <button
             type="button"
             onClick={onApplyChanges}
-            className={`${styles.toolbarButton} ${styles.applyButton}`}
-            disabled={isReadOnly || !hasChanges || isApplying}
-            title={isReadOnly ? '読み取り専用モード: 変更できません' : '変更をデータベースに適用'}
+            className={`${styles.iconButton} ${styles.saveButton}`}
+            disabled={isReadOnly || isApplying}
+            title="変更をデータベースに保存 (Ctrl+S)"
           >
-            {isApplying ? '適用中...' : '適用'}
+            {isApplying ? '⏳' : '💾'}
           </button>
         </>
       )}
+
+      {/* Status indicators */}
       {hasChanges && <span className={styles.changesIndicator}>未保存の変更あり</span>}
+      {isReadOnly && <span className={styles.readOnlyBadge}>読取専用</span>}
       {applyError && <span className={styles.errorIndicator}>{applyError}</span>}
+
       <div className={styles.toolbarSpacer} />
+
+      {/* Group 3: View options */}
       <label className={styles.checkboxLabel}>
         <input
           type="checkbox"
           checked={showLogicalNamesInGrid}
           onChange={(e) => onSetShowLogicalNames(e.target.checked)}
         />
-        <span>論理名で表示</span>
+        <span>論理名</span>
       </label>
+
+      <span className={styles.toolbarSeparator} />
+
       <button
         type="button"
         onClick={onToggleColumnFilters}
-        className={`${styles.toolbarButton} ${showColumnFilters ? styles.active : ''}`}
+        className={`${styles.iconButton} ${showColumnFilters ? styles.active : ''}`}
         title="列フィルタを表示/非表示"
       >
-        フィルタ
+        ≡
       </button>
       <button
         type="button"
         onClick={onExport}
-        className={styles.toolbarButton}
+        className={styles.iconButton}
         title="データをエクスポート"
       >
-        エクスポート
+        📤
       </button>
     </div>
   );

@@ -8,10 +8,21 @@ type ContextMenuState =
   | { x: number; y: number; type: 'header'; columnId: string }
   | { x: number; y: number; type: 'cell'; columnId: string; rowIndex: number };
 
+interface UseGridContextMenuOptions {
+  isEditMode: boolean;
+  updateCell?: (
+    rowIndex: number,
+    field: string,
+    oldValue: string | null,
+    newValue: string | null
+  ) => void;
+}
+
 export function useGridContextMenu(
   columnsMeta: ColumnMeta[],
   rows: Row<RowData>[],
-  table: Table<RowData>
+  table: Table<RowData>,
+  { isEditMode = false, updateCell }: UseGridContextMenuOptions = { isEditMode: false }
 ) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const copyToClipboard = useCopyToClipboard();
@@ -22,23 +33,20 @@ export function useGridContextMenu(
     if (contextMenu) setContextMenu(null);
   }
 
-  const handleHeaderContextMenu = useCallback((e: React.MouseEvent, columnId: string) => {
+  const openHeaderMenu = useCallback((e: React.MouseEvent, columnId: string) => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY, type: 'header', columnId });
   }, []);
 
-  const handleCellContextMenu = useCallback(
-    (e: React.MouseEvent, rowIndex: number, columnId: string) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setContextMenu({ x: e.clientX, y: e.clientY, type: 'cell', columnId, rowIndex });
-    },
-    []
-  );
+  const openCellMenu = useCallback((e: React.MouseEvent, rowIndex: number, columnId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY, type: 'cell', columnId, rowIndex });
+  }, []);
 
-  const closeContextMenu = useCallback(() => setContextMenu(null), []);
+  const closeMenu = useCallback(() => setContextMenu(null), []);
 
-  const getContextMenuItems = useCallback((): ContextMenuItem[] => {
+  const getMenuItems = useCallback((): ContextMenuItem[] => {
     if (!contextMenu) return [];
     const col = columnsMeta.find((c) => c.name === contextMenu.columnId);
 
@@ -55,7 +63,33 @@ export function useGridContextMenu(
           action: () => copyToClipboard(col.comment, '論理名をコピーしました'),
         });
       }
+
       items.push({ label: '', action: () => {}, separator: true });
+
+      items.push({
+        label: '列値をすべてコピー',
+        action: () => {
+          const colData = rows.map((r) => {
+            const v = r.original[contextMenu.columnId];
+            return v === null || v === undefined ? 'NULL' : String(v);
+          });
+          copyToClipboard(colData.join('\n'), '列データをコピーしました');
+        },
+      });
+      items.push({
+        label: '列値をコピー（ヘッダー付き）',
+        action: () => {
+          const header = contextMenu.columnId;
+          const colData = rows.map((r) => {
+            const v = r.original[contextMenu.columnId];
+            return v === null || v === undefined ? 'NULL' : String(v);
+          });
+          copyToClipboard([header, ...colData].join('\n'), '列データをコピーしました');
+        },
+      });
+
+      items.push({ label: '', action: () => {}, separator: true });
+
       const column = table.getColumn(contextMenu.columnId);
       items.push({
         label: '昇順でソート',
@@ -68,16 +102,19 @@ export function useGridContextMenu(
       return items;
     }
 
+    // Cell context menu
     const row = rows[contextMenu.rowIndex];
-    const cellValue = row ? String(row.original[contextMenu.columnId] ?? 'NULL') : '';
+    if (!row) return [];
+    const cellValue = String(row.original[contextMenu.columnId] ?? 'NULL');
+    const originalIndex = Number(row.original.__originalIndex);
 
-    return [
+    const items: ContextMenuItem[] = [
       {
         label: 'セル値をコピー',
         action: () => copyToClipboard(cellValue, 'セル値をコピーしました'),
       },
       {
-        label: '行をコピー',
+        label: '行をコピー（ヘッダー付き）',
         action: () => {
           const headerRow = columnsMeta.map((c) => c.name);
           const dataRow = columnsMeta.map((c) => {
@@ -90,30 +127,52 @@ export function useGridContextMenu(
           );
         },
       },
-      {
-        label: '列をコピー',
-        action: () => {
-          const colData = rows.map((r) => {
-            const v = r.original[contextMenu.columnId];
-            return v === null || v === undefined ? 'NULL' : String(v);
-          });
-          copyToClipboard(colData.join('\n'), '列データをコピーしました');
-        },
-      },
       { label: '', action: () => {}, separator: true },
       {
-        label: 'この値でフィルタ',
-        action: () => {},
-        disabled: true,
+        label: 'SQL INSERTとしてコピー',
+        action: () => {
+          if (!row) return;
+          const colNames = columnsMeta.map((c) => c.name);
+          const values = colNames.map((colName) => {
+            const v = row.original[colName];
+            if (v === null || v === undefined) return 'NULL';
+            return `'${String(v).replace(/\\/g, '\\\\').replace(/'/g, "''")}'`;
+          });
+          const sql = `INSERT INTO table_name (${colNames.join(', ')}) VALUES (${values.join(', ')});`;
+          copyToClipboard(sql, 'SQL INSERTをコピーしました');
+        },
       },
     ];
-  }, [contextMenu, columnsMeta, rows, table, copyToClipboard]);
+
+    // NULL設定 (edit mode only)
+    if (isEditMode && updateCell) {
+      items.push({ label: '', action: () => {}, separator: true });
+      items.push({
+        label: 'NULLに設定',
+        action: () => {
+          const oldValue = row?.original[contextMenu.columnId] ?? null;
+          if (oldValue !== null) {
+            updateCell(originalIndex, contextMenu.columnId, oldValue, null);
+          }
+        },
+      });
+    }
+
+    items.push({ label: '', action: () => {}, separator: true });
+    items.push({
+      label: 'この値でフィルタ',
+      action: () => {},
+      disabled: true,
+    });
+
+    return items;
+  }, [contextMenu, columnsMeta, rows, table, copyToClipboard, isEditMode, updateCell]);
 
   return {
     contextMenu,
-    handleHeaderContextMenu,
-    handleCellContextMenu,
-    closeContextMenu,
-    getContextMenuItems,
+    openHeaderMenu,
+    openCellMenu,
+    closeMenu,
+    getMenuItems,
   };
 }

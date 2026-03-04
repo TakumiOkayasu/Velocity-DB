@@ -155,11 +155,11 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     getInsertedRows,
     getCellChange,
     updateCell,
-    handleToggleEditMode,
-    handleRevertChanges,
-    handleDeleteRow,
-    handleCloneRow,
-    handleApplyChanges,
+    revertChanges,
+    deleteRow,
+    cloneRow,
+    insertRow,
+    applyChanges,
   } = useGridEdit({
     resultSet,
     currentQuery,
@@ -179,7 +179,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     return combined;
   }, [baseRowData, getInsertedRows]);
 
-  const handleOpenRelatedTable = useCallback(
+  const openRelatedTable = useCallback(
     (tableName: string, fkWhereClause: string) => {
       if (queryConnectionId) openTableData(queryConnectionId, tableName, fkWhereClause);
     },
@@ -189,10 +189,10 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   const { isForeignKeyColumn, navigateToRelatedRow } = useRelatedRows({
     connectionId: queryConnectionId,
     tableName: currentQuery?.sourceTable ?? null,
-    onOpenRelatedTable: handleOpenRelatedTable,
+    onOpenRelatedTable: openRelatedTable,
   });
 
-  const handleNavigateRelated = useCallback(
+  const navigateRelated = useCallback(
     (rowIndex: number, columnName: string) => {
       const row = rowData[rowIndex];
       if (row) navigateToRelatedRow(columnName, row);
@@ -200,14 +200,14 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     [rowData, navigateToRelatedRow]
   );
 
-  const handleOpenValueEditor = useCallback(
+  const openValueEditor = useCallback(
     (rowIndex: number, columnName: string, currentValue: string | null) => {
       setValueEditorState({ isOpen: true, rowIndex, columnName, value: currentValue });
     },
     []
   );
 
-  const handleValueEditorSave = useCallback(
+  const saveValueEditor = useCallback(
     (newValue: string | null) => {
       const { rowIndex, columnName, value: oldValue } = valueEditorState;
       if (oldValue !== newValue) updateCell(rowIndex, columnName, oldValue, newValue);
@@ -216,20 +216,21 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     [valueEditorState, updateCell]
   );
 
-  const { editingCell, editValue, setEditValue, handleStartEdit, handleCommitEdit } =
-    useGridKeyboard({
-      isEditMode,
-      selectedRows,
-      selectedColumn,
-      columns,
-      rowData,
-      tableContainerRef,
-      updateCell,
-      onDeleteRow: handleDeleteRow,
-      onCloneRow: handleCloneRow,
-      onNavigateRelated: handleNavigateRelated,
-      onOpenValueEditor: handleOpenValueEditor,
-    });
+  const { editingCell, editValue, setEditValue, startEdit, commitEdit } = useGridKeyboard({
+    isEditMode,
+    selectedRows,
+    selectedColumn,
+    columns,
+    rowData,
+    tableContainerRef,
+    updateCell,
+    onDeleteRow: deleteRow,
+    onCloneRow: cloneRow,
+    onInsertRow: insertRow,
+    onApplyChanges: applyChanges,
+    onNavigateRelated: navigateRelated,
+    onOpenValueEditor: openValueEditor,
+  });
 
   const table = useReactTable({
     data: rowData,
@@ -286,7 +287,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   );
 
   // --- Callbacks for sub-components ---
-  const handleRowClick = useCallback((rowIndex: number) => {
+  const selectRow = useCallback((rowIndex: number) => {
     setSelectedRows((prev) => {
       const next = new Set(prev);
       if (next.has(rowIndex)) next.delete(rowIndex);
@@ -295,7 +296,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     });
   }, []);
 
-  const handleCellClick = useCallback((rowIndex: number, field: string) => {
+  const selectCell = useCallback((rowIndex: number, field: string) => {
     setSelectedRows(new Set([rowIndex]));
     setSelectedColumn(field);
   }, []);
@@ -303,15 +304,16 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   const gridCallbacks = useMemo(
     () => ({
       onSetEditValue: setEditValue,
-      onStartEdit: handleStartEdit,
-      onCommitEdit: handleCommitEdit,
-      onRowClick: handleRowClick,
-      onCellClick: handleCellClick,
+      onStartEdit: startEdit,
+      onCommitEdit: commitEdit,
+      onRowClick: selectRow,
+      onCellClick: selectCell,
+      onUpdateCell: updateCell,
     }),
-    [setEditValue, handleStartEdit, handleCommitEdit, handleRowClick, handleCellClick]
+    [setEditValue, startEdit, commitEdit, selectRow, selectCell, updateCell]
   );
 
-  const handleWhereKeyDown = useCallback(
+  const whereKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter' && activeQueryId && queryConnectionId && currentQuery?.sourceTable) {
         applyWhereFilter(activeQueryId, queryConnectionId, whereClause);
@@ -320,31 +322,33 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     [activeQueryId, queryConnectionId, currentQuery?.sourceTable, whereClause, applyWhereFilter]
   );
 
-  const handleWhereApply = useCallback(() => {
+  const whereApply = useCallback(() => {
     if (activeQueryId && queryConnectionId) {
       applyWhereFilter(activeQueryId, queryConnectionId, whereClause);
     }
   }, [activeQueryId, queryConnectionId, whereClause, applyWhereFilter]);
 
-  const handleWhereClear = useCallback(() => {
+  const whereClear = useCallback(() => {
     setWhereClause('');
     if (activeQueryId && queryConnectionId) {
       applyWhereFilter(activeQueryId, queryConnectionId, '');
     }
   }, [activeQueryId, queryConnectionId, applyWhereFilter]);
 
-  const handleRefresh = useCallback(() => {
+  const refresh = useCallback(() => {
     if (targetQueryId && queryConnectionId) {
       refreshDataView(targetQueryId, queryConnectionId);
     }
   }, [targetQueryId, queryConnectionId, refreshDataView]);
 
-  const handleToggleColumnFilters = useCallback(() => {
-    setShowColumnFilters((prev) => !prev);
-    if (showColumnFilters) setColumnFilters([]);
-  }, [showColumnFilters]);
+  const toggleColumnFilters = useCallback(() => {
+    setShowColumnFilters((prev) => {
+      if (prev) setColumnFilters([]);
+      return !prev;
+    });
+  }, []);
 
-  const handleExport = useCallback(() => setIsExportDialogOpen(true), []);
+  const openExportDialog = useCallback(() => setIsExportDialogOpen(true), []);
 
   // --- Early returns ---
   if (isExecuting) {
@@ -398,21 +402,21 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
 
       <GridToolbar
         showRefresh={!!currentQuery?.sourceTable && !!queryConnectionId}
-        isEditMode={isEditMode}
+        canEdit={!!currentQuery?.sourceTable}
         hasChanges={hasChanges()}
         isApplying={isApplying}
         applyError={applyError}
         showLogicalNamesInGrid={showLogicalNamesInGrid}
         showColumnFilters={showColumnFilters}
         isReadOnly={isReadOnly}
-        onRefresh={handleRefresh}
-        onToggleEditMode={handleToggleEditMode}
-        onDeleteRow={handleDeleteRow}
-        onRevertChanges={handleRevertChanges}
-        onApplyChanges={handleApplyChanges}
+        onRefresh={refresh}
+        onInsertRow={insertRow}
+        onDeleteRow={deleteRow}
+        onRevertChanges={revertChanges}
+        onApplyChanges={applyChanges}
         onSetShowLogicalNames={setShowLogicalNamesInGrid}
-        onToggleColumnFilters={handleToggleColumnFilters}
-        onExport={handleExport}
+        onToggleColumnFilters={toggleColumnFilters}
+        onExport={openExportDialog}
       />
 
       {currentQuery?.sourceTable && (
@@ -420,9 +424,9 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
           whereClause={whereClause}
           isExecuting={isExecuting}
           onWhereChange={setWhereClause}
-          onApply={handleWhereApply}
-          onClear={handleWhereClear}
-          onKeyDown={handleWhereKeyDown}
+          onApply={whereApply}
+          onClear={whereClear}
+          onKeyDown={whereKeyDown}
         />
       )}
 
@@ -444,7 +448,6 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         resultSet={resultSet}
         filteredRowCount={rows.length}
         isFiltered={columnFilters.length > 0}
-        isEditMode={isEditMode}
         isReadOnly={isReadOnly}
         connectionLabel={activeConn ? `${activeConn.server}/${activeConn.database}` : undefined}
       />
@@ -459,7 +462,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         isOpen={valueEditorState.isOpen}
         columnName={valueEditorState.columnName}
         initialValue={valueEditorState.value}
-        onSave={handleValueEditorSave}
+        onSave={saveValueEditor}
         onCancel={() => setValueEditorState((prev) => ({ ...prev, isOpen: false }))}
       />
     </div>

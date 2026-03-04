@@ -29,11 +29,11 @@ interface UseGridEditResult {
     oldValue: string | null,
     newValue: string | null
   ) => void;
-  handleToggleEditMode: () => void;
-  handleRevertChanges: () => void;
-  handleDeleteRow: () => void;
-  handleCloneRow: () => void;
-  handleApplyChanges: () => Promise<void>;
+  revertChanges: () => void;
+  deleteRow: () => void;
+  cloneRow: () => void;
+  insertRow: () => void;
+  applyChanges: () => Promise<void>;
 }
 
 export function useGridEdit({
@@ -45,8 +45,6 @@ export function useGridEdit({
   isReadOnly,
 }: UseGridEditOptions): UseGridEditResult {
   const {
-    isEditMode,
-    setEditMode,
     updateCell,
     revertAll,
     hasChanges,
@@ -61,25 +59,25 @@ export function useGridEdit({
     setTableContext,
     clearTableContext,
     primaryKeyColumns,
+    setEditMode,
   } = useEditStore();
 
   const [isApplying, setIsApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
 
-  const handleToggleEditMode = useCallback(() => {
-    if (isReadOnly && !isEditMode) return;
-    setEditMode(!isEditMode);
-    if (isEditMode) {
-      revertAll();
-      setApplyError(null);
-    }
-  }, [isEditMode, isReadOnly, setEditMode, revertAll]);
+  // Edit mode is always ON when sourceTable exists and not read-only
+  const isEditMode = !!currentQuery?.sourceTable && !isReadOnly;
 
-  const handleRevertChanges = useCallback(() => {
+  // Sync edit mode to store
+  useEffect(() => {
+    setEditMode(isEditMode);
+  }, [isEditMode, setEditMode]);
+
+  const revertChanges = useCallback(() => {
     revertAll();
   }, [revertAll]);
 
-  const handleDeleteRow = useCallback(() => {
+  const deleteRow = useCallback(() => {
     if (isReadOnly) {
       setApplyError('読み取り専用モードのため変更できません');
       return;
@@ -88,12 +86,14 @@ export function useGridEdit({
       if (isRowDeleted(rowIndex)) {
         unmarkRowDeleted(rowIndex);
       } else {
-        markRowDeleted(rowIndex, rowData[rowIndex]);
+        const row = rowData[rowIndex];
+        if (!row) continue;
+        markRowDeleted(rowIndex, row);
       }
     }
   }, [isReadOnly, selectedRows, isRowDeleted, markRowDeleted, unmarkRowDeleted, rowData]);
 
-  const handleCloneRow = useCallback(() => {
+  const cloneRow = useCallback(() => {
     if (isReadOnly) {
       setApplyError('読み取り専用モードのため変更できません');
       return;
@@ -104,11 +104,9 @@ export function useGridEdit({
       const sourceRow = rowData[rowIndex];
       if (!sourceRow) continue;
 
-      // Copy row data, excluding PK columns and internal fields
       const clonedRow: Record<string, string | null> = {};
       for (const [key, value] of Object.entries(sourceRow)) {
         if (key.startsWith('__')) continue;
-        // Set PK columns to NULL for new row
         if (primaryKeyColumns.includes(key)) {
           clonedRow[key] = null;
         } else {
@@ -120,7 +118,21 @@ export function useGridEdit({
     }
   }, [isReadOnly, selectedRows, rowData, primaryKeyColumns, addNewRow]);
 
-  const handleApplyChanges = useCallback(async () => {
+  const insertRow = useCallback(() => {
+    if (isReadOnly) {
+      setApplyError('読み取り専用モードのため変更できません');
+      return;
+    }
+    if (!resultSet) return;
+
+    const newRow: Record<string, string | null> = {};
+    for (const col of resultSet.columns) {
+      newRow[col.name] = null;
+    }
+    addNewRow(newRow);
+  }, [isReadOnly, resultSet, addNewRow]);
+
+  const applyChanges = useCallback(async () => {
     if (isReadOnly) {
       setApplyError('読み取り専用モードのため変更を適用できません');
       return;
@@ -141,13 +153,12 @@ export function useGridEdit({
       }
 
       revertAll();
-      setEditMode(false);
     } catch (err) {
       setApplyError(err instanceof Error ? err.message : 'Failed to apply changes');
     } finally {
       setIsApplying(false);
     }
-  }, [isReadOnly, activeConnectionId, currentQuery, getDmlParams, revertAll, setEditMode]);
+  }, [isReadOnly, activeConnectionId, currentQuery, getDmlParams, revertAll]);
 
   // Set table context for editing when resultSet or sourceTable changes
   useEffect(() => {
@@ -163,15 +174,12 @@ export function useGridEdit({
     }
 
     return () => {
-      if (!isEditMode) {
-        clearTableContext();
-      }
+      clearTableContext();
     };
-  }, [resultSet, currentQuery?.sourceTable, setTableContext, clearTableContext, isEditMode]);
+  }, [resultSet, currentQuery?.sourceTable, setTableContext, clearTableContext]);
 
-  const getInsertedRows = useCallback(() => new Map(insertedRows), [insertedRows]);
+  const getInsertedRows = useCallback(() => insertedRows, [insertedRows]);
 
-  // Wrap updateCell to auto-inject rowData for correct originalData tracking
   const updateCellWithRow = useCallback(
     (rowIndex: number, field: string, oldValue: string | null, newValue: string | null) => {
       if (isReadOnly) return;
@@ -190,10 +198,10 @@ export function useGridEdit({
     getInsertedRows,
     getCellChange,
     updateCell: updateCellWithRow,
-    handleToggleEditMode,
-    handleRevertChanges,
-    handleDeleteRow,
-    handleCloneRow,
-    handleApplyChanges,
+    revertChanges,
+    deleteRow,
+    cloneRow,
+    insertRow,
+    applyChanges,
   };
 }

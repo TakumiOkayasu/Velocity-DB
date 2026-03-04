@@ -1,10 +1,10 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GridToolbar } from '../../components/grid/GridToolbar';
 
 const defaultProps = {
   showRefresh: false,
-  isEditMode: false,
+  canEdit: true,
   hasChanges: false,
   isApplying: false,
   applyError: null,
@@ -12,7 +12,7 @@ const defaultProps = {
   showColumnFilters: false,
   isReadOnly: false,
   onRefresh: vi.fn(),
-  onToggleEditMode: vi.fn(),
+  onInsertRow: vi.fn(),
   onDeleteRow: vi.fn(),
   onRevertChanges: vi.fn(),
   onApplyChanges: vi.fn(),
@@ -21,56 +21,88 @@ const defaultProps = {
   onExport: vi.fn(),
 };
 
-describe('GridToolbar read-only mode', () => {
+describe('GridToolbar', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('isReadOnly=true で編集ボタンが disabled', () => {
-    render(<GridToolbar {...defaultProps} isReadOnly={true} />);
-    const editButton = screen.getByRole('button', { name: /編集/ });
-    expect(editButton).toBeDisabled();
+  describe('read-only mode', () => {
+    it('isReadOnly=true で「読取専用」バッジを表示', () => {
+      render(<GridToolbar {...defaultProps} isReadOnly={true} />);
+      expect(screen.getByText('読取専用')).toBeInTheDocument();
+    });
+
+    it('isReadOnly=true で行追加・行削除ボタンが disabled', () => {
+      render(<GridToolbar {...defaultProps} isReadOnly={true} />);
+      const insertButton = screen.getByTitle('新しい行を追加 (Insert)');
+      const deleteButton = screen.getByTitle('選択行を削除 (Delete)');
+      expect(insertButton).toBeDisabled();
+      expect(deleteButton).toBeDisabled();
+    });
+
+    it('isReadOnly=false で「読取専用」バッジが非表示', () => {
+      render(<GridToolbar {...defaultProps} isReadOnly={false} />);
+      expect(screen.queryByText('読取専用')).not.toBeInTheDocument();
+    });
   });
 
-  it('isReadOnly=true で「読取専用」バッジを表示', () => {
-    render(<GridToolbar {...defaultProps} isReadOnly={true} />);
-    expect(screen.getByText('読取専用')).toBeInTheDocument();
+  describe('edit buttons', () => {
+    it('canEdit=true で行追加・行削除ボタンを表示', () => {
+      render(<GridToolbar {...defaultProps} canEdit={true} />);
+      expect(screen.getByTitle('新しい行を追加 (Insert)')).toBeInTheDocument();
+      expect(screen.getByTitle('選択行を削除 (Delete)')).toBeInTheDocument();
+    });
+
+    it('canEdit=false で行追加・行削除ボタンを非表示', () => {
+      render(<GridToolbar {...defaultProps} canEdit={false} />);
+      expect(screen.queryByTitle('新しい行を追加 (Insert)')).not.toBeInTheDocument();
+      expect(screen.queryByTitle('選択行を削除 (Delete)')).not.toBeInTheDocument();
+    });
   });
 
-  it('isReadOnly=true で編集ボタンの title が読み取り専用メッセージ', () => {
-    render(<GridToolbar {...defaultProps} isReadOnly={true} />);
-    const editButton = screen.getByRole('button', { name: /編集/ });
-    expect(editButton).toHaveAttribute('title', '読み取り専用モード: 編集できません');
+  describe('change management', () => {
+    it('hasChanges=true で保存・元に戻すボタンを表示', () => {
+      render(<GridToolbar {...defaultProps} hasChanges={true} />);
+      expect(screen.getByTitle(/変更をデータベースに保存/)).toBeInTheDocument();
+      expect(screen.getByTitle('すべての変更を元に戻す')).toBeInTheDocument();
+      expect(screen.getByText('未保存の変更あり')).toBeInTheDocument();
+    });
+
+    it('hasChanges=false で保存・元に戻すボタンを非表示', () => {
+      render(<GridToolbar {...defaultProps} hasChanges={false} />);
+      expect(screen.queryByTitle(/変更をデータベースに保存/)).not.toBeInTheDocument();
+      expect(screen.queryByTitle('すべての変更を元に戻す')).not.toBeInTheDocument();
+      expect(screen.queryByText('未保存の変更あり')).not.toBeInTheDocument();
+    });
+
+    it('isReadOnly=true && hasChanges=true で保存ボタンが disabled', () => {
+      render(<GridToolbar {...defaultProps} isReadOnly={true} hasChanges={true} />);
+      const saveButton = screen.getByTitle(/変更をデータベースに保存/);
+      expect(saveButton).toBeDisabled();
+    });
   });
 
-  it('isReadOnly=false で編集ボタンが有効', () => {
-    render(<GridToolbar {...defaultProps} isReadOnly={false} />);
-    const editButton = screen.getByRole('button', { name: /編集/ });
-    expect(editButton).not.toBeDisabled();
+  describe('refresh button', () => {
+    it('showRefresh=true で更新ボタンを表示', () => {
+      render(<GridToolbar {...defaultProps} showRefresh={true} />);
+      expect(screen.getByTitle('データを再取得 (F5)')).toBeInTheDocument();
+    });
+
+    it('showRefresh=false で更新ボタンを非表示', () => {
+      render(<GridToolbar {...defaultProps} showRefresh={false} />);
+      expect(screen.queryByTitle('データを再取得 (F5)')).not.toBeInTheDocument();
+    });
   });
 
-  it('isReadOnly=false で「読取専用」バッジが非表示', () => {
-    render(<GridToolbar {...defaultProps} isReadOnly={false} />);
-    expect(screen.queryByText('読取専用')).not.toBeInTheDocument();
-  });
+  describe('view options', () => {
+    it('フィルタボタンを表示', () => {
+      render(<GridToolbar {...defaultProps} />);
+      expect(screen.getByTitle('列フィルタを表示/非表示')).toBeInTheDocument();
+    });
 
-  it('isReadOnly=true && isEditMode=true で編集終了ボタンが有効+正しい title', () => {
-    render(<GridToolbar {...defaultProps} isReadOnly={true} isEditMode={true} />);
-    const editButton = screen.getByRole('button', { name: /編集終了/ });
-    expect(editButton).not.toBeDisabled();
-    expect(editButton).toHaveAttribute('title', '編集モード終了');
-  });
-
-  it('isReadOnly=true && isEditMode=true で行削除・適用ボタンが disabled', () => {
-    render(<GridToolbar {...defaultProps} isReadOnly={true} isEditMode={true} />);
-    expect(screen.getByRole('button', { name: /行削除/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /適用/ })).toBeDisabled();
-  });
-
-  it('isReadOnly=false で編集ボタンをクリックするとコールバック発火', () => {
-    const onToggle = vi.fn();
-    render(<GridToolbar {...defaultProps} isReadOnly={false} onToggleEditMode={onToggle} />);
-    fireEvent.click(screen.getByRole('button', { name: /編集/ }));
-    expect(onToggle).toHaveBeenCalledOnce();
+    it('エクスポートボタンを表示', () => {
+      render(<GridToolbar {...defaultProps} />);
+      expect(screen.getByTitle('データをエクスポート')).toBeInTheDocument();
+    });
   });
 });
