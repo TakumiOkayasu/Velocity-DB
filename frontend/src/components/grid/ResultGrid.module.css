@@ -152,37 +152,51 @@
   cursor: pointer;
 }
 
-.toolbarButton {
-  padding: 4px 8px;
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 4px;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: 14px;
   cursor: pointer;
+  line-height: 1;
 }
 
-.toolbarButton:hover:not(:disabled) {
+.iconButton:hover:not(:disabled) {
   background-color: var(--bg-hover);
 }
 
-.toolbarButton:disabled {
+.iconButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.toolbarButton.active {
+.iconButton.active {
   background-color: var(--accent-color);
   border-color: var(--accent-color);
 }
 
-.applyButton {
+.saveButton {
   background-color: #2d5a27;
   border-color: #3d7a37;
 }
 
-.applyButton:hover:not(:disabled) {
+.saveButton:hover:not(:disabled) {
   background-color: #3d7a37;
+}
+
+.toolbarSeparator {
+  width: 1px;
+  height: 20px;
+  background-color: var(--border-color);
+  margin: 0 4px;
+  flex-shrink: 0;
 }
 
 .changesIndicator {
@@ -205,16 +219,6 @@
   border-left: 2px solid #dcdcaa;
 }
 
-.deletedRow {
-  background-color: rgba(244, 71, 71, 0.2);
-  text-decoration: line-through;
-  color: #888;
-}
-
-.insertedRow {
-  background-color: rgba(106, 153, 85, 0.2);
-  border-left: 2px solid #6a9955;
-}
 
 .readOnlyBadge {
   display: inline-flex;
@@ -238,14 +242,6 @@
   font-size: 11px;
 }
 
-.editModeIndicator {
-  color: #dcdcaa;
-  font-weight: bold;
-  margin-left: auto;
-  padding: 2px 8px;
-  background-color: rgba(220, 220, 170, 0.2);
-  border-radius: 2px;
-}
 
 .filterBar {
   display: flex;

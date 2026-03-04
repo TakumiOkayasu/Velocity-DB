@@ -29,6 +29,12 @@ interface GridTableCallbacks {
   onCommitEdit: () => void;
   onRowClick: (rowIndex: number) => void;
   onCellClick: (rowIndex: number, field: string) => void;
+  onUpdateCell?: (
+    rowIndex: number,
+    field: string,
+    oldValue: string | null,
+    newValue: string | null
+  ) => void;
 }
 
 interface GridTableProps {
@@ -64,11 +70,14 @@ function GridTableInner({
 
   const {
     contextMenu,
-    handleHeaderContextMenu,
-    handleCellContextMenu,
-    closeContextMenu,
-    getContextMenuItems,
-  } = useGridContextMenu(columnsMeta, rows, table);
+    openHeaderMenu,
+    openCellMenu,
+    closeMenu,
+    getMenuItems,
+  } = useGridContextMenu(columnsMeta, rows, table, {
+    isEditMode: edit.isEditMode,
+    updateCell: callbacks.onUpdateCell,
+  });
 
   return (
     <div ref={tableContainerRef} className={styles.tableContainer}>
@@ -89,7 +98,7 @@ function GridTableInner({
                       maxWidth: header.column.columnDef.maxSize,
                     }}
                     onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
-                    onContextMenu={(e) => handleHeaderContextMenu(e, header.column.id)}
+                    onContextMenu={(e) => openHeaderMenu(e, header.column.id)}
                   >
                     <div className={styles.thContent}>
                       {flexRender(header.column.columnDef.header, header.getContext())}
@@ -189,7 +198,7 @@ function GridTableInner({
                         e.stopPropagation();
                         callbacks.onCellClick(rowIndex, field);
                       }}
-                      onContextMenu={(e) => handleCellContextMenu(e, rowIndex, field)}
+                      onContextMenu={(e) => openCellMenu(e, rowIndex, field)}
                       onDoubleClick={() => {
                         if (isEditable) {
                           callbacks.onStartEdit(originalIndex, field, value as string | null);
@@ -227,8 +236,8 @@ function GridTableInner({
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
-          items={getContextMenuItems()}
-          onClose={closeContextMenu}
+          items={getMenuItems()}
+          onClose={closeMenu}
         />
       )}
     </div>

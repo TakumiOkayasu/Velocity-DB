@@ -1,16 +1,16 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useGridEdit } from '../../components/grid/hooks/useGridEdit';
-import type { Query } from '../../types';
+import type { Query, ResultSet } from '../../types';
 
 // Mock editStore
 const mockSetEditMode = vi.fn();
 const mockRevertAll = vi.fn();
-let mockIsEditMode = false;
+const mockAddNewRow = vi.fn();
 
 vi.mock('../../store/editStore', () => ({
   useEditStore: () => ({
-    isEditMode: mockIsEditMode,
+    isEditMode: false,
     setEditMode: mockSetEditMode,
     updateCell: vi.fn(),
     revertAll: mockRevertAll,
@@ -21,7 +21,7 @@ vi.mock('../../store/editStore', () => ({
     insertedRows: new Map(),
     markRowDeleted: vi.fn(),
     unmarkRowDeleted: vi.fn(),
-    addNewRow: vi.fn(),
+    addNewRow: mockAddNewRow,
     getDmlParams: () => null,
     setTableContext: vi.fn(),
     clearTableContext: vi.fn(),
@@ -49,92 +49,170 @@ const baseOptions = {
   isReadOnly: false,
 };
 
-describe('useGridEdit read-only guard', () => {
+const mockResultSet = {
+  columns: [
+    { name: 'id', type: 'int', isPrimaryKey: true },
+    { name: 'name', type: 'varchar', isPrimaryKey: false },
+  ],
+  rows: [],
+  executionTimeMs: 1,
+  affectedRows: 0,
+  truncated: false,
+} as unknown as ResultSet;
+
+const mockQuery = {
+  id: 'q1',
+  connectionId: 'conn-1',
+  sourceTable: 'users',
+  sql: 'SELECT * FROM users',
+} as unknown as Query;
+
+describe('useGridEdit', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockIsEditMode = false;
   });
 
-  it('isReadOnly=true で handleToggleEditMode が編集開始をブロック', () => {
-    const { result } = renderHook(() => useGridEdit({ ...baseOptions, isReadOnly: true }));
-
-    act(() => {
-      result.current.handleToggleEditMode();
+  describe('always-on edit mode', () => {
+    it('sourceTable存在 + isReadOnly=false → isEditMode=true', () => {
+      const { result } = renderHook(() =>
+        useGridEdit({
+          ...baseOptions,
+          currentQuery: mockQuery,
+          resultSet: mockResultSet,
+          activeConnectionId: 'conn-1',
+        })
+      );
+      expect(result.current.isEditMode).toBe(true);
     });
 
-    expect(mockSetEditMode).not.toHaveBeenCalled();
+    it('sourceTable存在 + isReadOnly=true → isEditMode=false', () => {
+      const { result } = renderHook(() =>
+        useGridEdit({
+          ...baseOptions,
+          currentQuery: mockQuery,
+          resultSet: mockResultSet,
+          activeConnectionId: 'conn-1',
+          isReadOnly: true,
+        })
+      );
+      expect(result.current.isEditMode).toBe(false);
+    });
+
+    it('sourceTableなし → isEditMode=false', () => {
+      const { result } = renderHook(() =>
+        useGridEdit({
+          ...baseOptions,
+          currentQuery: { ...mockQuery, sourceTable: undefined } as unknown as Query,
+        })
+      );
+      expect(result.current.isEditMode).toBe(false);
+    });
+
+    it('setEditModeがisEditModeと同期される', () => {
+      renderHook(() =>
+        useGridEdit({
+          ...baseOptions,
+          currentQuery: mockQuery,
+          resultSet: mockResultSet,
+          activeConnectionId: 'conn-1',
+        })
+      );
+      expect(mockSetEditMode).toHaveBeenCalledWith(true);
+    });
   });
 
-  it('isReadOnly=true でも isEditMode=true なら編集終了できる', () => {
-    mockIsEditMode = true;
-    const { result } = renderHook(() => useGridEdit({ ...baseOptions, isReadOnly: true }));
+  describe('read-only guard', () => {
+    it('isReadOnly=true で applyChanges がブロック+エラーメッセージ', async () => {
+      const { result } = renderHook(() =>
+        useGridEdit({
+          ...baseOptions,
+          isReadOnly: true,
+          activeConnectionId: 'conn-1',
+          currentQuery: mockQuery,
+        })
+      );
 
-    act(() => {
-      result.current.handleToggleEditMode();
+      await act(async () => {
+        await result.current.applyChanges();
+      });
+
+      expect(result.current.applyError).toBe('読み取り専用モードのため変更を適用できません');
     });
 
-    expect(mockSetEditMode).toHaveBeenCalledWith(false);
-    expect(mockRevertAll).toHaveBeenCalled();
+    it('isReadOnly=true で deleteRow がブロック+エラーメッセージ', () => {
+      const { result } = renderHook(() =>
+        useGridEdit({ ...baseOptions, isReadOnly: true, selectedRows: new Set([0]) })
+      );
+
+      act(() => {
+        result.current.deleteRow();
+      });
+
+      expect(result.current.applyError).toBe('読み取り専用モードのため変更できません');
+    });
+
+    it('isReadOnly=true で cloneRow がブロック+エラーメッセージ', () => {
+      const { result } = renderHook(() =>
+        useGridEdit({
+          ...baseOptions,
+          isReadOnly: true,
+          selectedRows: new Set([0]),
+          rowData: [{ __rowIndex: '1', __originalIndex: '0', name: 'test' }],
+        })
+      );
+
+      act(() => {
+        result.current.cloneRow();
+      });
+
+      expect(result.current.applyError).toBe('読み取り専用モードのため変更できません');
+    });
+
+    it('isReadOnly=true で insertRow がブロック+エラーメッセージ', () => {
+      const { result } = renderHook(() =>
+        useGridEdit({
+          ...baseOptions,
+          isReadOnly: true,
+          resultSet: mockResultSet,
+        })
+      );
+
+      act(() => {
+        result.current.insertRow();
+      });
+
+      expect(result.current.applyError).toBe('読み取り専用モードのため変更できません');
+    });
   });
 
-  it('isReadOnly=true で handleApplyChanges がブロック+エラーメッセージ設定', async () => {
-    const { result } = renderHook(() =>
-      useGridEdit({
-        ...baseOptions,
-        isReadOnly: true,
-        activeConnectionId: 'conn-1',
-        currentQuery: {
-          id: 'q1',
-          connectionId: 'conn-1',
-          sourceTable: 'users',
-          sql: 'SELECT * FROM users',
-        } as unknown as Query,
-      })
-    );
+  describe('insertRow', () => {
+    it('resultSetがある場合、全カラムNULLの新規行を追加', () => {
+      const { result } = renderHook(() =>
+        useGridEdit({
+          ...baseOptions,
+          resultSet: mockResultSet,
+          currentQuery: mockQuery,
+          activeConnectionId: 'conn-1',
+        })
+      );
 
-    await act(async () => {
-      await result.current.handleApplyChanges();
+      act(() => {
+        result.current.insertRow();
+      });
+
+      expect(mockAddNewRow).toHaveBeenCalledWith({ id: null, name: null });
     });
 
-    expect(result.current.applyError).toBe('読み取り専用モードのため変更を適用できません');
-  });
+    it('resultSetがない場合、何もしない', () => {
+      const { result } = renderHook(() =>
+        useGridEdit({ ...baseOptions, resultSet: null })
+      );
 
-  it('isReadOnly=true で handleDeleteRow がブロック+エラーメッセージ設定', () => {
-    const { result } = renderHook(() =>
-      useGridEdit({ ...baseOptions, isReadOnly: true, selectedRows: new Set([0]) })
-    );
+      act(() => {
+        result.current.insertRow();
+      });
 
-    act(() => {
-      result.current.handleDeleteRow();
+      expect(mockAddNewRow).not.toHaveBeenCalled();
     });
-
-    expect(result.current.applyError).toBe('読み取り専用モードのため変更できません');
-  });
-
-  it('isReadOnly=true で handleCloneRow がブロック+エラーメッセージ設定', () => {
-    const { result } = renderHook(() =>
-      useGridEdit({
-        ...baseOptions,
-        isReadOnly: true,
-        selectedRows: new Set([0]),
-        rowData: [{ __rowIndex: '1', __originalIndex: '0', name: 'test' }],
-      })
-    );
-
-    act(() => {
-      result.current.handleCloneRow();
-    });
-
-    expect(result.current.applyError).toBe('読み取り専用モードのため変更できません');
-  });
-
-  it('isReadOnly=false で handleToggleEditMode が通常動作', () => {
-    const { result } = renderHook(() => useGridEdit({ ...baseOptions, isReadOnly: false }));
-
-    act(() => {
-      result.current.handleToggleEditMode();
-    });
-
-    expect(mockSetEditMode).toHaveBeenCalledWith(true);
   });
 });
