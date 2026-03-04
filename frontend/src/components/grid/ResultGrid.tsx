@@ -4,6 +4,7 @@ import {
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
+  type Row,
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table';
@@ -67,6 +68,9 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
+  const lastClickedRowRef = useRef<number | null>(null);
+  const rowsLengthRef = useRef(0);
+  const viewRowsRef = useRef<Row<RowData>[]>([]);
   const [activeResultIndex, setActiveResultIndex] = useState(0);
   const [valueEditorState, setValueEditorState] = useState<{
     isOpen: boolean;
@@ -216,12 +220,18 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     [valueEditorState, updateCell]
   );
 
+  const getRowByViewIndex = useCallback(
+    (viewIndex: number): RowData | undefined => viewRowsRef.current[viewIndex]?.original,
+    []
+  );
+
   const { editingCell, editValue, setEditValue, startEdit, commitEdit } = useGridKeyboard({
     isEditMode,
     selectedRows,
     selectedColumn,
     columns,
     rowData,
+    getRowByViewIndex,
     tableContainerRef,
     updateCell,
     onDeleteRow: deleteRow,
@@ -250,6 +260,8 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   });
 
   const { rows } = table.getRowModel();
+  rowsLengthRef.current = rows.length;
+  viewRowsRef.current = rows;
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
@@ -287,18 +299,39 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   );
 
   // --- Callbacks for sub-components ---
-  const selectRow = useCallback((rowIndex: number) => {
+  const toggleRow = useCallback((rowIndex: number) => {
     setSelectedRows((prev) => {
       const next = new Set(prev);
       if (next.has(rowIndex)) next.delete(rowIndex);
       else next.add(rowIndex);
       return next;
     });
+    lastClickedRowRef.current = rowIndex;
+    setSelectedColumn(null);
+  }, []);
+
+  const rangeSelectRow = useCallback((rowIndex: number) => {
+    if (lastClickedRowRef.current === null) return;
+    const start = Math.min(lastClickedRowRef.current, rowIndex);
+    const end = Math.max(lastClickedRowRef.current, rowIndex);
+    const range = new Set<number>();
+    for (let i = start; i <= end; i++) range.add(i);
+    setSelectedRows(range);
+    setSelectedColumn(null);
   }, []);
 
   const selectCell = useCallback((rowIndex: number, field: string) => {
     setSelectedRows(new Set([rowIndex]));
     setSelectedColumn(field);
+    lastClickedRowRef.current = rowIndex;
+  }, []);
+
+  const selectColumn = useCallback((columnId: string) => {
+    setSelectedColumn(columnId);
+    const allRows = new Set<number>();
+    for (let i = 0; i < rowsLengthRef.current; i++) allRows.add(i);
+    setSelectedRows(allRows);
+    lastClickedRowRef.current = null;
   }, []);
 
   const gridCallbacks = useMemo(
@@ -306,11 +339,22 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
       onSetEditValue: setEditValue,
       onStartEdit: startEdit,
       onCommitEdit: commitEdit,
-      onRowClick: selectRow,
+      onRowToggle: toggleRow,
+      onRowRangeSelect: rangeSelectRow,
       onCellClick: selectCell,
+      onColumnSelect: selectColumn,
       onUpdateCell: updateCell,
     }),
-    [setEditValue, startEdit, commitEdit, selectRow, selectCell, updateCell]
+    [
+      setEditValue,
+      startEdit,
+      commitEdit,
+      toggleRow,
+      rangeSelectRow,
+      selectCell,
+      selectColumn,
+      updateCell,
+    ]
   );
 
   const whereKeyDown = useCallback(

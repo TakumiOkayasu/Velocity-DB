@@ -19,6 +19,7 @@ import { TableNode } from './TableNode';
 
 interface ERDiagramProps {
   onTableClick?: (tableId: string) => void;
+  onOpenImportDialog?: () => void;
 }
 
 type XY = { x: number; y: number };
@@ -170,16 +171,19 @@ function ERDiagramFlow({
   );
 }
 
-export function ERDiagram({ onTableClick }: ERDiagramProps) {
+export function ERDiagram({ onTableClick, onOpenImportDialog }: ERDiagramProps) {
   const {
     pages,
     selectedPage,
     setSelectedPage,
     pageCounts,
+    totalTableCount,
     tables: filteredTables,
     relations: filteredRelations,
     shapes: filteredShapes,
   } = useERDiagramContext();
+
+  const hasData = totalTableCount > 0;
 
   // 「すべて」タブ時はグリッド再配置（ページ間で座標が重複するため）
   const layoutTables = useMemo(
@@ -202,27 +206,56 @@ export function ERDiagram({ onTableClick }: ERDiagramProps) {
     return `${selectedPage}-${layoutTables.length}-${layoutShapes.length}-${first}-${last}`;
   }, [selectedPage, layoutTables, layoutShapes]);
 
+  if (!hasData) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.emptyState}>
+          <p className={styles.emptyText}>ER図データがありません</p>
+          {onOpenImportDialog && (
+            <button type="button" className={styles.importButton} onClick={onOpenImportDialog}>
+              ER図ファイルを読み込む
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.container}>
-      {showTabs && (
+      {(showTabs || onOpenImportDialog) && (
         <div className={styles.tabBar}>
-          <button
-            type="button"
-            className={`${styles.tab} ${selectedPage === ALL_PAGES ? styles.tabActive : ''}`}
-            onClick={() => setSelectedPage(ALL_PAGES)}
-          >
-            すべて ({pageCounts.get(ALL_PAGES) ?? 0})
-          </button>
-          {pages.map((page) => (
+          {showTabs && (
+            <>
+              <button
+                type="button"
+                className={`${styles.tab} ${selectedPage === ALL_PAGES ? styles.tabActive : ''}`}
+                onClick={() => setSelectedPage(ALL_PAGES)}
+              >
+                すべて ({pageCounts.get(ALL_PAGES) ?? 0})
+              </button>
+              {pages.map((page) => (
+                <button
+                  type="button"
+                  key={page}
+                  className={`${styles.tab} ${selectedPage === page ? styles.tabActive : ''}`}
+                  onClick={() => setSelectedPage(page)}
+                >
+                  {page} ({pageCounts.get(page) ?? 0})
+                </button>
+              ))}
+            </>
+          )}
+          {onOpenImportDialog && (
             <button
               type="button"
-              key={page}
-              className={`${styles.tab} ${selectedPage === page ? styles.tabActive : ''}`}
-              onClick={() => setSelectedPage(page)}
+              className={styles.tabImportButton}
+              onClick={onOpenImportDialog}
+              title="ER図ファイルをインポート"
             >
-              {page} ({pageCounts.get(page) ?? 0})
+              {'\uD83D\uDCE5'}
             </button>
-          ))}
+          )}
         </div>
       )}
       <div className={styles.flowContainer}>

@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useMemo } from 'react';
+import { useERImport } from '../../hooks/useERImport';
 import { useConnectionStore } from '../../store/connectionStore';
 import { useActiveQuery, useQueryStore } from '../../store/queryStore';
 import { connectionColor } from '../../utils/colorContrast';
@@ -16,6 +17,9 @@ const ResultGrid = lazy(() =>
 const ERDiagramView = lazy(() =>
   import('../diagram/ERDiagram').then((module) => ({ default: module.ERDiagram }))
 );
+const ERImportDialog = lazy(() =>
+  import('../dialogs/ERImportDialog').then((module) => ({ default: module.ERImportDialog }))
+);
 
 // Loading fallback for Monaco Editor
 function EditorLoadingFallback() {
@@ -31,6 +35,7 @@ export function CenterPanel() {
   const activeQuery = useActiveQuery();
   const connections = useConnectionStore((s) => s.connections);
   const updateQueryConnection = useQueryStore((s) => s.updateQueryConnection);
+  const erImport = useERImport();
   const isDataView = activeQuery?.isDataView === true;
   const isERDiagram = activeQuery?.isERDiagram === true;
 
@@ -87,7 +92,7 @@ export function CenterPanel() {
       <div className={styles.editorContainer}>
         <Suspense fallback={<EditorLoadingFallback />}>
           {isERDiagram ? (
-            <ERDiagramView />
+            <ERDiagramView onOpenImportDialog={erImport.open} />
           ) : isDataView ? (
             <ResultGrid queryId={activeQuery?.id} />
           ) : (
@@ -95,6 +100,15 @@ export function CenterPanel() {
           )}
         </Suspense>
       </div>
+      {erImport.isOpen && (
+        <Suspense fallback={null}>
+          <ERImportDialog
+            isOpen={erImport.isOpen}
+            onClose={erImport.close}
+            onImport={erImport.importModel}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

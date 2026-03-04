@@ -343,13 +343,18 @@
   border-right: none;
 }
 
-.th.sortable {
+.th.clickable {
   cursor: pointer;
   user-select: none;
 }
 
-.th.sortable:hover {
+.th.clickable:hover {
   background-color: var(--bg-hover);
+}
+
+.th.selectedColumnHeader {
+  background-color: var(--selection-bg, rgba(58, 109, 140, 0.4));
+  color: var(--selection-text, #fff);
 }
 
 .thContent {

@@ -2,7 +2,6 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { bridge } from '../../api/bridge';
 import { useKeyboardHandler } from '../../hooks/useKeyboardHandler';
 import { useConnectionStore } from '../../store/connectionStore';
-import { useERDiagramStore } from '../../store/erDiagramStore';
 import { useQueryStore } from '../../store/queryStore';
 import { useSessionStore } from '../../store/sessionStore';
 import {
@@ -31,10 +30,6 @@ const SearchDialog = lazy(() =>
 const SettingsDialog = lazy(() =>
   import('../dialogs/SettingsDialog').then((module) => ({ default: module.SettingsDialog }))
 );
-const ERImportDialog = lazy(() =>
-  import('../dialogs/ERImportDialog').then((module) => ({ default: module.ERImportDialog }))
-);
-
 // Simple loading fallback
 function LoadingFallback() {
   return <div style={{ display: 'none' }} />;
@@ -62,12 +57,6 @@ const Icons = {
   format: (
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
       <path d="M2 3h12M2 6h8M2 9h12M2 12h8" />
-    </svg>
-  ),
-  import: (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-      <path d="M8 2v8M5 7l3 3 3-3" />
-      <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" />
     </svg>
   ),
   sidebar: (
@@ -115,7 +104,6 @@ export function MainLayout() {
   const [isConnectionDialogOpen, setIsConnectionDialogOpen] = useState(false);
   const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
-  const [isERImportDialogOpen, setIsERImportDialogOpen] = useState(false);
   const [queryConfirmDialog, setQueryConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -135,9 +123,7 @@ export function MainLayout() {
     cancelQuery,
     formatQuery,
     isExecuting,
-    openERDiagram,
   } = useQueryStore();
-  const { loadFromParsedModel } = useERDiagramStore();
   const activeQuery = queries.find((q) => q.id === activeQueryId);
   const activeQueryConnectionId = activeQuery?.connectionId ?? null;
   const activeQueryConnection = connections.find((c) => c.id === activeQueryConnectionId);
@@ -317,8 +303,7 @@ export function MainLayout() {
 
   // Note: isBottomPanelVisible is NOT persisted - it's always hidden on startup
 
-  const hasOpenDialog =
-    isConnectionDialogOpen || isSearchDialogOpen || isSettingsDialogOpen || isERImportDialogOpen;
+  const hasOpenDialog = isConnectionDialogOpen || isSearchDialogOpen || isSettingsDialogOpen;
 
   // Keyboard shortcuts
   useKeyboardHandler((e: KeyboardEvent) => {
@@ -443,16 +428,6 @@ export function MainLayout() {
             title="SQLフォーマット (Ctrl+Shift+F)"
           >
             {Icons.format}
-          </button>
-        </div>
-
-        <div className={styles.toolbarDivider} />
-
-        {/* Import */}
-        <div className={styles.toolbarGroup}>
-          <button onClick={() => setIsERImportDialogOpen(true)} title="ER図ファイルをインポート">
-            {Icons.import}
-            <span>インポート</span>
           </button>
         </div>
 
@@ -611,19 +586,6 @@ export function MainLayout() {
           <SettingsDialog
             isOpen={isSettingsDialogOpen}
             onClose={() => setIsSettingsDialogOpen(false)}
-          />
-        </Suspense>
-      )}
-
-      {isERImportDialogOpen && (
-        <Suspense fallback={<LoadingFallback />}>
-          <ERImportDialog
-            isOpen={isERImportDialogOpen}
-            onClose={() => setIsERImportDialogOpen(false)}
-            onImport={(model) => {
-              loadFromParsedModel(model);
-              openERDiagram(model.name || 'ER Diagram');
-            }}
           />
         </Suspense>
       )}

@@ -9,6 +9,7 @@ export interface ERDiagramContextValue {
   selectedPage: string;
   setSelectedPage: (page: string) => void;
   pageCounts: Map<string, number>;
+  totalTableCount: number;
   tables: ERTableNode[];
   relations: ERRelationEdge[];
   shapes: ERShapeNode[];
@@ -66,6 +67,7 @@ export function useERDiagramContext(): ERDiagramContextValue {
     selectedPage,
     setSelectedPage,
     pageCounts,
+    totalTableCount: allTables.length,
     tables,
     relations,
     shapes,

@@ -59,7 +59,10 @@ export function ERImportDialog({ isOpen, onClose, onImport }: ERImportDialogProp
       className={styles.overlay}
       onClick={onClose}
       onKeyDown={(e) => {
-        if (e.key === 'Escape') onClose();
+        if (e.key === 'Escape') {
+          e.stopPropagation();
+          onClose();
+        }
       }}
       role="presentation"
     >
@@ -67,7 +70,10 @@ export function ERImportDialog({ isOpen, onClose, onImport }: ERImportDialogProp
         className={styles.dialog}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
-          if (e.key === 'Escape') onClose();
+          if (e.key === 'Escape') {
+            e.stopPropagation();
+            onClose();
+          }
         }}
         role="dialog"
         aria-modal="true"
@@ -124,20 +130,22 @@ export function ERImportDialog({ isOpen, onClose, onImport }: ERImportDialogProp
             </div>
           )}
 
-          <div className={styles.ddlSection}>
-            <div className={styles.ddlHeader}>
-              <h3>生成されたDDL</h3>
-              <button type="button" onClick={() => setShowDDL(!showDDL)}>
-                {showDDL ? '非表示' : '表示'}
-              </button>
-              {generatedDDL && (
-                <button type="button" onClick={handleCopyDDL}>
-                  コピー
+          {parsedModel && (
+            <div className={styles.ddlSection}>
+              <div className={styles.ddlHeader}>
+                <h3>生成されたDDL</h3>
+                <button type="button" onClick={() => setShowDDL(!showDDL)}>
+                  {showDDL ? '非表示' : '表示'}
                 </button>
-              )}
+                {generatedDDL && (
+                  <button type="button" onClick={handleCopyDDL}>
+                    コピー
+                  </button>
+                )}
+              </div>
+              {showDDL && generatedDDL && <pre className={styles.ddlContent}>{generatedDDL}</pre>}
             </div>
-            {showDDL && generatedDDL && <pre className={styles.ddlContent}>{generatedDDL}</pre>}
-          </div>
+          )}
         </div>
 
         <div className={styles.footer}>
