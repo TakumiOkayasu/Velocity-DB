@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
 import type { Row, Table } from '@tanstack/react-table';
+import { describe, expect, it, vi } from 'vitest';
 import type { ColumnMeta, RowData } from '../../types/grid';
 
 // Mock useCopyToClipboard
@@ -8,7 +8,7 @@ vi.mock('../../hooks/useCopyToClipboard', () => ({
   useCopyToClipboard: () => mockCopyToClipboard,
 }));
 
-import { renderHook, act } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { useGridContextMenu } from '../../components/grid/hooks/useGridContextMenu';
 
 const mockColumnsMeta: ColumnMeta[] = [
@@ -31,9 +31,7 @@ const mockTable = {
 describe('useGridContextMenu', () => {
   describe('header context menu', () => {
     it('基本メニュー項目が表示される', () => {
-      const { result } = renderHook(() =>
-        useGridContextMenu(mockColumnsMeta, mockRows, mockTable)
-      );
+      const { result } = renderHook(() => useGridContextMenu(mockColumnsMeta, mockRows, mockTable));
 
       act(() => {
         result.current.openHeaderMenu(
@@ -54,9 +52,7 @@ describe('useGridContextMenu', () => {
     });
 
     it('論理名がない列では「論理名をコピー」が非表示', () => {
-      const { result } = renderHook(() =>
-        useGridContextMenu(mockColumnsMeta, mockRows, mockTable)
-      );
+      const { result } = renderHook(() => useGridContextMenu(mockColumnsMeta, mockRows, mockTable));
 
       act(() => {
         result.current.openHeaderMenu(
@@ -71,9 +67,7 @@ describe('useGridContextMenu', () => {
     });
 
     it('列値をすべてコピーが正しいデータをコピー', () => {
-      const { result } = renderHook(() =>
-        useGridContextMenu(mockColumnsMeta, mockRows, mockTable)
-      );
+      const { result } = renderHook(() => useGridContextMenu(mockColumnsMeta, mockRows, mockTable));
 
       act(() => {
         result.current.openHeaderMenu(
@@ -92,13 +86,16 @@ describe('useGridContextMenu', () => {
 
   describe('cell context menu', () => {
     it('基本メニュー項目が表示される', () => {
-      const { result } = renderHook(() =>
-        useGridContextMenu(mockColumnsMeta, mockRows, mockTable)
-      );
+      const { result } = renderHook(() => useGridContextMenu(mockColumnsMeta, mockRows, mockTable));
 
       act(() => {
         result.current.openCellMenu(
-          { preventDefault: vi.fn(), stopPropagation: vi.fn(), clientX: 100, clientY: 200 } as unknown as React.MouseEvent,
+          {
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+            clientX: 100,
+            clientY: 200,
+          } as unknown as React.MouseEvent,
           0,
           'name'
         );
@@ -114,13 +111,16 @@ describe('useGridContextMenu', () => {
     });
 
     it('SQL INSERTコピーが正しいSQL文を生成', () => {
-      const { result } = renderHook(() =>
-        useGridContextMenu(mockColumnsMeta, mockRows, mockTable)
-      );
+      const { result } = renderHook(() => useGridContextMenu(mockColumnsMeta, mockRows, mockTable));
 
       act(() => {
         result.current.openCellMenu(
-          { preventDefault: vi.fn(), stopPropagation: vi.fn(), clientX: 100, clientY: 200 } as unknown as React.MouseEvent,
+          {
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+            clientX: 100,
+            clientY: 200,
+          } as unknown as React.MouseEvent,
           1,
           'name'
         );
@@ -147,7 +147,12 @@ describe('useGridContextMenu', () => {
 
       act(() => {
         result.current.openCellMenu(
-          { preventDefault: vi.fn(), stopPropagation: vi.fn(), clientX: 100, clientY: 200 } as unknown as React.MouseEvent,
+          {
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+            clientX: 100,
+            clientY: 200,
+          } as unknown as React.MouseEvent,
           0,
           'name'
         );
@@ -159,13 +164,16 @@ describe('useGridContextMenu', () => {
     });
 
     it('isEditMode=false で「NULLに設定」が非表示', () => {
-      const { result } = renderHook(() =>
-        useGridContextMenu(mockColumnsMeta, mockRows, mockTable)
-      );
+      const { result } = renderHook(() => useGridContextMenu(mockColumnsMeta, mockRows, mockTable));
 
       act(() => {
         result.current.openCellMenu(
-          { preventDefault: vi.fn(), stopPropagation: vi.fn(), clientX: 100, clientY: 200 } as unknown as React.MouseEvent,
+          {
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+            clientX: 100,
+            clientY: 200,
+          } as unknown as React.MouseEvent,
           0,
           'name'
         );
@@ -177,9 +185,7 @@ describe('useGridContextMenu', () => {
     });
 
     it('列値をコピー（ヘッダー付き）が正しいデータをコピー', () => {
-      const { result } = renderHook(() =>
-        useGridContextMenu(mockColumnsMeta, mockRows, mockTable)
-      );
+      const { result } = renderHook(() => useGridContextMenu(mockColumnsMeta, mockRows, mockTable));
 
       act(() => {
         result.current.openHeaderMenu(
@@ -192,7 +198,10 @@ describe('useGridContextMenu', () => {
       const copyItem = items.find((i) => i.label === '列値をコピー（ヘッダー付き）');
       copyItem?.action();
 
-      expect(mockCopyToClipboard).toHaveBeenCalledWith("name\nAlice\nBob's", '列データをコピーしました');
+      expect(mockCopyToClipboard).toHaveBeenCalledWith(
+        "name\nAlice\nBob's",
+        '列データをコピーしました'
+      );
     });
 
     it('NULLに設定アクションがupdateCellを呼ぶ', () => {
@@ -206,7 +215,12 @@ describe('useGridContextMenu', () => {
 
       act(() => {
         result.current.openCellMenu(
-          { preventDefault: vi.fn(), stopPropagation: vi.fn(), clientX: 100, clientY: 200 } as unknown as React.MouseEvent,
+          {
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+            clientX: 100,
+            clientY: 200,
+          } as unknown as React.MouseEvent,
           0,
           'name'
         );

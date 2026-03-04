@@ -68,16 +68,15 @@ function GridTableInner({
   const paddingBottom =
     virtualRows.length > 0 ? totalSize - (virtualRows[virtualRows.length - 1]?.end ?? 0) : 0;
 
-  const {
-    contextMenu,
-    openHeaderMenu,
-    openCellMenu,
-    closeMenu,
-    getMenuItems,
-  } = useGridContextMenu(columnsMeta, rows, table, {
-    isEditMode: edit.isEditMode,
-    updateCell: callbacks.onUpdateCell,
-  });
+  const { contextMenu, openHeaderMenu, openCellMenu, closeMenu, getMenuItems } = useGridContextMenu(
+    columnsMeta,
+    rows,
+    table,
+    {
+      isEditMode: edit.isEditMode,
+      updateCell: callbacks.onUpdateCell,
+    }
+  );
 
   return (
     <div ref={tableContainerRef} className={styles.tableContainer}>

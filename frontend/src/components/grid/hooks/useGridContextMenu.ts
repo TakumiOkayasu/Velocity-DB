@@ -22,7 +22,7 @@ export function useGridContextMenu(
   columnsMeta: ColumnMeta[],
   rows: Row<RowData>[],
   table: Table<RowData>,
-  options: UseGridContextMenuOptions = { isEditMode: false }
+  { isEditMode = false, updateCell }: UseGridContextMenuOptions = { isEditMode: false }
 ) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const copyToClipboard = useCopyToClipboard();
@@ -38,14 +38,11 @@ export function useGridContextMenu(
     setContextMenu({ x: e.clientX, y: e.clientY, type: 'header', columnId });
   }, []);
 
-  const openCellMenu = useCallback(
-    (e: React.MouseEvent, rowIndex: number, columnId: string) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setContextMenu({ x: e.clientX, y: e.clientY, type: 'cell', columnId, rowIndex });
-    },
-    []
-  );
+  const openCellMenu = useCallback((e: React.MouseEvent, rowIndex: number, columnId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY, type: 'cell', columnId, rowIndex });
+  }, []);
 
   const closeMenu = useCallback(() => setContextMenu(null), []);
 
@@ -148,8 +145,7 @@ export function useGridContextMenu(
     ];
 
     // NULL設定 (edit mode only)
-    if (options.isEditMode && options.updateCell) {
-      const { updateCell } = options;
+    if (isEditMode && updateCell) {
       items.push({ label: '', action: () => {}, separator: true });
       items.push({
         label: 'NULLに設定',
@@ -170,7 +166,7 @@ export function useGridContextMenu(
     });
 
     return items;
-  }, [contextMenu, columnsMeta, rows, table, copyToClipboard, options.isEditMode, options.updateCell]);
+  }, [contextMenu, columnsMeta, rows, table, copyToClipboard, isEditMode, updateCell]);
 
   return {
     contextMenu,

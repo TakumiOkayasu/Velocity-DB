@@ -176,7 +176,7 @@ export function useGridEdit({
     return () => {
       clearTableContext();
     };
-  }, [resultSet, currentQuery?.sourceTable, setTableContext, clearTableContext, isEditMode]);
+  }, [resultSet, currentQuery?.sourceTable, setTableContext, clearTableContext]);
 
   const getInsertedRows = useCallback(() => insertedRows, [insertedRows]);
 

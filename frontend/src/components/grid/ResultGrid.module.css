@@ -219,7 +219,6 @@
   border-left: 2px solid #dcdcaa;
 }
 
-
 .readOnlyBadge {
   display: inline-flex;
   align-items: center;
@@ -241,7 +240,6 @@
   border-radius: 2px;
   font-size: 11px;
 }
-
 
 .filterBar {
   display: flex;

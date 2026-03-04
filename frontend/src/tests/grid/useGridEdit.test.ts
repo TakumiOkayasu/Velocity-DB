@@ -204,9 +204,7 @@ describe('useGridEdit', () => {
     });
 
     it('resultSetがない場合、何もしない', () => {
-      const { result } = renderHook(() =>
-        useGridEdit({ ...baseOptions, resultSet: null })
-      );
+      const { result } = renderHook(() => useGridEdit({ ...baseOptions, resultSet: null }));
 
       act(() => {
         result.current.insertRow();

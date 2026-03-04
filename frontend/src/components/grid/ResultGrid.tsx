@@ -216,22 +216,21 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     [valueEditorState, updateCell]
   );
 
-  const { editingCell, editValue, setEditValue, startEdit, commitEdit } =
-    useGridKeyboard({
-      isEditMode,
-      selectedRows,
-      selectedColumn,
-      columns,
-      rowData,
-      tableContainerRef,
-      updateCell,
-      onDeleteRow: deleteRow,
-      onCloneRow: cloneRow,
-      onInsertRow: insertRow,
-      onApplyChanges: applyChanges,
-      onNavigateRelated: navigateRelated,
-      onOpenValueEditor: openValueEditor,
-    });
+  const { editingCell, editValue, setEditValue, startEdit, commitEdit } = useGridKeyboard({
+    isEditMode,
+    selectedRows,
+    selectedColumn,
+    columns,
+    rowData,
+    tableContainerRef,
+    updateCell,
+    onDeleteRow: deleteRow,
+    onCloneRow: cloneRow,
+    onInsertRow: insertRow,
+    onApplyChanges: applyChanges,
+    onNavigateRelated: navigateRelated,
+    onOpenValueEditor: openValueEditor,
+  });
 
   const table = useReactTable({
     data: rowData,
