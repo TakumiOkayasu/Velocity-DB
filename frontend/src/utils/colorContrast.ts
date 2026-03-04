@@ -47,6 +47,16 @@ export function readableColor(bgHex: string, preferred?: string): string {
   return relativeLuminance(bgHex) > 0.179 ? '#1e1e1e' : '#ffffff';
 }
 
+/** Blend a foreground color with a background using alpha (0-255) */
+export function blendWithBackground(fgHex: string, alpha: number, bgHex: string): string {
+  const fg = parseHex(fgHex);
+  const bg = parseHex(bgHex);
+  if (!fg || !bg) return bgHex;
+  const a = Math.max(0, Math.min(1, alpha / 255));
+  const blend = (f: number, b: number) => Math.round(f * a + b * (1 - a));
+  return `#${blend(fg[0], bg[0]).toString(16).padStart(2, '0')}${blend(fg[1], bg[1]).toString(16).padStart(2, '0')}${blend(fg[2], bg[2]).toString(16).padStart(2, '0')}`;
+}
+
 /** Convert hex color + alpha (0-255) to CSS rgba() string */
 export function hexToRgba(hex: string, alpha: number): string {
   const rgb = parseHex(hex);

@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { hexToRgba, readableColor } from '../../utils/colorContrast';
+import { blendWithBackground, hexToRgba, readableColor } from '../../utils/colorContrast';
 import styles from './ShapeNode.module.css';
 
 interface ShapeNodeData {
@@ -25,8 +25,11 @@ export const ShapeNode = memo(function ShapeNode({ data }: ShapeNodeProps) {
 
   const backgroundColor = fillColor ? hexToRgba(fillColor, fillAlpha) : 'transparent';
 
-  const effectiveBg = fillColor ?? CANVAS_BG;
-  const textColor = readableColor(effectiveBg, fontColor);
+  // fontColorが指定されていればそのまま使用（A5:SQL互換）
+  // 未指定の場合のみ、ブレンド後のeffectiveBgでauto計算
+  const textColor =
+    fontColor ??
+    readableColor(fillColor ? blendWithBackground(fillColor, fillAlpha, CANVAS_BG) : CANVAS_BG);
 
   return (
     <div

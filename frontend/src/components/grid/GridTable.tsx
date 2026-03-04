@@ -27,8 +27,10 @@ interface GridTableCallbacks {
   onSetEditValue: (value: string) => void;
   onStartEdit: (originalIndex: number, field: string, value: string | null) => void;
   onCommitEdit: () => void;
-  onRowClick: (rowIndex: number) => void;
+  onRowToggle: (rowIndex: number) => void;
+  onRowRangeSelect: (rowIndex: number) => void;
   onCellClick: (rowIndex: number, field: string) => void;
+  onColumnSelect: (columnId: string) => void;
   onUpdateCell?: (
     rowIndex: number,
     field: string,
@@ -85,18 +87,24 @@ function GridTableInner({
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id} className={styles.theadRow}>
               {headerGroup.headers.map((header) => {
-                const canSort = header.column.getCanSort();
                 const sortDirection = header.column.getIsSorted();
+                const isColumnSelected = selection.selectedColumn === header.column.id;
                 return (
                   <th
                     key={header.id}
-                    className={[styles.th, canSort && styles.sortable].filter(Boolean).join(' ')}
+                    className={[
+                      styles.th,
+                      styles.clickable,
+                      isColumnSelected && styles.selectedColumnHeader,
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
                     style={{
                       width: header.getSize(),
                       minWidth: header.column.columnDef.minSize,
                       maxWidth: header.column.columnDef.maxSize,
                     }}
-                    onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                    onClick={() => callbacks.onColumnSelect(header.column.id)}
                     onContextMenu={(e) => openHeaderMenu(e, header.column.id)}
                   >
                     <div className={styles.thContent}>
@@ -155,7 +163,11 @@ function GridTableInner({
               <tr
                 key={row.id}
                 className={rowClasses}
-                onClick={() => callbacks.onRowClick(rowIndex)}
+                onClick={(e) =>
+                  e.shiftKey
+                    ? callbacks.onRowRangeSelect(rowIndex)
+                    : callbacks.onRowToggle(rowIndex)
+                }
               >
                 {row.getVisibleCells().map((cell) => {
                   const value = cell.getValue();

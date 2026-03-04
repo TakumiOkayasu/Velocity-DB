@@ -15,6 +15,8 @@ interface UseGridKeyboardOptions {
   selectedColumn: string | null;
   columns: ColumnDef<RowData>[];
   rowData: RowData[];
+  /** ソート/フィルタ後のビュー順でrowを取得 */
+  getRowByViewIndex: (viewIndex: number) => RowData | undefined;
   tableContainerRef: React.RefObject<HTMLDivElement | null>;
   updateCell: (
     rowIndex: number,
@@ -47,6 +49,7 @@ export function useGridKeyboard({
   selectedColumn,
   columns,
   rowData,
+  getRowByViewIndex,
   tableContainerRef,
   updateCell,
   onDeleteRow,
@@ -64,6 +67,18 @@ export function useGridKeyboard({
     const selectedRowIndices = Array.from(selectedRows).sort((a, b) => a - b);
     if (selectedRowIndices.length === 0) return;
 
+    // 列選択モード: 選択列の値のみコピー（ソート/フィルタ後の表示順）
+    if (selectedColumn) {
+      const values = selectedRowIndices.map((viewIndex) => {
+        const row = getRowByViewIndex(viewIndex);
+        if (!row) return 'NULL';
+        const value = row[selectedColumn];
+        return value === null ? 'NULL' : value;
+      });
+      await copyToClipboard(values.join('\n'), `${values.length}件の値をコピーしました`);
+      return;
+    }
+
     const headerRow = columns.map((col) => String(col.header));
     const dataRows = selectedRowIndices.map((rowIndex) => {
       const row = rowData[rowIndex];
@@ -75,7 +90,7 @@ export function useGridKeyboard({
 
     const tsv = [headerRow, ...dataRows].map((row) => row.join('\t')).join('\n');
     await copyToClipboard(tsv, `${selectedRowIndices.length}行をコピーしました`);
-  }, [selectedRows, columns, rowData, copyToClipboard]);
+  }, [selectedRows, selectedColumn, columns, rowData, getRowByViewIndex, copyToClipboard]);
 
   const copySqlInsert = useCallback(async () => {
     const selectedRowIndices = Array.from(selectedRows).sort((a, b) => a - b);
