@@ -84,14 +84,16 @@ export function EditorTabs() {
       ),
     [connections]
   );
-  const { addQuery, removeQuery, setActive, reorderQuery } = useQueryActions();
+  const { addQuery, removeQuery, setActive, reorderQuery, openERDiagram } = useQueryActions();
   const activeQuery = queries.find((q) => q.id === activeQueryId);
   const activeQueryConnectionId = activeQuery?.connectionId ?? null;
 
   const tabsRef = useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const addMenuRef = useRef<HTMLDivElement>(null);
 
   // DnD state
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -127,18 +129,25 @@ export function EditorTabs() {
     checkOverflow();
   }, [queries.length, checkOverflow]);
 
-  // メニュー外クリックで閉じる
+  // メニュー外クリックで閉じる（各メニュー独立）
   useEffect(() => {
     if (!menuOpen) return;
-
-    const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
     };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
   }, [menuOpen]);
+
+  useEffect(() => {
+    if (!addMenuOpen) return;
+    const close = (e: MouseEvent) => {
+      if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node))
+        setAddMenuOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [addMenuOpen]);
 
   // --- DnD handlers ---
   const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
@@ -181,6 +190,18 @@ export function EditorTabs() {
     setDragIndex(null);
     setDropTarget(null);
   }, []);
+
+  const createERDiagram = useCallback(() => {
+    const existingNames = new Set(queries.filter((q) => q.isERDiagram).map((q) => q.name));
+    let idx = 1;
+    let name = 'ER図';
+    while (existingNames.has(name)) {
+      idx++;
+      name = `ER図 ${idx}`;
+    }
+    openERDiagram(name);
+    setAddMenuOpen(false);
+  }, [queries, openERDiagram]);
 
   return (
     <div className={styles.container}>
@@ -264,13 +285,33 @@ export function EditorTabs() {
           )}
         </div>
       )}
-      <button
-        className={styles.addButton}
-        onClick={() => addQuery(activeQueryConnectionId)}
-        title="新規クエリ (Ctrl+N)"
-      >
-        {PlusIcon}
-      </button>
+      <div className={styles.addMenuWrapper} ref={addMenuRef}>
+        <button
+          className={styles.addButton}
+          onClick={() => setAddMenuOpen((prev) => !prev)}
+          title="新規タブ (Ctrl+N)"
+        >
+          {PlusIcon}
+        </button>
+        {addMenuOpen && (
+          <div className={styles.overflowMenu}>
+            <button
+              className={styles.overflowMenuItem}
+              onClick={() => {
+                addQuery(activeQueryConnectionId);
+                setAddMenuOpen(false);
+              }}
+            >
+              {SqlIcon}
+              <span>新規クエリ</span>
+            </button>
+            <button className={styles.overflowMenuItem} onClick={createERDiagram}>
+              {ERDiagramIcon}
+              <span>新規ER図</span>
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

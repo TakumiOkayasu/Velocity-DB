@@ -224,6 +224,11 @@
   text-overflow: ellipsis;
 }
 
+/* Add menu dropdown */
+.addMenuWrapper {
+  position: relative;
+}
+
 /* Drag & Drop */
 .dragging {
   opacity: 0.4;
