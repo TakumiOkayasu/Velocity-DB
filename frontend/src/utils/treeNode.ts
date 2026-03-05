@@ -27,12 +27,17 @@ export function parseTableNodeId(
   return { schema: rest.slice(0, dotIdx), tableName: rest.slice(dotIdx + 1) };
 }
 
+export type ExpandableType = 'table' | 'view';
+
+const EXPANDABLE_TYPES: ReadonlySet<string> = new Set<ExpandableType>(['table', 'view']);
+
+export function isExpandableType(type: DatabaseObject['type']): type is ExpandableType {
+  return EXPANDABLE_TYPES.has(type);
+}
+
 /** カラム遅延読み込みの対象ノードか判定 */
 export function shouldLoadColumns(
   node: DatabaseObject
 ): node is DatabaseObject & { type: 'table' | 'view' } {
-  return (
-    (node.type === 'table' || node.type === 'view') &&
-    (!node.children || node.children.length === 0)
-  );
+  return isExpandableType(node.type) && (!node.children || node.children.length === 0);
 }

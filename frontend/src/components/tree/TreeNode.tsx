@@ -1,5 +1,6 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import type { DatabaseObject } from '../../types';
+import { type ExpandableType, isExpandableType } from '../../utils/treeNode';
 import styles from './TreeNode.module.css';
 
 interface TreeNodeProps {
@@ -10,7 +11,7 @@ interface TreeNodeProps {
   selectedNodeId?: string | null;
   connectionColor?: string;
   onToggle: (id: string, node: DatabaseObject) => void;
-  onTableOpen?: (nodeId: string, tableName: string, tableType: 'table' | 'view') => void;
+  onTableOpen?: (nodeId: string, tableName: string, tableType: ExpandableType) => void;
   onContextMenu?: (e: React.MouseEvent, node: DatabaseObject) => void;
 }
 
@@ -103,6 +104,9 @@ const getIcon = (
   }
 };
 
+const EXPANDER_VISIBLE = { visibility: 'visible' as const };
+const EXPANDER_HIDDEN = { visibility: 'hidden' as const };
+
 const getIconClass = (type: DatabaseObject['type'] | 'folder'): string => {
   switch (type) {
     case 'database':
@@ -130,14 +134,14 @@ export const TreeNode = memo(function TreeNode({
   onContextMenu,
 }: TreeNodeProps) {
   const hasChildren = node.children && node.children.length > 0;
-  const canExpand = hasChildren || node.type === 'table'; // Tables can lazy-load columns
+  const canExpand = hasChildren || isExpandableType(node.type);
   const isExpanded = expandedNodes.has(node.id);
   const isLoading = loadingNodes?.has(node.id);
   const isSelected = selectedNodeId === node.id;
 
   const handleClick = () => {
     // For tables/views, single click opens data; arrow click expands columns
-    if ((node.type === 'table' || node.type === 'view') && onTableOpen) {
+    if (isExpandableType(node.type) && onTableOpen) {
       onTableOpen(node.id, node.name, node.type);
     } else if (canExpand) {
       onToggle(node.id, node);
@@ -157,24 +161,23 @@ export const TreeNode = memo(function TreeNode({
     onContextMenu?.(e, node);
   };
 
-  const nodeClasses = [
-    styles.node,
-    isLoading ? styles.loading : '',
-    isSelected ? styles.selected : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const nodeClasses = `${styles.node}${isLoading ? ` ${styles.loading}` : ''}${isSelected ? ` ${styles.selected}` : ''}`;
+
+  const nodeStyle = useMemo(
+    () => ({
+      paddingLeft: `${level * 12 + 4}px`,
+      ...(node.type === 'database' && connColor
+        ? ({ '--connection-color': connColor } as React.CSSProperties)
+        : {}),
+    }),
+    [level, node.type, connColor]
+  );
 
   return (
     <div className={styles.container}>
       <div
         className={nodeClasses}
-        style={{
-          paddingLeft: `${level * 12 + 4}px`,
-          ...(node.type === 'database' && connColor
-            ? ({ '--connection-color': connColor } as React.CSSProperties)
-            : {}),
-        }}
+        style={nodeStyle}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
       >
@@ -183,7 +186,7 @@ export const TreeNode = memo(function TreeNode({
           onClick={handleExpanderClick}
           role="button"
           tabIndex={-1}
-          style={{ visibility: canExpand ? 'visible' : 'hidden' }}
+          style={canExpand ? EXPANDER_VISIBLE : EXPANDER_HIDDEN}
         >
           {isLoading ? Icons.loading : isExpanded ? Icons.chevronDown : Icons.chevronRight}
         </span>
