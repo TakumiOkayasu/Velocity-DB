@@ -89,6 +89,7 @@ export function useColumnActions({
       const schema = (node.metadata?.schema as string) ?? 'dbo';
       const tblName = (node.metadata?.tableName as string) ?? '';
       const isPK = Boolean(node.metadata?.isPrimaryKey);
+      const isView = node.metadata?.objectType === 'view';
       const missingMeta = !tblName;
 
       return [
@@ -108,14 +109,14 @@ export function useColumnActions({
         { label: '', action: () => {}, divider: true },
         {
           label: 'カラム名を変更',
-          disabled: isReadOnly || missingMeta,
+          disabled: isReadOnly || missingMeta || isView,
           action: () => {
             setColumnAction({ type: 'rename-input', colName, schema, tableName: tblName });
           },
         },
         {
           label: 'カラムを削除',
-          disabled: isReadOnly || isPK || missingMeta,
+          disabled: isReadOnly || isPK || missingMeta || isView,
           action: () => {
             const sql = buildDropColumnSql(schema, tblName, colName, dbType);
             setColumnAction({ type: 'drop-confirm', colName, schema, tableName: tblName, sql });

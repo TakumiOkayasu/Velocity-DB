@@ -6,7 +6,7 @@ import type { Connection, DatabaseObject, MenuItem } from '../../types';
 import { connectionColor } from '../../utils/colorContrast';
 import { log } from '../../utils/logger';
 import { buildSelectSql } from '../../utils/sqlIdentifier';
-import { parseTableNodeId, updateNodeChildren } from '../../utils/treeNode';
+import { parseTableNodeId, shouldLoadColumns, updateNodeChildren } from '../../utils/treeNode';
 import { InputDialog } from '../dialogs/InputDialog';
 import { QueryConfirmDialog } from '../dialogs/QueryConfirmDialog';
 import { ContextMenu } from './ContextMenu';
@@ -94,7 +94,11 @@ export function ConnectionTreeSection({
 
   // Load columns for a table
   const loadColumns = useCallback(
-    async (schemaName: string, tableName: string): Promise<DatabaseObject[]> => {
+    async (
+      schemaName: string,
+      tableName: string,
+      objectType: 'table' | 'view' = 'table'
+    ): Promise<DatabaseObject[]> => {
       try {
         log.debug(`[ConnectionTreeSection] Loading columns for table: ${tableName}`);
         const columns = await bridge.getColumns(connection.id, tableName);
@@ -110,6 +114,7 @@ export function ConnectionTreeSection({
               isPrimaryKey: col.isPrimaryKey,
               nullable: col.nullable,
               columnType: col.type,
+              objectType,
             },
           };
         });
@@ -190,15 +195,15 @@ export function ConnectionTreeSection({
         return next;
       });
 
-      // Lazy load columns when expanding a table
-      if (isExpanding && node.type === 'table' && (!node.children || node.children.length === 0)) {
+      // Lazy load columns when expanding a table or view
+      if (isExpanding && shouldLoadColumns(node)) {
         setLoadingNodes((prev) => new Set(prev).add(id));
 
         // Extract schema and table name from structured node ID (W4)
         const parsed = parseTableNodeId(id, connection.id);
         const schemaName = parsed?.schema ?? 'dbo';
         const tableName = parsed?.tableName ?? node.name;
-        const columns = await loadColumns(schemaName, tableName);
+        const columns = await loadColumns(schemaName, tableName, node.type);
 
         // Update tree data with shared helper (W2)
         setTreeData((prev) => updateNodeChildren(prev, id, columns));
