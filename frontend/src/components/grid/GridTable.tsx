@@ -1,7 +1,7 @@
 import { flexRender, type Row, type Table } from '@tanstack/react-table';
 import type { VirtualItem } from '@tanstack/react-virtual';
 import { memo, type RefObject } from 'react';
-import type { ColumnMeta, RowData } from '../../types/grid';
+import { type ColumnMeta, isSystemColumn, type RowData } from '../../types/grid';
 import { ContextMenu } from '../common/ContextMenu';
 import { useGridContextMenu } from './hooks/useGridContextMenu';
 import styles from './ResultGrid.module.css';
@@ -20,7 +20,7 @@ export interface GridEditContext {
 
 export interface GridSelectionState {
   selectedRows: Set<number>;
-  selectedColumn: string | null;
+  selectedColumns: Set<string>;
 }
 
 interface GridTableCallbacks {
@@ -30,7 +30,9 @@ interface GridTableCallbacks {
   onRowToggle: (rowIndex: number) => void;
   onRowRangeSelect: (rowIndex: number) => void;
   onCellClick: (rowIndex: number, field: string) => void;
+  onCellRangeSelect: (rowIndex: number, field: string) => void;
   onColumnSelect: (columnId: string) => void;
+  onColumnRangeSelect: (columnId: string) => void;
   onUpdateCell?: (
     rowIndex: number,
     field: string,
@@ -88,7 +90,7 @@ function GridTableInner({
             <tr key={headerGroup.id} className={styles.theadRow}>
               {headerGroup.headers.map((header) => {
                 const sortDirection = header.column.getIsSorted();
-                const isColumnSelected = selection.selectedColumn === header.column.id;
+                const isColumnSelected = selection.selectedColumns.has(header.column.id);
                 return (
                   <th
                     key={header.id}
@@ -104,7 +106,11 @@ function GridTableInner({
                       minWidth: header.column.columnDef.minSize,
                       maxWidth: header.column.columnDef.maxSize,
                     }}
-                    onClick={() => callbacks.onColumnSelect(header.column.id)}
+                    onClick={(e) =>
+                      e.shiftKey
+                        ? callbacks.onColumnRangeSelect(header.column.id)
+                        : callbacks.onColumnSelect(header.column.id)
+                    }
                     onContextMenu={(e) => openHeaderMenu(e, header.column.id)}
                   >
                     <div className={styles.thContent}>
@@ -172,20 +178,19 @@ function GridTableInner({
                 {row.getVisibleCells().map((cell) => {
                   const value = cell.getValue();
                   const field = cell.column.id;
-                  const change =
-                    field !== '__rowIndex' && field !== '__originalIndex'
-                      ? edit.getCellChange(originalIndex, field)
-                      : null;
+                  const change = !isSystemColumn(field)
+                    ? edit.getCellChange(originalIndex, field)
+                    : null;
                   const isChanged = change !== null;
                   const isNull = value === null;
                   const align = (cell.column.columnDef.meta as { align?: string })?.align ?? 'left';
                   const isEditing =
                     edit.editingCell?.rowIndex === originalIndex &&
                     edit.editingCell?.columnId === field;
-                  const isEditable =
-                    edit.isEditMode && field !== '__rowIndex' && field !== '__originalIndex';
+                  const isEditable = edit.isEditMode && !isSystemColumn(field);
                   const isFk = edit.isForeignKeyColumn(field);
-                  const isCellSelected = isSelected && selection.selectedColumn === field;
+                  const isCellSelected =
+                    isSelected && selection.selectedColumns.has(field) && !isSystemColumn(field);
 
                   const cellClasses = [
                     styles.td,
@@ -207,7 +212,15 @@ function GridTableInner({
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        callbacks.onCellClick(rowIndex, field);
+                        if (isSystemColumn(field)) {
+                          e.shiftKey
+                            ? callbacks.onRowRangeSelect(rowIndex)
+                            : callbacks.onRowToggle(rowIndex);
+                          return;
+                        }
+                        e.shiftKey
+                          ? callbacks.onCellRangeSelect(rowIndex, field)
+                          : callbacks.onCellClick(rowIndex, field);
                       }}
                       onContextMenu={(e) => openCellMenu(e, rowIndex, field)}
                       onDoubleClick={() => {

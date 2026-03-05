@@ -5,6 +5,10 @@
 /** 行データの型（カラム名→値のマッピング） */
 export type RowData = Record<string, string | null>;
 
+/** システム列（行番号・内部インデックス）かどうかを判定 */
+export const isSystemColumn = (field: string): boolean =>
+  field === '__rowIndex' || field === '__originalIndex';
+
 /** カラムメタデータ（コンテキストメニュー等で使用） */
 export interface ColumnMeta {
   name: string;

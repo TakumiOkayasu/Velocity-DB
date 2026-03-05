@@ -22,7 +22,7 @@ import {
 } from '../../store/queryStore';
 import { useSessionStore } from '../../store/sessionStore';
 import type { ResultSet } from '../../types';
-import { type ColumnMeta, isNumericType, type RowData } from '../../types/grid';
+import { type ColumnMeta, isNumericType, isSystemColumn, type RowData } from '../../types/grid';
 import { log } from '../../utils/logger';
 import { ExportDialog } from '../export/ExportDialog';
 import { GridFilterBar } from './GridFilterBar';
@@ -67,9 +67,11 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   const [whereClause, setWhereClause] = useState('');
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
-  const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
+  const [selectedColumns, setSelectedColumns] = useState<Set<string>>(new Set());
   const lastClickedRowRef = useRef<number | null>(null);
+  const lastClickedColumnRef = useRef<string | null>(null);
   const rowsLengthRef = useRef(0);
+  const columnOrderRef = useRef<string[]>([]);
   const viewRowsRef = useRef<Row<RowData>[]>([]);
   const [activeResultIndex, setActiveResultIndex] = useState(0);
   const [valueEditorState, setValueEditorState] = useState<{
@@ -228,7 +230,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   const { editingCell, editValue, setEditValue, startEdit, commitEdit } = useGridKeyboard({
     isEditMode,
     selectedRows,
-    selectedColumn,
+    selectedColumns,
     columns,
     rowData,
     getRowByViewIndex,
@@ -261,6 +263,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
 
   const { rows } = table.getRowModel();
   rowsLengthRef.current = rows.length;
+  columnOrderRef.current = table.getAllLeafColumns().map((c) => c.id);
   viewRowsRef.current = rows;
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
@@ -294,8 +297,8 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   );
 
   const gridSelectionState = useMemo(
-    () => ({ selectedRows, selectedColumn }),
-    [selectedRows, selectedColumn]
+    () => ({ selectedRows, selectedColumns }),
+    [selectedRows, selectedColumns]
   );
 
   // --- Callbacks for sub-components ---
@@ -307,7 +310,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
       return next;
     });
     lastClickedRowRef.current = rowIndex;
-    setSelectedColumn(null);
+    setSelectedColumns(new Set());
   }, []);
 
   const rangeSelectRow = useCallback((rowIndex: number) => {
@@ -317,22 +320,68 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     const range = new Set<number>();
     for (let i = start; i <= end; i++) range.add(i);
     setSelectedRows(range);
-    setSelectedColumn(null);
+    setSelectedColumns(new Set());
   }, []);
 
   const selectCell = useCallback((rowIndex: number, field: string) => {
+    if (isSystemColumn(field)) return;
     setSelectedRows(new Set([rowIndex]));
-    setSelectedColumn(field);
+    setSelectedColumns(new Set([field]));
     lastClickedRowRef.current = rowIndex;
+    lastClickedColumnRef.current = field;
   }, []);
 
-  const selectColumn = useCallback((columnId: string) => {
-    setSelectedColumn(columnId);
-    const allRows = new Set<number>();
-    for (let i = 0; i < rowsLengthRef.current; i++) allRows.add(i);
-    setSelectedRows(allRows);
-    lastClickedRowRef.current = null;
+  const rangeCellSelect = useCallback(
+    (rowIndex: number, field: string) => {
+      if (isSystemColumn(field)) return;
+      if (lastClickedRowRef.current === null || lastClickedColumnRef.current !== field) {
+        selectCell(rowIndex, field);
+        return;
+      }
+      const start = Math.min(lastClickedRowRef.current, rowIndex);
+      const end = Math.max(lastClickedRowRef.current, rowIndex);
+      const range = new Set<number>();
+      for (let i = start; i <= end; i++) range.add(i);
+      setSelectedRows(range);
+      setSelectedColumns(new Set([field]));
+    },
+    [selectCell]
+  );
+
+  const selectAllRows = useCallback(() => {
+    const count = rowsLengthRef.current;
+    setSelectedRows((prev) => {
+      if (prev.size === count) return prev;
+      const allRows = new Set<number>();
+      for (let i = 0; i < count; i++) allRows.add(i);
+      return allRows;
+    });
   }, []);
+
+  const selectColumn = useCallback(
+    (columnId: string) => {
+      setSelectedColumns(new Set([columnId]));
+      selectAllRows();
+      lastClickedRowRef.current = null;
+      lastClickedColumnRef.current = columnId;
+    },
+    [selectAllRows]
+  );
+
+  const rangeSelectColumn = useCallback(
+    (columnId: string) => {
+      if (!lastClickedColumnRef.current) return;
+      const allColumnIds = columnOrderRef.current;
+      const startIdx = allColumnIds.indexOf(lastClickedColumnRef.current);
+      const endIdx = allColumnIds.indexOf(columnId);
+      if (startIdx === -1 || endIdx === -1) return;
+      const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+      setSelectedColumns(new Set(allColumnIds.slice(from, to + 1)));
+      selectAllRows();
+      lastClickedRowRef.current = null;
+    },
+    [selectAllRows]
+  );
 
   const gridCallbacks = useMemo(
     () => ({
@@ -342,7 +391,9 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
       onRowToggle: toggleRow,
       onRowRangeSelect: rangeSelectRow,
       onCellClick: selectCell,
+      onCellRangeSelect: rangeCellSelect,
       onColumnSelect: selectColumn,
+      onColumnRangeSelect: rangeSelectColumn,
       onUpdateCell: updateCell,
     }),
     [
@@ -352,7 +403,9 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
       toggleRow,
       rangeSelectRow,
       selectCell,
+      rangeCellSelect,
       selectColumn,
+      rangeSelectColumn,
       updateCell,
     ]
   );
