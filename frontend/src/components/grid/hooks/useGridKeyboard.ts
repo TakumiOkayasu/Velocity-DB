@@ -2,7 +2,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { useCallback, useState } from 'react';
 import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard';
 import { useKeyboardHandler } from '../../../hooks/useKeyboardHandler';
-import type { RowData } from '../../../types/grid';
+import { isSystemColumn, type RowData } from '../../../types/grid';
 
 interface EditingCell {
   rowIndex: number;
@@ -12,7 +12,7 @@ interface EditingCell {
 interface UseGridKeyboardOptions {
   isEditMode: boolean;
   selectedRows: Set<number>;
-  selectedColumn: string | null;
+  selectedColumns: Set<string>;
   columns: ColumnDef<RowData>[];
   rowData: RowData[];
   /** ソート/フィルタ後のビュー順でrowを取得 */
@@ -46,7 +46,7 @@ interface UseGridKeyboardResult {
 export function useGridKeyboard({
   isEditMode,
   selectedRows,
-  selectedColumn,
+  selectedColumns,
   columns,
   rowData,
   getRowByViewIndex,
@@ -68,47 +68,73 @@ export function useGridKeyboard({
     if (selectedRowIndices.length === 0) return;
 
     // 列選択モード: 選択列の値のみコピー（ソート/フィルタ後の表示順）
-    if (selectedColumn) {
-      const values = selectedRowIndices.map((viewIndex) => {
-        const row = getRowByViewIndex(viewIndex);
-        if (!row) return 'NULL';
-        const value = row[selectedColumn];
-        return value === null ? 'NULL' : value;
-      });
-      await copyToClipboard(values.join('\n'), `${values.length}件の値をコピーしました`);
-      return;
+    if (selectedColumns.size > 0) {
+      const allColumnIds = columns.map((c) => String(c.id));
+      const cols = allColumnIds.filter((id) => selectedColumns.has(id));
+      if (cols.length === 1) {
+        const col = cols[0];
+        const values = selectedRowIndices.map((viewIndex) => {
+          const row = getRowByViewIndex(viewIndex);
+          if (!row) return 'NULL';
+          const value = row[col];
+          return value === null ? 'NULL' : value;
+        });
+        await copyToClipboard(values.join('\n'), `${values.length}件の値をコピーしました`);
+        return;
+      }
+      if (cols.length > 1) {
+        const headerMap = new Map(columns.map((c) => [String(c.id), String(c.header ?? c.id)]));
+        const headerRow = cols.map((col) => headerMap.get(col) ?? col);
+        const dataRows = selectedRowIndices.map((viewIndex) => {
+          const row = getRowByViewIndex(viewIndex);
+          return cols.map((col) => {
+            const value = row?.[col] ?? null;
+            return value === null ? 'NULL' : value;
+          });
+        });
+        const tsv = [headerRow.join('\t'), ...dataRows.map((r) => r.join('\t'))].join('\n');
+        await copyToClipboard(
+          tsv,
+          `${cols.length}列 × ${selectedRowIndices.length}行をコピーしました`
+        );
+        return;
+      }
+      // cols.length === 0: selectedColumns にデータ列が含まれない → 全列コピーにフォールバック
     }
 
     const headerRow = columns.map((col) => String(col.header));
-    const dataRows = selectedRowIndices.map((rowIndex) => {
-      const row = rowData[rowIndex];
+    const dataRows = selectedRowIndices.map((viewIndex) => {
+      const row = getRowByViewIndex(viewIndex);
       return columns.map((col) => {
-        const value = row[String(col.id)];
+        const value = row?.[String(col.id)] ?? null;
         return value === null ? 'NULL' : value;
       });
     });
 
     const tsv = [headerRow, ...dataRows].map((row) => row.join('\t')).join('\n');
     await copyToClipboard(tsv, `${selectedRowIndices.length}行をコピーしました`);
-  }, [selectedRows, selectedColumn, columns, rowData, getRowByViewIndex, copyToClipboard]);
+  }, [selectedRows, selectedColumns, columns, getRowByViewIndex, copyToClipboard]);
 
   const copySqlInsert = useCallback(async () => {
     const selectedRowIndices = Array.from(selectedRows).sort((a, b) => a - b);
     if (selectedRowIndices.length === 0) return;
 
     const colNames = columns.map((col) => String(col.id));
-    const statements = selectedRowIndices.map((rowIndex) => {
-      const row = rowData[rowIndex];
-      const values = colNames.map((colName) => {
-        const value = row[colName];
-        if (value === null) return 'NULL';
-        return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "''")}'`;
-      });
-      return `INSERT INTO table_name (${colNames.join(', ')}) VALUES (${values.join(', ')});`;
-    });
+    const statements = selectedRowIndices
+      .map((viewIndex) => {
+        const row = getRowByViewIndex(viewIndex);
+        if (!row) return '';
+        const values = colNames.map((colName) => {
+          const value = row[colName];
+          if (value === null) return 'NULL';
+          return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "''")}'`;
+        });
+        return `INSERT INTO table_name (${colNames.join(', ')}) VALUES (${values.join(', ')});`;
+      })
+      .filter(Boolean);
 
     await copyToClipboard(statements.join('\n'), 'SQL INSERTをコピーしました');
-  }, [selectedRows, columns, rowData, copyToClipboard]);
+  }, [selectedRows, columns, getRowByViewIndex, copyToClipboard]);
 
   const pasteFromClipboard = useCallback(async () => {
     if (!isEditMode) return;
@@ -142,7 +168,7 @@ export function useGridKeyboard({
 
   const startEdit = useCallback(
     (rowIndex: number, columnId: string, currentValue: string | null) => {
-      if (!isEditMode || columnId === '__rowIndex') return;
+      if (!isEditMode || isSystemColumn(columnId)) return;
       setEditingCell({ rowIndex, columnId });
       setEditValue(currentValue ?? '');
     },
@@ -170,13 +196,14 @@ export function useGridKeyboard({
   }, []);
 
   const setNull = useCallback(() => {
-    if (!isEditMode || selectedRows.size !== 1 || !selectedColumn) return;
+    if (!isEditMode || selectedRows.size !== 1 || selectedColumns.size !== 1) return;
     const rowIndex = Array.from(selectedRows)[0];
-    const oldValue = rowData[rowIndex][selectedColumn];
+    const col = Array.from(selectedColumns)[0];
+    const oldValue = rowData[rowIndex][col];
     if (oldValue !== null) {
-      updateCell(rowIndex, selectedColumn, oldValue, null);
+      updateCell(rowIndex, col, oldValue, null);
     }
-  }, [isEditMode, selectedRows, selectedColumn, rowData, updateCell]);
+  }, [isEditMode, selectedRows, selectedColumns, rowData, updateCell]);
 
   // Keyboard shortcuts
   useKeyboardHandler((e: KeyboardEvent) => {
@@ -229,10 +256,11 @@ export function useGridKeyboard({
     } else if (e.key === 'F2' && isEditMode && selectedRows.size === 1) {
       e.preventDefault();
       const rowIndex = Array.from(selectedRows)[0];
+      const firstCol = selectedColumns.size === 1 ? Array.from(selectedColumns)[0] : undefined;
       const columnId =
-        selectedColumn && selectedColumn !== '__rowIndex'
-          ? selectedColumn
-          : String(columns.find((col) => col.id !== '__rowIndex')?.id ?? '');
+        firstCol && !isSystemColumn(firstCol)
+          ? firstCol
+          : String(columns.find((col) => !isSystemColumn(String(col.id)))?.id ?? '');
       if (columnId) {
         const currentValue = rowData[rowIndex][columnId];
         startEdit(rowIndex, columnId, currentValue);
@@ -241,23 +269,25 @@ export function useGridKeyboard({
       // Clone row (Ctrl+D)
       e.preventDefault();
       onCloneRow();
-    } else if (e.key === 'F4' && selectedRows.size === 1 && selectedColumn) {
+    } else if (e.key === 'F4' && selectedRows.size === 1 && selectedColumns.size === 1) {
       // Navigate to related row (F4)
       e.preventDefault();
       const rowIndex = Array.from(selectedRows)[0];
-      onNavigateRelated?.(rowIndex, selectedColumn);
+      const col = Array.from(selectedColumns)[0];
+      onNavigateRelated?.(rowIndex, col);
     } else if (
       e.shiftKey &&
       e.key === 'Enter' &&
       isEditMode &&
       selectedRows.size === 1 &&
-      selectedColumn
+      selectedColumns.size === 1
     ) {
       // Open value editor (Shift+Enter)
       e.preventDefault();
       const rowIndex = Array.from(selectedRows)[0];
-      const currentValue = rowData[rowIndex][selectedColumn];
-      onOpenValueEditor?.(rowIndex, selectedColumn, currentValue);
+      const col = Array.from(selectedColumns)[0];
+      const currentValue = rowData[rowIndex][col];
+      onOpenValueEditor?.(rowIndex, col, currentValue);
     }
   }, tableContainerRef);
 
