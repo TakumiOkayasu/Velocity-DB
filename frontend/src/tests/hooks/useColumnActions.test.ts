@@ -13,8 +13,18 @@ vi.mock('../../utils/logger', () => ({
   log: { info: vi.fn(), debug: vi.fn(), error: vi.fn(), warn: vi.fn() },
 }));
 
-import { renderHook } from '@testing-library/react';
+// Partial mock: fetchViewDefinition だけをモック (他は実装を維持)
+vi.mock('../../utils/sqlIdentifier', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('../../utils/sqlIdentifier')>();
+  return {
+    ...orig,
+    fetchViewDefinition: vi.fn().mockResolvedValue(''),
+  };
+});
+
+import { act, renderHook } from '@testing-library/react';
 import { useColumnActions } from '../../hooks/useColumnActions';
+import { fetchViewDefinition } from '../../utils/sqlIdentifier';
 
 function makeColumnNode(overrides: Partial<DatabaseObject> = {}): DatabaseObject {
   return {
@@ -93,12 +103,12 @@ describe('useColumnActions', () => {
       expect(where?.disabled).toBeFalsy();
     });
 
-    it('リネームが無効', () => {
+    it('リネームが有効 (ALTER VIEWで定義書き換え)', () => {
       const { result } = renderHook(() => useColumnActions(createParams()));
       const items = result.current.getColumnMenuItems(makeViewColumnNode());
       const rename = items.find((i) => i.label === 'カラム名を変更');
 
-      expect(rename?.disabled).toBe(true);
+      expect(rename?.disabled).toBeFalsy();
     });
 
     it('削除が無効', () => {
@@ -107,6 +117,28 @@ describe('useColumnActions', () => {
       const drop = items.find((i) => i.label === 'カラムを削除');
 
       expect(drop?.disabled).toBe(true);
+    });
+
+    it('fetchViewDefinition が throw した場合 onDdlError に委譲', async () => {
+      const networkError = new Error('Network failure');
+      vi.mocked(fetchViewDefinition).mockRejectedValueOnce(networkError);
+
+      const onDdlError = vi.fn();
+      const params = { ...createParams(), onDdlError };
+      const { result } = renderHook(() => useColumnActions(params));
+
+      // Set rename-input state for a view column
+      const items = result.current.getColumnMenuItems(makeViewColumnNode());
+      const rename = items.find((i) => i.label === 'カラム名を変更');
+      await act(() => rename?.action());
+
+      expect(result.current.columnAction?.type).toBe('rename-input');
+
+      // handleRenameInput should catch the error
+      await act(() => result.current.handleRenameInput('new_name'));
+
+      expect(onDdlError).toHaveBeenCalledWith(networkError);
+      expect(result.current.columnAction).toBeNull();
     });
   });
 });
