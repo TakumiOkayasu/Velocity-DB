@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { bridge } from '../../api/bridge';
 import { useConnectionActions, useConnectionStore } from '../../store/connectionStore';
+import type { ExpandableType } from '../../utils/treeNode';
 import { ConnectionTreeSection } from './ConnectionTreeSection';
 import styles from './ObjectTree.module.css';
 
@@ -29,7 +30,7 @@ interface SavedProfile {
 
 interface ObjectTreeProps {
   filter: string;
-  onTableOpen?: (tableName: string, tableType: 'table' | 'view', connectionId?: string) => void;
+  onTableOpen?: (tableName: string, tableType: ExpandableType, connectionId?: string) => void;
 }
 
 export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {

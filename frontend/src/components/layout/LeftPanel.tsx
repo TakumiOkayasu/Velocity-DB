@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useConnectionStore } from '../../store/connectionStore';
 import { useQueryActions } from '../../store/queryStore';
+import type { ExpandableType } from '../../utils/treeNode';
 import { ObjectTree } from '../tree/ObjectTree';
 import styles from './LeftPanel.module.css';
 
@@ -29,7 +30,7 @@ export function LeftPanel({ width }: LeftPanelProps) {
   const { openTableData } = useQueryActions();
 
   const handleTableOpen = useCallback(
-    (tableName: string, _tableType: 'table' | 'view', connectionId?: string) => {
+    (tableName: string, _tableType: ExpandableType, connectionId?: string) => {
       // Use the provided connectionId (from the clicked table) or fall back to activeConnectionId
       const targetConnectionId = connectionId || activeConnectionId;
       if (targetConnectionId) {

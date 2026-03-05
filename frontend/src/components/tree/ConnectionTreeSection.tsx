@@ -6,7 +6,12 @@ import type { Connection, DatabaseObject, MenuItem } from '../../types';
 import { connectionColor } from '../../utils/colorContrast';
 import { log } from '../../utils/logger';
 import { buildSelectSql } from '../../utils/sqlIdentifier';
-import { parseTableNodeId, shouldLoadColumns, updateNodeChildren } from '../../utils/treeNode';
+import {
+  type ExpandableType,
+  parseTableNodeId,
+  shouldLoadColumns,
+  updateNodeChildren,
+} from '../../utils/treeNode';
 import { InputDialog } from '../dialogs/InputDialog';
 import { QueryConfirmDialog } from '../dialogs/QueryConfirmDialog';
 import { ContextMenu } from './ContextMenu';
@@ -16,7 +21,7 @@ import { TreeNode } from './TreeNode';
 interface ConnectionTreeSectionProps {
   connection: Connection;
   filter: string;
-  onTableOpen?: (tableName: string, tableType: 'table' | 'view', connectionId?: string) => void;
+  onTableOpen?: (tableName: string, tableType: ExpandableType, connectionId?: string) => void;
 }
 
 export function ConnectionTreeSection({
@@ -262,7 +267,7 @@ export function ConnectionTreeSection({
   const filteredData = filterTree(treeData);
 
   const handleTableOpen = useCallback(
-    (nodeId: string, tableName: string, tableType: 'table' | 'view') => {
+    (nodeId: string, tableName: string, tableType: ExpandableType) => {
       setSelectedNodeId(nodeId);
       if (onTableOpen) {
         // Pass the connection ID along with table info
@@ -299,7 +304,7 @@ export function ConnectionTreeSection({
           label: 'データを開く',
           action: () => {
             if (onTableOpen) {
-              onTableOpen(node.name, node.type as 'table' | 'view', connection.id);
+              onTableOpen(node.name, node.type as ExpandableType, connection.id);
             }
           },
         });
