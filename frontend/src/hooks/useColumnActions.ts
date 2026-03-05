@@ -2,7 +2,13 @@ import { useCallback, useState } from 'react';
 import { bridge } from '../api/bridge';
 import type { DatabaseObject, DatabaseType, MenuItem } from '../types';
 import { log } from '../utils/logger';
-import { buildDropColumnSql, buildRenameColumnSql, quoteIdentifier } from '../utils/sqlIdentifier';
+import {
+  buildAlterViewSql,
+  buildDropColumnSql,
+  buildRenameColumnSql,
+  fetchViewDefinition,
+  quoteIdentifier,
+} from '../utils/sqlIdentifier';
 import { updateNodeChildren } from '../utils/treeNode';
 
 // --- Discriminated union for dialog state ---
@@ -12,6 +18,7 @@ interface RenameInput {
   colName: string;
   schema: string;
   tableName: string;
+  isView: boolean;
 }
 
 interface RenameConfirm {
@@ -109,9 +116,9 @@ export function useColumnActions({
         { label: '', action: () => {}, divider: true },
         {
           label: 'カラム名を変更',
-          disabled: isReadOnly || missingMeta || isView,
+          disabled: isReadOnly || missingMeta,
           action: () => {
-            setColumnAction({ type: 'rename-input', colName, schema, tableName: tblName });
+            setColumnAction({ type: 'rename-input', colName, schema, tableName: tblName, isView });
           },
         },
         {
@@ -129,23 +136,31 @@ export function useColumnActions({
 
   // Dialog event handlers
   const handleRenameInput = useCallback(
-    (newName: string) => {
+    async (newName: string) => {
       if (columnAction?.type !== 'rename-input') return;
-      const sql = buildRenameColumnSql(
-        columnAction.schema,
-        columnAction.tableName,
-        columnAction.colName,
-        newName,
-        dbType
-      );
-      setColumnAction({
-        type: 'rename-confirm',
-        sql,
-        schema: columnAction.schema,
-        tableName: columnAction.tableName,
-      });
+      const { schema, tableName, colName, isView } = columnAction;
+
+      try {
+        let sql: string;
+        if (isView) {
+          const viewDef = await fetchViewDefinition(connectionId, schema, tableName, dbType);
+          if (!viewDef) {
+            onDdlError?.(new Error('ビュー定義を取得できませんでした'));
+            setColumnAction(null);
+            return;
+          }
+          sql = buildAlterViewSql(viewDef, colName, newName, dbType);
+        } else {
+          sql = buildRenameColumnSql(schema, tableName, colName, newName, dbType);
+        }
+
+        setColumnAction({ type: 'rename-confirm', sql, schema, tableName });
+      } catch (error) {
+        onDdlError?.(error);
+        setColumnAction(null);
+      }
     },
-    [columnAction, dbType]
+    [columnAction, connectionId, dbType, onDdlError]
   );
 
   const handleRenameConfirm = useCallback(async () => {
