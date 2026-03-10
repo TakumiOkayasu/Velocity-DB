@@ -18,12 +18,12 @@
 }
 
 .resultTab {
-  padding: 4px 12px;
+  padding: 5px 14px;
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 4px 4px 0 0;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   font-family: var(--font-mono);
   cursor: pointer;
   white-space: nowrap;
@@ -54,26 +54,35 @@
 
 .message {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100%;
-  gap: 8px;
+  gap: 10px;
   color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.messageRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .cancelButton {
-  margin-left: 12px;
-  padding: 4px 12px;
-  border: 1px solid var(--border-color);
+  margin-top: 4px;
+  padding: 6px 20px;
+  border: 1px solid var(--error-color);
   border-radius: 4px;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
+  background: rgba(247, 84, 100, 0.15);
+  color: var(--error-color);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .cancelButton:hover {
-  background: var(--bg-hover);
+  background: rgba(247, 84, 100, 0.3);
 }
 
 .elapsedTime {
@@ -85,7 +94,7 @@
 .elapsedWarning {
   font-variant-numeric: tabular-nums;
   font-size: 13px;
-  color: #e2b340;
+  color: var(--warning-color);
   font-weight: 600;
 }
 
@@ -109,18 +118,18 @@
 .statusBar {
   display: flex;
   gap: 8px;
-  padding: 4px 12px;
+  padding: 5px 12px;
   background-color: var(--bg-tertiary);
   border-top: 1px solid var(--border-color);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-secondary);
   flex-shrink: 0;
 }
 
 .nullCell {
-  color: #888;
+  color: var(--text-disabled);
   font-style: italic;
-  background-color: rgba(128, 128, 128, 0.1);
+  background-color: rgba(128, 128, 128, 0.08);
 }
 
 .toolbar {
@@ -138,7 +147,7 @@
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-primary);
   cursor: pointer;
   user-select: none;
@@ -156,12 +165,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: 5px;
   color: var(--text-primary);
   font-size: 14px;
   cursor: pointer;
@@ -170,6 +179,7 @@
 
 .iconButton:hover:not(:disabled) {
   background-color: var(--bg-hover);
+  border-color: var(--accent-color);
 }
 
 .iconButton:disabled {
@@ -183,12 +193,13 @@
 }
 
 .saveButton {
-  background-color: #2d5a27;
-  border-color: #3d7a37;
+  background-color: var(--execute-button-bg);
+  border-color: var(--execute-button-hover);
+  color: var(--text-primary);
 }
 
 .saveButton:hover:not(:disabled) {
-  background-color: #3d7a37;
+  background-color: var(--execute-button-hover);
 }
 
 .toolbarSeparator {
@@ -200,13 +211,13 @@
 }
 
 .changesIndicator {
-  color: #dcdcaa;
-  font-size: 11px;
+  color: var(--warning-color);
+  font-size: 12px;
 }
 
 .errorIndicator {
-  color: #f44747;
-  font-size: 11px;
+  color: var(--error-color);
+  font-size: 12px;
   margin-left: 8px;
 }
 
@@ -215,67 +226,71 @@
 }
 
 .changedCell {
-  background-color: rgba(220, 220, 170, 0.2);
-  border-left: 2px solid #dcdcaa;
+  background-color: rgba(232, 168, 56, 0.15);
+  border-left: 2px solid var(--warning-color);
 }
 
 .readOnlyBadge {
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  background-color: rgba(86, 156, 214, 0.2);
-  border: 1px solid rgba(86, 156, 214, 0.4);
-  border-radius: 3px;
-  color: #569cd6;
-  font-size: 11px;
+  background-color: rgba(108, 176, 246, 0.15);
+  border: 1px solid rgba(108, 176, 246, 0.3);
+  border-radius: 4px;
+  color: var(--info-color);
+  font-size: 12px;
   font-weight: 600;
 }
 
 .readOnlyIndicator {
-  color: #569cd6;
+  color: var(--info-color);
   font-weight: bold;
   margin-left: auto;
   padding: 2px 8px;
-  background-color: rgba(86, 156, 214, 0.2);
-  border-radius: 2px;
-  font-size: 11px;
+  background-color: rgba(108, 176, 246, 0.15);
+  border-radius: 4px;
+  font-size: 12px;
 }
 
 .filterBar {
   display: flex;
   gap: 8px;
-  padding: 4px 8px;
-  background-color: var(--bg-tertiary);
+  padding: 5px 8px;
+  background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   align-items: center;
   flex-shrink: 0;
 }
 
 .filterLabel {
-  color: var(--text-secondary);
-  font-size: 12px;
+  color: var(--info-color);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-mono);
   white-space: nowrap;
+  letter-spacing: 0.5px;
 }
 
 .filterInput {
   flex: 1;
-  padding: 4px 8px;
-  background-color: var(--bg-secondary);
+  padding: 5px 10px;
+  background-color: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 4px;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: 13px;
   font-family: var(--font-mono);
+  transition: border-color 0.15s ease;
 }
 
 .filterInput:focus {
   outline: none;
   border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(74, 136, 199, 0.15);
 }
 
 .filterInput::placeholder {
-  color: var(--text-secondary);
-  opacity: 0.6;
+  color: var(--text-disabled);
 }
 
 .loadingOverlay {
@@ -312,7 +327,7 @@
 .table {
   width: max-content;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 14px;
   font-family: var(--font-mono);
 }
 
@@ -321,6 +336,7 @@
   top: 0;
   z-index: 10;
   background-color: var(--bg-tertiary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .theadRow {
@@ -337,6 +353,17 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  position: relative;
+}
+
+.th::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 25%;
+  height: 50%;
+  width: 3px;
+  cursor: col-resize;
 }
 
 .th:last-child {
@@ -376,7 +403,10 @@
 .tbodyRow {
   border-bottom: 1px solid var(--border-color);
   cursor: pointer;
-  transition: background-color 0.1s ease;
+}
+
+.tbodyRow:nth-child(even) {
+  background-color: var(--bg-zebra);
 }
 
 .tbodyRow:hover {
@@ -388,9 +418,9 @@
 }
 
 .tbodyRow.deleted {
-  background-color: rgba(244, 71, 71, 0.2);
+  background-color: rgba(247, 84, 100, 0.15);
   text-decoration: line-through;
-  color: #888;
+  color: var(--text-disabled);
 }
 
 .tbodyRow.inserted {
@@ -398,7 +428,7 @@
 }
 
 .fkCell {
-  color: #569cd6;
+  color: var(--info-color);
   cursor: pointer;
 }
 
@@ -412,17 +442,12 @@
 }
 
 .td {
-  padding: 6px 12px;
+  padding: 7px 12px;
   border-right: 1px solid var(--border-color);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 400px;
-  transition: background-color 0.1s ease;
-}
-
-.td:hover {
-  background-color: rgba(255, 255, 255, 0.04);
 }
 
 .td:last-child {
@@ -463,12 +488,12 @@
 
 .columnFilterInput {
   width: 100%;
-  padding: 2px 6px;
+  padding: 3px 6px;
   background-color: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 2px;
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: 12px;
   font-family: var(--font-mono);
   box-sizing: border-box;
 }
@@ -481,4 +506,118 @@
 .columnFilterInput::placeholder {
   color: var(--text-secondary);
   opacity: 0.5;
+}
+
+/* Status bar separator */
+.statusSeparator {
+  width: 1px;
+  height: 14px;
+  background-color: var(--border-color);
+  flex-shrink: 0;
+}
+
+/* Truncation warning */
+.truncationWarning {
+  color: var(--warning-color);
+  font-weight: 600;
+}
+
+/* Applying spinner */
+.applyingSpinner {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+}
+
+/* Loading: connection info */
+.connectionInfo {
+  font-size: 12px;
+  color: var(--text-disabled);
+  font-family: var(--font-mono);
+}
+
+/* Loading: elapsed caution (10s+) */
+.elapsedCaution {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--warning-color);
+}
+
+/* Loading: long running hint */
+.longRunningHint {
+  font-size: 12px;
+  color: var(--warning-color);
+  font-weight: 600;
+}
+
+/* Loading: indeterminate progress bar */
+.progressBar {
+  width: 200px;
+  height: 3px;
+  background-color: var(--bg-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progressBar::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -40%;
+  width: 40%;
+  height: 100%;
+  background-color: var(--accent-color);
+  border-radius: 2px;
+  animation: progressSlide 1.5s ease-in-out infinite;
+}
+
+.progressCaution::after {
+  background-color: var(--warning-color);
+}
+
+.progressWarning::after {
+  background-color: var(--error-color);
+}
+
+@keyframes progressSlide {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Empty state */
+.emptyIcon {
+  font-size: 32px;
+  opacity: 0.25;
+}
+
+.shortcutList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.shortcutItem {
+  font-size: 12px;
+  color: var(--text-disabled);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shortcutItem kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  min-width: 70px;
+  text-align: center;
 }

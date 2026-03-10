@@ -4,11 +4,13 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: overlayFadeIn 0.15s ease-out;
 }
 
 .dialog {
@@ -20,6 +22,10 @@
   max-height: 85vh;
   display: flex;
   flex-direction: column;
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  animation: dialogSlideIn 0.15s ease-out;
 }
 
 .header {
@@ -95,7 +101,7 @@
   display: block;
   margin-bottom: 4px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .sqlPreview pre {
@@ -104,7 +110,7 @@
   border-radius: 4px;
   padding: 12px;
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-primary);
   max-height: 100px;
   overflow-y: auto;
@@ -119,7 +125,7 @@
   display: block;
   margin-bottom: 8px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .planText {
@@ -128,7 +134,7 @@
   border-radius: 4px;
   padding: 12px;
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-primary);
   min-height: 200px;
   max-height: 400px;
@@ -173,7 +179,7 @@
 
 .hint {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .footer button {

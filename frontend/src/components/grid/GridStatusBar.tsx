@@ -22,23 +22,27 @@ function GridStatusBarInner({
       {connectionLabel && (
         <>
           <span>{connectionLabel}</span>
-          <span>|</span>
+          <span className={styles.statusSeparator} />
         </>
       )}
-      <span>
-        {isFiltered
-          ? resultSet.truncated
-            ? `${filteredRowCount} / ${resultSet.rows.length.toLocaleString()}+ 件 (フィルタ中・行数制限あり)`
-            : `${filteredRowCount} / ${resultSet.rows.length} 件 (フィルタ中)`
-          : resultSet.truncated
-            ? `先頭 ${resultSet.rows.length.toLocaleString()} 件を表示（テーブルにはさらにデータがあります）`
+      {resultSet.truncated ? (
+        <span className={styles.truncationWarning}>
+          {isFiltered
+            ? `⚠ ${filteredRowCount} / ${resultSet.rows.length.toLocaleString()}+ 件 (フィルタ中・行数制限あり)`
+            : `⚠ 先頭 ${resultSet.rows.length.toLocaleString()} 件を表示（テーブルにはさらにデータがあります）`}
+        </span>
+      ) : (
+        <span>
+          {isFiltered
+            ? `${filteredRowCount} / ${resultSet.rows.length} 件 (フィルタ中)`
             : `${resultSet.rows.length} 件`}
-      </span>
-      <span>|</span>
+        </span>
+      )}
+      <span className={styles.statusSeparator} />
       <span>{resultSet.executionTimeMs.toFixed(2)} ms</span>
       {resultSet.affectedRows > 0 && (
         <>
-          <span>|</span>
+          <span className={styles.statusSeparator} />
           <span>{resultSet.affectedRows} 件更新</span>
         </>
       )}

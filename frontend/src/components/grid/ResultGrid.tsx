@@ -24,6 +24,7 @@ import { useSessionStore } from '../../store/sessionStore';
 import type { ResultSet } from '../../types';
 import { type ColumnMeta, isNumericType, isSystemColumn, type RowData } from '../../types/grid';
 import { log } from '../../utils/logger';
+import { QueryConfirmDialog } from '../dialogs/QueryConfirmDialog';
 import { ExportDialog } from '../export/ExportDialog';
 import { GridFilterBar } from './GridFilterBar';
 import { GridStatusBar } from './GridStatusBar';
@@ -38,6 +39,7 @@ import styles from './ResultGrid.module.css';
 import { ResultTabs } from './ResultTabs';
 import { ValueEditorDialog } from './ValueEditorDialog';
 
+const ELAPSED_CAUTION_SECONDS = 10;
 const ELAPSED_WARNING_SECONDS = 30;
 
 interface ResultGridProps {
@@ -83,6 +85,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [showColumnFilters, setShowColumnFilters] = useState(false);
+  const [whereFilterError, setWhereFilterError] = useState<string | null>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const elapsedSeconds = useElapsedTimer(isExecuting);
 
@@ -413,7 +416,9 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   const whereKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter' && activeQueryId && queryConnectionId && currentQuery?.sourceTable) {
-        applyWhereFilter(activeQueryId, queryConnectionId, whereClause);
+        applyWhereFilter(activeQueryId, queryConnectionId, whereClause).then((errorMessage) => {
+          if (errorMessage) setWhereFilterError(errorMessage);
+        });
       }
     },
     [activeQueryId, queryConnectionId, currentQuery?.sourceTable, whereClause, applyWhereFilter]
@@ -421,16 +426,25 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
 
   const whereApply = useCallback(() => {
     if (activeQueryId && queryConnectionId) {
-      applyWhereFilter(activeQueryId, queryConnectionId, whereClause);
+      applyWhereFilter(activeQueryId, queryConnectionId, whereClause).then((errorMessage) => {
+        if (errorMessage) setWhereFilterError(errorMessage);
+      });
     }
   }, [activeQueryId, queryConnectionId, whereClause, applyWhereFilter]);
 
   const whereClear = useCallback(() => {
     setWhereClause('');
+    setWhereFilterError(null);
     if (activeQueryId && queryConnectionId) {
-      applyWhereFilter(activeQueryId, queryConnectionId, '');
+      applyWhereFilter(activeQueryId, queryConnectionId, '').then((errorMessage) => {
+        if (errorMessage) setWhereFilterError(errorMessage);
+      });
     }
   }, [activeQueryId, queryConnectionId, applyWhereFilter]);
+
+  const cancelCurrentQuery = useCallback(() => {
+    if (queryConnectionId) cancelQuery(queryConnectionId);
+  }, [queryConnectionId, cancelQuery]);
 
   const refresh = useCallback(() => {
     if (targetQueryId && queryConnectionId) {
@@ -449,19 +463,38 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
 
   // --- Early returns ---
   if (isExecuting) {
+    const isWarning = elapsedSeconds >= ELAPSED_WARNING_SECONDS;
+    const isCaution = elapsedSeconds >= ELAPSED_CAUTION_SECONDS;
+    const elapsedClass = isWarning
+      ? styles.elapsedWarning
+      : isCaution
+        ? styles.elapsedCaution
+        : styles.elapsedTime;
+    const progressClass = isWarning
+      ? `${styles.progressBar} ${styles.progressWarning}`
+      : isCaution
+        ? `${styles.progressBar} ${styles.progressCaution}`
+        : styles.progressBar;
     return (
       <div className={styles.message}>
-        <span className={styles.spinner}>{'\u23F3'}</span>
-        <span>クエリ実行中...</span>
-        <span
-          className={
-            elapsedSeconds >= ELAPSED_WARNING_SECONDS ? styles.elapsedWarning : styles.elapsedTime
-          }
-        >
-          {elapsedSeconds}s
-        </span>
+        {activeConn && (
+          <span className={styles.connectionInfo}>
+            {activeConn.server}/{activeConn.database}
+          </span>
+        )}
+        <div className={styles.messageRow}>
+          <span className={styles.spinner}>{'\u23F3'}</span>
+          <span>クエリ実行中...</span>
+          <span className={elapsedClass}>{elapsedSeconds}s</span>
+        </div>
+        {isWarning && (
+          <span className={styles.longRunningHint}>
+            長時間実行中 - 必要に応じてキャンセルしてください
+          </span>
+        )}
+        <div className={progressClass} />
         {queryConnectionId && (
-          <button onClick={() => cancelQuery(queryConnectionId)} className={styles.cancelButton}>
+          <button onClick={cancelCurrentQuery} className={styles.cancelButton}>
             キャンセル
           </button>
         )}
@@ -481,7 +514,22 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   if (!resultSet) {
     return (
       <div className={styles.message}>
+        <span className={styles.emptyIcon}>{'\u{1F50D}'}</span>
         <span>クエリを実行して結果を表示</span>
+        <div className={styles.shortcutList}>
+          <span className={styles.shortcutItem}>
+            <kbd>Ctrl+Enter</kbd> SQLを実行
+          </span>
+          <span className={styles.shortcutItem}>
+            <kbd>Ctrl+N</kbd> 新規タブ
+          </span>
+          <span className={styles.shortcutItem}>
+            <kbd>Ctrl+S</kbd> 変更を保存
+          </span>
+          <span className={styles.shortcutItem}>
+            <kbd>F5</kbd> データ再取得
+          </span>
+        </div>
       </div>
     );
   }
@@ -500,7 +548,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
       <GridToolbar
         showRefresh={!!currentQuery?.sourceTable && !!queryConnectionId}
         canEdit={!!currentQuery?.sourceTable}
-        hasChanges={hasChanges()}
+        hasChanges={hasChanges}
         isApplying={isApplying}
         applyError={applyError}
         showLogicalNamesInGrid={showLogicalNamesInGrid}
@@ -561,6 +609,17 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         initialValue={valueEditorState.value}
         onSave={saveValueEditor}
         onCancel={() => setValueEditorState((prev) => ({ ...prev, isOpen: false }))}
+      />
+
+      <QueryConfirmDialog
+        isOpen={whereFilterError !== null}
+        title="WHEREフィルタエラー"
+        message="フィルタの適用中にエラーが発生しました。WHERE句を確認してください。"
+        details={whereFilterError ?? undefined}
+        confirmLabel="OK"
+        cancelLabel="閉じる"
+        onConfirm={() => setWhereFilterError(null)}
+        onCancel={() => setWhereFilterError(null)}
       />
     </div>
   );

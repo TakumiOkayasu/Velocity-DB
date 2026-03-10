@@ -77,7 +77,7 @@
   border-radius: 6px;
   color: var(--text-primary);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 400;
   transition:
     background-color 0.1s ease,
@@ -197,12 +197,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 2px 12px;
+  padding: 4px 12px;
   background-color: var(--bg-secondary);
   border-top: 1px solid var(--border-color);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-secondary);
-  min-height: 22px;
+  min-height: 24px;
 }
 
 .statusLeft,

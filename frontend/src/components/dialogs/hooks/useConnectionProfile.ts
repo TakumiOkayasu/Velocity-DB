@@ -43,13 +43,16 @@ interface UseConnectionProfileResult {
   config: ConnectionConfig;
   savePassword: boolean;
   testResult: { success: boolean; message: string } | null;
+  deleteConfirmOpen: boolean;
   setConfig: React.Dispatch<React.SetStateAction<ConnectionConfig>>;
   setSavePassword: React.Dispatch<React.SetStateAction<boolean>>;
   setTestResult: React.Dispatch<React.SetStateAction<{ success: boolean; message: string } | null>>;
   handleProfileSelect: (profileId: string) => void;
   handleNewProfile: () => void;
   handleSaveProfile: () => Promise<void>;
-  handleDeleteProfile: () => Promise<void>;
+  handleDeleteProfile: () => void;
+  confirmDeleteProfile: () => Promise<void>;
+  cancelDeleteProfile: () => void;
   handleCopyProfile: () => void;
 }
 
@@ -60,6 +63,7 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
   const [savePassword, setSavePassword] = useState(false);
   const [config, setConfig] = useState<ConnectionConfig>({ ...DEFAULT_CONFIG });
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const loadingProfileIdRef = useRef<string | null>(null);
   const operationCounterRef = useRef(0);
@@ -323,11 +327,14 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
     }
   }, [config, mode, editingProfileId, savePassword]);
 
-  const handleDeleteProfile = useCallback(async () => {
+  const handleDeleteProfile = useCallback(() => {
     if (mode !== 'edit' || !editingProfileId) return;
+    setDeleteConfirmOpen(true);
+  }, [mode, editingProfileId]);
 
-    const confirmed = window.confirm(`Delete profile "${config.name}"?`);
-    if (!confirmed) return;
+  const confirmDeleteProfile = useCallback(async () => {
+    setDeleteConfirmOpen(false);
+    if (!editingProfileId) return;
 
     try {
       await bridge.deleteConnectionProfile(editingProfileId);
@@ -345,7 +352,11 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
       console.error('Failed to delete profile:', e);
       setTestResult({ success: false, message: 'Failed to delete profile' });
     }
-  }, [editingProfileId, mode, profiles, config.name, handleNewProfile, loadProfile]);
+  }, [editingProfileId, profiles, handleNewProfile, loadProfile]);
+
+  const cancelDeleteProfile = useCallback(() => {
+    setDeleteConfirmOpen(false);
+  }, []);
 
   const handleCopyProfile = useCallback(() => {
     if (mode !== 'edit' || !editingProfileId) return;
@@ -365,6 +376,7 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
     config,
     savePassword,
     testResult,
+    deleteConfirmOpen,
     setConfig,
     setSavePassword,
     setTestResult,
@@ -372,6 +384,8 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
     handleNewProfile,
     handleSaveProfile,
     handleDeleteProfile,
+    confirmDeleteProfile,
+    cancelDeleteProfile,
     handleCopyProfile,
   };
 }

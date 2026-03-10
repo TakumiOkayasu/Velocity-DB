@@ -4,11 +4,13 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: overlayFadeIn 0.15s ease-out;
 }
 
 .dialog {
@@ -17,10 +19,13 @@
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
   width: 600px;
   max-width: 90vw;
   max-height: 80vh;
+  animation: dialogSlideIn 0.15s ease-out;
 }
 
 .header {
@@ -89,7 +94,7 @@
 .info {
   display: flex;
   gap: 12px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-secondary);
 }
 
@@ -98,7 +103,7 @@
   background-color: #4ec9b0;
   color: #1e1e1e;
   border-radius: 3px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -119,7 +124,7 @@
 .button {
   padding: 6px 12px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);

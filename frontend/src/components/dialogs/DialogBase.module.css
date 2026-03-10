@@ -1,14 +1,17 @@
-/* Common dialog styles shared across all dialogs */ .overlay {
+/* Common dialog styles shared across all dialogs */
+.overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: overlayFadeIn 0.15s ease-out;
 }
 
 .dialog {
@@ -17,7 +20,10 @@
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  animation: dialogSlideIn 0.15s ease-out;
 }
 
 .dialogSmall {
@@ -140,7 +146,7 @@
 
 .label {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .input,
@@ -151,7 +157,7 @@
   border: 1px solid var(--border-color);
   border-radius: 4px;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .input:focus,
@@ -195,6 +201,6 @@
 /* Error message */
 .error {
   color: var(--error-color);
-  font-size: 12px;
+  font-size: 13px;
   margin-top: 4px;
 }

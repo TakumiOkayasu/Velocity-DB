@@ -5,15 +5,14 @@
 .node {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 3px 8px;
+  gap: 4px;
+  padding: 5px 8px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-primary);
   border-radius: 4px;
   margin: 1px 4px;
   border-left: 3px solid var(--connection-color, transparent);
-  transition: background-color 0.1s ease;
 }
 
 .node:hover {
@@ -23,6 +22,7 @@
 .node.selected {
   background-color: var(--tree-selection-bg);
   color: var(--text-primary);
+  border-left-color: var(--connection-color, var(--accent-color));
 }
 
 .node.selected:hover {
@@ -48,13 +48,13 @@
 }
 
 .icon {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 /* Icon colors based on type */
@@ -92,8 +92,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   padding-left: 8px;
-  color: #57a64a;
-  font-size: 12px;
+  color: #7dba6d;
+  font-size: 13px;
 }
 
 .loading {

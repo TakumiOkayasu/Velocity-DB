@@ -1,9 +1,9 @@
 .container {
   position: fixed;
   background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   min-width: 200px;
   padding: 4px 0;
   z-index: 10000;
@@ -14,18 +14,18 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 8px 14px;
   border: none;
   background: none;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
   text-align: left;
   transition: background-color 0.1s;
 }
 
 .item:hover:not(.disabled) {
-  background: var(--hover);
+  background: var(--bg-hover);
 }
 
 .item.disabled {
@@ -53,6 +53,6 @@
 
 .separator {
   height: 1px;
-  background: var(--border);
+  background: var(--border-color);
   margin: 4px 0;
 }
