@@ -1,6 +1,6 @@
 import { flexRender, type Row, type Table } from '@tanstack/react-table';
 import type { VirtualItem } from '@tanstack/react-virtual';
-import { memo, type RefObject } from 'react';
+import { type MouseEvent, memo, type RefObject } from 'react';
 import { type ColumnMeta, isSystemColumn, type RowData } from '../../types/grid';
 import { ContextMenu } from '../common/ContextMenu';
 import { useGridContextMenu } from './hooks/useGridContextMenu';
@@ -55,6 +55,10 @@ interface GridTableProps {
   callbacks: GridTableCallbacks;
 }
 
+const preventShiftSelect = (e: MouseEvent) => {
+  if (e.shiftKey) e.preventDefault();
+};
+
 function GridTableInner({
   table,
   tableContainerRef,
@@ -83,7 +87,7 @@ function GridTableInner({
   );
 
   return (
-    <div ref={tableContainerRef} className={styles.tableContainer}>
+    <div ref={tableContainerRef} className={styles.tableContainer} onMouseDown={preventShiftSelect}>
       <table key={`table-${showLogicalNamesInGrid}`} className={styles.table}>
         <thead className={styles.thead}>
           {table.getHeaderGroups().map((headerGroup) => (
