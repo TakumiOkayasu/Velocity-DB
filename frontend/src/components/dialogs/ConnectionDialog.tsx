@@ -4,6 +4,7 @@ import type { DatabaseType, EnvironmentType, SshAuthType } from '../../types';
 import { connectionColor } from '../../utils/colorContrast';
 import styles from './ConnectionDialog.module.css';
 import { useConnectionProfile } from './hooks/useConnectionProfile';
+import { QueryConfirmDialog } from './QueryConfirmDialog';
 import { ConnectionFormSection } from './sections/ConnectionFormSection';
 import { DatabaseTypeSection } from './sections/DatabaseTypeSection';
 import { EnvironmentSection } from './sections/EnvironmentSection';
@@ -56,6 +57,9 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
     handleNewProfile,
     handleSaveProfile,
     handleDeleteProfile,
+    confirmDeleteProfile,
+    cancelDeleteProfile,
+    deleteConfirmOpen,
     handleCopyProfile,
   } = useConnectionProfile(isOpen);
 
@@ -247,6 +251,17 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
           </button>
         </div>
       </div>
+
+      <QueryConfirmDialog
+        isOpen={deleteConfirmOpen}
+        title="接続プロファイルの削除"
+        message={`「${config.name}」を削除しますか？この操作は元に戻せません。`}
+        isDestructive
+        confirmLabel="削除"
+        cancelLabel="キャンセル"
+        onConfirm={confirmDeleteProfile}
+        onCancel={cancelDeleteProfile}
+      />
     </div>
   );
 }

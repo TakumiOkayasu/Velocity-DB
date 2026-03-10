@@ -1,8 +1,13 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useConnectionStore } from '../../store/connectionStore';
 import type { ResultSet } from '../../types';
 import styles from './ExportDialog.module.css';
 import { type ExportFormat, type ExportOptions, getExporter } from './exporters';
+
+function isInputFocused(): boolean {
+  const tag = document.activeElement?.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA';
+}
 
 interface ExportDialogProps {
   isOpen: boolean;
@@ -64,6 +69,19 @@ export function ExportDialog({ isOpen, onClose, resultSet }: ExportDialogProps) 
     a.click();
     URL.revokeObjectURL(url);
   }, [generateExport, options.format]);
+
+  // Keyboard: Ctrl+C=copy
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'c' && (e.ctrlKey || e.metaKey) && !isInputFocused()) {
+        e.preventDefault();
+        handleCopy();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, handleCopy]);
 
   if (!isOpen) return null;
 
@@ -163,7 +181,7 @@ export function ExportDialog({ isOpen, onClose, resultSet }: ExportDialogProps) 
             {resultSet ? `${resultSet.rows.length} 件` : 'データなし'}
           </span>
           <div className={styles.actions}>
-            <button onClick={handleCopy} className={styles.copyButton}>
+            <button onClick={handleCopy} className={styles.copyButton} title="Ctrl+C">
               {copied ? 'コピーしました' : 'クリップボードにコピー'}
             </button>
             <button onClick={handleDownload} className={styles.downloadButton}>

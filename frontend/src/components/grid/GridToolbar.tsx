@@ -75,16 +75,17 @@ function GridToolbarInner({
       )}
 
       {/* Separator */}
-      {canEdit && hasChanges && <span className={styles.toolbarSeparator} />}
+      {canEdit && <span className={styles.toolbarSeparator} />}
 
-      {/* Group 2: Change management (visible only when changes exist) */}
-      {hasChanges && (
+      {/* Group 2: Change management (always visible when editable, disabled when no changes) */}
+      {canEdit && (
         <>
           <button
             type="button"
             onClick={onRevertChanges}
             className={styles.iconButton}
-            title="すべての変更を元に戻す"
+            disabled={!hasChanges || isApplying}
+            title="すべての変更を元に戻す (Ctrl+Z)"
           >
             ↩
           </button>
@@ -92,10 +93,10 @@ function GridToolbarInner({
             type="button"
             onClick={onApplyChanges}
             className={`${styles.iconButton} ${styles.saveButton}`}
-            disabled={isReadOnly || isApplying}
+            disabled={isReadOnly || !hasChanges || isApplying}
             title="変更をデータベースに保存 (Ctrl+S)"
           >
-            {isApplying ? '⏳' : '💾'}
+            {isApplying ? <span className={styles.applyingSpinner}>↻</span> : '💾'}
           </button>
         </>
       )}

@@ -5,6 +5,10 @@ export interface DataViewable {
     whereClause?: string,
     logicalName?: string
   ) => Promise<void>;
-  applyWhereFilter: (id: string, connectionId: string, whereClause: string) => Promise<void>;
+  applyWhereFilter: (
+    id: string,
+    connectionId: string,
+    whereClause: string
+  ) => Promise<string | null>;
   refreshDataView: (id: string, connectionId: string) => Promise<void>;
 }

@@ -116,9 +116,9 @@ export function createDataViewSlice(
       }
     },
 
-    applyWhereFilter: async (id, connectionId, whereClause) => {
+    applyWhereFilter: async (id, connectionId, whereClause): Promise<string | null> => {
       const query = get().queries.find((q) => q.id === id);
-      if (!query?.sourceTable) return;
+      if (!query?.sourceTable) return null;
 
       const controller = new AbortController();
       abort.register(id, controller);
@@ -150,18 +150,16 @@ export function createDataViewSlice(
           ...endExecution(state, id),
           results: { ...state.results, [id]: resultSet },
         }));
+        return null;
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
           set((state) => endExecution(state, id));
-          return;
+          return null;
         }
-        set((state) =>
-          failExecution(
-            state,
-            id,
-            error instanceof Error ? error.message : 'Failed to apply filter'
-          )
-        );
+        const message = error instanceof Error ? error.message : 'Failed to apply filter';
+        log.error(`[QueryStore] Failed to apply WHERE filter: ${message}`);
+        set((state) => endExecution(state, id));
+        return message;
       } finally {
         abort.unregister(id);
       }

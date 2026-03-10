@@ -61,17 +61,17 @@ describe('GridToolbar', () => {
   });
 
   describe('change management', () => {
-    it('hasChanges=true で保存・元に戻すボタンを表示', () => {
+    it('hasChanges=true で保存・元に戻すボタンが enabled', () => {
       render(<GridToolbar {...defaultProps} hasChanges={true} />);
-      expect(screen.getByTitle(/変更をデータベースに保存/)).toBeInTheDocument();
-      expect(screen.getByTitle('すべての変更を元に戻す')).toBeInTheDocument();
+      expect(screen.getByTitle(/変更をデータベースに保存/)).toBeEnabled();
+      expect(screen.getByTitle(/すべての変更を元に戻す/)).toBeEnabled();
       expect(screen.getByText('未保存の変更あり')).toBeInTheDocument();
     });
 
-    it('hasChanges=false で保存・元に戻すボタンを非表示', () => {
+    it('hasChanges=false で保存・元に戻すボタンが disabled', () => {
       render(<GridToolbar {...defaultProps} hasChanges={false} />);
-      expect(screen.queryByTitle(/変更をデータベースに保存/)).not.toBeInTheDocument();
-      expect(screen.queryByTitle('すべての変更を元に戻す')).not.toBeInTheDocument();
+      expect(screen.getByTitle(/変更をデータベースに保存/)).toBeDisabled();
+      expect(screen.getByTitle(/すべての変更を元に戻す/)).toBeDisabled();
       expect(screen.queryByText('未保存の変更あり')).not.toBeInTheDocument();
     });
 

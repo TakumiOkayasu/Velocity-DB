@@ -9,14 +9,15 @@
   --bg-hover: #4b4d52; /* Hover state */
   --bg-selected: #2d5377; /* Selected items */
   --bg-toolbar: #2b2d30; /* Toolbar background */
+  --bg-zebra: #252730; /* Zebra stripe for grid rows */
 
   /* Text colors */
   --text-primary: #dfe1e5; /* Primary text */
-  --text-secondary: #8c8f94; /* Secondary/muted text */
-  --text-disabled: #5a5d63; /* Disabled text */
+  --text-secondary: #a0a4ab; /* Secondary/muted text */
+  --text-disabled: #6b6f76; /* Disabled text */
 
   /* Border colors */
-  --border-color: #393b40; /* Standard border */
+  --border-color: #474a50; /* Standard border */
   --border-focused: #4a88c7; /* Focused element border */
 
   /* Accent colors */
@@ -41,10 +42,13 @@
   --execute-button-bg: #365d2b;
   --execute-button-hover: #467d3b;
 
+  /* Monospace font */
+  --font-mono: "Consolas", "Monaco", "Cascadia Code", "Source Code Pro", monospace;
+
   /* Scrollbar */
   --scrollbar-track: #2b2d30;
-  --scrollbar-thumb: #4b4d52;
-  --scrollbar-thumb-hover: #5a5d63;
+  --scrollbar-thumb: #555860;
+  --scrollbar-thumb-hover: #686c74;
 
   /* Icon colors */
   --icon-color: #8c8f94;
@@ -83,8 +87,8 @@ body {
   font-family:
     "Noto Sans JP", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
     Cantarell, sans-serif;
-  font-size: 13px;
-  line-height: 1.4;
+  font-size: 14px;
+  line-height: 1.5;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
@@ -98,8 +102,8 @@ body {
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -135,4 +139,25 @@ input {
 :focus-visible {
   outline: 2px solid var(--accent-color);
   outline-offset: -2px;
+}
+
+/* Dialog animations (shared across all dialog CSS modules) */
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialogSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }

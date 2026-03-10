@@ -85,6 +85,18 @@ export function EditorTabs() {
     [connections]
   );
   const { addQuery, removeQuery, setActive, reorderQuery, openERDiagram } = useQueryActions();
+
+  // Ctrl+W: close active tab
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'w') {
+        e.preventDefault();
+        if (activeQueryId) removeQuery(activeQueryId);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [activeQueryId, removeQuery]);
   const activeQuery = queries.find((q) => q.id === activeQueryId);
   const activeQueryConnectionId = activeQuery?.connectionId ?? null;
 
@@ -230,6 +242,12 @@ export function EditorTabs() {
                 connColor ? ({ '--connection-color': connColor } as React.CSSProperties) : undefined
               }
               onClick={() => setActive(query.id)}
+              onMouseDown={(e) => {
+                if (e.button === 1) {
+                  e.preventDefault();
+                  removeQuery(query.id);
+                }
+              }}
               title={buildTooltip(query, connectionColorMap)}
               draggable
               onDragStart={(e) => handleDragStart(e, index)}

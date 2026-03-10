@@ -16,7 +16,7 @@ interface UseGridEditOptions {
 
 interface UseGridEditResult {
   isEditMode: boolean;
-  hasChanges: () => boolean;
+  hasChanges: boolean;
   isApplying: boolean;
   applyError: string | null;
   isRowDeleted: (rowIndex: number) => boolean;
@@ -47,7 +47,7 @@ export function useGridEdit({
   const {
     updateCell,
     revertAll,
-    hasChanges,
+    hasChanges: hasChangesFn,
     getCellChange,
     isRowDeleted,
     isRowInserted,
@@ -187,6 +187,8 @@ export function useGridEdit({
     },
     [isReadOnly, updateCell, rowData]
   );
+
+  const hasChanges = hasChangesFn();
 
   return {
     isEditMode,
