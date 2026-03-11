@@ -62,7 +62,7 @@ describe('DmlPreviewDialog', () => {
   it('isExecuting時にoverlayクリックでonCancelが発火しない', () => {
     const onCancel = vi.fn();
     const { container } = render(
-      <DmlPreviewDialog {...defaultProps} isExecuting={true} onCancel={onCancel} />,
+      <DmlPreviewDialog {...defaultProps} isExecuting={true} onCancel={onCancel} />
     );
     fireEvent.click(container.firstChild as Element);
     expect(onCancel).not.toHaveBeenCalled();
