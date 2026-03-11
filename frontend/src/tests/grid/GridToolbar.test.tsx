@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GridToolbar } from '../../components/grid/GridToolbar';
 
@@ -11,6 +11,7 @@ const defaultProps = {
   showLogicalNamesInGrid: false,
   showColumnFilters: false,
   isReadOnly: false,
+  viewMode: 'table' as const,
   onRefresh: vi.fn(),
   onInsertRow: vi.fn(),
   onDeleteRow: vi.fn(),
@@ -19,6 +20,7 @@ const defaultProps = {
   onSetShowLogicalNames: vi.fn(),
   onToggleColumnFilters: vi.fn(),
   onExport: vi.fn(),
+  onChangeViewMode: vi.fn(),
 };
 
 describe('GridToolbar', () => {
@@ -103,6 +105,27 @@ describe('GridToolbar', () => {
     it('エクスポートボタンを表示', () => {
       render(<GridToolbar {...defaultProps} />);
       expect(screen.getByTitle('データをエクスポート')).toBeInTheDocument();
+    });
+  });
+
+  describe('view mode toggle', () => {
+    it('テーブル表示・Transpose表示ボタンを表示', () => {
+      render(<GridToolbar {...defaultProps} />);
+      expect(screen.getByTitle('テーブル表示')).toBeInTheDocument();
+      expect(screen.getByTitle('Transpose表示')).toBeInTheDocument();
+    });
+
+    it('Transpose表示クリックで onChangeViewMode を呼び出す', () => {
+      const onChangeViewMode = vi.fn();
+      render(<GridToolbar {...defaultProps} onChangeViewMode={onChangeViewMode} />);
+      fireEvent.click(screen.getByTitle('Transpose表示'));
+      expect(onChangeViewMode).toHaveBeenCalledWith('transpose');
+    });
+
+    it('viewMode=transpose で編集ボタンが disabled', () => {
+      render(<GridToolbar {...defaultProps} viewMode="transpose" />);
+      expect(screen.getByTitle('新しい行を追加 (Insert)')).toBeDisabled();
+      expect(screen.getByTitle('選択行を削除 (Delete)')).toBeDisabled();
     });
   });
 });

@@ -1,0 +1,137 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.navigation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.navButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.navButton:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+  border-color: var(--accent-color);
+}
+
+.navButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.navLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.navInput {
+  width: 60px;
+  padding: 3px 6px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-mono);
+  text-align: center;
+}
+
+.navInput:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.scrollContainer {
+  flex: 1 1 auto;
+  overflow: auto;
+  min-height: 0;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-family: var(--font-mono);
+}
+
+.row {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.row:nth-child(even) {
+  background-color: var(--bg-zebra);
+}
+
+.row:hover {
+  background-color: var(--bg-hover);
+}
+
+.columnName {
+  padding: 7px 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background-color: var(--bg-tertiary);
+  border-right: 1px solid var(--border-color);
+  white-space: nowrap;
+  width: 240px;
+  min-width: 240px;
+  max-width: 240px;
+}
+
+.columnType {
+  font-weight: 400;
+  color: var(--text-disabled);
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+.value {
+  padding: 7px 12px;
+  color: var(--text-primary);
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.numericValue {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.nullCell {
+  color: var(--text-disabled);
+  font-style: italic;
+  background-color: rgba(128, 128, 128, 0.08);
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-secondary);
+  font-size: 13px;
+}

@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import type { ResultSet } from '../../types';
+import type { GridViewMode } from '../../types/grid';
 import styles from './ResultGrid.module.css';
 
 interface GridStatusBarProps {
@@ -8,6 +9,8 @@ interface GridStatusBarProps {
   isFiltered: boolean;
   isReadOnly: boolean;
   connectionLabel?: string;
+  viewMode?: GridViewMode;
+  transposeRowIndex?: number;
 }
 
 function GridStatusBarInner({
@@ -16,7 +19,12 @@ function GridStatusBarInner({
   isFiltered,
   isReadOnly,
   connectionLabel,
+  viewMode,
+  transposeRowIndex,
 }: GridStatusBarProps) {
+  const isTranspose = viewMode === 'transpose';
+  const totalRows = resultSet.rows.length;
+
   return (
     <div className={styles.statusBar}>
       {connectionLabel && (
@@ -25,17 +33,19 @@ function GridStatusBarInner({
           <span className={styles.statusSeparator} />
         </>
       )}
-      {resultSet.truncated ? (
+      {isTranspose ? (
+        <span>
+          行 {totalRows > 0 ? (transposeRowIndex ?? 0) + 1 : 0} / {totalRows}
+        </span>
+      ) : resultSet.truncated ? (
         <span className={styles.truncationWarning}>
           {isFiltered
-            ? `⚠ ${filteredRowCount} / ${resultSet.rows.length.toLocaleString()}+ 件 (フィルタ中・行数制限あり)`
-            : `⚠ 先頭 ${resultSet.rows.length.toLocaleString()} 件を表示（テーブルにはさらにデータがあります）`}
+            ? `⚠ ${filteredRowCount} / ${totalRows.toLocaleString()}+ 件 (フィルタ中・行数制限あり)`
+            : `⚠ 先頭 ${totalRows.toLocaleString()} 件を表示（テーブルにはさらにデータがあります）`}
         </span>
       ) : (
         <span>
-          {isFiltered
-            ? `${filteredRowCount} / ${resultSet.rows.length} 件 (フィルタ中)`
-            : `${resultSet.rows.length} 件`}
+          {isFiltered ? `${filteredRowCount} / ${totalRows} 件 (フィルタ中)` : `${totalRows} 件`}
         </span>
       )}
       <span className={styles.statusSeparator} />

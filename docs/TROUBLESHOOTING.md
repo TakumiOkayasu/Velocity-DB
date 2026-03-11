@@ -12,6 +12,19 @@ ninja: error: failed recompaction: Permission denied
 - VSCode/Visual Studio を閉じる
 - VelocityDB.exe を終了
 
+### Norton による CMake コンパイラ検出の誤検知
+
+```text
+CMake Error: Generator: execution of make failed.
+```
+
+Norton が `CMakeCCompilerId.exe` を `Win64:MalwareX-gen [Trj]` として誤検知・検疫し、CMake configure のコンパイラ検出が失敗する。
+
+**対処法**: Norton の除外設定にビルドディレクトリを追加:
+1. Norton Security → 設定 → ウイルス対策 → スキャン除外
+2. `build/` ディレクトリのフルパスを追加
+3. CMake configure を再実行
+
 ### MSVC Not Found
 
 - Developer Command Prompt for VS 2022 から実行

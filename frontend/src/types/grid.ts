@@ -5,6 +5,9 @@
 /** 行データの型（カラム名→値のマッピング） */
 export type RowData = Record<string, string | null>;
 
+/** グリッド表示モード */
+export type GridViewMode = 'table' | 'transpose';
+
 /** システム列（行番号・内部インデックス）かどうかを判定 */
 export const isSystemColumn = (field: string): boolean =>
   field === '__rowIndex' || field === '__originalIndex';
