@@ -10,11 +10,12 @@ export async function fetchTableWithComments(
   connectionId: string,
   tableName: string,
   sql: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  timeoutMs?: number
 ): Promise<ResultSet> {
   const [columnDefinitions, pollResult] = await Promise.all([
     bridge.getColumns(connectionId, tableName),
-    executeAsyncWithPolling(bridge, connectionId, sql, signal),
+    executeAsyncWithPolling(bridge, connectionId, sql, signal, undefined, timeoutMs),
   ]);
 
   if (pollResult.multipleResults) {

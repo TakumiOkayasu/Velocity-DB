@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import '../helpers/mockSettingsUtils';
 import { useQueryStore } from '../../store/queryStore';
 
 // Mock the bridge module

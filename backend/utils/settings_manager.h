@@ -71,6 +71,10 @@ struct GeneralSettings {
     std::string language = "en";
 };
 
+struct QuerySettings {
+    int timeoutSeconds = 30;
+};
+
 struct WindowSettings {
     int width = 0;   // 0 means not set (use default)
     int height = 0;  // 0 means not set (use default)
@@ -83,6 +87,7 @@ struct AppSettings {
     GeneralSettings general;
     EditorSettings editor;
     GridSettings grid;
+    QuerySettings query;
     WindowSettings window;
     std::vector<ConnectionProfile> connectionProfiles;
 };

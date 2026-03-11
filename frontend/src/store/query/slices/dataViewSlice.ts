@@ -1,6 +1,7 @@
 import { bridge as apiBridge } from '../../../api/bridge';
 import type { Query } from '../../../types';
 import { log } from '../../../utils/logger';
+import { getSettings } from '../../../utils/settingsUtils';
 import {
   endExecution,
   failExecution,
@@ -87,7 +88,8 @@ export function createDataViewSlice(
           connectionId,
           tableName,
           sql,
-          controller.signal
+          controller.signal,
+          getSettings().query.timeout
         );
 
         set((state) => ({
@@ -143,7 +145,8 @@ export function createDataViewSlice(
           connectionId,
           query.sourceTable,
           sql,
-          controller.signal
+          controller.signal,
+          getSettings().query.timeout
         );
 
         set((state) => ({
@@ -182,7 +185,8 @@ export function createDataViewSlice(
           connectionId,
           query.sourceTable,
           query.content,
-          controller.signal
+          controller.signal,
+          getSettings().query.timeout
         );
 
         set((state) => ({

@@ -12,35 +12,67 @@ function mapAsyncColumn(c: AsyncColumn): Column {
   };
 }
 
-const DEFAULT_QUERY_TIMEOUT_MS = 5 * 60 * 1000;
+export const DEFAULT_QUERY_TIMEOUT_MS = 5 * 60 * 1000;
 const POLL_INTERVAL_MS = 100;
+
+interface AbortHandle {
+  promise: Promise<never>;
+  cleanup: () => void;
+}
+
+function createAbortHandle(signal: AbortSignal): AbortHandle {
+  let onAbort: (() => void) | null = null;
+  const promise = new Promise<never>((_, reject) => {
+    if (signal.aborted) {
+      reject(new DOMException('Query cancelled', 'AbortError'));
+      return;
+    }
+    onAbort = () => reject(new DOMException('Query cancelled', 'AbortError'));
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+  const cleanup = () => {
+    if (onAbort) signal.removeEventListener('abort', onAbort);
+  };
+  return { promise, cleanup };
+}
 
 export async function executeAsyncWithPolling(
   bridge: QueryBridgeable,
   connectionId: string,
   sql: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onQueryIdReady?: (queryId: string) => void,
+  timeoutMs?: number
 ): Promise<AsyncPollResult> {
   const { queryId } = await bridge.executeAsyncQuery(connectionId, sql);
+  onQueryIdReady?.(queryId);
+
+  // Create a single abort handle to reuse across all iterations (avoids unhandled rejections)
+  const abortHandle = signal ? createAbortHandle(signal) : null;
 
   try {
     const startTime = Date.now();
+    const timeout = timeoutMs ?? DEFAULT_QUERY_TIMEOUT_MS;
     while (true) {
       if (signal?.aborted) {
         await bridge.cancelAsyncQuery(queryId).catch(() => {});
         throw new DOMException('Query cancelled', 'AbortError');
       }
 
-      if (Date.now() - startTime > DEFAULT_QUERY_TIMEOUT_MS) {
+      if (Date.now() - startTime > timeout) {
         try {
           await bridge.cancelAsyncQuery(queryId);
         } catch {
           // Ignore cancel errors
         }
-        throw new Error('Query execution timed out after 5 minutes');
+        throw new Error(`Query execution timed out after ${Math.round(timeout / 1000)} seconds`);
       }
 
-      const result = await bridge.getAsyncQueryResult(queryId);
+      // Promise.race: IPC呼び出しブロック中でもAbortSignalを検知可能にする
+      const pollPromise = bridge.getAsyncQueryResult(queryId);
+      const result = abortHandle
+        ? await Promise.race([pollPromise, abortHandle.promise])
+        : await pollPromise;
 
       if (result.status === 'completed') {
         if (result.multipleResults) {
@@ -64,9 +96,12 @@ export async function executeAsyncWithPolling(
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
     }
   } finally {
+    abortHandle?.cleanup();
     // Release backend memory for this query (single cleanup point).
     // Runs on all exit paths: success, failure, timeout, and abort.
-    bridge.removeAsyncQuery(queryId).catch(() => {});
+    bridge.removeAsyncQuery(queryId).catch((err) => {
+      console.error('Failed to remove async query:', err);
+    });
   }
 }
 

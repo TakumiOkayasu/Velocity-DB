@@ -58,9 +58,15 @@ struct glz::meta<velocitydb::WindowSettings> {
 };
 
 template <>
+struct glz::meta<velocitydb::QuerySettings> {
+    using T = velocitydb::QuerySettings;
+    static constexpr auto value = object("timeoutSeconds", &T::timeoutSeconds);
+};
+
+template <>
 struct glz::meta<velocitydb::AppSettings> {
     using T = velocitydb::AppSettings;
-    static constexpr auto value = object("general", &T::general, "editor", &T::editor, "grid", &T::grid, "window", &T::window, "connectionProfiles", &T::connectionProfiles);
+    static constexpr auto value = object("general", &T::general, "editor", &T::editor, "grid", &T::grid, "query", &T::query, "window", &T::window, "connectionProfiles", &T::connectionProfiles);
 };
 
 // --- Session structs ---
