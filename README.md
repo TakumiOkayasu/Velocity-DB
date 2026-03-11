@@ -320,7 +320,7 @@ bun pm cache rm      # キャッシュ削除
 |---------|-----------|
 | ランタイム | Bun |
 | ビルド | Vite |
-| UI | React 18 |
+| UI | React 19 |
 | エディタ | Monaco Editor |
 | テーブル | TanStack Table（仮想スクロール） |
 | スタイル | CSS Modules |
