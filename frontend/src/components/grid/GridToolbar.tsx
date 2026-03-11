@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import type { GridViewMode } from '../../types/grid';
 import styles from './ResultGrid.module.css';
 
 interface GridToolbarProps {
@@ -10,6 +11,7 @@ interface GridToolbarProps {
   showLogicalNamesInGrid: boolean;
   showColumnFilters: boolean;
   isReadOnly: boolean;
+  viewMode: GridViewMode;
   onRefresh: () => void;
   onInsertRow: () => void;
   onDeleteRow: () => void;
@@ -18,6 +20,7 @@ interface GridToolbarProps {
   onSetShowLogicalNames: (value: boolean) => void;
   onToggleColumnFilters: () => void;
   onExport: () => void;
+  onChangeViewMode: (mode: GridViewMode) => void;
 }
 
 function GridToolbarInner({
@@ -29,6 +32,7 @@ function GridToolbarInner({
   showLogicalNamesInGrid,
   showColumnFilters,
   isReadOnly,
+  viewMode,
   onRefresh,
   onInsertRow,
   onDeleteRow,
@@ -37,7 +41,10 @@ function GridToolbarInner({
   onSetShowLogicalNames,
   onToggleColumnFilters,
   onExport,
+  onChangeViewMode,
 }: GridToolbarProps) {
+  const isTableMode = viewMode === 'table';
+  const editDisabled = !isTableMode;
   return (
     <div className={styles.toolbar}>
       {/* Group 1: Data operations */}
@@ -57,7 +64,7 @@ function GridToolbarInner({
             type="button"
             onClick={onInsertRow}
             className={styles.iconButton}
-            disabled={isReadOnly}
+            disabled={isReadOnly || editDisabled}
             title="新しい行を追加 (Insert)"
           >
             +
@@ -66,7 +73,7 @@ function GridToolbarInner({
             type="button"
             onClick={onDeleteRow}
             className={styles.iconButton}
-            disabled={isReadOnly}
+            disabled={isReadOnly || editDisabled}
             title="選択行を削除 (Delete)"
           >
             🗑
@@ -84,7 +91,7 @@ function GridToolbarInner({
             type="button"
             onClick={onRevertChanges}
             className={styles.iconButton}
-            disabled={!hasChanges || isApplying}
+            disabled={!hasChanges || isApplying || editDisabled}
             title="すべての変更を元に戻す (Ctrl+Z)"
           >
             ↩
@@ -93,7 +100,7 @@ function GridToolbarInner({
             type="button"
             onClick={onApplyChanges}
             className={`${styles.iconButton} ${styles.saveButton}`}
-            disabled={isReadOnly || !hasChanges || isApplying}
+            disabled={isReadOnly || !hasChanges || isApplying || editDisabled}
             title="変更をデータベースに保存 (Ctrl+S)"
           >
             {isApplying ? <span className={styles.applyingSpinner}>↻</span> : '💾'}
@@ -109,6 +116,25 @@ function GridToolbarInner({
       <div className={styles.toolbarSpacer} />
 
       {/* Group 3: View options */}
+      <button
+        type="button"
+        onClick={() => onChangeViewMode('table')}
+        className={`${styles.iconButton} ${isTableMode ? styles.active : ''}`}
+        title="テーブル表示"
+      >
+        ☰
+      </button>
+      <button
+        type="button"
+        onClick={() => onChangeViewMode('transpose')}
+        className={`${styles.iconButton} ${!isTableMode ? styles.active : ''}`}
+        title="Transpose表示"
+      >
+        ⊤
+      </button>
+
+      <span className={styles.toolbarSeparator} />
+
       <label className={styles.checkboxLabel}>
         <input
           type="checkbox"

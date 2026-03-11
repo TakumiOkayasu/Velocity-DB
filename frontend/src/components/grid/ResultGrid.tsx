@@ -9,7 +9,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useConnectionStore } from '../../store/connectionStore';
 import {
   useIsActiveDataView,
@@ -22,7 +22,13 @@ import {
 } from '../../store/queryStore';
 import { useSessionStore } from '../../store/sessionStore';
 import type { ResultSet } from '../../types';
-import { type ColumnMeta, isNumericType, isSystemColumn, type RowData } from '../../types/grid';
+import {
+  type ColumnMeta,
+  type GridViewMode,
+  isNumericType,
+  isSystemColumn,
+  type RowData,
+} from '../../types/grid';
 import { log } from '../../utils/logger';
 import { QueryConfirmDialog } from '../dialogs/QueryConfirmDialog';
 import { ExportDialog } from '../export/ExportDialog';
@@ -37,6 +43,7 @@ import { useGridKeyboard } from './hooks/useGridKeyboard';
 import { useRelatedRows } from './hooks/useRelatedRows';
 import styles from './ResultGrid.module.css';
 import { ResultTabs } from './ResultTabs';
+import { TransposeView } from './TransposeView';
 import { ValueEditorDialog } from './ValueEditorDialog';
 
 const ELAPSED_CAUTION_SECONDS = 10;
@@ -82,6 +89,8 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     columnName: string;
     value: string | null;
   }>({ isOpen: false, rowIndex: 0, columnName: '', value: null });
+  const [viewMode, setViewMode] = useState<GridViewMode>('table');
+  const [transposeRowIndex, setTransposeRowIndex] = useState(0);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [showColumnFilters, setShowColumnFilters] = useState(false);
@@ -121,6 +130,14 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     }
     return result;
   }, [resultSet]);
+
+  // データ変更時にtransposeRowIndexをクランプ
+  useEffect(() => {
+    setTransposeRowIndex((prev) => {
+      if (baseRowData.length === 0) return 0;
+      return Math.min(prev, baseRowData.length - 1);
+    });
+  }, [baseRowData]);
 
   const columns = useMemo<ColumnDef<RowData>[]>(() => {
     if (!resultSet) return [];
@@ -461,6 +478,16 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
 
   const openExportDialog = useCallback(() => setIsExportDialogOpen(true), []);
 
+  const changeViewMode = useCallback(
+    (mode: GridViewMode) => {
+      if (mode === 'transpose' && selectedRows.size > 0) {
+        setTransposeRowIndex(Math.min(...selectedRows));
+      }
+      setViewMode(mode);
+    },
+    [selectedRows]
+  );
+
   // --- Early returns ---
   if (isExecuting) {
     const isWarning = elapsedSeconds >= ELAPSED_WARNING_SECONDS;
@@ -554,6 +581,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         showLogicalNamesInGrid={showLogicalNamesInGrid}
         showColumnFilters={showColumnFilters}
         isReadOnly={isReadOnly}
+        viewMode={viewMode}
         onRefresh={refresh}
         onInsertRow={insertRow}
         onDeleteRow={deleteRow}
@@ -562,6 +590,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         onSetShowLogicalNames={setShowLogicalNamesInGrid}
         onToggleColumnFilters={toggleColumnFilters}
         onExport={openExportDialog}
+        onChangeViewMode={changeViewMode}
       />
 
       {currentQuery?.sourceTable && (
@@ -575,19 +604,29 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         />
       )}
 
-      <GridTable
-        table={table}
-        tableContainerRef={tableContainerRef}
-        rows={rows}
-        virtualRows={virtualRows}
-        totalSize={virtualTotalSize}
-        showColumnFilters={showColumnFilters}
-        showLogicalNamesInGrid={showLogicalNamesInGrid}
-        columnsMeta={columnsMeta}
-        edit={gridEditState}
-        selection={gridSelectionState}
-        callbacks={gridCallbacks}
-      />
+      {viewMode === 'table' ? (
+        <GridTable
+          table={table}
+          tableContainerRef={tableContainerRef}
+          rows={rows}
+          virtualRows={virtualRows}
+          totalSize={virtualTotalSize}
+          showColumnFilters={showColumnFilters}
+          showLogicalNamesInGrid={showLogicalNamesInGrid}
+          columnsMeta={columnsMeta}
+          edit={gridEditState}
+          selection={gridSelectionState}
+          callbacks={gridCallbacks}
+        />
+      ) : (
+        <TransposeView
+          columns={columnsMeta}
+          rowData={baseRowData}
+          currentRowIndex={transposeRowIndex}
+          showLogicalNames={showLogicalNamesInGrid}
+          onNavigate={setTransposeRowIndex}
+        />
+      )}
 
       <GridStatusBar
         resultSet={resultSet}
@@ -595,6 +634,8 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         isFiltered={columnFilters.length > 0}
         isReadOnly={isReadOnly}
         connectionLabel={activeConn ? `${activeConn.server}/${activeConn.database}` : undefined}
+        viewMode={viewMode}
+        transposeRowIndex={transposeRowIndex}
       />
 
       <ExportDialog
