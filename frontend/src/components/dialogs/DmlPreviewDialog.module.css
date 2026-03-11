@@ -1,0 +1,122 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  animation: overlayFadeIn 0.15s ease-out;
+}
+
+.dialog {
+  background: var(--bg-secondary, #2b2b2b);
+  border: 1px solid var(--border-color, #3c3f41);
+  border-radius: 8px;
+  width: 600px;
+  max-width: 90vw;
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  animation: dialogSlideIn 0.15s ease-out;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color, #3c3f41);
+}
+
+.header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary, #bbbbbb);
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--warning-color, #e8a838);
+  color: #fff;
+  font-weight: bold;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.content {
+  padding: 20px;
+}
+
+.summary {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--text-primary, #bbbbbb);
+  line-height: 1.5;
+}
+
+.sqlBlock {
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--bg-primary, #1e1e1e);
+  border: 1px solid var(--border-color, #3c3f41);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-secondary, #808080);
+  font-family: "Consolas", "Monaco", monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-color, #3c3f41);
+}
+
+.footer button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.15s ease;
+}
+
+.footer button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancelButton {
+  background: transparent;
+  color: var(--text-primary, #bbbbbb);
+  border: 1px solid var(--border-color, #3c3f41);
+}
+
+.cancelButton:hover:not(:disabled) {
+  background: var(--bg-hover, #3c3f41);
+}
+
+.executeButton {
+  background: var(--warning-color, #e8a838);
+  color: white;
+}
+
+.executeButton:hover:not(:disabled) {
+  background: #d4982d;
+}

@@ -19,6 +19,7 @@ interface UseGridEditResult {
   hasChanges: boolean;
   isApplying: boolean;
   applyError: string | null;
+  previewStatements: string[];
   isRowDeleted: (rowIndex: number) => boolean;
   isRowInserted: (rowIndex: number) => boolean;
   getInsertedRows: () => Map<number, Record<string, string | null>>;
@@ -33,7 +34,9 @@ interface UseGridEditResult {
   deleteRow: () => void;
   cloneRow: () => void;
   insertRow: () => void;
-  applyChanges: () => Promise<void>;
+  buildPreview: () => Promise<void>;
+  executePreview: () => Promise<void>;
+  dismissPreview: () => void;
 }
 
 export function useGridEdit({
@@ -64,6 +67,7 @@ export function useGridEdit({
 
   const [isApplying, setIsApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
+  const [previewStatements, setPreviewStatements] = useState<string[]>([]);
 
   // Edit mode is always ON when sourceTable exists and not read-only
   const isEditMode = !!currentQuery?.sourceTable && !isReadOnly;
@@ -132,7 +136,7 @@ export function useGridEdit({
     addNewRow(newRow);
   }, [isReadOnly, resultSet, addNewRow]);
 
-  const applyChanges = useCallback(async () => {
+  const buildPreview = useCallback(async () => {
     if (isReadOnly) {
       setApplyError('読み取り専用モードのため変更を適用できません');
       return;
@@ -142,23 +146,39 @@ export function useGridEdit({
     const dmlParams = getDmlParams();
     if (!dmlParams) return;
 
-    setIsApplying(true);
     setApplyError(null);
 
     try {
       const { statements } = await bridge.buildDmlStatements(activeConnectionId, dmlParams);
-
       if (statements.length > 0) {
-        await bridge.executeQuery(activeConnectionId, statements.join('\n'));
+        setPreviewStatements(statements);
       }
+    } catch (err) {
+      setApplyError(err instanceof Error ? err.message : 'Failed to build DML');
+    }
+  }, [isReadOnly, activeConnectionId, currentQuery, getDmlParams]);
 
+  const executePreview = useCallback(async () => {
+    if (!activeConnectionId || previewStatements.length === 0) return;
+
+    setIsApplying(true);
+    setApplyError(null);
+
+    try {
+      await bridge.executeQuery(activeConnectionId, previewStatements.join('\n'));
       revertAll();
+      setPreviewStatements([]);
     } catch (err) {
       setApplyError(err instanceof Error ? err.message : 'Failed to apply changes');
+      setPreviewStatements([]);
     } finally {
       setIsApplying(false);
     }
-  }, [isReadOnly, activeConnectionId, currentQuery, getDmlParams, revertAll]);
+  }, [activeConnectionId, previewStatements, revertAll]);
+
+  const dismissPreview = useCallback(() => {
+    setPreviewStatements([]);
+  }, []);
 
   // Set table context for editing when resultSet or sourceTable changes
   useEffect(() => {
@@ -195,6 +215,7 @@ export function useGridEdit({
     hasChanges,
     isApplying,
     applyError,
+    previewStatements,
     isRowDeleted,
     isRowInserted,
     getInsertedRows,
@@ -204,6 +225,8 @@ export function useGridEdit({
     deleteRow,
     cloneRow,
     insertRow,
-    applyChanges,
+    buildPreview,
+    executePreview,
+    dismissPreview,
   };
 }

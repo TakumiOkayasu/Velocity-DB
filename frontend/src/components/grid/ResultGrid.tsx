@@ -30,6 +30,7 @@ import {
   type RowData,
 } from '../../types/grid';
 import { log } from '../../utils/logger';
+import { DmlPreviewDialog } from '../dialogs/DmlPreviewDialog';
 import { QueryConfirmDialog } from '../dialogs/QueryConfirmDialog';
 import { ExportDialog } from '../export/ExportDialog';
 import { GridFilterBar } from './GridFilterBar';
@@ -176,6 +177,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     hasChanges,
     isApplying,
     applyError,
+    previewStatements,
     isRowDeleted,
     isRowInserted,
     getInsertedRows,
@@ -185,7 +187,9 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     deleteRow,
     cloneRow,
     insertRow,
-    applyChanges,
+    buildPreview,
+    executePreview,
+    dismissPreview,
   } = useGridEdit({
     resultSet,
     currentQuery,
@@ -259,7 +263,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     onDeleteRow: deleteRow,
     onCloneRow: cloneRow,
     onInsertRow: insertRow,
-    onApplyChanges: applyChanges,
+    onApplyChanges: buildPreview,
     onNavigateRelated: navigateRelated,
     onOpenValueEditor: openValueEditor,
   });
@@ -586,7 +590,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         onInsertRow={insertRow}
         onDeleteRow={deleteRow}
         onRevertChanges={revertChanges}
-        onApplyChanges={applyChanges}
+        onApplyChanges={buildPreview}
         onSetShowLogicalNames={setShowLogicalNamesInGrid}
         onToggleColumnFilters={toggleColumnFilters}
         onExport={openExportDialog}
@@ -650,6 +654,14 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         initialValue={valueEditorState.value}
         onSave={saveValueEditor}
         onCancel={() => setValueEditorState((prev) => ({ ...prev, isOpen: false }))}
+      />
+
+      <DmlPreviewDialog
+        isOpen={previewStatements.length > 0}
+        statements={previewStatements}
+        isExecuting={isApplying}
+        onExecute={executePreview}
+        onCancel={dismissPreview}
       />
 
       <QueryConfirmDialog
