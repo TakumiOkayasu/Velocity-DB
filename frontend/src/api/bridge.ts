@@ -537,6 +537,9 @@ class Bridge {
       dateFormat: string;
       nullDisplay: string;
     };
+    query: {
+      timeoutSeconds: number;
+    };
   }> {
     return this.call('getSettings', {});
   }
@@ -559,6 +562,9 @@ class Bridge {
       defaultPageSize: number;
       showRowNumbers: boolean;
       nullDisplay: string;
+    }>;
+    query?: Partial<{
+      timeoutSeconds: number;
     }>;
     window?: Partial<{
       width: number;

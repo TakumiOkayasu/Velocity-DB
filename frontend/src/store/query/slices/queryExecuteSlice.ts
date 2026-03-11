@@ -1,3 +1,4 @@
+import { getSettings } from '../../../utils/settingsUtils';
 import { executeAsyncWithPolling, toQueryResult } from '../helpers/asyncPolling';
 import { endExecution, failExecution, startExecution } from '../helpers/executionState';
 import type { AbortRegistrable } from '../interfaces/AbortRegistrable';
@@ -17,6 +18,9 @@ export function createExecuteSlice(
 ): Executable {
   const { bridge, abort } = deps;
 
+  // tabId → backend queryId mapping for direct cancel
+  const activeQueryIds = new Map<string, string>();
+
   async function executeAsync(id: string, connectionId: string, sql: string): Promise<void> {
     const controller = new AbortController();
     abort.register(id, controller);
@@ -24,7 +28,17 @@ export function createExecuteSlice(
     set((state) => startExecution(state, id));
 
     try {
-      const result = await executeAsyncWithPolling(bridge, connectionId, sql, controller.signal);
+      const timeoutMs = getSettings().query.timeout;
+      const result = await executeAsyncWithPolling(
+        bridge,
+        connectionId,
+        sql,
+        controller.signal,
+        (queryId) => {
+          activeQueryIds.set(id, queryId);
+        },
+        timeoutMs
+      );
 
       set((state) => ({
         ...endExecution(state, id),
@@ -39,6 +53,7 @@ export function createExecuteSlice(
 
       set((state) => failExecution(state, id, errorMessage));
     } finally {
+      activeQueryIds.delete(id);
       abort.unregister(id);
     }
   }
@@ -58,13 +73,18 @@ export function createExecuteSlice(
     cancelQuery: async (connectionId) => {
       const { executingQueryIds, activeQueryId } = get();
       try {
-        // Two-phase cancel (defence-in-depth):
-        // 1) abort.abort — immediately stops each polling loop (UI responsiveness)
-        // 2) bridge.cancelQuery — connection-level backend cancel (catches queries
+        // Three-phase cancel (defence-in-depth):
+        // 1) cancelAsyncQuery — directly cancels backend async task by queryId
+        // 2) abort.abort — immediately stops each polling loop (UI responsiveness)
+        // 3) bridge.cancelQuery — connection-level backend cancel (catches queries
         //    not yet in polling or managed outside AbortController)
-        // Both are idempotent; the per-query cancelAsyncQuery fired by AbortError
-        // arrives after bridge.cancelQuery and is a no-op on an already-cancelled query.
         for (const id of executingQueryIds) {
+          const queryId = activeQueryIds.get(id);
+          if (queryId) {
+            bridge.cancelAsyncQuery(queryId).catch((err) => {
+              console.error('Failed to cancel async query:', err);
+            });
+          }
           abort.abort(id);
         }
         await bridge.cancelQuery(connectionId);

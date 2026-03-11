@@ -24,6 +24,7 @@ struct SettingsResponse {
     GeneralSettings general;
     EditorSettings editor;
     GridSettings grid;
+    QuerySettings query;
 };
 
 struct SshConfigResponse {
@@ -114,7 +115,7 @@ struct SessionStateResponse {
 template <>
 struct glz::meta<velocitydb::dto::SettingsResponse> {
     using T = velocitydb::dto::SettingsResponse;
-    static constexpr auto value = glz::object("general", &T::general, "editor", &T::editor, "grid", &T::grid);
+    static constexpr auto value = glz::object("general", &T::general, "editor", &T::editor, "grid", &T::grid, "query", &T::query);
 };
 
 template <>
@@ -161,7 +162,7 @@ SettingsProvider& SettingsProvider::operator=(SettingsProvider&&) noexcept = def
 
 std::string SettingsProvider::getSettings() {
     const auto& s = m_settingsManager->getSettings();
-    dto::SettingsResponse resp{s.general, s.editor, s.grid};
+    dto::SettingsResponse resp{s.general, s.editor, s.grid, s.query};
     std::string json;
     if (auto ec = glz::write_json(resp, json); bool(ec)) {
         return JsonUtils::errorResponse("Failed to serialize settings");
@@ -207,6 +208,11 @@ std::string SettingsProvider::updateSettings(std::string_view params) {
                 settings.grid.showRowNumbers = val.value();
             if (auto val = grid["nullDisplay"].get_string(); !val.error())
                 settings.grid.nullDisplay = std::string(val.value());
+        }
+
+        if (auto query = doc["query"]; !query.error()) {
+            if (auto val = query["timeoutSeconds"].get_int64(); !val.error())
+                settings.query.timeoutSeconds = std::clamp(narrowToInt(val.value()), 1, 600);
         }
 
         if (auto window = doc["window"]; !window.error()) {

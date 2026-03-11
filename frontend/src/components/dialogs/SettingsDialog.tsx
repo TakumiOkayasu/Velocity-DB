@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { bridge } from '../../api/bridge';
 import styles from './SettingsDialog.module.css';
 import { type AppSettings, defaultSettings } from './settingsUtils';
 
@@ -27,6 +28,14 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
 
   const handleSave = useCallback(() => {
     localStorage.setItem('app-settings', JSON.stringify(settings));
+    // Sync query timeout to Backend
+    bridge
+      .updateSettings({
+        query: { timeoutSeconds: Math.round(settings.query.timeout / 1000) },
+      })
+      .catch((err) => {
+        console.error('Failed to sync query timeout to backend:', err);
+      });
     onClose();
     // Trigger reload to apply settings
     window.dispatchEvent(new CustomEvent('settings-changed', { detail: settings }));
