@@ -36,15 +36,13 @@ describe('GridStatusBar', () => {
           resultSet={resultSet}
           viewMode="transpose"
           transposeRowIndex={1}
-        />,
+        />
       );
       expect(screen.getByText('行 2 / 3')).toBeInTheDocument();
     });
 
     it('viewMode=transpose で0行時に「行 0 / 0」を表示', () => {
-      render(
-        <GridStatusBar {...baseProps} viewMode="transpose" transposeRowIndex={0} />,
-      );
+      render(<GridStatusBar {...baseProps} viewMode="transpose" transposeRowIndex={0} />);
       expect(screen.getByText('行 0 / 0')).toBeInTheDocument();
     });
   });
