@@ -115,10 +115,6 @@ def build_backend(build_type: str = "Release", clean: bool = False) -> bool:
         print("\nERROR: CMake configuration failed")
         if stderr:
             print(f"\n{stderr}")
-        if "execution of make failed" in stderr.lower() or "compiler identification" in stderr.lower():
-            print("\n[HINT] アンチウイルスソフト (Norton等) が CMake のコンパイラ検出用")
-            print("       実行ファイルを誤検知・検疫している可能性があります。")
-            print(f"       除外設定に追加: {build_dir.absolute()}")
         return False
 
     # Build

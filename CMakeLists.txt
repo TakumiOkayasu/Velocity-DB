@@ -14,6 +14,13 @@ if(NOT EXISTS "${CMAKE_SOURCE_DIR}/vcpkg.json")
     set(VCPKG_MANIFEST_MODE OFF CACHE BOOL "" FORCE)
 endif()
 
+# Norton false positive workaround: skip C compiler ID exe generation
+# FetchContent dependencies (e.g. Google Test) enable C language, causing
+# CMake to generate CMakeCCompilerId.exe. Norton's heuristic detection
+# quarantines this as Win64:MalwareX-gen. FORCED skips the probe.
+# CXX detection is kept intact — Google Test requires compile feature info.
+set(CMAKE_C_COMPILER_FORCED TRUE)
+
 project(VelocityDB VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
