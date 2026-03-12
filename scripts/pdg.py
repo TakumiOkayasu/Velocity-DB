@@ -8,7 +8,7 @@ Velocity-DB CLI - Unified build system interface
 Usage:
     uv run scripts/pdg.py build [backend|frontend|all] [--clean]
     uv run scripts/pdg.py debug [--clean]              # Backend Debug build
-    uv run scripts/pdg.py test [backend|frontend] [--watch]
+    uv run scripts/pdg.py test [backend|frontend|e2e] [--watch]
     uv run scripts/pdg.py lint [--fix] [--unsafe]
     uv run scripts/pdg.py dev
     uv run scripts/pdg.py package
@@ -70,6 +70,8 @@ def cmd_test(args: argparse.Namespace) -> bool:
         return test.test_backend(build_type=build_type)
     elif target == "frontend":
         return test.test_frontend(watch=watch)
+    elif target == "e2e":
+        return test.test_e2e()
     else:
         print(f"ERROR: Unknown test target: {target}")
         return False
@@ -418,7 +420,7 @@ def main() -> None:
     test_parser = subparsers.add_parser("test", aliases=["t"], help="Run tests")
     test_parser.add_argument(
         "target",
-        choices=["backend", "frontend"],
+        choices=["backend", "frontend", "e2e"],
         default="frontend",
         nargs="?",
         help="Test target (default: frontend)",

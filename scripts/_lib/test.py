@@ -39,6 +39,36 @@ def test_frontend(watch: bool = False) -> bool:
     return success
 
 
+def test_e2e() -> bool:
+    """Run E2E tests with Playwright."""
+    project_root = utils.get_project_root()
+    frontend_dir = project_root / "frontend"
+
+    print(f"\n{'#' * 60}")
+    print("#  Running E2E Tests (Playwright)")
+    print(f"{'#' * 60}")
+
+    pkg_info = utils.ensure_frontend_deps()
+    if not pkg_info:
+        return False
+
+    pkg_manager, pkg_path = pkg_info
+    print(f"\nUsing {pkg_manager}: {pkg_path}")
+
+    success, _ = utils.run_command(
+        [str(pkg_path), "run", "test:e2e"],
+        f"{pkg_manager} run test:e2e",
+        cwd=frontend_dir,
+    )
+
+    if success:
+        print("\n[OK] All E2E tests passed!")
+    else:
+        print("\n[FAIL] E2E tests failed")
+
+    return success
+
+
 def test_backend(build_type: str = "Release") -> bool:
     """Run backend tests."""
     if build_type not in ("Debug", "Release"):
