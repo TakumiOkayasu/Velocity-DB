@@ -162,7 +162,7 @@ INNER JOIN LogisticsDB.dbo.products p ON e.id = p.employee_id;
 - Bun（`powershell -c "irm bun.sh/install.ps1 | iex"`）
 - CMake 3.20以上
 - Ninja（`winget install Ninja-build.Ninja`）
-- Python 3.14+（ビルドスクリプト用）
+- Python（ビルドスクリプト用）
 - uv（`winget install astral-sh.uv`）
 
 #### ビルド手順
@@ -238,6 +238,7 @@ uv run scripts/pdg.py b backend                  # 'build' の代わりに 'b'
 uv run scripts/pdg.py test backend               # バックエンドテスト
 uv run scripts/pdg.py test frontend              # フロントエンドテスト
 uv run scripts/pdg.py test frontend --watch      # Watchモード
+uv run scripts/pdg.py test e2e                   # E2Eテスト (Playwright)
 
 # 短縮形
 uv run scripts/pdg.py t frontend                 # 'test' の代わりに 't'
@@ -289,20 +290,19 @@ bun run typecheck    # 型チェック
 
 # その他
 bun run format       # フォーマット
-bun pm cache rm      # キャッシュ削除
 ```
 
 ### 技術スタック
 
-#### ビルドスクリプト（Python 3.14+）
+#### ビルドスクリプト（Python）
 
 | カテゴリ | ツール/技術 |
 |---------|------------|
-| ランタイム | uv |
+| パッケージマネージャ | uv |
 | Lint/Format | Ruff |
 | 設定 | pyproject.toml |
 
-#### バックエンド（C++23）
+#### バックエンド（C++）
 
 | カテゴリ | ライブラリ/技術 |
 |---------|----------------|
@@ -312,22 +312,23 @@ bun pm cache rm      # キャッシュ削除
 | JSON | simdjson |
 | XML | pugixml |
 | 最適化 | SIMD (AVX2)、メモリマップドファイル |
-| Lint/Format | clang-format 21, clang-tidy |
+| Lint/Format | clang-format, clang-tidy |
 
-#### フロントエンド（React + TypeScript）
+#### フロントエンド（React）
 
 | カテゴリ | ライブラリ |
 |---------|-----------|
-| ランタイム | Bun |
+| パッケージマネージャ | Bun |
 | ビルド | Vite |
-| UI | React 19 |
+| UI | React |
 | エディタ | Monaco Editor |
 | テーブル | TanStack Table（仮想スクロール） |
 | スタイル | CSS Modules |
 | 状態管理 | Zustand |
 | ER図 | React Flow |
-| Linter/Formatter | Biome 2.3.8 |
-| テスト | Vitest |
+| Linter/Formatter | Biome |
+| テスト (Unit) | Vitest |
+| テスト (E2E) | Playwright |
 
 ### パフォーマンス目標と実装
 
