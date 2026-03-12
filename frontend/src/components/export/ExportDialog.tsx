@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
 import { useConnectionStore } from '../../store/connectionStore';
 import type { ResultSet } from '../../types';
 import styles from './ExportDialog.module.css';
@@ -16,6 +17,7 @@ interface ExportDialogProps {
 }
 
 export function ExportDialog({ isOpen, onClose, resultSet }: ExportDialogProps) {
+  useDialogKeyboard({ isOpen, onEscape: onClose });
   // W8: .find() returns existing array reference — stable with Zustand's Object.is equality
   const activeConnection = useConnectionStore((s) => {
     const id = s.activeConnectionId;

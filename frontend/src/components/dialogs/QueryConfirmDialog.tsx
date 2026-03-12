@@ -1,3 +1,4 @@
+import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
 import styles from './QueryConfirmDialog.module.css';
 
 interface QueryConfirmDialogProps {
@@ -23,6 +24,8 @@ export function QueryConfirmDialog({
   onConfirm,
   onCancel,
 }: QueryConfirmDialogProps) {
+  useDialogKeyboard({ isOpen, onEscape: onCancel });
+
   if (!isOpen) return null;
 
   return (

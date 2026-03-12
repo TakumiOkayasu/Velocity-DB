@@ -67,4 +67,18 @@ describe('DmlPreviewDialog', () => {
     fireEvent.click(container.firstChild as Element);
     expect(onCancel).not.toHaveBeenCalled();
   });
+
+  it('Escapeキーでキャンセル発火', () => {
+    const onCancel = vi.fn();
+    render(<DmlPreviewDialog {...defaultProps} onCancel={onCancel} />);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
+
+  it('isExecuting時にEscapeキーでキャンセルが発火しない', () => {
+    const onCancel = vi.fn();
+    render(<DmlPreviewDialog {...defaultProps} isExecuting={true} onCancel={onCancel} />);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onCancel).not.toHaveBeenCalled();
+  });
 });

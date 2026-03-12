@@ -1,3 +1,4 @@
+import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
 import styles from './DmlPreviewDialog.module.css';
 
 interface DmlPreviewDialogProps {
@@ -15,6 +16,8 @@ export function DmlPreviewDialog({
   onExecute,
   onCancel,
 }: DmlPreviewDialogProps) {
+  useDialogKeyboard({ isOpen, onEscape: isExecuting ? undefined : onCancel });
+
   if (!isOpen) return null;
 
   return (

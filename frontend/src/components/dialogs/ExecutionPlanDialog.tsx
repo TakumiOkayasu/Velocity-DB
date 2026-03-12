@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { bridge } from '../../api/bridge';
+import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
 import { useConnectionStore } from '../../store/connectionStore';
 import styles from './ExecutionPlanDialog.module.css';
 
@@ -10,6 +11,7 @@ interface ExecutionPlanDialogProps {
 }
 
 export function ExecutionPlanDialog({ isOpen, onClose, sql }: ExecutionPlanDialogProps) {
+  useDialogKeyboard({ isOpen, onEscape: onClose });
   const { activeConnectionId } = useConnectionStore();
   const [planText, setPlanText] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { bridge } from '../../api/bridge';
+import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
 import type { DatabaseType, EnvironmentType, SshAuthType } from '../../types';
 import { connectionColor } from '../../utils/colorContrast';
 import styles from './ConnectionDialog.module.css';
@@ -62,6 +63,7 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
     deleteConfirmOpen,
     handleCopyProfile,
   } = useConnectionProfile(isOpen);
+  useDialogKeyboard({ isOpen, onEscape: deleteConfirmOpen ? undefined : onClose });
 
   const [testing, setTesting] = useState(false);
 
