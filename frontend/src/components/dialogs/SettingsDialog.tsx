@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { bridge } from '../../api/bridge';
+import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
 import styles from './SettingsDialog.module.css';
 import { type AppSettings, defaultSettings } from './settingsUtils';
 
@@ -9,6 +10,7 @@ interface SettingsDialogProps {
 }
 
 export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
+  useDialogKeyboard({ isOpen, onEscape: onClose });
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [activeTab, setActiveTab] = useState<'editor' | 'query' | 'appearance' | 'shortcuts'>(
     'editor'
