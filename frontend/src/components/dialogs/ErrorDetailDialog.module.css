@@ -1,0 +1,68 @@
+.overlay {
+  composes: overlay from "./DialogBase.module.css";
+  z-index: 1100;
+}
+
+.dialog {
+  composes: dialog from "./DialogBase.module.css";
+  background-color: var(--bg-secondary, #2b2b2b);
+  width: 500px;
+}
+
+.header {
+  composes: confirmHeader from "./DialogBase.module.css";
+}
+
+.icon {
+  composes: confirmIcon from "./DialogBase.module.css";
+  background: var(--error-color, #e05555);
+}
+
+.content {
+  composes: confirmContent from "./DialogBase.module.css";
+}
+
+.summary {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-primary, #bbbbbb);
+  line-height: 1.5;
+}
+
+.detail {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  background: var(--bg-primary, #1e1e1e);
+  border: 1px solid var(--border-color, #3c3f41);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-secondary, #808080);
+  font-family: "Consolas", "Monaco", monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.footer {
+  composes: confirmFooter from "./DialogBase.module.css";
+}
+
+.copyButton {
+  background: transparent;
+  color: var(--text-primary, #bbbbbb);
+  border: 1px solid var(--border-color, #3c3f41);
+}
+
+.copyButton:hover {
+  background: var(--bg-hover, #3c3f41);
+}
+
+.closeButton {
+  background: var(--accent-color, #4a88c7);
+  color: white;
+}
+
+.closeButton:hover {
+  background: var(--accent-hover, #5a98d7);
+}

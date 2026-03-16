@@ -102,6 +102,23 @@
   color: var(--error-color);
 }
 
+.errorDetailButton {
+  margin-top: 8px;
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid var(--border-color, #3c3f41);
+  border-radius: 4px;
+  color: var(--text-secondary, #808080);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.errorDetailButton:hover {
+  background: var(--bg-hover, #3c3f41);
+  color: var(--text-primary, #bbbbbb);
+}
+
 .spinner {
   animation: spin 1s linear infinite;
 }
