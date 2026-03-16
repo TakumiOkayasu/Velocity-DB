@@ -2,6 +2,7 @@ import { bridge as apiBridge } from '../../../api/bridge';
 import type { Query } from '../../../types';
 import { log } from '../../../utils/logger';
 import { getSettings } from '../../../utils/settingsUtils';
+import { stripBrackets } from '../../../utils/stringUtils';
 import {
   endExecution,
   failExecution,
@@ -59,7 +60,8 @@ export function createDataViewSlice(
           DATA_VIEW_ROW_LIMIT + 1,
           whereClause
         );
-        const tabName = whereClause ? `${tableName} (フィルタ済)` : tableName;
+        const displayName = stripBrackets(tableName);
+        const tabName = whereClause ? `${displayName} (フィルタ済)` : displayName;
         const newQuery: Query = {
           id,
           name: tabName,

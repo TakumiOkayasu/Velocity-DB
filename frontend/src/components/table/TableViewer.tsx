@@ -11,6 +11,7 @@ import type {
   TableMetadata,
   TriggerInfo,
 } from '../../types';
+import { stripBrackets } from '../../utils/stringUtils';
 import styles from './TableViewer.module.css';
 import { ColumnsTab } from './tabs/ColumnsTab';
 import { ConstraintsTab } from './tabs/ConstraintsTab';
@@ -264,7 +265,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
           </button>
         </div>
         <div className={styles.toolbarRight}>
-          <span className={styles.tableName}>{fullTableName}</span>
+          <span className={styles.tableName}>{stripBrackets(fullTableName)}</span>
           {resultSet && (
             <span className={styles.rowCount}>{resultSet.rows.length.toLocaleString()} 件</span>
           )}
