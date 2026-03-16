@@ -126,6 +126,27 @@ describe('DataView operations', () => {
       );
     });
 
+    it('should strip brackets from tab name', async () => {
+      mockDataViewQuery([{ name: 'id', type: 'int' }], [['1']]);
+
+      const { openTableData } = useQueryStore.getState();
+      await openTableData('conn_1', '[Develop.MMS].[MMS]');
+
+      const state = useQueryStore.getState();
+      expect(state.queries[0].name).toBe('Develop.MMS.MMS');
+      expect(state.queries[0].sourceTable).toBe('[Develop.MMS].[MMS]');
+    });
+
+    it('should strip brackets from filtered tab name', async () => {
+      mockDataViewQuery([{ name: 'id', type: 'int' }], [['1']]);
+
+      const { openTableData } = useQueryStore.getState();
+      await openTableData('conn_1', '[dbo].[Users]', 'id = 1');
+
+      const state = useQueryStore.getState();
+      expect(state.queries[0].name).toBe('dbo.Users (フィルタ済)');
+    });
+
     it('should set error on failure', async () => {
       mockDataViewError(new Error('Connection lost'));
 

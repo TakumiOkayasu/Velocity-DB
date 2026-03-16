@@ -6,7 +6,7 @@
 .dialog {
   composes: dialog from "./DialogBase.module.css";
   background-color: var(--bg-secondary, #2b2b2b);
-  width: 420px;
+  width: 500px;
 }
 
 .header {
@@ -15,25 +15,21 @@
 
 .icon {
   composes: confirmIcon from "./DialogBase.module.css";
-  background: var(--accent-color, #4a88c7);
-}
-
-.icon.warning {
-  background: var(--warning-color, #e8a838);
+  background: var(--error-color, #e05555);
 }
 
 .content {
   composes: confirmContent from "./DialogBase.module.css";
 }
 
-.message {
+.summary {
   margin: 0;
   font-size: 13px;
   color: var(--text-primary, #bbbbbb);
   line-height: 1.5;
 }
 
-.details {
+.detail {
   margin: 12px 0 0;
   padding: 10px 12px;
   background: var(--bg-primary, #1e1e1e);
@@ -44,7 +40,7 @@
   font-family: "Consolas", "Monaco", monospace;
   white-space: pre-wrap;
   word-break: break-all;
-  max-height: 150px;
+  max-height: 200px;
   overflow-y: auto;
 }
 
@@ -52,29 +48,21 @@
   composes: confirmFooter from "./DialogBase.module.css";
 }
 
-.cancelButton {
+.copyButton {
   background: transparent;
   color: var(--text-primary, #bbbbbb);
   border: 1px solid var(--border-color, #3c3f41);
 }
 
-.cancelButton:hover {
+.copyButton:hover {
   background: var(--bg-hover, #3c3f41);
 }
 
-.confirmButton {
+.closeButton {
   background: var(--accent-color, #4a88c7);
   color: white;
 }
 
-.confirmButton:hover {
+.closeButton:hover {
   background: var(--accent-hover, #5a98d7);
-}
-
-.confirmButton.destructive {
-  background: var(--warning-color, #e8a838);
-}
-
-.confirmButton.destructive:hover {
-  background: #d4982d;
 }

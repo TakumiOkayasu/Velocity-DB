@@ -81,7 +81,8 @@ export function CenterPanel() {
               {!activeQuery?.connectionId && <option value="">接続を選択</option>}
               {connections.map((c) => (
                 <option key={c.id} value={c.id}>
-                  [{c.name} | {c.database}]{c.isProduction ? ' (本番)' : ''}
+                  {c.name} / {c.database}
+                  {c.isProduction ? ' (本番)' : ''}
                 </option>
               ))}
             </>

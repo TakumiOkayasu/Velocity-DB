@@ -29,8 +29,10 @@ import {
   isSystemColumn,
   type RowData,
 } from '../../types/grid';
+import { parseErrorMessage } from '../../utils/errorParser';
 import { log } from '../../utils/logger';
 import { DmlPreviewDialog } from '../dialogs/DmlPreviewDialog';
+import { ErrorDetailDialog } from '../dialogs/ErrorDetailDialog';
 import { QueryConfirmDialog } from '../dialogs/QueryConfirmDialog';
 import { ExportDialog } from '../export/ExportDialog';
 import { GridFilterBar } from './GridFilterBar';
@@ -96,8 +98,13 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [showColumnFilters, setShowColumnFilters] = useState(false);
   const [whereFilterError, setWhereFilterError] = useState<string | null>(null);
+  const [isErrorDialogOpen, setIsErrorDialogOpen] = useState(false);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const elapsedSeconds = useElapsedTimer(isExecuting);
+
+  useEffect(() => {
+    setIsErrorDialogOpen(!!error);
+  }, [error]);
 
   // --- Derived data ---
   const multipleResult = queryResult && 'multipleResults' in queryResult ? queryResult : null;
@@ -535,9 +542,18 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
 
   if (error) {
     log.debug(`[ResultGrid] Showing error: ${error}`);
+    const parsed = parseErrorMessage(error);
     return (
       <div className={`${styles.message} ${styles.error}`}>
-        <span>エラー: {error}</span>
+        <span>{parsed.summary}</span>
+        <button className={styles.errorDetailButton} onClick={() => setIsErrorDialogOpen(true)}>
+          詳細を表示
+        </button>
+        <ErrorDetailDialog
+          isOpen={isErrorDialogOpen}
+          errorMessage={error}
+          onClose={() => setIsErrorDialogOpen(false)}
+        />
       </div>
     );
   }

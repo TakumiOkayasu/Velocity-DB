@@ -3,6 +3,7 @@ import { useConnectionStore } from '../../store/connectionStore';
 import { useQueries, useQueryActions, useQueryStore } from '../../store/queryStore';
 import type { Query } from '../../types';
 import { connectionColor } from '../../utils/colorContrast';
+import { stripBrackets } from '../../utils/stringUtils';
 import styles from './EditorTabs.module.css';
 
 // SQL file icon
@@ -55,11 +56,11 @@ const CloseIcon = (
 type ConnectionColorMap = Record<string, { color: string; label: string }>;
 
 function buildTooltip(query: Query, envMap: ConnectionColorMap): string {
-  const parts = [query.name];
+  const parts = [stripBrackets(query.name)];
   if (query.logicalName) {
     parts.push(query.logicalName);
   } else if (query.isDataView && query.sourceTable && query.sourceTable !== query.name) {
-    parts.push(query.sourceTable);
+    parts.push(stripBrackets(query.sourceTable));
   }
   if (query.connectionId) {
     const entry = envMap[query.connectionId];
@@ -259,7 +260,7 @@ export function EditorTabs() {
               {query.isERDiagram ? ERDiagramIcon : SqlIcon}
               <span className={styles.tabName}>
                 {query.isDirty && <span className={styles.dirty}>●</span>}
-                {query.name}
+                {stripBrackets(query.name)}
               </span>
               <button
                 className={styles.closeButton}
@@ -296,7 +297,7 @@ export function EditorTabs() {
                   }}
                 >
                   {query.isERDiagram ? ERDiagramIcon : SqlIcon}
-                  <span className={styles.overflowMenuItemName}>{query.name}</span>
+                  <span className={styles.overflowMenuItemName}>{stripBrackets(query.name)}</span>
                 </button>
               ))}
             </div>

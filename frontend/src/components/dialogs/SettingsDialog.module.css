@@ -1,31 +1,11 @@
 .overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(2px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  animation: overlayFadeIn 0.15s ease-out;
+  composes: overlay from "./DialogBase.module.css";
 }
 
 .dialog {
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
+  composes: dialog from "./DialogBase.module.css";
   width: 550px;
-  max-width: 90vw;
   max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.05);
-  animation: dialogSlideIn 0.15s ease-out;
 }
 
 .header {
