@@ -1,61 +1,25 @@
 .overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(2px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  composes: overlay from "./DialogBase.module.css";
   z-index: 1100;
-  animation: overlayFadeIn 0.15s ease-out;
 }
 
 .dialog {
-  background: var(--bg-secondary, #2b2b2b);
-  border: 1px solid var(--border-color, #3c3f41);
-  border-radius: 8px;
+  composes: dialog from "./DialogBase.module.css";
+  background-color: var(--bg-secondary, #2b2b2b);
   width: 600px;
-  max-width: 90vw;
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.05);
-  animation: dialogSlideIn 0.15s ease-out;
 }
 
 .header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border-color, #3c3f41);
-}
-
-.header h3 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--text-primary, #bbbbbb);
+  composes: confirmHeader from "./DialogBase.module.css";
 }
 
 .icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
+  composes: confirmIcon from "./DialogBase.module.css";
   background: var(--warning-color, #e8a838);
-  color: #fff;
-  font-weight: bold;
-  font-size: 14px;
-  flex-shrink: 0;
 }
 
 .content {
-  padding: 20px;
+  composes: confirmContent from "./DialogBase.module.css";
 }
 
 .summary {
@@ -81,25 +45,7 @@
 }
 
 .footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 16px 20px;
-  border-top: 1px solid var(--border-color, #3c3f41);
-}
-
-.footer button {
-  padding: 8px 16px;
-  border-radius: 4px;
-  font-size: 13px;
-  cursor: pointer;
-  border: none;
-  transition: background-color 0.15s ease;
-}
-
-.footer button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  composes: confirmFooter from "./DialogBase.module.css";
 }
 
 .cancelButton {
