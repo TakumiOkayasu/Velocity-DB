@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { GridStatusBar } from '../../components/grid/GridStatusBar';
+import type { PaginationState } from '../../store/query/types';
 import type { ResultSet } from '../../types';
 
 const baseProps = {
@@ -44,6 +45,100 @@ describe('GridStatusBar', () => {
     it('viewMode=transpose で0行時に「行 0 / 0」を表示', () => {
       render(<GridStatusBar {...baseProps} viewMode="transpose" transposeRowIndex={0} />);
       expect(screen.getByText('行 0 / 0')).toBeInTheDocument();
+    });
+  });
+
+  describe('pagination mode', () => {
+    const rows10k = Array.from({ length: 10000 }, () => [] as string[]);
+    const paginatedResultSet = {
+      ...baseProps.resultSet,
+      rows: rows10k,
+      truncated: false,
+    } as unknown as ResultSet;
+
+    const basePagination: PaginationState = {
+      totalRowCount: 50000,
+      loadedRowCount: 10000,
+      isLoadingMore: false,
+      hasMore: true,
+      baseSql: 'SELECT * FROM t',
+      connectionId: 'conn_1',
+    };
+
+    it('pagination有りで「N / M 件」形式を表示', () => {
+      render(
+        <GridStatusBar
+          {...baseProps}
+          resultSet={paginatedResultSet}
+          filteredRowCount={10000}
+          pagination={basePagination}
+        />
+      );
+      expect(screen.getByText(/10,000 \/ 50,000 件/)).toBeInTheDocument();
+    });
+
+    it('totalRowCount不明(-1)で「N+」形式を表示', () => {
+      const unknownPagination = { ...basePagination, totalRowCount: -1 };
+      render(
+        <GridStatusBar
+          {...baseProps}
+          resultSet={paginatedResultSet}
+          filteredRowCount={10000}
+          pagination={unknownPagination}
+        />
+      );
+      expect(screen.getByText(/10,000\+/)).toBeInTheDocument();
+    });
+
+    it('isLoadingMore中に「(読込中...)」を表示', () => {
+      const loadingPagination = { ...basePagination, isLoadingMore: true };
+      render(
+        <GridStatusBar
+          {...baseProps}
+          resultSet={paginatedResultSet}
+          filteredRowCount={10000}
+          pagination={loadingPagination}
+        />
+      );
+      expect(screen.getByText(/読込中/)).toBeInTheDocument();
+    });
+
+    it('hasMore=true で「スクロールで追加読み込み」ヒントを表示', () => {
+      render(
+        <GridStatusBar
+          {...baseProps}
+          resultSet={paginatedResultSet}
+          filteredRowCount={10000}
+          pagination={basePagination}
+        />
+      );
+      expect(screen.getByText(/スクロールで追加読み込み/)).toBeInTheDocument();
+    });
+
+    it('hasMore=false でスクロールヒントを非表示', () => {
+      const donePagination = { ...basePagination, hasMore: false };
+      render(
+        <GridStatusBar
+          {...baseProps}
+          resultSet={paginatedResultSet}
+          filteredRowCount={10000}
+          pagination={donePagination}
+        />
+      );
+      expect(screen.queryByText(/スクロールで追加読み込み/)).not.toBeInTheDocument();
+    });
+
+    it('pagination有り+フィルタで「表示数/総数 件 (フィルタ中)」形式を表示', () => {
+      render(
+        <GridStatusBar
+          {...baseProps}
+          resultSet={paginatedResultSet}
+          filteredRowCount={5000}
+          isFiltered={true}
+          pagination={basePagination}
+        />
+      );
+      expect(screen.getByText(/5,000 \/ 50,000 件 \(フィルタ中\)/)).toBeInTheDocument();
     });
   });
 });

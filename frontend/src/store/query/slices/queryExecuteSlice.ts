@@ -1,14 +1,25 @@
+import type { ResultSet } from '../../../types';
 import { getSettings } from '../../../utils/settingsUtils';
 import { executeAsyncWithPolling, toQueryResult } from '../helpers/asyncPolling';
 import { endExecution, failExecution, startExecution } from '../helpers/executionState';
+import { fetchAndUpdateRowCount } from '../helpers/paginationHelper';
 import type { AbortRegistrable } from '../interfaces/AbortRegistrable';
 import type { Executable } from '../interfaces/Executable';
+import type { PaginatedBridgeable } from '../interfaces/PaginatedBridgeable';
 import type { QueryBridgeable } from '../interfaces/QueryBridgeable';
 import type { GetState, SetState } from '../types';
 
 interface ExecuteSliceDeps {
-  bridge: QueryBridgeable;
+  bridge: QueryBridgeable & PaginatedBridgeable;
   abort: AbortRegistrable;
+}
+
+function hasExplicitLimit(sql: string): boolean {
+  return (
+    /\bTOP\s+\d+\b/i.test(sql) ||
+    /\bLIMIT\s+\d+\b/i.test(sql) ||
+    /\bFETCH\s+(?:FIRST|NEXT)\s+\d+/i.test(sql)
+  );
 }
 
 export function createExecuteSlice(
@@ -18,7 +29,6 @@ export function createExecuteSlice(
 ): Executable {
   const { bridge, abort } = deps;
 
-  // tabId → backend queryId mapping for direct cancel
   const activeQueryIds = new Map<string, string>();
 
   async function executeAsync(id: string, connectionId: string, sql: string): Promise<void> {
@@ -40,10 +50,30 @@ export function createExecuteSlice(
         timeoutMs
       );
 
+      const queryResult = toQueryResult(result);
+
       set((state) => ({
         ...endExecution(state, id),
-        results: { ...state.results, [id]: toQueryResult(result) },
+        results: { ...state.results, [id]: queryResult },
       }));
+
+      if (!result.multipleResults && result.truncated && !hasExplicitLimit(sql)) {
+        set((state) => ({
+          paginationStates: {
+            ...state.paginationStates,
+            [id]: {
+              totalRowCount: -1,
+              loadedRowCount: (queryResult as ResultSet).rows.length,
+              isLoadingMore: false,
+              hasMore: true,
+              baseSql: sql,
+              connectionId,
+            },
+          },
+        }));
+
+        fetchAndUpdateRowCount(set, bridge, id, sql, connectionId);
+      }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         set((state) => endExecution(state, id));
@@ -58,26 +88,31 @@ export function createExecuteSlice(
     }
   }
 
+  function clearPagination(id: string): void {
+    set((state) => {
+      const { [id]: _, ...rest } = state.paginationStates;
+      return { paginationStates: rest };
+    });
+  }
+
   return {
     executeQuery: async (id, connectionId) => {
       const query = get().queries.find((q) => q.id === id);
       if (!query || !query.content.trim()) return;
+      clearPagination(id);
       await executeAsync(id, connectionId, query.content);
     },
 
     executeSelectedText: async (id, connectionId, selectedText) => {
       if (!selectedText.trim()) return;
+      clearPagination(id);
       await executeAsync(id, connectionId, selectedText);
     },
 
     cancelQuery: async (connectionId) => {
       const { executingQueryIds, activeQueryId } = get();
       try {
-        // Three-phase cancel (defence-in-depth):
-        // 1) cancelAsyncQuery — directly cancels backend async task by queryId
-        // 2) abort.abort — immediately stops each polling loop (UI responsiveness)
-        // 3) bridge.cancelQuery — connection-level backend cancel (catches queries
-        //    not yet in polling or managed outside AbortController)
+        // Three-phase cancel: cancelAsyncQuery → abort → cancelQuery
         for (const id of executingQueryIds) {
           const queryId = activeQueryIds.get(id);
           if (queryId) {

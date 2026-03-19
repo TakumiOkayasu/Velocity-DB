@@ -9,15 +9,17 @@ import {
   generateQueryId,
   startExecution,
 } from '../helpers/executionState';
-import { DATA_VIEW_ROW_LIMIT, fetchTableWithComments } from '../helpers/fetchTable';
+import { fetchTableWithComments, PAGE_SIZE, toBaseSql } from '../helpers/fetchTable';
+import { fetchAndUpdateRowCount } from '../helpers/paginationHelper';
 import type { AbortRegistrable } from '../interfaces/AbortRegistrable';
 import type { ColumnBridgeable } from '../interfaces/ColumnBridgeable';
 import type { DataViewable } from '../interfaces/DataViewable';
+import type { PaginatedBridgeable } from '../interfaces/PaginatedBridgeable';
 import type { QueryBridgeable } from '../interfaces/QueryBridgeable';
 import type { GetState, SetState } from '../types';
 
 interface DataViewSliceDeps {
-  bridge: QueryBridgeable & ColumnBridgeable;
+  bridge: QueryBridgeable & ColumnBridgeable & PaginatedBridgeable;
   abort: AbortRegistrable;
 }
 
@@ -28,13 +30,34 @@ export function createDataViewSlice(
 ): DataViewable {
   const { bridge, abort } = deps;
 
+  function setupPagination(
+    id: string,
+    baseSql: string,
+    connectionId: string,
+    loadedRowCount: number
+  ): void {
+    set((state) => ({
+      paginationStates: {
+        ...state.paginationStates,
+        [id]: {
+          totalRowCount: -1,
+          loadedRowCount,
+          isLoadingMore: false,
+          hasMore: true,
+          baseSql,
+          connectionId,
+        },
+      },
+    }));
+    fetchAndUpdateRowCount(set, bridge, id, baseSql, connectionId);
+  }
+
   return {
     openTableData: async (connectionId, tableName, whereClause, logicalName) => {
       log.info(
         `[QueryStore] openTableData called for table: ${tableName}, connection: ${connectionId}${whereClause ? `, WHERE: ${whereClause}` : ''}`
       );
 
-      // When whereClause is specified, always create a new tab (for related row navigation)
       if (!whereClause) {
         const existingQuery = get().queries.find(
           (q) => q.sourceTable === tableName && q.connectionId === connectionId && q.isDataView
@@ -57,9 +80,10 @@ export function createDataViewSlice(
         const { sql } = await apiBridge.buildDataViewSql(
           connectionId,
           tableName,
-          DATA_VIEW_ROW_LIMIT + 1,
+          PAGE_SIZE + 1,
           whereClause
         );
+        const baseSql = toBaseSql(sql);
         const displayName = stripBrackets(tableName);
         const tabName = whereClause ? `${displayName} (フィルタ済)` : displayName;
         const newQuery: Query = {
@@ -102,6 +126,10 @@ export function createDataViewSlice(
         log.info(
           `[QueryStore] Loaded ${resultSet.rows.length} rows with ${resultSet.columns.length} columns in ${(performance.now() - fetchStart).toFixed(2)}ms`
         );
+
+        if (resultSet.truncated) {
+          setupPagination(id, baseSql, connectionId, resultSet.rows.length);
+        }
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
           set((state) => endExecution(state, id));
@@ -131,7 +159,7 @@ export function createDataViewSlice(
         const { sql } = await apiBridge.buildDataViewSql(
           connectionId,
           query.sourceTable,
-          DATA_VIEW_ROW_LIMIT + 1,
+          PAGE_SIZE + 1,
           whereClause.trim() || undefined
         );
 
@@ -151,10 +179,21 @@ export function createDataViewSlice(
           getSettings().query.timeout
         );
 
-        set((state) => ({
-          ...endExecution(state, id),
-          results: { ...state.results, [id]: resultSet },
-        }));
+        // Clear old pagination state
+        set((state) => {
+          const { [id]: _, ...restPagination } = state.paginationStates;
+          return {
+            ...endExecution(state, id),
+            results: { ...state.results, [id]: resultSet },
+            paginationStates: restPagination,
+          };
+        });
+
+        if (resultSet.truncated) {
+          const baseSql = toBaseSql(sql);
+          setupPagination(id, baseSql, connectionId, resultSet.rows.length);
+        }
+
         return null;
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
@@ -191,12 +230,22 @@ export function createDataViewSlice(
           getSettings().query.timeout
         );
 
-        set((state) => ({
-          ...endExecution(state, id),
-          results: { ...state.results, [id]: resultSet },
-        }));
+        // Clear old pagination state
+        set((state) => {
+          const { [id]: _, ...restPagination } = state.paginationStates;
+          return {
+            ...endExecution(state, id),
+            results: { ...state.results, [id]: resultSet },
+            paginationStates: restPagination,
+          };
+        });
 
         log.info(`[QueryStore] Data view refreshed: ${resultSet.rows.length} rows`);
+
+        if (resultSet.truncated) {
+          const baseSql = toBaseSql(query.content);
+          setupPagination(id, baseSql, connectionId, resultSet.rows.length);
+        }
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
           set((state) => endExecution(state, id));
@@ -211,6 +260,129 @@ export function createDataViewSlice(
         );
       } finally {
         abort.unregister(id);
+      }
+    },
+
+    fetchMoreRows: async (id) => {
+      const pagination = get().paginationStates[id];
+      if (!pagination || !pagination.hasMore || pagination.isLoadingMore) return;
+
+      set((state) => ({
+        paginationStates: {
+          ...state.paginationStates,
+          [id]: { ...state.paginationStates[id], isLoadingMore: true },
+        },
+      }));
+
+      try {
+        const result = await bridge.executeQueryPaginated(
+          pagination.connectionId,
+          pagination.baseSql,
+          pagination.loadedRowCount,
+          pagination.loadedRowCount + PAGE_SIZE,
+          pagination.sortModel
+        );
+
+        set((state) => {
+          const currentResult = state.results[id];
+          if (!currentResult || 'multipleResults' in currentResult) return {};
+
+          const newRows = currentResult.rows.concat(result.rows);
+          const reachedEnd = result.rows.length < PAGE_SIZE;
+          const newTotal =
+            reachedEnd && pagination.totalRowCount === -1
+              ? newRows.length
+              : pagination.totalRowCount;
+
+          return {
+            results: {
+              ...state.results,
+              [id]: {
+                ...currentResult,
+                rows: newRows,
+                truncated: !reachedEnd,
+                totalRowCount: newTotal === -1 ? undefined : newTotal,
+              },
+            },
+            paginationStates: {
+              ...state.paginationStates,
+              [id]: {
+                ...state.paginationStates[id],
+                loadedRowCount: newRows.length,
+                isLoadingMore: false,
+                hasMore: !reachedEnd,
+                totalRowCount: newTotal,
+              },
+            },
+          };
+        });
+
+        log.info(`[QueryStore] Loaded more rows for ${id}: +${result.rows.length} rows`);
+      } catch (error) {
+        log.error(`[QueryStore] Failed to fetch more rows: ${error}`);
+        set((state) => ({
+          paginationStates: {
+            ...state.paginationStates,
+            [id]: { ...state.paginationStates[id], isLoadingMore: false },
+          },
+        }));
+      }
+    },
+
+    resetPaginatedSort: async (id, sortModel) => {
+      const pagination = get().paginationStates[id];
+      if (!pagination) return;
+
+      set((state) => ({
+        paginationStates: {
+          ...state.paginationStates,
+          [id]: { ...state.paginationStates[id], isLoadingMore: true, sortModel },
+        },
+      }));
+
+      try {
+        const result = await bridge.executeQueryPaginated(
+          pagination.connectionId,
+          pagination.baseSql,
+          0,
+          PAGE_SIZE,
+          sortModel
+        );
+
+        set((state) => {
+          const currentResult = state.results[id];
+          if (!currentResult || 'multipleResults' in currentResult) return {};
+
+          const reachedEnd = result.rows.length < PAGE_SIZE;
+          return {
+            results: {
+              ...state.results,
+              [id]: {
+                ...currentResult,
+                rows: result.rows,
+                truncated: !reachedEnd,
+              },
+            },
+            paginationStates: {
+              ...state.paginationStates,
+              [id]: {
+                ...state.paginationStates[id],
+                loadedRowCount: result.rows.length,
+                isLoadingMore: false,
+                hasMore: !reachedEnd,
+                sortModel,
+              },
+            },
+          };
+        });
+      } catch (error) {
+        log.error(`[QueryStore] Failed to reset sort: ${error}`);
+        set((state) => ({
+          paginationStates: {
+            ...state.paginationStates,
+            [id]: { ...state.paginationStates[id], isLoadingMore: false },
+          },
+        }));
       }
     },
   };
