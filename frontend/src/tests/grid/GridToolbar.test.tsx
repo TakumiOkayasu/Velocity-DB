@@ -8,6 +8,7 @@ const defaultProps = {
   hasChanges: false,
   isApplying: false,
   applyError: null,
+  hasValidationErrors: false,
   showLogicalNamesInGrid: false,
   showColumnFilters: false,
   isReadOnly: false,

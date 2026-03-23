@@ -4,6 +4,7 @@ import { type CellChange, useEditStore } from '../../../store/editStore';
 import type { Query, ResultSet } from '../../../types';
 import { parseTableName, type RowData } from '../../../types/grid';
 import { log } from '../../../utils/logger';
+import { type ValidationError, validateNullConstraints } from '../../../utils/validation';
 
 interface UseGridEditOptions {
   resultSet: ResultSet | null;
@@ -24,6 +25,8 @@ interface UseGridEditResult {
   isRowInserted: (rowIndex: number) => boolean;
   getInsertedRows: () => Map<number, Record<string, string | null>>;
   getCellChange: (rowIndex: number, field: string) => CellChange | null;
+  getValidationError: (rowIndex: number, field: string) => ValidationError | null;
+  hasValidationErrors: boolean;
   updateCell: (
     rowIndex: number,
     field: string,
@@ -63,6 +66,11 @@ export function useGridEdit({
     clearTableContext,
     primaryKeyColumns,
     setEditMode,
+    pendingChanges,
+    validationErrors,
+    setValidationErrors,
+    getValidationError,
+    hasValidationErrors: hasValidationErrorsFn,
   } = useEditStore();
 
   const [isApplying, setIsApplying] = useState(false);
@@ -122,6 +130,14 @@ export function useGridEdit({
     }
   }, [isReadOnly, selectedRows, rowData, primaryKeyColumns, addNewRow]);
 
+  // Validate NOT NULL constraints whenever changes occur
+  useEffect(() => {
+    if (!resultSet) return;
+    const errors = validateNullConstraints(resultSet.columns, pendingChanges, insertedRows);
+    if (errors.size === 0 && validationErrors.size === 0) return;
+    setValidationErrors(errors);
+  }, [resultSet, pendingChanges, insertedRows, validationErrors, setValidationErrors]);
+
   const insertRow = useCallback(() => {
     if (isReadOnly) {
       setApplyError('読み取り専用モードのため変更できません');
@@ -141,6 +157,12 @@ export function useGridEdit({
       setApplyError('読み取り専用モードのため変更を適用できません');
       return;
     }
+    if (hasValidationErrorsFn()) {
+      setApplyError(
+        'バリデーションエラーがあります。NULLが許可されていないカラムを確認してください'
+      );
+      return;
+    }
     if (!activeConnectionId || !currentQuery?.sourceTable) return;
 
     const dmlParams = getDmlParams();
@@ -156,7 +178,7 @@ export function useGridEdit({
     } catch (err) {
       setApplyError(err instanceof Error ? err.message : 'Failed to build DML');
     }
-  }, [isReadOnly, activeConnectionId, currentQuery, getDmlParams]);
+  }, [isReadOnly, activeConnectionId, currentQuery, getDmlParams, hasValidationErrorsFn]);
 
   const executePreview = useCallback(async () => {
     if (!activeConnectionId || previewStatements.length === 0) return;
@@ -209,6 +231,7 @@ export function useGridEdit({
   );
 
   const hasChanges = hasChangesFn();
+  const hasValidationErrors = hasValidationErrorsFn();
 
   return {
     isEditMode,
@@ -220,6 +243,8 @@ export function useGridEdit({
     isRowInserted,
     getInsertedRows,
     getCellChange,
+    getValidationError,
+    hasValidationErrors,
     updateCell: updateCellWithRow,
     revertChanges,
     deleteRow,

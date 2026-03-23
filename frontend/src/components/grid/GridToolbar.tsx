@@ -8,6 +8,7 @@ interface GridToolbarProps {
   hasChanges: boolean;
   isApplying: boolean;
   applyError: string | null;
+  hasValidationErrors: boolean;
   showLogicalNamesInGrid: boolean;
   showColumnFilters: boolean;
   isReadOnly: boolean;
@@ -29,6 +30,7 @@ function GridToolbarInner({
   hasChanges,
   isApplying,
   applyError,
+  hasValidationErrors,
   showLogicalNamesInGrid,
   showColumnFilters,
   isReadOnly,
@@ -100,7 +102,9 @@ function GridToolbarInner({
             type="button"
             onClick={onApplyChanges}
             className={`${styles.iconButton} ${styles.saveButton}`}
-            disabled={isReadOnly || !hasChanges || isApplying || editDisabled}
+            disabled={
+              isReadOnly || !hasChanges || isApplying || editDisabled || hasValidationErrors
+            }
             title="変更をデータベースに保存 (Ctrl+S)"
           >
             {isApplying ? <span className={styles.applyingSpinner}>↻</span> : '💾'}

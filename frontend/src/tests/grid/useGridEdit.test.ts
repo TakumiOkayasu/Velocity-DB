@@ -26,6 +26,11 @@ vi.mock('../../store/editStore', () => ({
     setTableContext: vi.fn(),
     clearTableContext: vi.fn(),
     primaryKeyColumns: [],
+    pendingChanges: new Map(),
+    validationErrors: new Map(),
+    setValidationErrors: vi.fn(),
+    getValidationError: () => null,
+    hasValidationErrors: () => false,
   }),
 }));
 
