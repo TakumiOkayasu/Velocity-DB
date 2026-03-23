@@ -32,8 +32,8 @@ describe('ConnectionDialog', () => {
     const onClose = vi.fn();
     const { container } = render(<ConnectionDialog {...defaultProps} onClose={onClose} />);
     await waitFor(() => {
-      const overlay = container.firstChild as HTMLElement;
-      fireEvent.click(overlay);
+      const backdrop = container.querySelector('[class*="backdrop"]') as HTMLElement;
+      fireEvent.click(backdrop);
       expect(onClose).toHaveBeenCalledOnce();
     });
   });
