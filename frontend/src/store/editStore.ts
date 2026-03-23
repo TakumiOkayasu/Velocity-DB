@@ -251,6 +251,8 @@ export const useEditStore = create<EditState>((set, get) => ({
   },
 
   setValidationErrors: (errors) => {
+    const current = get().validationErrors;
+    if (errors.size === 0 && current.size === 0) return;
     set({ validationErrors: errors });
   },
 

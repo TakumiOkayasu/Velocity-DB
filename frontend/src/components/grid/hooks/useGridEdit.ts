@@ -67,7 +67,6 @@ export function useGridEdit({
     primaryKeyColumns,
     setEditMode,
     pendingChanges,
-    validationErrors,
     setValidationErrors,
     getValidationError,
     hasValidationErrors: hasValidationErrorsFn,
@@ -134,9 +133,8 @@ export function useGridEdit({
   useEffect(() => {
     if (!resultSet) return;
     const errors = validateNullConstraints(resultSet.columns, pendingChanges, insertedRows);
-    if (errors.size === 0 && validationErrors.size === 0) return;
     setValidationErrors(errors);
-  }, [resultSet, pendingChanges, insertedRows, validationErrors, setValidationErrors]);
+  }, [resultSet, pendingChanges, insertedRows, setValidationErrors]);
 
   const insertRow = useCallback(() => {
     if (isReadOnly) {
