@@ -2,6 +2,7 @@ import { flexRender, type Row, type Table } from '@tanstack/react-table';
 import type { VirtualItem } from '@tanstack/react-virtual';
 import { type MouseEvent, memo, type RefObject } from 'react';
 import { type ColumnMeta, isSystemColumn, type RowData } from '../../types/grid';
+import type { ValidationError } from '../../utils/validation';
 import { ContextMenu } from '../common/ContextMenu';
 import { useGridContextMenu } from './hooks/useGridContextMenu';
 import styles from './ResultGrid.module.css';
@@ -15,6 +16,7 @@ export interface GridEditContext {
   isRowInserted: (index: number) => boolean;
   /** Cell-level checkers */
   getCellChange: (index: number, field: string) => unknown;
+  getValidationError: (index: number, field: string) => ValidationError | null;
   isForeignKeyColumn: (field: string) => boolean;
 }
 
@@ -192,6 +194,10 @@ function GridTableInner({
                     edit.editingCell?.rowIndex === originalIndex &&
                     edit.editingCell?.columnId === field;
                   const isEditable = edit.isEditMode && !isSystemColumn(field);
+                  const validationError = !isSystemColumn(field)
+                    ? edit.getValidationError(originalIndex, field)
+                    : null;
+                  const hasValidationError = validationError !== null;
                   const isFk = edit.isForeignKeyColumn(field);
                   const isCellSelected =
                     isSelected && selection.selectedColumns.has(field) && !isSystemColumn(field);
@@ -200,6 +206,7 @@ function GridTableInner({
                     styles.td,
                     isNull && styles.nullCell,
                     isChanged && styles.changedCell,
+                    hasValidationError && styles.validationErrorCell,
                     isFk && styles.fkCell,
                     isCellSelected && styles.selectedCell,
                   ]
@@ -210,6 +217,7 @@ function GridTableInner({
                     <td
                       key={cell.id}
                       className={cellClasses}
+                      title={validationError?.message}
                       style={{
                         width: cell.column.getSize(),
                         textAlign: isNull ? 'center' : (align as 'left' | 'right' | 'center'),

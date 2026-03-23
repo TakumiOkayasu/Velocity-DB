@@ -247,6 +247,11 @@
   border-left: 2px solid var(--warning-color);
 }
 
+.validationErrorCell {
+  background-color: rgba(247, 84, 100, 0.15);
+  border-left: 2px solid var(--error-color);
+}
+
 .readOnlyBadge {
   display: inline-flex;
   align-items: center;

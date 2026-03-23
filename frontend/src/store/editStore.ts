@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { ValidationError } from '../utils/validation';
 
 export interface CellChange {
   rowIndex: number;
@@ -51,6 +52,12 @@ interface EditState {
 
   setEditMode: (enabled: boolean) => void;
 
+  // Validation
+  validationErrors: Map<string, ValidationError>;
+  setValidationErrors: (errors: Map<string, ValidationError>) => void;
+  getValidationError: (rowIndex: number, columnName: string) => ValidationError | null;
+  hasValidationErrors: () => boolean;
+
   // Helpers
   hasChanges: () => boolean;
   getChangedRows: () => RowChange[];
@@ -81,6 +88,7 @@ export const useEditStore = create<EditState>((set, get) => ({
   pendingChanges: new Map(),
   deletedRows: new Map(),
   insertedRows: new Map(),
+  validationErrors: new Map(),
   isEditMode: false,
 
   setTableContext: (tableName, schemaName, primaryKeyColumns) => {
@@ -152,7 +160,7 @@ export const useEditStore = create<EditState>((set, get) => ({
   },
 
   revertCell: (rowIndex, columnName) => {
-    const { pendingChanges } = get();
+    const { pendingChanges, validationErrors } = get();
     const newChanges = new Map(pendingChanges);
     const rowChange = newChanges.get(rowIndex);
 
@@ -163,24 +171,35 @@ export const useEditStore = create<EditState>((set, get) => ({
       } else {
         newChanges.set(rowIndex, { ...rowChange });
       }
-      set({ pendingChanges: newChanges });
+      const newErrors = new Map(validationErrors);
+      newErrors.delete(`${rowIndex}:${columnName}`);
+      set({ pendingChanges: newChanges, validationErrors: newErrors });
     }
   },
 
   revertRow: (rowIndex) => {
-    const { pendingChanges, deletedRows, insertedRows } = get();
+    const { pendingChanges, deletedRows, insertedRows, validationErrors } = get();
     const newChanges = new Map(pendingChanges);
     const newDeleted = new Map(deletedRows);
     const newInserted = new Map(insertedRows);
+    const newErrors = new Map(validationErrors);
 
     newChanges.delete(rowIndex);
     newDeleted.delete(rowIndex);
     newInserted.delete(rowIndex);
 
+    const prefix = `${rowIndex}:`;
+    for (const key of newErrors.keys()) {
+      if (key.startsWith(prefix)) {
+        newErrors.delete(key);
+      }
+    }
+
     set({
       pendingChanges: newChanges,
       deletedRows: newDeleted,
       insertedRows: newInserted,
+      validationErrors: newErrors,
     });
   },
 
@@ -189,6 +208,7 @@ export const useEditStore = create<EditState>((set, get) => ({
       pendingChanges: new Map(),
       deletedRows: new Map(),
       insertedRows: new Map(),
+      validationErrors: new Map(),
     });
   },
 
@@ -228,6 +248,20 @@ export const useEditStore = create<EditState>((set, get) => ({
 
   setEditMode: (enabled) => {
     set({ isEditMode: enabled });
+  },
+
+  setValidationErrors: (errors) => {
+    const current = get().validationErrors;
+    if (errors.size === 0 && current.size === 0) return;
+    set({ validationErrors: errors });
+  },
+
+  getValidationError: (rowIndex, columnName) => {
+    return get().validationErrors.get(`${rowIndex}:${columnName}`) ?? null;
+  },
+
+  hasValidationErrors: () => {
+    return get().validationErrors.size > 0;
   },
 
   hasChanges: () => {

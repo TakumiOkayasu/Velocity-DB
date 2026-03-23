@@ -198,6 +198,8 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     isRowInserted,
     getInsertedRows,
     getCellChange,
+    getValidationError,
+    hasValidationErrors,
     updateCell,
     revertChanges,
     deleteRow,
@@ -353,6 +355,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
       isRowDeleted,
       isRowInserted,
       getCellChange,
+      getValidationError,
       isForeignKeyColumn,
     }),
     [
@@ -362,6 +365,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
       isRowDeleted,
       isRowInserted,
       getCellChange,
+      getValidationError,
       isForeignKeyColumn,
     ]
   );
@@ -637,6 +641,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         hasChanges={hasChanges}
         isApplying={isApplying}
         applyError={applyError}
+        hasValidationErrors={hasValidationErrors}
         showLogicalNamesInGrid={showLogicalNamesInGrid}
         showColumnFilters={showColumnFilters}
         isReadOnly={isReadOnly}
