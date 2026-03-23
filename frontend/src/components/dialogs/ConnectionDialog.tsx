@@ -139,8 +139,8 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
   };
 
   return (
-    <div className={styles.overlay}>
-      <div className={styles.dialog}>
+    <div className={styles.overlay} onClick={deleteConfirmOpen ? undefined : onClose}>
+      <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <h2>DB接続</h2>
           <button type="button" className={styles.closeButton} onClick={onClose}>
