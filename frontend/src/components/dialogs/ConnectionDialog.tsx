@@ -136,11 +136,18 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
   };
 
   return (
-    <div className={styles.overlay} onClick={deleteConfirmOpen ? undefined : onClose}>
-      <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
+    <div className={styles.overlay}>
+      <button
+        type="button"
+        className={styles.backdrop}
+        onClick={deleteConfirmOpen ? undefined : onClose}
+        tabIndex={-1}
+        aria-label="ダイアログを閉じる"
+      />
+      <div className={styles.dialog} role="dialog">
         <div className={styles.header}>
           <h2>DB接続</h2>
-          <button className={styles.closeButton} onClick={onClose}>
+          <button type="button" className={styles.closeButton} onClick={onClose}>
             {'\u00D7'}
           </button>
         </div>
@@ -151,6 +158,7 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
             <div className={styles.profileListHeader}>
               <span>保存済み接続</span>
               <button
+                type="button"
                 className={styles.profileAddButton}
                 onClick={handleNewProfile}
                 title="新規接続"
@@ -162,10 +170,15 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
               {profiles.map((profile) => {
                 const connColor = connectionColor(profile.server, profile.database);
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={profile.id}
                     className={`${styles.profileItem} ${mode === 'edit' && editingProfileId === profile.id ? styles.selected : ''}`}
-                    style={{ '--connection-color': connColor } as React.CSSProperties}
+                    style={
+                      {
+                        '--connection-color': connColor,
+                      } as React.CSSProperties
+                    }
                     onClick={() => handleProfileSelect(profile.id)}
                   >
                     <span className={styles.profileIcon}>🗄️</span>
@@ -175,7 +188,7 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
                         {profile.server}/{profile.database}
                       </span>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
               {profiles.length === 0 && <div className={styles.noProfiles}>保存済み接続なし</div>}
@@ -217,6 +230,7 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
 
         <div className={styles.footer}>
           <button
+            type="button"
             className={styles.saveButton}
             onClick={handleSaveProfile}
             title={mode === 'new' ? '新規プロファイルとして保存' : 'プロファイルを更新'}
@@ -226,6 +240,7 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
           {mode === 'edit' && editingProfileId && (
             <>
               <button
+                type="button"
                 className={styles.copyButton}
                 onClick={handleCopyProfile}
                 title="接続プロファイルをコピー"
@@ -233,6 +248,7 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
                 コピー
               </button>
               <button
+                type="button"
                 className={styles.deleteButton}
                 onClick={handleDeleteProfile}
                 title="接続プロファイルを削除"
@@ -241,14 +257,19 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
               </button>
             </>
           )}
-          <button className={styles.testButton} onClick={handleTestConnection} disabled={testing}>
+          <button
+            type="button"
+            className={styles.testButton}
+            onClick={handleTestConnection}
+            disabled={testing}
+          >
             {testing ? 'テスト中...' : 'テスト'}
           </button>
           <div className={styles.spacer} />
-          <button className={styles.cancelButton} onClick={onClose}>
+          <button type="button" className={styles.cancelButton} onClick={onClose}>
             キャンセル
           </button>
-          <button className={styles.connectButton} onClick={handleConnect}>
+          <button type="button" className={styles.connectButton} onClick={handleConnect}>
             接続
           </button>
         </div>
