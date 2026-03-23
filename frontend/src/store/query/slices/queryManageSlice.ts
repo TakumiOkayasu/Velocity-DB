@@ -31,12 +31,14 @@ export function createManageSlice(set: SetState, get: GetState, deps: ManageSlic
     removeQuery: (id) => {
       abort.abort(id);
 
-      const { queries, activeQueryId, results, errors, executingQueryIds } = get();
+      const { queries, activeQueryId, results, errors, executingQueryIds, paginationStates } =
+        get();
       const index = queries.findIndex((q) => q.id === id);
       const newQueries = queries.filter((q) => q.id !== id);
 
       const { [id]: _, ...newResults } = results;
       const { [id]: _err, ...newErrors } = errors;
+      const { [id]: _pag, ...newPaginationStates } = paginationStates;
 
       const newExecuting = new Set(executingQueryIds);
       newExecuting.delete(id);
@@ -56,6 +58,7 @@ export function createManageSlice(set: SetState, get: GetState, deps: ManageSlic
         errors: newErrors,
         executingQueryIds: newExecuting,
         isExecuting: newExecuting.size > 0,
+        paginationStates: newPaginationStates,
       });
     },
 

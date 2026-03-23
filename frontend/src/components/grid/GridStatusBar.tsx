@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import type { PaginationState } from '../../store/query/types';
 import type { ResultSet } from '../../types';
 import type { GridViewMode } from '../../types/grid';
 import styles from './ResultGrid.module.css';
@@ -11,6 +12,7 @@ interface GridStatusBarProps {
   connectionLabel?: string;
   viewMode?: GridViewMode;
   transposeRowIndex?: number;
+  pagination?: PaginationState | null;
 }
 
 function GridStatusBarInner({
@@ -21,9 +23,59 @@ function GridStatusBarInner({
   connectionLabel,
   viewMode,
   transposeRowIndex,
+  pagination,
 }: GridStatusBarProps) {
   const isTranspose = viewMode === 'transpose';
   const totalRows = resultSet.rows.length;
+
+  function renderRowInfo() {
+    if (isTranspose) {
+      return (
+        <span>
+          行 {totalRows > 0 ? (transposeRowIndex ?? 0) + 1 : 0} / {totalRows}
+        </span>
+      );
+    }
+
+    if (pagination) {
+      const totalLabel =
+        pagination.totalRowCount === -1
+          ? `${totalRows.toLocaleString()}+`
+          : pagination.totalRowCount.toLocaleString();
+      const loadingIndicator = pagination.isLoadingMore ? ' (読込中...)' : '';
+      const scrollHint = pagination.hasMore ? ' - スクロールで追加読み込み' : '';
+
+      if (isFiltered) {
+        return (
+          <span>
+            {filteredRowCount.toLocaleString()} / {totalLabel} 件 (フィルタ中)
+            {loadingIndicator}
+          </span>
+        );
+      }
+      return (
+        <span>
+          {totalRows.toLocaleString()} / {totalLabel} 件{loadingIndicator}
+          {scrollHint}
+        </span>
+      );
+    }
+
+    if (resultSet.truncated) {
+      return (
+        <span className={styles.truncationWarning}>
+          {isFiltered
+            ? `⚠ ${filteredRowCount} / ${totalRows.toLocaleString()}+ 件 (フィルタ中・行数制限あり)`
+            : `⚠ 先頭 ${totalRows.toLocaleString()} 件を表示（テーブルにはさらにデータがあります）`}
+        </span>
+      );
+    }
+
+    if (isFiltered) {
+      return <span>{`${filteredRowCount} / ${totalRows} 件 (フィルタ中)`}</span>;
+    }
+    return <span>{totalRows} 件</span>;
+  }
 
   return (
     <div className={styles.statusBar}>
@@ -33,21 +85,7 @@ function GridStatusBarInner({
           <span className={styles.statusSeparator} />
         </>
       )}
-      {isTranspose ? (
-        <span>
-          行 {totalRows > 0 ? (transposeRowIndex ?? 0) + 1 : 0} / {totalRows}
-        </span>
-      ) : resultSet.truncated ? (
-        <span className={styles.truncationWarning}>
-          {isFiltered
-            ? `⚠ ${filteredRowCount} / ${totalRows.toLocaleString()}+ 件 (フィルタ中・行数制限あり)`
-            : `⚠ 先頭 ${totalRows.toLocaleString()} 件を表示（テーブルにはさらにデータがあります）`}
-        </span>
-      ) : (
-        <span>
-          {isFiltered ? `${filteredRowCount} / ${totalRows} 件 (フィルタ中)` : `${totalRows} 件`}
-        </span>
-      )}
+      {renderRowInfo()}
       <span className={styles.statusSeparator} />
       <span>{resultSet.executionTimeMs.toFixed(2)} ms</span>
       {resultSet.affectedRows > 0 && (

@@ -86,6 +86,7 @@ export async function executeAsyncWithPolling(
           rows: result.rows,
           affectedRows: result.affectedRows,
           executionTimeMs: result.executionTimeMs,
+          truncated: result.truncated,
         };
       } else if (result.status === 'failed') {
         throw new Error(result.error);

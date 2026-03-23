@@ -114,6 +114,7 @@ export interface ResultSet {
   affectedRows: number;
   executionTimeMs: number;
   truncated?: boolean;
+  totalRowCount?: number;
 }
 
 export interface MultipleResultSet {

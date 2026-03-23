@@ -33,6 +33,7 @@ export const useQueryStore = create<QueryState>((set, get) => ({
   results: {},
   executingQueryIds: new Set<string>(),
   errors: {},
+  paginationStates: {},
   isExecuting: false,
 
   // Slices (Device Layer implementations injected via DI)
@@ -77,6 +78,10 @@ export const useQueryError = (queryId: string | null | undefined) =>
 export const useIsQueryExecuting = (queryId: string | null | undefined) =>
   useQueryStore((state) => (queryId ? state.executingQueryIds.has(queryId) : false));
 
+/** Per-query pagination state selector */
+export const usePaginationState = (queryId: string | null | undefined) =>
+  useQueryStore((state) => (queryId ? (state.paginationStates[queryId] ?? null) : null));
+
 export const useQueryActions = () =>
   useQueryStore(
     useShallow((state) => ({
@@ -98,5 +103,7 @@ export const useQueryActions = () =>
       saveToFile: state.saveToFile,
       loadFromFile: state.loadFromFile,
       openERDiagram: state.openERDiagram,
+      fetchMoreRows: state.fetchMoreRows,
+      resetPaginatedSort: state.resetPaginatedSort,
     }))
   );

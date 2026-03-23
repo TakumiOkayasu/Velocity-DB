@@ -3,6 +3,7 @@ export {
   useIsActiveDataView,
   useIsActiveERDiagram,
   useIsQueryExecuting,
+  usePaginationState,
   useQueries,
   useQueryActions,
   useQueryById,

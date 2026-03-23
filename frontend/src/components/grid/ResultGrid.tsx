@@ -14,6 +14,7 @@ import { useConnectionStore } from '../../store/connectionStore';
 import {
   useIsActiveDataView,
   useIsQueryExecuting,
+  usePaginationState,
   useQueryActions,
   useQueryById,
   useQueryError,
@@ -73,7 +74,15 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   const error = useQueryError(targetQueryId);
   const showLogicalNamesInGrid = useSessionStore((state) => state.showLogicalNamesInGrid);
   const setShowLogicalNamesInGrid = useSessionStore((state) => state.setShowLogicalNamesInGrid);
-  const { applyWhereFilter, refreshDataView, openTableData, cancelQuery } = useQueryActions();
+  const pagination = usePaginationState(targetQueryId);
+  const {
+    applyWhereFilter,
+    refreshDataView,
+    openTableData,
+    cancelQuery,
+    fetchMoreRows,
+    resetPaginatedSort,
+  } = useQueryActions();
 
   // --- Local state ---
   const [whereClause, setWhereClause] = useState('');
@@ -275,6 +284,25 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     onOpenValueEditor: openValueEditor,
   });
 
+  const isPaginated = !!pagination;
+
+  const sortingChangeHandler = useCallback(
+    (updater: SortingState | ((old: SortingState) => SortingState)) => {
+      setSorting((prev) => {
+        const newSorting = typeof updater === 'function' ? updater(prev) : updater;
+        if (isPaginated && targetQueryId) {
+          const sortModel = newSorting.map((s) => ({
+            colId: s.id,
+            sort: (s.desc ? 'desc' : 'asc') as 'asc' | 'desc',
+          }));
+          resetPaginatedSort(targetQueryId, sortModel);
+        }
+        return newSorting;
+      });
+    },
+    [isPaginated, targetQueryId, resetPaginatedSort]
+  );
+
   const table = useReactTable({
     data: rowData,
     columns,
@@ -285,10 +313,11 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     enableColumnResizing: true,
     enableSorting: true,
     enableColumnFilters: true,
+    manualSorting: isPaginated,
     columnResizeMode: 'onChange',
     state: { columnSizing, sorting, columnFilters },
     onColumnSizingChange: setColumnSizing,
-    onSortingChange: setSorting,
+    onSortingChange: sortingChangeHandler,
     onColumnFiltersChange: setColumnFilters,
   });
 
@@ -304,6 +333,16 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   });
   const virtualRows = rowVirtualizer.getVirtualItems();
   const virtualTotalSize = rowVirtualizer.getTotalSize();
+  const lastVirtualIndex = virtualRows[virtualRows.length - 1]?.index ?? -1;
+
+  // --- Infinite scroll: fetch more rows when nearing bottom ---
+  useEffect(() => {
+    if (!targetQueryId || lastVirtualIndex < 0 || rows.length === 0) return;
+    if (lastVirtualIndex / rows.length <= 0.8) return;
+    const pag = useQueryStore.getState().paginationStates[targetQueryId];
+    if (!pag?.hasMore || pag.isLoadingMore) return;
+    fetchMoreRows(targetQueryId);
+  }, [lastVirtualIndex, rows.length, targetQueryId, fetchMoreRows]);
 
   // --- Stable props for GridTable (avoid memo breakage) ---
   const gridEditState = useMemo(
@@ -656,6 +695,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         connectionLabel={activeConn ? `${activeConn.server}/${activeConn.database}` : undefined}
         viewMode={viewMode}
         transposeRowIndex={transposeRowIndex}
+        pagination={pagination}
       />
 
       <ExportDialog
