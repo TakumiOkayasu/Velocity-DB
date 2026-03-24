@@ -1,5 +1,14 @@
+import { bridge as apiBridge } from '../../../api/bridge';
 import type { ResultSet } from '../../../types';
+import { log } from '../../../utils/logger';
 import { getSettings } from '../../../utils/settingsUtils';
+import {
+  buildDropTableSql,
+  buildTruncateTableSql,
+  parseDropOrTruncate,
+  SQL_BEGIN_TRANSACTION,
+} from '../../../utils/sqlIdentifier';
+import { useConnectionStore } from '../../connectionStore';
 import { executeAsyncWithPolling, toQueryResult } from '../helpers/asyncPolling';
 import { endExecution, failExecution, startExecution } from '../helpers/executionState';
 import { fetchAndUpdateRowCount } from '../helpers/paginationHelper';
@@ -31,6 +40,28 @@ export function createExecuteSlice(
 
   const activeQueryIds = new Map<string, string>();
 
+  async function rewriteWithFkHandling(connectionId: string, sql: string): Promise<string[]> {
+    const parsed = parseDropOrTruncate(sql);
+    if (!parsed) return [sql];
+
+    const conn = useConnectionStore.getState().connections.find((c) => c.id === connectionId);
+    const dbType = conn?.dbType;
+    const fullName = parsed.schema ? `${parsed.schema}.${parsed.table}` : parsed.table;
+
+    try {
+      const fks = await apiBridge.getReferencingForeignKeys(connectionId, fullName);
+      if (fks.length === 0) return [sql];
+
+      if (parsed.type === 'drop') {
+        return buildDropTableSql(parsed.schema, parsed.table, dbType, fks);
+      }
+      return buildTruncateTableSql(parsed.schema, parsed.table, dbType, fks);
+    } catch (error) {
+      log.error(`[queryExecuteSlice] FK lookup failed, executing original SQL: ${error}`);
+      return [sql];
+    }
+  }
+
   async function executeAsync(id: string, connectionId: string, sql: string): Promise<void> {
     const controller = new AbortController();
     abort.register(id, controller);
@@ -38,6 +69,39 @@ export function createExecuteSlice(
     set((state) => startExecution(state, id));
 
     try {
+      // FK制約自動処理: DROP/TRUNCATE TABLE検出時のみ非同期でSQL書き換え
+      const parsed = parseDropOrTruncate(sql);
+      if (parsed) {
+        const sqls = await rewriteWithFkHandling(connectionId, sql);
+        if (sqls.length > 1) {
+          const hasTransaction = sqls[0] === SQL_BEGIN_TRANSACTION;
+          try {
+            for (const s of sqls) {
+              await apiBridge.executeQuery(connectionId, s, false);
+            }
+          } catch (error) {
+            if (hasTransaction) {
+              await apiBridge.executeQuery(connectionId, 'ROLLBACK', false).catch(() => {});
+            }
+            throw error;
+          }
+          set((state) => ({
+            ...endExecution(state, id),
+            results: {
+              ...state.results,
+              [id]: {
+                columns: [],
+                rows: [],
+                affectedRows: 0,
+                executionTimeMs: 0,
+                message: `${sqls.length} statements executed successfully`,
+              },
+            },
+          }));
+          return;
+        }
+      }
+
       const timeoutMs = getSettings().query.timeout;
       const result = await executeAsyncWithPolling(
         bridge,

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { bridge } from '../../api/bridge';
 import { useColumnActions, validateIdentifier } from '../../hooks/useColumnActions';
+import { useTableActions } from '../../hooks/useTableActions';
 import { useConnectionStore } from '../../store/connectionStore';
 import type { Connection, DatabaseObject, MenuItem } from '../../types';
 import { connectionColor } from '../../utils/colorContrast';
@@ -144,6 +145,20 @@ export function ConnectionTreeSection({
     dbType: connection.dbType,
     isReadOnly: connection.isReadOnly,
     loadColumns,
+    setTreeData,
+  });
+
+  // Hook: table DDL actions (DROP / TRUNCATE)
+  const {
+    tableAction,
+    getTableMenuItems,
+    confirmDrop: confirmTableDrop,
+    confirmTruncate,
+    dismiss: dismissTableAction,
+  } = useTableActions({
+    connectionId: connection.id,
+    dbType: connection.dbType,
+    loadTables,
     setTreeData,
   });
 
@@ -325,6 +340,13 @@ export function ConnectionTreeSection({
             }
           },
         });
+
+        // テーブル操作 (table のみ、view 除外)
+        const tableItems = getTableMenuItems(node);
+        if (tableItems.length > 0) {
+          items.push({ label: '', action: () => {}, divider: true });
+          items.push(...tableItems);
+        }
       }
 
       if (node.type === 'database') {
@@ -366,7 +388,14 @@ export function ConnectionTreeSection({
 
       return items;
     },
-    [connection.id, connection.dbType, onTableOpen, loadTables, getColumnMenuItems]
+    [
+      connection.id,
+      connection.dbType,
+      onTableOpen,
+      loadTables,
+      getColumnMenuItems,
+      getTableMenuItems,
+    ]
   );
 
   const connColor = useMemo(
@@ -434,6 +463,38 @@ export function ConnectionTreeSection({
         confirmLabel="削除"
         onConfirm={handleDropConfirm}
         onCancel={dismiss}
+      />
+
+      <QueryConfirmDialog
+        isOpen={tableAction?.type === 'drop-confirm'}
+        title="テーブル削除の確認"
+        message={
+          tableAction?.type === 'drop-confirm'
+            ? `テーブル "${tableAction.tableName}" を削除します。${tableAction.hasFK ? 'FK制約が自動的に削除されます。' : ''}この操作は元に戻せません。`
+            : ''
+        }
+        details={tableAction?.type === 'drop-confirm' ? tableAction.sqls.join(';\n') : undefined}
+        isDestructive
+        confirmLabel="削除"
+        onConfirm={confirmTableDrop}
+        onCancel={dismissTableAction}
+      />
+
+      <QueryConfirmDialog
+        isOpen={tableAction?.type === 'truncate-confirm'}
+        title="テーブルを空にする確認"
+        message={
+          tableAction?.type === 'truncate-confirm'
+            ? `テーブル "${tableAction.tableName}" の全データを削除します。${tableAction.hasFK ? 'FK制約が自動的に処理されます。' : ''}`
+            : ''
+        }
+        details={
+          tableAction?.type === 'truncate-confirm' ? tableAction.sqls.join(';\n') : undefined
+        }
+        isDestructive
+        confirmLabel="実行"
+        onConfirm={confirmTruncate}
+        onCancel={dismissTableAction}
       />
     </div>
   );
