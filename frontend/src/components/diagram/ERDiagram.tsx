@@ -6,14 +6,18 @@ import {
   MarkerType,
   type Node,
   ReactFlow,
+  ReactFlowProvider,
   useNodesState,
+  useReactFlow,
 } from '@xyflow/react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '@xyflow/react/dist/style.css';
 import { useERDiagramContext } from '../../hooks/useERDiagramContext';
+import { useERDiagramStore } from '../../store/erDiagramStore';
 import type { ERRelationEdge, ERShapeNode, ERTableNode } from '../../types';
-import { ALL_PAGES, GRID_LAYOUT } from '../../utils/erDiagramConstants';
+import { ALL_PAGES, DEFAULT_PAGE, GRID_LAYOUT } from '../../utils/erDiagramConstants';
 import styles from './ERDiagram.module.css';
+import { ERDiagramSearch } from './ERDiagramSearch';
 import { ShapeNode } from './ShapeNode';
 import { TableNode } from './TableNode';
 
@@ -91,48 +95,91 @@ function applyGridLayout(tables: ERTableNode[]): ERTableNode[] {
   }));
 }
 
+function toNodes(tables: ERTableNode[], shapes: ERShapeNode[]): Node[] {
+  const shapeNodes: Node[] = shapes.map((shape) => ({
+    id: shape.id,
+    type: 'shape',
+    position: shape.position,
+    data: shape.data,
+    zIndex: -1,
+    selectable: false,
+    draggable: false,
+  }));
+
+  const tableNodes: Node[] = tables.map((table) => ({
+    id: table.id,
+    type: 'table',
+    position: table.position,
+    data: table.data,
+  }));
+
+  return [...shapeNodes, ...tableNodes];
+}
+
 function ERDiagramFlow({
   tables,
   relations,
   shapes,
+  selectedPage,
   onTableClick,
 }: {
   tables: ERTableNode[];
   relations: ERRelationEdge[];
   shapes: ERShapeNode[];
+  selectedPage: string;
   onTableClick?: (tableId: string) => void;
 }) {
-  const initialNodes: Node[] = useMemo(() => {
-    const shapeNodes: Node[] = shapes.map((shape) => ({
-      id: shape.id,
-      type: 'shape',
-      position: shape.position,
-      data: shape.data,
-      zIndex: -1,
-      selectable: false,
-      draggable: false,
-    }));
+  const { setViewport, getViewport, fitView } = useReactFlow();
+  const saveViewport = useERDiagramStore((s) => s.saveViewport);
+  const viewportsRef = useRef(useERDiagramStore.getState().viewports);
+  useEffect(() => {
+    return useERDiagramStore.subscribe((s) => {
+      viewportsRef.current = s.viewports;
+    });
+  }, []);
 
-    const tableNodes: Node[] = tables.map((table) => ({
-      id: table.id,
-      type: 'table',
-      position: table.position,
-      data: table.data,
-    }));
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const prevPageRef = useRef(selectedPage);
+  const isInitialMount = useRef(true);
 
-    return [...shapeNodes, ...tableNodes];
-  }, [tables, shapes]);
+  // ページ切替時: ノード更新 + viewport復元
+  useEffect(() => {
+    const prevPage = prevPageRef.current;
+    prevPageRef.current = selectedPage;
 
-  const [nodes, , onNodesChange] = useNodesState(initialNodes);
+    setNodes(toNodes(tables, shapes));
+    setEdgePosMap(new Map(tables.map((t) => [t.id, t.position])));
 
-  // エッジ用ポジション: ドラッグ終了時のみ更新（毎フレーム再計算を回避）
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      requestAnimationFrame(() => fitView({ duration: 200 }));
+      return;
+    }
+
+    // 切替前のviewportを保存
+    if (prevPage !== selectedPage) {
+      const currentVp = getViewport();
+      saveViewport(prevPage, currentVp);
+    }
+
+    // 切替先のviewportを復元（なければfitView）
+    const saved = viewportsRef.current[selectedPage];
+    requestAnimationFrame(() => {
+      if (saved && prevPage !== selectedPage) {
+        setViewport(saved, { duration: 200 });
+      } else if (prevPage !== selectedPage) {
+        fitView({ duration: 200 });
+      }
+    });
+  }, [tables, shapes, selectedPage, setNodes, fitView, getViewport, saveViewport, setViewport]);
+
   const [edgePosMap, setEdgePosMap] = useState<PosMap>(
     () => new Map(tables.map((t) => [t.id, t.position]))
   );
 
   const edges: Edge[] = useMemo(() => buildEdges(relations, edgePosMap), [relations, edgePosMap]);
 
-  const handleNodeDragStop = useCallback(
+  const nodeDragStop = useCallback(
     (_event: React.MouseEvent, _node: Node, draggedNodes: Node[]) => {
       setEdgePosMap((prev) => {
         const next = new Map(prev);
@@ -145,7 +192,7 @@ function ERDiagramFlow({
     []
   );
 
-  const handleNodeClick = useCallback(
+  const nodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
       onTableClick?.(node.id);
     },
@@ -157,10 +204,10 @@ function ERDiagramFlow({
       nodes={nodes}
       edges={edges}
       onNodesChange={onNodesChange}
-      onNodeDragStop={handleNodeDragStop}
-      onNodeClick={handleNodeClick}
+      onNodeDragStop={nodeDragStop}
+      onNodeClick={nodeClick}
       nodeTypes={nodeTypes}
-      fitView
+      nodesDraggable={false}
       minZoom={0.1}
       maxZoom={2}
       defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
@@ -169,6 +216,52 @@ function ERDiagramFlow({
       <Controls />
     </ReactFlow>
   );
+}
+
+const NODE_CENTER_X = GRID_LAYOUT.nodeWidth / 2;
+const NODE_CENTER_Y = GRID_LAYOUT.nodeHeight / 2;
+const FOCUS_DURATION_MS = 3000;
+
+/** 検索結果選択時にsetCenter + ページ切替を行うブリッジコンポーネント */
+function ERDiagramSearchBridge({
+  allTables,
+  selectedPage,
+  setSelectedPage,
+}: {
+  allTables: ERTableNode[];
+  selectedPage: string;
+  setSelectedPage: (page: string) => void;
+}) {
+  const { setCenter } = useReactFlow();
+  const setFocusedNodeId = useERDiagramStore((s) => s.setFocusedNodeId);
+  const focusTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const selectTable = useCallback(
+    (table: ERTableNode) => {
+      const needPageSwitch =
+        selectedPage !== (table.data.page || DEFAULT_PAGE) && selectedPage !== ALL_PAGES;
+      if (needPageSwitch) {
+        setSelectedPage(table.data.page || DEFAULT_PAGE);
+      }
+      const centerOnNode = () => {
+        setCenter(table.position.x + NODE_CENTER_X, table.position.y + NODE_CENTER_Y, {
+          zoom: 1,
+          duration: 300,
+        });
+      };
+      if (needPageSwitch) {
+        requestAnimationFrame(centerOnNode);
+      } else {
+        centerOnNode();
+      }
+      clearTimeout(focusTimerRef.current);
+      setFocusedNodeId(table.id);
+      focusTimerRef.current = setTimeout(() => setFocusedNodeId(null), FOCUS_DURATION_MS);
+    },
+    [selectedPage, setSelectedPage, setCenter, setFocusedNodeId]
+  );
+
+  return <ERDiagramSearch tables={allTables} onSelect={selectTable} />;
 }
 
 export function ERDiagram({ onTableClick, onOpenImportDialog }: ERDiagramProps) {
@@ -183,6 +276,7 @@ export function ERDiagram({ onTableClick, onOpenImportDialog }: ERDiagramProps) 
     shapes: filteredShapes,
   } = useERDiagramContext();
 
+  const allTables = useERDiagramStore((s) => s.tables);
   const hasData = totalTableCount > 0;
 
   // 「すべて」タブ時はグリッド再配置（ページ間で座標が重複するため）
@@ -198,13 +292,6 @@ export function ERDiagram({ onTableClick, onOpenImportDialog }: ERDiagramProps) 
   );
 
   const showTabs = pages.length > 1;
-
-  // key を変えることで ReactFlow を再マウントし、fitView をリトリガー
-  const flowKey = useMemo(() => {
-    const first = layoutTables[0]?.id ?? '';
-    const last = layoutTables[layoutTables.length - 1]?.id ?? '';
-    return `${selectedPage}-${layoutTables.length}-${layoutShapes.length}-${first}-${last}`;
-  }, [selectedPage, layoutTables, layoutShapes]);
 
   if (!hasData) {
     return (
@@ -223,7 +310,7 @@ export function ERDiagram({ onTableClick, onOpenImportDialog }: ERDiagramProps) 
 
   return (
     <div className={styles.container}>
-      {(showTabs || onOpenImportDialog) && (
+      <ReactFlowProvider>
         <div className={styles.tabBar}>
           {showTabs && (
             <>
@@ -246,6 +333,11 @@ export function ERDiagram({ onTableClick, onOpenImportDialog }: ERDiagramProps) 
               ))}
             </>
           )}
+          <ERDiagramSearchBridge
+            allTables={allTables}
+            selectedPage={selectedPage}
+            setSelectedPage={setSelectedPage}
+          />
           {onOpenImportDialog && (
             <button
               type="button"
@@ -257,16 +349,16 @@ export function ERDiagram({ onTableClick, onOpenImportDialog }: ERDiagramProps) 
             </button>
           )}
         </div>
-      )}
-      <div className={styles.flowContainer}>
-        <ERDiagramFlow
-          key={flowKey}
-          tables={layoutTables}
-          relations={filteredRelations}
-          shapes={layoutShapes}
-          onTableClick={onTableClick}
-        />
-      </div>
+        <div className={styles.flowContainer}>
+          <ERDiagramFlow
+            tables={layoutTables}
+            relations={filteredRelations}
+            shapes={layoutShapes}
+            selectedPage={selectedPage}
+            onTableClick={onTableClick}
+          />
+        </div>
+      </ReactFlowProvider>
     </div>
   );
 }

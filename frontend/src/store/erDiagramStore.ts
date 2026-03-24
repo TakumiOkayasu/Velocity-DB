@@ -5,6 +5,12 @@ import { DEFAULT_PAGE, GRID_LAYOUT } from '../utils/erDiagramConstants';
 import type { ERDiagramModel } from '../utils/erDiagramParser';
 import { extractPages } from '../utils/erDiagramUtils';
 
+export interface Viewport {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
 interface ERDiagramState {
   tables: ERTableNode[];
   relations: ERRelationEdge[];
@@ -15,6 +21,12 @@ interface ERDiagramState {
   // Page state
   selectedPage: string;
 
+  // Viewport per page (preserved across tab switches)
+  viewports: Record<string, Viewport>;
+
+  // Search highlight
+  focusedNodeId: string | null;
+
   // Actions
   setTables: (tables: ERTableNode[]) => void;
   setRelations: (relations: ERRelationEdge[]) => void;
@@ -23,6 +35,8 @@ interface ERDiagramState {
   removeTable: (id: string) => void;
   clearDiagram: () => void;
   setSelectedPage: (page: string) => void;
+  saveViewport: (page: string, viewport: Viewport) => void;
+  setFocusedNodeId: (id: string | null) => void;
 
   // Reverse engineering
   loadFromDatabase: (connectionId: string, database: string) => Promise<void>;
@@ -41,6 +55,8 @@ export const useERDiagramStore = create<ERDiagramState>((set, get) => ({
   isLoading: false,
   error: null,
   selectedPage: DEFAULT_PAGE,
+  viewports: {},
+  focusedNodeId: null,
 
   setTables: (tables) => set({ tables }),
 
@@ -66,10 +82,25 @@ export const useERDiagramStore = create<ERDiagramState>((set, get) => ({
   },
 
   clearDiagram: () => {
-    set({ tables: [], relations: [], shapes: [], selectedPage: DEFAULT_PAGE });
+    set({
+      tables: [],
+      relations: [],
+      shapes: [],
+      selectedPage: DEFAULT_PAGE,
+      viewports: {},
+      focusedNodeId: null,
+    });
   },
 
   setSelectedPage: (page) => set({ selectedPage: page }),
+
+  saveViewport: (page, viewport) => {
+    set((state) => ({
+      viewports: { ...state.viewports, [page]: viewport },
+    }));
+  },
+
+  setFocusedNodeId: (id) => set({ focusedNodeId: id }),
 
   loadFromERFile: async (filepath) => {
     set({ isLoading: true, error: null });

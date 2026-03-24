@@ -13,6 +13,22 @@
   box-shadow: 0 0 0 2px var(--accent-color);
 }
 
+.container.focused {
+  border-color: #4a9eff;
+  box-shadow: 0 0 0 2px #4a9eff;
+  animation: focusPulse 1s ease-in-out 3;
+}
+
+@keyframes focusPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px #4a9eff;
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(74, 158, 255, 0.4);
+  }
+}
+
 .header {
   display: flex;
   align-items: center;
