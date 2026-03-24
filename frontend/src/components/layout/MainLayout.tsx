@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { bridge } from '../../api/bridge';
 import { useKeyboardHandler } from '../../hooks/useKeyboardHandler';
+import { applyConnectionMigration } from '../../store/connectionMigration';
 import { useConnectionStore } from '../../store/connectionStore';
 import { useQueryStore } from '../../store/queryStore';
 import { useSessionStore } from '../../store/sessionStore';
@@ -143,7 +144,7 @@ export function MainLayout() {
 
   const connectToDatabase = async (config: ConnectionConfig) => {
     try {
-      await addConnection({
+      const result = await addConnection({
         name: config.name,
         server: config.server,
         port: config.port,
@@ -167,6 +168,7 @@ export function MainLayout() {
             }
           : undefined,
       });
+      applyConnectionMigration(result.replaced);
       setIsConnectionDialogOpen(false);
     } catch {
       // Error is displayed in ConnectionDialog via connectionStore.error

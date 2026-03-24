@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { bridge } from '../../api/bridge';
+import { applyConnectionMigration } from '../../store/connectionMigration';
 import { useConnectionActions, useConnectionStore } from '../../store/connectionStore';
 import type { ExpandableType } from '../../utils/treeNode';
 import { ConnectionTreeSection } from './ConnectionTreeSection';
@@ -89,7 +90,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
         }
       }
 
-      await addConnection({
+      const result = await addConnection({
         name: confirmingProfile.name,
         server: confirmingProfile.server,
         port: confirmingProfile.port ?? 1433,
@@ -113,6 +114,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
             }
           : undefined,
       });
+      applyConnectionMigration(result.replaced);
       setConfirmingProfile(null);
     } catch (error) {
       console.error('Failed to connect:', error);

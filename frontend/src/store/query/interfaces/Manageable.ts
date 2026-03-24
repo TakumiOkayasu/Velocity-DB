@@ -6,4 +6,5 @@ export interface Manageable {
   renameQuery: (id: string, name: string) => void;
   setActive: (id: string | null) => void;
   reorderQuery: (fromIndex: number, toIndex: number) => void;
+  migrateConnection: (oldId: string, newId: string) => void;
 }

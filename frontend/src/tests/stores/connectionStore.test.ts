@@ -145,6 +145,35 @@ describe('connectionStore', () => {
       expect(state.connections[0].id).toBe('db_2');
       expect(mockDisconnect).toHaveBeenCalledWith('db_1');
     });
+
+    it('同名接続置換時に replaced を返す', async () => {
+      mockConnectAsync.mockResolvedValue({ requestId: 'req_1' });
+      mockGetConnectResult.mockResolvedValue({
+        status: 'connected',
+        connectionId: 'db_new',
+      });
+      mockDisconnect.mockResolvedValue(undefined);
+
+      useConnectionStore.setState({
+        connections: [{ ...baseConnection, id: 'db_old', isActive: true }],
+      });
+
+      const result = await useConnectionStore.getState().addConnection(baseConnection);
+
+      expect(result.replaced).toEqual({ oldId: 'db_old', newId: 'db_new' });
+    });
+
+    it('新規接続では replaced が undefined', async () => {
+      mockConnectAsync.mockResolvedValue({ requestId: 'req_1' });
+      mockGetConnectResult.mockResolvedValue({
+        status: 'connected',
+        connectionId: 'db_1',
+      });
+
+      const result = await useConnectionStore.getState().addConnection(baseConnection);
+
+      expect(result.replaced).toBeUndefined();
+    });
   });
 
   describe('cancelConnection', () => {
