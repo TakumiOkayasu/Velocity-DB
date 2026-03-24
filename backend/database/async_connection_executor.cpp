@@ -115,8 +115,7 @@ bool AsyncConnectionExecutor::cancelConnect(std::string_view requestId) {
     return false;
 }
 
-std::expected<AsyncConnectionExecutor::ConnectedDrivers, ConnectResult>
-AsyncConnectionExecutor::getResultAndConsume(std::string_view requestId) {
+std::expected<AsyncConnectionExecutor::ConnectedDrivers, ConnectResult> AsyncConnectionExecutor::getResultAndConsume(std::string_view requestId) {
     std::lock_guard lock(m_mutex);
 
     auto iter = m_tasks.find(std::string(requestId));

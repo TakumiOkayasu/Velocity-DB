@@ -86,7 +86,7 @@ std::expected<ConnectionRegistry::DriverPtr, std::string> ConnectionRegistry::ge
 
     auto& entry = it->second;
     if (!entry.queryDriver || !entry.queryDriver->isConnected()) {
-        log<LogLevel::WARN>(std::format("[DB] Health check failed for connection '{}': not connected", id));
+        log<LogLevel::WARNING>(std::format("[DB] Health check failed for connection '{}': not connected", id));
         // Disconnect metadata driver too
         if (entry.metadataDriver && entry.metadataDriver->isConnected()) {
             entry.metadataDriver->disconnect();
@@ -97,9 +97,9 @@ std::expected<ConnectionRegistry::DriverPtr, std::string> ConnectionRegistry::ge
 
     // Lightweight health check: SELECT 1
     try {
-        entry.queryDriver->execute("SELECT 1");
+        [[maybe_unused]] auto _ = entry.queryDriver->execute("SELECT 1");
     } catch (const std::exception& e) {
-        log<LogLevel::WARN>(std::format("[DB] Health check failed for connection '{}': {}", id, e.what()));
+        log<LogLevel::WARNING>(std::format("[DB] Health check failed for connection '{}': {}", id, e.what()));
         if (entry.queryDriver->isConnected()) {
             entry.queryDriver->disconnect();
         }

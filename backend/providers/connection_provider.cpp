@@ -7,7 +7,6 @@
 #include "../network/ssh_tunnel.h"
 #include "../utils/json_utils.h"
 #include "../utils/logger.h"
-
 #include "simdjson.h"
 
 #include <format>
@@ -61,9 +60,7 @@ struct PreparedConnection {
 
 }  // namespace
 
-ConnectionProvider::ConnectionProvider()
-    : m_registry(std::make_unique<ConnectionRegistry>())
-    , m_asyncExecutor(std::make_unique<AsyncConnectionExecutor>()) {}
+ConnectionProvider::ConnectionProvider() : m_registry(std::make_unique<ConnectionRegistry>()), m_asyncExecutor(std::make_unique<AsyncConnectionExecutor>()) {}
 
 ConnectionProvider::~ConnectionProvider() = default;
 
@@ -142,7 +139,7 @@ std::string ConnectionProvider::handleConnectAsync(std::string_view params) {
     };
 
     // Evict idle connections as side-effect
-    m_registry->evictIdleConnections();
+    [[maybe_unused]] auto evicted = m_registry->evictIdleConnections();
 
     auto requestId = m_asyncExecutor->submitConnect(std::move(request));
     return JsonUtils::successResponse(std::format(R"({{"requestId":"{}"}})", requestId));
