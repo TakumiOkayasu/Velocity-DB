@@ -132,8 +132,8 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
       }));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Connection failed';
-      if (message === 'Connection cancelled') {
-        set({ isConnecting: false, connectRequestId: null, connectCancelled: false, error: null });
+      // If already cancelled by cancelConnection(), don't overwrite state
+      if (message === 'Connection cancelled' || get().connectCancelled || !get().isConnecting) {
         return;
       }
       set({
@@ -142,7 +142,6 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         connectCancelled: false,
         error: message,
       });
-      throw error;
     }
   },
 

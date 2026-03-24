@@ -29,7 +29,7 @@ AsyncConnectionExecutor::~AsyncConnectionExecutor() {
 }
 
 std::string AsyncConnectionExecutor::submitConnect(DatabaseConnectionParams params) {
-    auto requestId = std::format("conn_{}", m_counter++);
+    auto requestId = std::format("creq_{}", m_counter++);
 
     auto task = std::make_shared<ConnectTask>();
     task->effectiveParams = std::move(params);

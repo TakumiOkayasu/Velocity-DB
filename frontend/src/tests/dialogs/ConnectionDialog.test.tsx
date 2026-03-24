@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ConnectionDialog } from '../../components/dialogs/ConnectionDialog';
 
@@ -51,5 +51,48 @@ describe('ConnectionDialog', () => {
   it('isOpen=false時に非表示', () => {
     const { container } = render(<ConnectionDialog {...defaultProps} isOpen={false} />);
     expect(container.firstChild).toBeNull();
+  });
+
+  it('接続中に「接続中止」ボタンが表示される', async () => {
+    render(<ConnectionDialog {...defaultProps} isConnecting={true} onCancelConnect={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByText('接続中止')).toBeTruthy();
+    });
+  });
+
+  it('接続中でないときに「接続」ボタンが表示される', async () => {
+    render(<ConnectionDialog {...defaultProps} isConnecting={false} />);
+    await waitFor(() => {
+      expect(screen.getByText('接続')).toBeTruthy();
+    });
+  });
+
+  it('接続中止ボタンがonCancelConnectを呼ぶ', async () => {
+    const onCancelConnect = vi.fn();
+    render(
+      <ConnectionDialog {...defaultProps} isConnecting={true} onCancelConnect={onCancelConnect} />
+    );
+    await waitFor(() => {
+      fireEvent.click(screen.getByText('接続中止'));
+      expect(onCancelConnect).toHaveBeenCalledOnce();
+    });
+  });
+
+  it('接続中にキャンセルボタンでonCancelConnect+onCloseが呼ばれる', async () => {
+    const onClose = vi.fn();
+    const onCancelConnect = vi.fn();
+    render(
+      <ConnectionDialog
+        {...defaultProps}
+        onClose={onClose}
+        isConnecting={true}
+        onCancelConnect={onCancelConnect}
+      />
+    );
+    await waitFor(() => {
+      fireEvent.click(screen.getByText('キャンセル'));
+      expect(onCancelConnect).toHaveBeenCalledOnce();
+      expect(onClose).toHaveBeenCalledOnce();
+    });
   });
 });
