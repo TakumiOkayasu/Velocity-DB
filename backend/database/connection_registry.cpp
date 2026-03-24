@@ -46,7 +46,9 @@ void ConnectionRegistry::remove(std::string_view id) {
     if (entry.metadataDriver && entry.metadataDriver->isConnected()) {
         entry.metadataDriver->disconnect();
     }
-    // tunnel is destroyed automatically via unique_ptr
+    if (entry.tunnel) {
+        entry.tunnel->disconnect();
+    }
     m_connections.erase(it);
 }
 
@@ -177,6 +179,9 @@ void ConnectionRegistry::clear() {
         if (entry.metadataDriver && entry.metadataDriver->isConnected()) {
             entry.metadataDriver->disconnect();
         }
+        if (entry.tunnel) {
+            entry.tunnel->disconnect();
+        }
     }
     m_connections.clear();
 }
@@ -199,6 +204,9 @@ size_t ConnectionRegistry::evictIdleConnections(std::chrono::minutes maxIdleDura
             }
             if (entry.metadataDriver && entry.metadataDriver->isConnected()) {
                 entry.metadataDriver->disconnect();
+            }
+            if (entry.tunnel) {
+                entry.tunnel->disconnect();
             }
             ++evicted;
             return true;

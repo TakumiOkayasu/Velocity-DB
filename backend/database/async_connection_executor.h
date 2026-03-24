@@ -25,14 +25,6 @@ struct ConnectResult {
     std::string errorMessage;
 };
 
-/// Prepared connection data passed to async executor
-struct PreparedConnectRequest {
-    std::string connectionString;
-    std::unique_ptr<SshTunnel> tunnel;
-    DriverType driverType;
-    DatabaseConnectionParams effectiveParams;
-};
-
 class AsyncConnectionExecutor {
 public:
     AsyncConnectionExecutor() = default;
@@ -43,8 +35,9 @@ public:
     AsyncConnectionExecutor(AsyncConnectionExecutor&&) = delete;
     AsyncConnectionExecutor& operator=(AsyncConnectionExecutor&&) = delete;
 
-    /// Submit an async connection request. Returns requestId immediately.
-    [[nodiscard]] std::string submitConnect(PreparedConnectRequest request);
+    /// Submit an async connection request (SSH + DB connect in background).
+    /// Returns requestId immediately.
+    [[nodiscard]] std::string submitConnect(DatabaseConnectionParams params);
 
     /// Cancel a pending/running connection request.
     bool cancelConnect(std::string_view requestId);
@@ -70,8 +63,6 @@ private:
         std::shared_ptr<IDatabaseDriver> metadataDriver;
         std::unique_ptr<SshTunnel> tunnel;
         DatabaseConnectionParams effectiveParams;
-        std::string connectionString;
-        DriverType driverType;
         std::string errorMessage;
         std::chrono::steady_clock::time_point startTime;
     };

@@ -93,4 +93,23 @@ struct DatabaseConnectionParams {
 /// Establishes an SSH tunnel based on connection parameters.
 [[nodiscard]] std::expected<std::unique_ptr<SshTunnel>, std::string> establishSshTunnel(const DatabaseConnectionParams& params);
 
+// ─── Driver type mapping ───
+
+enum class DriverType;
+
+/// Map DbType (connection params) to DriverType (driver layer).
+[[nodiscard]] DriverType toDriverType(DbType dbType) noexcept;
+
+// ─── Connection preparation ───
+
+struct PreparedConnection {
+    std::string connectionString;
+    std::unique_ptr<SshTunnel> tunnel;
+    DriverType driverType;
+    DatabaseConnectionParams effectiveParams;
+};
+
+/// Prepare a connection: establish SSH tunnel if needed, build connection string.
+[[nodiscard]] std::expected<PreparedConnection, std::string> prepareConnection(const DatabaseConnectionParams& params);
+
 }  // namespace velocitydb
