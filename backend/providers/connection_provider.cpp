@@ -4,61 +4,12 @@
 #include "../database/connection_registry.h"
 #include "../database/connection_utils.h"
 #include "../database/driver_interface.h"
-#include "../network/ssh_tunnel.h"
 #include "../utils/json_utils.h"
-#include "../utils/logger.h"
 #include "simdjson.h"
 
 #include <format>
 
 namespace velocitydb {
-
-namespace {
-
-/// Map DbType (connection params) to DriverType (driver layer)
-[[nodiscard]] constexpr DriverType toDriverType(DbType dbType) noexcept {
-    switch (dbType) {
-        case DbType::PostgreSQL:
-            return DriverType::PostgreSQL;
-        case DbType::MySQL:
-            return DriverType::MySQL;
-        default:
-            return DriverType::SQLServer;
-    }
-}
-
-struct PreparedConnection {
-    std::string connectionString;
-    std::unique_ptr<SshTunnel> tunnel;
-    DriverType driverType;
-    DatabaseConnectionParams effectiveParams;
-};
-
-/// SSH tunnel + connection string construction
-[[nodiscard]] std::expected<PreparedConnection, std::string> prepareConnection(const DatabaseConnectionParams& params) {
-    DatabaseConnectionParams effectiveParams = params;
-    std::unique_ptr<SshTunnel> tunnel;
-
-    if (params.ssh.enabled) {
-        auto tunnelResult = establishSshTunnel(params);
-        if (!tunnelResult)
-            return std::unexpected(tunnelResult.error());
-        tunnel = std::move(*tunnelResult);
-        effectiveParams.server = std::format("127.0.0.1,{}", tunnel->getLocalPort());
-        log<LogLevel::DEBUG>(std::format("[DB] SSH tunnel established, redirecting to: {}", effectiveParams.server));
-    }
-
-    auto connStr = buildConnectionString(effectiveParams);
-    if (!connStr)
-        return std::unexpected(connStr.error());
-    log<LogLevel::DEBUG>(std::format("[DB] Connection target: {}", effectiveParams.server));
-    log<LogLevel::DEBUG>("[DB] Attempting connection...");
-    log_flush();
-
-    return PreparedConnection{std::move(*connStr), std::move(tunnel), toDriverType(params.dbType), effectiveParams};
-}
-
-}  // namespace
 
 ConnectionProvider::ConnectionProvider() : m_registry(std::make_unique<ConnectionRegistry>()), m_asyncExecutor(std::make_unique<AsyncConnectionExecutor>()) {}
 
@@ -126,22 +77,11 @@ std::string ConnectionProvider::connectAsync(std::string_view params) {
         return JsonUtils::errorResponse(connectionParams.error());
     }
 
-    auto prepared = prepareConnection(*connectionParams);
-    if (!prepared) {
-        return JsonUtils::errorResponse(prepared.error());
-    }
-
-    PreparedConnectRequest request{
-        .connectionString = std::move(prepared->connectionString),
-        .tunnel = std::move(prepared->tunnel),
-        .driverType = prepared->driverType,
-        .effectiveParams = std::move(prepared->effectiveParams),
-    };
-
     // Evict idle connections as side-effect
     [[maybe_unused]] auto evicted = m_registry->evictIdleConnections();
 
-    auto requestId = m_asyncExecutor->submitConnect(std::move(request));
+    // Submit raw params — SSH + DB connect happens in background thread
+    auto requestId = m_asyncExecutor->submitConnect(std::move(*connectionParams));
     return JsonUtils::successResponse(std::format(R"({{"requestId":"{}"}})", requestId));
 }
 

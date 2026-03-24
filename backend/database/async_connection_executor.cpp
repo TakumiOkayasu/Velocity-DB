@@ -28,31 +28,47 @@ AsyncConnectionExecutor::~AsyncConnectionExecutor() {
     }
 }
 
-std::string AsyncConnectionExecutor::submitConnect(PreparedConnectRequest request) {
+std::string AsyncConnectionExecutor::submitConnect(DatabaseConnectionParams params) {
     auto requestId = std::format("conn_{}", m_counter++);
 
     auto task = std::make_shared<ConnectTask>();
-    task->connectionString = std::move(request.connectionString);
-    task->driverType = request.driverType;
-    task->effectiveParams = std::move(request.effectiveParams);
-    task->tunnel = std::move(request.tunnel);
+    task->effectiveParams = std::move(params);
     task->startTime = std::chrono::steady_clock::now();
     task->status = ConnectStatus::Pending;
 
     task->future = std::async(std::launch::async, [task]() {
         try {
+            // Prepare connection (SSH tunnel + connection string) in background
+            auto prepared = prepareConnection(task->effectiveParams);
+            if (!prepared) {
+                task->errorMessage = prepared.error();
+                task->status = ConnectStatus::Failed;
+                return;
+            }
+
+            if (task->cancelled.load(std::memory_order_acquire)) {
+                if (prepared->tunnel) {
+                    prepared->tunnel->disconnect();
+                }
+                task->status = ConnectStatus::Cancelled;
+                return;
+            }
+
+            // Update effective params with SSH-redirected server
+            task->effectiveParams = std::move(prepared->effectiveParams);
+            task->tunnel = std::move(prepared->tunnel);
+
             // Create and connect query driver
-            auto queryDriver = DriverFactory::createDriver(task->driverType);
+            auto queryDriver = DriverFactory::createDriver(prepared->driverType);
             std::shared_ptr<IDatabaseDriver> queryDriverPtr(std::move(queryDriver));
             queryDriverPtr->setConnectionTimeout(task->effectiveParams.connectionTimeoutSeconds);
 
-            if (!queryDriverPtr->connect(task->connectionString)) {
+            if (!queryDriverPtr->connect(prepared->connectionString)) {
                 task->errorMessage = std::format("Connection failed: {}", queryDriverPtr->getLastError());
                 task->status = ConnectStatus::Failed;
                 return;
             }
 
-            // Check cancellation between the two connections
             if (task->cancelled.load(std::memory_order_acquire)) {
                 queryDriverPtr->disconnect();
                 task->status = ConnectStatus::Cancelled;
@@ -60,18 +76,17 @@ std::string AsyncConnectionExecutor::submitConnect(PreparedConnectRequest reques
             }
 
             // Create and connect metadata driver
-            auto metadataDriver = DriverFactory::createDriver(task->driverType);
+            auto metadataDriver = DriverFactory::createDriver(prepared->driverType);
             std::shared_ptr<IDatabaseDriver> metadataDriverPtr(std::move(metadataDriver));
             metadataDriverPtr->setConnectionTimeout(task->effectiveParams.connectionTimeoutSeconds);
 
-            if (!metadataDriverPtr->connect(task->connectionString)) {
+            if (!metadataDriverPtr->connect(prepared->connectionString)) {
                 queryDriverPtr->disconnect();
                 task->errorMessage = std::format("Metadata connection failed: {}", metadataDriverPtr->getLastError());
                 task->status = ConnectStatus::Failed;
                 return;
             }
 
-            // Check cancellation after both connections
             if (task->cancelled.load(std::memory_order_acquire)) {
                 queryDriverPtr->disconnect();
                 metadataDriverPtr->disconnect();

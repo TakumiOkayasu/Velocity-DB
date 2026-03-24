@@ -10,6 +10,7 @@ interface ConnectionState {
   activeConnectionId: string | null;
   isConnecting: boolean;
   connectRequestId: string | null;
+  connectCancelled: boolean;
   error: string | null;
 
   addConnection: (connection: Omit<Connection, 'id' | 'isActive'>) => Promise<void>;
@@ -28,10 +29,11 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
   activeConnectionId: null,
   isConnecting: false,
   connectRequestId: null,
+  connectCancelled: false,
   error: null,
 
   addConnection: async (connection) => {
-    set({ isConnecting: true, error: null, connectRequestId: null });
+    set({ isConnecting: true, error: null, connectRequestId: null, connectCancelled: false });
 
     try {
       const { requestId } = await bridge.connectAsync({
@@ -55,6 +57,13 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
             }
           : undefined,
       });
+
+      // Check if cancelled while waiting for connectAsync IPC response
+      if (get().connectCancelled) {
+        await bridge.cancelConnect(requestId).catch(() => {});
+        set({ isConnecting: false, connectRequestId: null, connectCancelled: false });
+        return;
+      }
 
       set({ connectRequestId: requestId });
 
@@ -119,12 +128,19 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         activeConnectionId: result.connectionId,
         isConnecting: false,
         connectRequestId: null,
+        connectCancelled: false,
       }));
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Connection failed';
+      if (message === 'Connection cancelled') {
+        set({ isConnecting: false, connectRequestId: null, connectCancelled: false, error: null });
+        return;
+      }
       set({
         isConnecting: false,
         connectRequestId: null,
-        error: error instanceof Error ? error.message : 'Connection failed',
+        connectCancelled: false,
+        error: message,
       });
       throw error;
     }
@@ -133,8 +149,11 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
   cancelConnection: async () => {
     const { connectRequestId } = get();
     if (connectRequestId) {
-      set({ connectRequestId: null });
+      set({ connectRequestId: null, connectCancelled: false });
       await bridge.cancelConnect(connectRequestId).catch(() => {});
+    } else {
+      // Pre-IPC cancel: flag for addConnection to detect
+      set({ connectCancelled: true });
     }
     set({ isConnecting: false, error: null });
   },
