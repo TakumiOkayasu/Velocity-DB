@@ -9,6 +9,7 @@
 
 namespace velocitydb {
 
+class AsyncConnectionExecutor;
 class ConnectionRegistry;
 enum class DriverType;
 
@@ -23,7 +24,9 @@ public:
     ConnectionProvider(ConnectionProvider&&) = delete;
     ConnectionProvider& operator=(ConnectionProvider&&) = delete;
 
-    [[nodiscard]] std::string handleConnect(std::string_view params) override;
+    [[nodiscard]] std::string handleConnectAsync(std::string_view params) override;
+    [[nodiscard]] std::string handleGetConnectResult(std::string_view params) override;
+    [[nodiscard]] std::string handleCancelConnect(std::string_view params) override;
     [[nodiscard]] std::string handleDisconnect(std::string_view params) override;
     [[nodiscard]] std::string handleTestConnection(std::string_view params) override;
 
@@ -35,6 +38,7 @@ public:
 
 private:
     std::unique_ptr<ConnectionRegistry> m_registry;
+    std::unique_ptr<AsyncConnectionExecutor> m_asyncExecutor;
 };
 
 }  // namespace velocitydb

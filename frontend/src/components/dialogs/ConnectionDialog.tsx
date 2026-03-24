@@ -15,6 +15,8 @@ interface ConnectionDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onConnect: (config: ConnectionConfig) => void;
+  isConnecting?: boolean;
+  onCancelConnect?: () => void;
 }
 
 export interface SshConfig {
@@ -43,7 +45,13 @@ export interface ConnectionConfig {
   ssh: SshConfig;
 }
 
-export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialogProps) {
+export function ConnectionDialog({
+  isOpen,
+  onClose,
+  onConnect,
+  isConnecting = false,
+  onCancelConnect,
+}: ConnectionDialogProps) {
   const {
     profiles,
     mode,
@@ -269,12 +277,23 @@ export function ConnectionDialog({ isOpen, onClose, onConnect }: ConnectionDialo
             {testing ? 'テスト中...' : 'テスト'}
           </button>
           <div className={styles.spacer} />
-          <button type="button" className={styles.cancelButton} onClick={onClose}>
+          <button
+            type="button"
+            className={styles.cancelButton}
+            onClick={onClose}
+            disabled={isConnecting}
+          >
             キャンセル
           </button>
-          <button type="button" className={styles.connectButton} onClick={handleConnect}>
-            接続
-          </button>
+          {isConnecting ? (
+            <button type="button" className={styles.connectButton} onClick={onCancelConnect}>
+              接続中止
+            </button>
+          ) : (
+            <button type="button" className={styles.connectButton} onClick={handleConnect}>
+              接続
+            </button>
+          )}
         </div>
       </div>
 

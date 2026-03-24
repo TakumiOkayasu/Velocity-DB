@@ -1,5 +1,6 @@
 #pragma once
 
+#include "connection_utils.h"
 #include "driver_interface.h"
 
 #include <Windows.h>
@@ -28,6 +29,7 @@ public:
     [[nodiscard]] bool connect(std::string_view connectionString) override;
     void disconnect() override;
     [[nodiscard]] bool isConnected() const noexcept override { return m_connected.load(std::memory_order_acquire); }
+    void setConnectionTimeout(unsigned int seconds) override;
 
     [[nodiscard]] ResultSet execute(std::string_view sql) override;
     void cancel() override;
@@ -44,6 +46,7 @@ private:
     std::atomic<bool> m_connected{false};
     std::string m_lastError;
     std::chrono::seconds m_queryTimeout{kDefaultQueryTimeout};
+    unsigned int m_connectionTimeout{kDefaultConnectionTimeoutSeconds};
     mutable std::mutex m_executeMutex;  // Serializes concurrent execute()/disconnect()/getLastError() calls
 };
 
