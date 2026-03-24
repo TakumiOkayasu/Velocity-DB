@@ -22,8 +22,8 @@ public:
     SearchProvider(SearchProvider&&) = delete;
     SearchProvider& operator=(SearchProvider&&) = delete;
 
-    [[nodiscard]] std::string handleSearchObjects(std::string_view params) override;
-    [[nodiscard]] std::string handleQuickSearch(std::string_view params) override;
+    [[nodiscard]] std::string searchObjects(std::string_view params) override;
+    [[nodiscard]] std::string quickSearch(std::string_view params) override;
 
 private:
     IConnectionProvider& m_connections;

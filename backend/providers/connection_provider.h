@@ -24,11 +24,11 @@ public:
     ConnectionProvider(ConnectionProvider&&) = delete;
     ConnectionProvider& operator=(ConnectionProvider&&) = delete;
 
-    [[nodiscard]] std::string handleConnectAsync(std::string_view params) override;
-    [[nodiscard]] std::string handleGetConnectResult(std::string_view params) override;
-    [[nodiscard]] std::string handleCancelConnect(std::string_view params) override;
-    [[nodiscard]] std::string handleDisconnect(std::string_view params) override;
-    [[nodiscard]] std::string handleTestConnection(std::string_view params) override;
+    [[nodiscard]] std::string connectAsync(std::string_view params) override;
+    [[nodiscard]] std::string getConnectResult(std::string_view params) override;
+    [[nodiscard]] std::string cancelConnect(std::string_view params) override;
+    [[nodiscard]] std::string disconnect(std::string_view params) override;
+    [[nodiscard]] std::string testConnection(std::string_view params) override;
 
     [[nodiscard]] std::shared_ptr<IDatabaseDriver> getQueryDriver(std::string_view connectionId) override;
     [[nodiscard]] std::shared_ptr<IDatabaseDriver> getMetadataDriver(std::string_view connectionId) override;

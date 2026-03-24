@@ -10,17 +10,17 @@ class ISchemaProvider {
 public:
     virtual ~ISchemaProvider() = default;
 
-    [[nodiscard]] virtual std::string handleGetDatabases(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleGetTables(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleGetColumns(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleGetIndexes(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleGetConstraints(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleGetForeignKeys(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleGetReferencingForeignKeys(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleGetTriggers(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleGetTableMetadata(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleGetTableDDL(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleGetExecutionPlan(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string getDatabases(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string getTables(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string getColumns(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string getIndexes(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string getConstraints(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string getForeignKeys(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string getReferencingForeignKeys(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string getTriggers(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string getTableMetadata(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string getTableDDL(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string getExecutionPlan(std::string_view params) = 0;
 };
 
 }  // namespace velocitydb

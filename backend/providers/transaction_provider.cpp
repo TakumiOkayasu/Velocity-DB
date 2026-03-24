@@ -27,7 +27,7 @@ void TransactionProvider::cleanupConnection(std::string_view params) {
     }
 }
 
-std::string TransactionProvider::handleBeginTransaction(std::string_view params) {
+std::string TransactionProvider::beginTransaction(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
@@ -58,7 +58,7 @@ std::string TransactionProvider::handleBeginTransaction(std::string_view params)
     }
 }
 
-std::string TransactionProvider::handleCommitTransaction(std::string_view params) {
+std::string TransactionProvider::commitTransaction(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
@@ -83,7 +83,7 @@ std::string TransactionProvider::handleCommitTransaction(std::string_view params
     }
 }
 
-std::string TransactionProvider::handleRollbackTransaction(std::string_view params) {
+std::string TransactionProvider::rollbackTransaction(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);

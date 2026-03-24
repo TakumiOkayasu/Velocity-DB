@@ -26,74 +26,74 @@ IPCHandler::~IPCHandler() = default;
 
 void IPCHandler::registerRoutes() {
     // Connection lifecycle
-    m_routes["connectAsync"] = [this](auto p) { return m_ctx.connections().handleConnectAsync(p); };
-    m_routes["getConnectResult"] = [this](auto p) { return m_ctx.connections().handleGetConnectResult(p); };
-    m_routes["cancelConnect"] = [this](auto p) { return m_ctx.connections().handleCancelConnect(p); };
+    m_routes["connectAsync"] = [this](auto p) { return m_ctx.connections().connectAsync(p); };
+    m_routes["getConnectResult"] = [this](auto p) { return m_ctx.connections().getConnectResult(p); };
+    m_routes["cancelConnect"] = [this](auto p) { return m_ctx.connections().cancelConnect(p); };
     m_routes["disconnect"] = [this](auto p) {
         m_ctx.transactions().cleanupConnection(p);
-        return m_ctx.connections().handleDisconnect(p);
+        return m_ctx.connections().disconnect(p);
     };
-    m_routes["testConnection"] = [this](auto p) { return m_ctx.connections().handleTestConnection(p); };
+    m_routes["testConnection"] = [this](auto p) { return m_ctx.connections().testConnection(p); };
 
     // Query execution
-    m_routes["executeQuery"] = [this](auto p) { return m_ctx.queries().handleExecuteQuery(p); };
-    m_routes["executeQueryPaginated"] = [this](auto p) { return m_ctx.queries().handleExecuteQueryPaginated(p); };
-    m_routes["getRowCount"] = [this](auto p) { return m_ctx.queries().handleGetRowCount(p); };
-    m_routes["cancelQuery"] = [this](auto p) { return m_ctx.queries().handleCancelQuery(p); };
+    m_routes["executeQuery"] = [this](auto p) { return m_ctx.queries().executeQuery(p); };
+    m_routes["executeQueryPaginated"] = [this](auto p) { return m_ctx.queries().executeQueryPaginated(p); };
+    m_routes["getRowCount"] = [this](auto p) { return m_ctx.queries().getRowCount(p); };
+    m_routes["cancelQuery"] = [this](auto p) { return m_ctx.queries().cancelQuery(p); };
 
     // Async queries
-    m_routes["executeAsyncQuery"] = [this](auto p) { return m_ctx.async_queries().handleExecuteAsyncQuery(p); };
-    m_routes["getAsyncQueryResult"] = [this](auto p) { return m_ctx.async_queries().handleGetAsyncQueryResult(p); };
-    m_routes["cancelAsyncQuery"] = [this](auto p) { return m_ctx.async_queries().handleCancelAsyncQuery(p); };
-    m_routes["getActiveQueries"] = [this](auto p) { return m_ctx.async_queries().handleGetActiveQueries(p); };
-    m_routes["removeAsyncQuery"] = [this](auto p) { return m_ctx.async_queries().handleRemoveAsyncQuery(p); };
+    m_routes["executeAsyncQuery"] = [this](auto p) { return m_ctx.async_queries().executeAsyncQuery(p); };
+    m_routes["getAsyncQueryResult"] = [this](auto p) { return m_ctx.async_queries().getAsyncQueryResult(p); };
+    m_routes["cancelAsyncQuery"] = [this](auto p) { return m_ctx.async_queries().cancelAsyncQuery(p); };
+    m_routes["getActiveQueries"] = [this](auto p) { return m_ctx.async_queries().getActiveQueries(p); };
+    m_routes["removeAsyncQuery"] = [this](auto p) { return m_ctx.async_queries().removeAsyncQuery(p); };
 
     // Schema
-    m_routes["getDatabases"] = [this](auto p) { return m_ctx.schema().handleGetDatabases(p); };
-    m_routes["getTables"] = [this](auto p) { return m_ctx.schema().handleGetTables(p); };
-    m_routes["getColumns"] = [this](auto p) { return m_ctx.schema().handleGetColumns(p); };
-    m_routes["getIndexes"] = [this](auto p) { return m_ctx.schema().handleGetIndexes(p); };
-    m_routes["getConstraints"] = [this](auto p) { return m_ctx.schema().handleGetConstraints(p); };
-    m_routes["getForeignKeys"] = [this](auto p) { return m_ctx.schema().handleGetForeignKeys(p); };
-    m_routes["getReferencingForeignKeys"] = [this](auto p) { return m_ctx.schema().handleGetReferencingForeignKeys(p); };
-    m_routes["getTriggers"] = [this](auto p) { return m_ctx.schema().handleGetTriggers(p); };
-    m_routes["getTableMetadata"] = [this](auto p) { return m_ctx.schema().handleGetTableMetadata(p); };
-    m_routes["getTableDDL"] = [this](auto p) { return m_ctx.schema().handleGetTableDDL(p); };
-    m_routes["getExecutionPlan"] = [this](auto p) { return m_ctx.schema().handleGetExecutionPlan(p); };
+    m_routes["getDatabases"] = [this](auto p) { return m_ctx.schema().getDatabases(p); };
+    m_routes["getTables"] = [this](auto p) { return m_ctx.schema().getTables(p); };
+    m_routes["getColumns"] = [this](auto p) { return m_ctx.schema().getColumns(p); };
+    m_routes["getIndexes"] = [this](auto p) { return m_ctx.schema().getIndexes(p); };
+    m_routes["getConstraints"] = [this](auto p) { return m_ctx.schema().getConstraints(p); };
+    m_routes["getForeignKeys"] = [this](auto p) { return m_ctx.schema().getForeignKeys(p); };
+    m_routes["getReferencingForeignKeys"] = [this](auto p) { return m_ctx.schema().getReferencingForeignKeys(p); };
+    m_routes["getTriggers"] = [this](auto p) { return m_ctx.schema().getTriggers(p); };
+    m_routes["getTableMetadata"] = [this](auto p) { return m_ctx.schema().getTableMetadata(p); };
+    m_routes["getTableDDL"] = [this](auto p) { return m_ctx.schema().getTableDDL(p); };
+    m_routes["getExecutionPlan"] = [this](auto p) { return m_ctx.schema().getExecutionPlan(p); };
 
     // Transactions
-    m_routes["beginTransaction"] = [this](auto p) { return m_ctx.transactions().handleBeginTransaction(p); };
-    m_routes["commit"] = [this](auto p) { return m_ctx.transactions().handleCommitTransaction(p); };
-    m_routes["rollback"] = [this](auto p) { return m_ctx.transactions().handleRollbackTransaction(p); };
+    m_routes["beginTransaction"] = [this](auto p) { return m_ctx.transactions().beginTransaction(p); };
+    m_routes["commit"] = [this](auto p) { return m_ctx.transactions().commitTransaction(p); };
+    m_routes["rollback"] = [this](auto p) { return m_ctx.transactions().rollbackTransaction(p); };
 
     // Cache & History
-    m_routes["getCacheStats"] = [this](auto p) { return m_ctx.queries().handleGetCacheStats(p); };
-    m_routes["clearCache"] = [this](auto p) { return m_ctx.queries().handleClearCache(p); };
-    m_routes["getQueryHistory"] = [this](auto p) { return m_ctx.queries().handleGetQueryHistory(p); };
-    m_routes["removeQueryHistory"] = [this](auto p) { return m_ctx.queries().handleRemoveQueryHistory(p); };
-    m_routes["clearQueryHistory"] = [this](auto p) { return m_ctx.queries().handleClearQueryHistory(p); };
-    m_routes["setQueryHistoryFavorite"] = [this](auto p) { return m_ctx.queries().handleSetQueryHistoryFavorite(p); };
+    m_routes["getCacheStats"] = [this](auto p) { return m_ctx.queries().getCacheStats(p); };
+    m_routes["clearCache"] = [this](auto p) { return m_ctx.queries().clearCache(p); };
+    m_routes["getQueryHistory"] = [this](auto p) { return m_ctx.queries().getQueryHistory(p); };
+    m_routes["removeQueryHistory"] = [this](auto p) { return m_ctx.queries().removeQueryHistory(p); };
+    m_routes["clearQueryHistory"] = [this](auto p) { return m_ctx.queries().clearQueryHistory(p); };
+    m_routes["setQueryHistoryFavorite"] = [this](auto p) { return m_ctx.queries().setQueryHistoryFavorite(p); };
 
     // Filter
-    m_routes["filterResultSet"] = [this](auto p) { return m_ctx.queries().handleFilterResultSet(p); };
+    m_routes["filterResultSet"] = [this](auto p) { return m_ctx.queries().filterResultSet(p); };
 
     // SQL builder (dialect-aware)
-    m_routes["buildDataViewSql"] = [this](auto p) { return m_ctx.queries().handleBuildDataViewSql(p); };
-    m_routes["buildWhereClause"] = [this](auto p) { return m_ctx.queries().handleBuildWhereClause(p); };
-    m_routes["buildDmlStatements"] = [this](auto p) { return m_ctx.queries().handleBuildDmlStatements(p); };
+    m_routes["buildDataViewSql"] = [this](auto p) { return m_ctx.queries().buildDataViewSql(p); };
+    m_routes["buildWhereClause"] = [this](auto p) { return m_ctx.queries().buildWhereClause(p); };
+    m_routes["buildDmlStatements"] = [this](auto p) { return m_ctx.queries().buildDmlStatements(p); };
 
     // Export
-    m_routes["exportCSV"] = [this](auto p) { return m_ctx.exports().handleExportCSV(p); };
-    m_routes["exportJSON"] = [this](auto p) { return m_ctx.exports().handleExportJSON(p); };
-    m_routes["exportExcel"] = [this](auto p) { return m_ctx.exports().handleExportExcel(p); };
+    m_routes["exportCSV"] = [this](auto p) { return m_ctx.exports().exportCSV(p); };
+    m_routes["exportJSON"] = [this](auto p) { return m_ctx.exports().exportJSON(p); };
+    m_routes["exportExcel"] = [this](auto p) { return m_ctx.exports().exportExcel(p); };
 
     // Utility
     m_routes["uppercaseKeywords"] = [this](auto p) { return m_ctx.utility().uppercaseKeywords(p); };
     m_routes["parseERDiagram"] = [this](auto p) { return m_ctx.utility().parseERDiagram(p); };
 
     // Search
-    m_routes["searchObjects"] = [this](auto p) { return m_ctx.search().handleSearchObjects(p); };
-    m_routes["quickSearch"] = [this](auto p) { return m_ctx.search().handleQuickSearch(p); };
+    m_routes["searchObjects"] = [this](auto p) { return m_ctx.search().searchObjects(p); };
+    m_routes["quickSearch"] = [this](auto p) { return m_ctx.search().quickSearch(p); };
 
     // Settings
     m_routes["getSettings"] = [this](auto) { return m_ctx.settings().getSettings(); };
@@ -108,13 +108,13 @@ void IPCHandler::registerRoutes() {
     m_routes["saveSessionState"] = [this](auto p) { return m_ctx.settings().saveSessionState(p); };
 
     // IO
-    m_routes["writeFrontendLog"] = [this](auto p) { return m_ctx.io().handleWriteFrontendLog(p); };
-    m_routes["saveQueryToFile"] = [this](auto p) { return m_ctx.io().handleSaveQueryToFile(p); };
-    m_routes["loadQueryFromFile"] = [this](auto p) { return m_ctx.io().handleLoadQueryFromFile(p); };
-    m_routes["browseFile"] = [this](auto p) { return m_ctx.io().handleBrowseFile(p); };
-    m_routes["getBookmarks"] = [this](auto p) { return m_ctx.io().handleGetBookmarks(p); };
-    m_routes["saveBookmark"] = [this](auto p) { return m_ctx.io().handleSaveBookmark(p); };
-    m_routes["deleteBookmark"] = [this](auto p) { return m_ctx.io().handleDeleteBookmark(p); };
+    m_routes["writeFrontendLog"] = [this](auto p) { return m_ctx.io().writeFrontendLog(p); };
+    m_routes["saveQueryToFile"] = [this](auto p) { return m_ctx.io().saveQueryToFile(p); };
+    m_routes["loadQueryFromFile"] = [this](auto p) { return m_ctx.io().loadQueryFromFile(p); };
+    m_routes["browseFile"] = [this](auto p) { return m_ctx.io().browseFile(p); };
+    m_routes["getBookmarks"] = [this](auto p) { return m_ctx.io().getBookmarks(p); };
+    m_routes["saveBookmark"] = [this](auto p) { return m_ctx.io().saveBookmark(p); };
+    m_routes["deleteBookmark"] = [this](auto p) { return m_ctx.io().deleteBookmark(p); };
 }
 
 std::string IPCHandler::dispatchRequest(std::string_view request) {

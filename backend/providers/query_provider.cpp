@@ -42,7 +42,7 @@ void QueryProvider::recordHistory(const std::string& sql, const std::string& con
                         .isFavorite = false});
 }
 
-std::string QueryProvider::handleExecuteQuery(std::string_view params) {
+std::string QueryProvider::executeQuery(std::string_view params) {
     std::string connectionId;
     std::string sqlQuery;
 
@@ -212,7 +212,7 @@ std::string QueryProvider::handleExecuteQuery(std::string_view params) {
     }
 }
 
-std::string QueryProvider::handleExecuteQueryPaginated(std::string_view params) {
+std::string QueryProvider::executeQueryPaginated(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
@@ -270,7 +270,7 @@ std::string QueryProvider::handleExecuteQueryPaginated(std::string_view params) 
     }
 }
 
-std::string QueryProvider::handleGetRowCount(std::string_view params) {
+std::string QueryProvider::getRowCount(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
@@ -304,7 +304,7 @@ std::string QueryProvider::handleGetRowCount(std::string_view params) {
     }
 }
 
-std::string QueryProvider::handleCancelQuery(std::string_view params) {
+std::string QueryProvider::cancelQuery(std::string_view params) {
     auto connectionIdResult = extractConnectionId(params);
     if (!connectionIdResult) {
         return JsonUtils::errorResponse(connectionIdResult.error());
@@ -315,7 +315,7 @@ std::string QueryProvider::handleCancelQuery(std::string_view params) {
     return JsonUtils::successResponse("{}");
 }
 
-std::string QueryProvider::handleFilterResultSet(std::string_view params) {
+std::string QueryProvider::filterResultSet(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
@@ -380,7 +380,7 @@ std::string QueryProvider::handleFilterResultSet(std::string_view params) {
     }
 }
 
-std::string QueryProvider::handleGetCacheStats(std::string_view) {
+std::string QueryProvider::getCacheStats(std::string_view) {
     auto currentSize = m_resultCache->getCurrentSize();
     auto maxSize = m_resultCache->getMaxSize();
     std::string jsonResponse = std::format(R"({{"currentSizeBytes":{},"maxSizeBytes":{},"usagePercent":{:.1f}}})", currentSize, maxSize,
@@ -388,12 +388,12 @@ std::string QueryProvider::handleGetCacheStats(std::string_view) {
     return JsonUtils::successResponse(jsonResponse);
 }
 
-std::string QueryProvider::handleClearCache(std::string_view) {
+std::string QueryProvider::clearCache(std::string_view) {
     m_resultCache->clear();
     return JsonUtils::successResponse(R"({"cleared":true})");
 }
 
-std::string QueryProvider::handleGetQueryHistory(std::string_view) {
+std::string QueryProvider::getQueryHistory(std::string_view) {
     auto historyEntries = m_queryHistory.getAll();
     auto jsonResponse = JsonUtils::buildArray(historyEntries, [](std::string& out, const HistoryItem& e) {
         auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(e.timestamp.time_since_epoch()).count();
@@ -404,7 +404,7 @@ std::string QueryProvider::handleGetQueryHistory(std::string_view) {
     return JsonUtils::successResponse(jsonResponse);
 }
 
-std::string QueryProvider::handleRemoveQueryHistory(std::string_view params) {
+std::string QueryProvider::removeQueryHistory(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
@@ -419,12 +419,12 @@ std::string QueryProvider::handleRemoveQueryHistory(std::string_view params) {
     }
 }
 
-std::string QueryProvider::handleClearQueryHistory(std::string_view) {
+std::string QueryProvider::clearQueryHistory(std::string_view) {
     m_queryHistory.clear();
     return JsonUtils::successResponse(R"({"cleared":true})");
 }
 
-std::string QueryProvider::handleSetQueryHistoryFavorite(std::string_view params) {
+std::string QueryProvider::setQueryHistoryFavorite(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
@@ -440,7 +440,7 @@ std::string QueryProvider::handleSetQueryHistoryFavorite(std::string_view params
     }
 }
 
-std::string QueryProvider::handleBuildDataViewSql(std::string_view params) {
+std::string QueryProvider::buildDataViewSql(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
@@ -472,7 +472,7 @@ std::string QueryProvider::handleBuildDataViewSql(std::string_view params) {
     }
 }
 
-std::string QueryProvider::handleBuildWhereClause(std::string_view params) {
+std::string QueryProvider::buildWhereClause(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
@@ -520,7 +520,7 @@ std::string QueryProvider::handleBuildWhereClause(std::string_view params) {
     }
 }
 
-std::string QueryProvider::handleBuildDmlStatements(std::string_view params) {
+std::string QueryProvider::buildDmlStatements(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);

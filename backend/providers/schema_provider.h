@@ -20,17 +20,17 @@ public:
     SchemaProvider(SchemaProvider&&) = delete;
     SchemaProvider& operator=(SchemaProvider&&) = delete;
 
-    [[nodiscard]] std::string handleGetDatabases(std::string_view params) override;
-    [[nodiscard]] std::string handleGetTables(std::string_view params) override;
-    [[nodiscard]] std::string handleGetColumns(std::string_view params) override;
-    [[nodiscard]] std::string handleGetIndexes(std::string_view params) override;
-    [[nodiscard]] std::string handleGetConstraints(std::string_view params) override;
-    [[nodiscard]] std::string handleGetForeignKeys(std::string_view params) override;
-    [[nodiscard]] std::string handleGetReferencingForeignKeys(std::string_view params) override;
-    [[nodiscard]] std::string handleGetTriggers(std::string_view params) override;
-    [[nodiscard]] std::string handleGetTableMetadata(std::string_view params) override;
-    [[nodiscard]] std::string handleGetTableDDL(std::string_view params) override;
-    [[nodiscard]] std::string handleGetExecutionPlan(std::string_view params) override;
+    [[nodiscard]] std::string getDatabases(std::string_view params) override;
+    [[nodiscard]] std::string getTables(std::string_view params) override;
+    [[nodiscard]] std::string getColumns(std::string_view params) override;
+    [[nodiscard]] std::string getIndexes(std::string_view params) override;
+    [[nodiscard]] std::string getConstraints(std::string_view params) override;
+    [[nodiscard]] std::string getForeignKeys(std::string_view params) override;
+    [[nodiscard]] std::string getReferencingForeignKeys(std::string_view params) override;
+    [[nodiscard]] std::string getTriggers(std::string_view params) override;
+    [[nodiscard]] std::string getTableMetadata(std::string_view params) override;
+    [[nodiscard]] std::string getTableDDL(std::string_view params) override;
+    [[nodiscard]] std::string getExecutionPlan(std::string_view params) override;
 
 private:
     IConnectionProvider& m_connections;

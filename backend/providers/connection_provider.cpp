@@ -89,7 +89,7 @@ std::optional<DatabaseConnectionParams> ConnectionProvider::getConnectionParams(
     return m_registry->getParams(connectionId);
 }
 
-std::string ConnectionProvider::handleDisconnect(std::string_view params) {
+std::string ConnectionProvider::disconnect(std::string_view params) {
     auto connectionIdResult = extractConnectionId(params);
     if (!connectionIdResult) {
         return JsonUtils::errorResponse(connectionIdResult.error());
@@ -99,7 +99,7 @@ std::string ConnectionProvider::handleDisconnect(std::string_view params) {
     return JsonUtils::successResponse("{}");
 }
 
-std::string ConnectionProvider::handleTestConnection(std::string_view params) {
+std::string ConnectionProvider::testConnection(std::string_view params) {
     auto connectionParams = extractConnectionParams(params);
     if (!connectionParams) {
         return JsonUtils::errorResponse(connectionParams.error());
@@ -120,7 +120,7 @@ std::string ConnectionProvider::handleTestConnection(std::string_view params) {
     return JsonUtils::successResponse(std::format(R"({{"success":false,"message":"{}"}})", JsonUtils::escapeString(driver->getLastError())));
 }
 
-std::string ConnectionProvider::handleConnectAsync(std::string_view params) {
+std::string ConnectionProvider::connectAsync(std::string_view params) {
     auto connectionParams = extractConnectionParams(params);
     if (!connectionParams) {
         return JsonUtils::errorResponse(connectionParams.error());
@@ -145,7 +145,7 @@ std::string ConnectionProvider::handleConnectAsync(std::string_view params) {
     return JsonUtils::successResponse(std::format(R"({{"requestId":"{}"}})", requestId));
 }
 
-std::string ConnectionProvider::handleGetConnectResult(std::string_view params) {
+std::string ConnectionProvider::getConnectResult(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
@@ -190,7 +190,7 @@ std::string ConnectionProvider::handleGetConnectResult(std::string_view params) 
     }
 }
 
-std::string ConnectionProvider::handleCancelConnect(std::string_view params) {
+std::string ConnectionProvider::cancelConnect(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);

@@ -16,11 +16,11 @@ class IConnectionProvider {
 public:
     virtual ~IConnectionProvider() = default;
 
-    [[nodiscard]] virtual std::string handleConnectAsync(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleGetConnectResult(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleCancelConnect(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleDisconnect(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleTestConnection(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string connectAsync(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string getConnectResult(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string cancelConnect(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string disconnect(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string testConnection(std::string_view params) = 0;
 
     [[nodiscard]] virtual std::shared_ptr<IDatabaseDriver> getQueryDriver(std::string_view connectionId) = 0;
     [[nodiscard]] virtual std::shared_ptr<IDatabaseDriver> getMetadataDriver(std::string_view connectionId) = 0;

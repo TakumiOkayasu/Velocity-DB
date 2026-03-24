@@ -91,15 +91,15 @@ std::string ExportProvider::exportWithDriver(std::string_view params, std::strin
     }
 }
 
-std::string ExportProvider::handleExportCSV(std::string_view params) {
+std::string ExportProvider::exportCSV(std::string_view params) {
     return exportWithDriver(params, "csv");
 }
 
-std::string ExportProvider::handleExportJSON(std::string_view params) {
+std::string ExportProvider::exportJSON(std::string_view params) {
     return exportWithDriver(params, "json");
 }
 
-std::string ExportProvider::handleExportExcel(std::string_view params) {
+std::string ExportProvider::exportExcel(std::string_view params) {
     return exportWithDriver(params, "excel");
 }
 
