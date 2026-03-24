@@ -16,7 +16,9 @@ class IConnectionProvider {
 public:
     virtual ~IConnectionProvider() = default;
 
-    [[nodiscard]] virtual std::string handleConnect(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string handleConnectAsync(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string handleGetConnectResult(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string handleCancelConnect(std::string_view params) = 0;
     [[nodiscard]] virtual std::string handleDisconnect(std::string_view params) = 0;
     [[nodiscard]] virtual std::string handleTestConnection(std::string_view params) = 0;
 

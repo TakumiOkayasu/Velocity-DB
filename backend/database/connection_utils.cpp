@@ -58,8 +58,8 @@ std::expected<std::string, std::string> buildConnectionString(const DatabaseConn
     switch (params.dbType) {
         case DbType::PostgreSQL: {
             auto [host, port] = splitHostPort(params.server, defaultDbPort(DbType::PostgreSQL));
-            connectionString = std::format("host={} port={} dbname={} user={} password={} connect_timeout=30", quoteLibpqValue(host), port, quoteLibpqValue(params.database),
-                                           quoteLibpqValue(params.username), quoteLibpqValue(params.password));
+            connectionString = std::format("host={} port={} dbname={} user={} password={} connect_timeout={}", quoteLibpqValue(host), port, quoteLibpqValue(params.database),
+                                           quoteLibpqValue(params.username), quoteLibpqValue(params.password), params.connectionTimeoutSeconds);
             break;
         }
         case DbType::MySQL: {
@@ -127,6 +127,13 @@ std::expected<DatabaseConnectionParams, std::string> extractConnectionParams(std
             auto portVal = static_cast<int>(port.value());
             if (portVal >= 1 && portVal <= 65535 && portVal != defaultDbPort(result.dbType)) {
                 result.server = std::format("{},{}", result.server, portVal);
+            }
+        }
+
+        if (auto timeout = doc["connectionTimeout"].get_int64(); !timeout.error()) {
+            auto val = static_cast<unsigned int>(timeout.value());
+            if (val >= 1 && val <= kMaxConnectionTimeoutSeconds) {
+                result.connectionTimeoutSeconds = val;
             }
         }
 

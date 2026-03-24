@@ -5,6 +5,7 @@
 #include "driver_interface.h"
 
 #include <atomic>
+#include <chrono>
 #include <expected>
 #include <memory>
 #include <optional>
@@ -34,14 +35,17 @@ public:
     /// Remove a connection by ID (disconnects both query and metadata drivers)
     void remove(std::string_view id);
 
-    /// Get the query driver by ID
-    [[nodiscard]] std::expected<DriverPtr, std::string> getQueryDriver(std::string_view id) const;
+    /// Get the query driver by ID (updates lastUsed timestamp)
+    [[nodiscard]] std::expected<DriverPtr, std::string> getQueryDriver(std::string_view id);
 
-    /// Get the metadata driver by ID
-    [[nodiscard]] std::expected<DriverPtr, std::string> getMetadataDriver(std::string_view id) const;
+    /// Get the metadata driver by ID (updates lastUsed timestamp)
+    [[nodiscard]] std::expected<DriverPtr, std::string> getMetadataDriver(std::string_view id);
 
     /// Get a connection by ID (alias for getQueryDriver, for backwards compatibility)
-    [[nodiscard]] std::expected<DriverPtr, std::string> get(std::string_view id) const;
+    [[nodiscard]] std::expected<DriverPtr, std::string> get(std::string_view id);
+
+    /// Get the query driver with health check (SELECT 1). Removes entry on failure.
+    [[nodiscard]] std::expected<DriverPtr, std::string> getQueryDriverChecked(std::string_view id);
 
     /// Get the driver type for a connection
     [[nodiscard]] std::expected<DriverType, std::string> getDriverType(std::string_view id) const;
@@ -67,13 +71,22 @@ public:
     /// Remove and close all connections
     void clear();
 
+    /// Evict connections idle longer than maxIdleDuration. Returns number evicted.
+    [[nodiscard]] size_t evictIdleConnections(std::chrono::minutes maxIdleDuration = std::chrono::minutes{30});
+
 private:
+    struct ConnectionEntry {
+        DriverPtr queryDriver;
+        DriverPtr metadataDriver;
+        DriverType driverType;
+        std::unique_ptr<SshTunnel> tunnel;
+        DatabaseConnectionParams params;
+        std::chrono::steady_clock::time_point lastUsed;
+        std::chrono::steady_clock::time_point createdAt;
+    };
+
     mutable std::shared_mutex m_mutex;
-    std::unordered_map<std::string, DriverPtr> m_queryConnections;
-    std::unordered_map<std::string, DriverPtr> m_metadataConnections;
-    std::unordered_map<std::string, DriverType> m_driverTypes;
-    std::unordered_map<std::string, std::unique_ptr<SshTunnel>> m_tunnels;
-    std::unordered_map<std::string, DatabaseConnectionParams> m_connectionParams;
+    std::unordered_map<std::string, ConnectionEntry> m_connections;
     std::atomic<int> m_counter{1};
 };
 

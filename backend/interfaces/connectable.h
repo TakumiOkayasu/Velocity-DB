@@ -16,6 +16,9 @@ public:
     virtual void disconnect() = 0;
     [[nodiscard]] virtual bool isConnected() const noexcept = 0;
 
+    /// Set connection timeout (seconds). Must be called before connect().
+    virtual void setConnectionTimeout(unsigned int /*seconds*/) {}
+
 protected:
     IConnectable() = default;
 };

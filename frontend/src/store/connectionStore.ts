@@ -3,13 +3,17 @@ import { useShallow } from 'zustand/react/shallow';
 import { bridge } from '../api/bridge';
 import type { Connection } from '../types';
 
+const POLL_INTERVAL_MS = 500;
+
 interface ConnectionState {
   connections: Connection[];
   activeConnectionId: string | null;
   isConnecting: boolean;
+  connectRequestId: string | null;
   error: string | null;
 
   addConnection: (connection: Omit<Connection, 'id' | 'isActive'>) => Promise<void>;
+  cancelConnection: () => Promise<void>;
   removeConnection: (id: string) => Promise<void>;
   setActive: (id: string | null) => void;
   toggleActive: (id: string) => void;
@@ -23,13 +27,14 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
   connections: [],
   activeConnectionId: null,
   isConnecting: false,
+  connectRequestId: null,
   error: null,
 
   addConnection: async (connection) => {
-    set({ isConnecting: true, error: null });
+    set({ isConnecting: true, error: null, connectRequestId: null });
 
     try {
-      const result = await bridge.connect({
+      const { requestId } = await bridge.connectAsync({
         server: connection.server,
         port: connection.port,
         database: connection.database,
@@ -51,10 +56,49 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
           : undefined,
       });
 
+      set({ connectRequestId: requestId });
+
+      const result = await new Promise<{ connectionId: string }>((resolve, reject) => {
+        let active = true;
+        const poll = async () => {
+          while (active) {
+            try {
+              if (get().connectRequestId !== requestId) {
+                active = false;
+                reject(new Error('Connection cancelled'));
+                return;
+              }
+
+              const status = await bridge.getConnectResult(requestId);
+
+              if (status.status === 'connected' && status.connectionId) {
+                active = false;
+                resolve({ connectionId: status.connectionId });
+                return;
+              } else if (status.status === 'failed') {
+                active = false;
+                reject(new Error(status.error ?? 'Connection failed'));
+                return;
+              } else if (status.status === 'cancelled') {
+                active = false;
+                reject(new Error('Connection cancelled'));
+                return;
+              }
+            } catch (e) {
+              active = false;
+              reject(e);
+              return;
+            }
+            await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+          }
+        };
+        poll();
+      });
+
       const newConnection: Connection = {
         ...connection,
         id: result.connectionId,
-        isActive: true, // New connections are active by default
+        isActive: true,
         isProduction: connection.isProduction ?? false,
         isReadOnly: connection.isReadOnly ?? false,
         environment:
@@ -62,7 +106,6 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         dbType: connection.dbType ?? 'sqlserver',
       };
 
-      // Disconnect existing connection before updating state to prevent race condition
       const existing = get().connections.find((c) => c.name === connection.name);
       if (existing) {
         await bridge.disconnect(existing.id).catch(() => {});
@@ -75,14 +118,25 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         ],
         activeConnectionId: result.connectionId,
         isConnecting: false,
+        connectRequestId: null,
       }));
     } catch (error) {
       set({
         isConnecting: false,
+        connectRequestId: null,
         error: error instanceof Error ? error.message : 'Connection failed',
       });
       throw error;
     }
+  },
+
+  cancelConnection: async () => {
+    const { connectRequestId } = get();
+    if (connectRequestId) {
+      set({ connectRequestId: null });
+      await bridge.cancelConnect(connectRequestId).catch(() => {});
+    }
+    set({ isConnecting: false, error: null });
   },
 
   removeConnection: async (id) => {
@@ -195,6 +249,7 @@ export const useConnectionActions = () =>
   useConnectionStore(
     useShallow((state) => ({
       addConnection: state.addConnection,
+      cancelConnection: state.cancelConnection,
       removeConnection: state.removeConnection,
       setActive: state.setActive,
       toggleActive: state.toggleActive,

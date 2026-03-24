@@ -26,7 +26,9 @@ IPCHandler::~IPCHandler() = default;
 
 void IPCHandler::registerRoutes() {
     // Connection lifecycle
-    m_routes["connect"] = [this](auto p) { return m_ctx.connections().handleConnect(p); };
+    m_routes["connectAsync"] = [this](auto p) { return m_ctx.connections().handleConnectAsync(p); };
+    m_routes["getConnectResult"] = [this](auto p) { return m_ctx.connections().handleGetConnectResult(p); };
+    m_routes["cancelConnect"] = [this](auto p) { return m_ctx.connections().handleCancelConnect(p); };
     m_routes["disconnect"] = [this](auto p) {
         m_ctx.transactions().cleanupConnection(p);
         return m_ctx.connections().handleDisconnect(p);

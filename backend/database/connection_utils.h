@@ -54,6 +54,9 @@ struct SshConnectionParams {
     std::string keyPassphrase;
 };
 
+static constexpr unsigned int kDefaultConnectionTimeoutSeconds = 30;
+static constexpr unsigned int kMaxConnectionTimeoutSeconds = 300;
+
 struct DatabaseConnectionParams {
     std::string server;
     std::string database;
@@ -62,6 +65,7 @@ struct DatabaseConnectionParams {
     bool useWindowsAuth = true;
     DbType dbType = DbType::SQLServer;
     SshConnectionParams ssh;
+    unsigned int connectionTimeoutSeconds = kDefaultConnectionTimeoutSeconds;
 };
 
 /// Escapes a value for SQL Server ODBC connection strings using {brace} syntax.

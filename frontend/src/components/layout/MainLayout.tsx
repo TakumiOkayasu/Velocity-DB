@@ -112,7 +112,7 @@ export function MainLayout() {
     isBlocked?: boolean;
   }>({ isOpen: false, title: '', message: '' });
 
-  const { connections, addConnection } = useConnectionStore();
+  const { connections, addConnection, cancelConnection, isConnecting } = useConnectionStore();
   const {
     queries,
     activeQueryId,
@@ -567,6 +567,8 @@ export function MainLayout() {
             isOpen={isConnectionDialogOpen}
             onClose={() => setIsConnectionDialogOpen(false)}
             onConnect={connectToDatabase}
+            isConnecting={isConnecting}
+            onCancelConnect={cancelConnection}
           />
         </Suspense>
       )}

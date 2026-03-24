@@ -193,13 +193,14 @@ class Bridge {
   }
 
   // Connection methods
-  async connect(connectionInfo: {
+  async connectAsync(connectionInfo: {
     server: string;
     port?: number;
     database: string;
     username?: string;
     password?: string;
     useWindowsAuth: boolean;
+    connectionTimeout?: number;
     dbType?: 'sqlserver' | 'postgresql' | 'mysql';
     ssh?: {
       enabled: boolean;
@@ -211,8 +212,20 @@ class Bridge {
       privateKeyPath?: string;
       keyPassphrase?: string;
     };
-  }): Promise<{ connectionId: string }> {
-    return this.call('connect', connectionInfo);
+  }): Promise<{ requestId: string }> {
+    return this.call('connectAsync', connectionInfo);
+  }
+
+  async getConnectResult(requestId: string): Promise<{
+    status: 'pending' | 'connected' | 'failed' | 'cancelled';
+    connectionId?: string;
+    error?: string;
+  }> {
+    return this.call('getConnectResult', { requestId });
+  }
+
+  async cancelConnect(requestId: string): Promise<void> {
+    return this.call('cancelConnect', { requestId });
   }
 
   async disconnect(connectionId: string): Promise<void> {

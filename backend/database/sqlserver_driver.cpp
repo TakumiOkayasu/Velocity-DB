@@ -25,12 +25,16 @@ SQLServerDriver::~SQLServerDriver() {
     }
 }
 
+void SQLServerDriver::setConnectionTimeout(unsigned int seconds) {
+    m_connectionTimeout = seconds;
+}
+
 bool SQLServerDriver::connect(std::string_view connectionString) {
     if (m_connected) {
         disconnect();
     }
 
-    odbc::setConnectionTimeout(m_dbc);
+    odbc::setConnectionTimeout(m_dbc, m_connectionTimeout);
 
     std::string error;
     if (!odbc::connectWithString(m_dbc, connectionString, error)) {

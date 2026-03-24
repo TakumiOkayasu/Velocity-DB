@@ -1,11 +1,13 @@
 #include "connection_provider.h"
 
+#include "../database/async_connection_executor.h"
 #include "../database/connection_registry.h"
 #include "../database/connection_utils.h"
 #include "../database/driver_interface.h"
 #include "../network/ssh_tunnel.h"
 #include "../utils/json_utils.h"
 #include "../utils/logger.h"
+#include "simdjson.h"
 
 #include <format>
 
@@ -58,7 +60,7 @@ struct PreparedConnection {
 
 }  // namespace
 
-ConnectionProvider::ConnectionProvider() : m_registry(std::make_unique<ConnectionRegistry>()) {}
+ConnectionProvider::ConnectionProvider() : m_registry(std::make_unique<ConnectionRegistry>()), m_asyncExecutor(std::make_unique<AsyncConnectionExecutor>()) {}
 
 ConnectionProvider::~ConnectionProvider() = default;
 
@@ -87,39 +89,6 @@ std::optional<DatabaseConnectionParams> ConnectionProvider::getConnectionParams(
     return m_registry->getParams(connectionId);
 }
 
-std::string ConnectionProvider::handleConnect(std::string_view params) {
-    auto connectionParams = extractConnectionParams(params);
-    if (!connectionParams) {
-        return JsonUtils::errorResponse(connectionParams.error());
-    }
-
-    auto prepared = prepareConnection(*connectionParams);
-    if (!prepared) {
-        return JsonUtils::errorResponse(prepared.error());
-    }
-
-    auto queryDriver = DriverFactory::createDriver(prepared->driverType);
-    std::shared_ptr<IDatabaseDriver> queryDriverPtr(std::move(queryDriver));
-    if (!queryDriverPtr->connect(prepared->connectionString)) {
-        return JsonUtils::errorResponse(std::format("Connection failed: {}", queryDriverPtr->getLastError()));
-    }
-
-    auto metadataDriver = DriverFactory::createDriver(prepared->driverType);
-    std::shared_ptr<IDatabaseDriver> metadataDriverPtr(std::move(metadataDriver));
-    if (!metadataDriverPtr->connect(prepared->connectionString)) {
-        queryDriverPtr->disconnect();
-        return JsonUtils::errorResponse(std::format("Metadata connection failed: {}", metadataDriverPtr->getLastError()));
-    }
-
-    auto connectionId = m_registry->add(queryDriverPtr, metadataDriverPtr, prepared->driverType);
-    m_registry->storeParams(connectionId, prepared->effectiveParams);
-    if (prepared->tunnel) {
-        m_registry->attachTunnel(connectionId, std::move(prepared->tunnel));
-    }
-
-    return JsonUtils::successResponse(std::format(R"({{"connectionId":"{}"}})", connectionId));
-}
-
 std::string ConnectionProvider::handleDisconnect(std::string_view params) {
     auto connectionIdResult = extractConnectionId(params);
     if (!connectionIdResult) {
@@ -142,12 +111,99 @@ std::string ConnectionProvider::handleTestConnection(std::string_view params) {
     }
 
     auto driver = DriverFactory::createDriver(prepared->driverType);
+    driver->setConnectionTimeout(connectionParams->connectionTimeoutSeconds);
     if (driver->connect(prepared->connectionString)) {
         driver->disconnect();
         return JsonUtils::successResponse(R"({"success":true,"message":"Connection successful"})");
     }
 
     return JsonUtils::successResponse(std::format(R"({{"success":false,"message":"{}"}})", JsonUtils::escapeString(driver->getLastError())));
+}
+
+std::string ConnectionProvider::handleConnectAsync(std::string_view params) {
+    auto connectionParams = extractConnectionParams(params);
+    if (!connectionParams) {
+        return JsonUtils::errorResponse(connectionParams.error());
+    }
+
+    auto prepared = prepareConnection(*connectionParams);
+    if (!prepared) {
+        return JsonUtils::errorResponse(prepared.error());
+    }
+
+    PreparedConnectRequest request{
+        .connectionString = std::move(prepared->connectionString),
+        .tunnel = std::move(prepared->tunnel),
+        .driverType = prepared->driverType,
+        .effectiveParams = std::move(prepared->effectiveParams),
+    };
+
+    // Evict idle connections as side-effect
+    [[maybe_unused]] auto evicted = m_registry->evictIdleConnections();
+
+    auto requestId = m_asyncExecutor->submitConnect(std::move(request));
+    return JsonUtils::successResponse(std::format(R"({{"requestId":"{}"}})", requestId));
+}
+
+std::string ConnectionProvider::handleGetConnectResult(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        auto doc = parser.parse(params);
+        auto requestIdResult = doc["requestId"].get_string();
+        if (requestIdResult.error()) {
+            return JsonUtils::errorResponse("Missing requestId field");
+        }
+        std::string requestId(requestIdResult.value());
+
+        auto result = m_asyncExecutor->getResultAndConsume(requestId);
+
+        // Connected: drivers consumed atomically
+        if (result.has_value()) {
+            auto& drivers = *result;
+            auto connectionId = m_registry->add(drivers.queryDriver, drivers.metadataDriver, drivers.queryDriver->getType());
+            m_registry->storeParams(connectionId, drivers.effectiveParams);
+            if (drivers.tunnel) {
+                m_registry->attachTunnel(connectionId, std::move(drivers.tunnel));
+            }
+            return JsonUtils::successResponse(std::format(R"({{"status":"connected","connectionId":"{}"}})", connectionId));
+        }
+
+        auto& status = result.error();
+        const char* statusStr = "pending";
+        switch (status.status) {
+            case ConnectStatus::Failed:
+                statusStr = "failed";
+                break;
+            case ConnectStatus::Cancelled:
+                statusStr = "cancelled";
+                break;
+            default:
+                break;
+        }
+
+        if (!status.errorMessage.empty()) {
+            return JsonUtils::successResponse(std::format(R"({{"status":"{}","error":"{}"}})", statusStr, JsonUtils::escapeString(status.errorMessage)));
+        }
+        return JsonUtils::successResponse(std::format(R"({{"status":"{}"}})", statusStr));
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
+}
+
+std::string ConnectionProvider::handleCancelConnect(std::string_view params) {
+    try {
+        simdjson::dom::parser parser;
+        auto doc = parser.parse(params);
+        auto requestIdResult = doc["requestId"].get_string();
+        if (requestIdResult.error()) {
+            return JsonUtils::errorResponse("Missing requestId field");
+        }
+
+        m_asyncExecutor->cancelConnect(std::string(requestIdResult.value()));
+        return JsonUtils::successResponse("{}");
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
 }
 
 }  // namespace velocitydb
