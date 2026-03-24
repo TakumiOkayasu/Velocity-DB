@@ -15,7 +15,7 @@ SearchProvider::SearchProvider(IConnectionProvider& connections) : m_connections
 
 SearchProvider::~SearchProvider() = default;
 
-std::string SearchProvider::handleSearchObjects(std::string_view params) {
+std::string SearchProvider::searchObjects(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
@@ -65,7 +65,7 @@ std::string SearchProvider::handleSearchObjects(std::string_view params) {
     }
 }
 
-std::string SearchProvider::handleQuickSearch(std::string_view params) {
+std::string SearchProvider::quickSearch(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);

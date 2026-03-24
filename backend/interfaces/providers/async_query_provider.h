@@ -10,11 +10,11 @@ class IAsyncQueryProvider {
 public:
     virtual ~IAsyncQueryProvider() = default;
 
-    [[nodiscard]] virtual std::string handleExecuteAsyncQuery(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleGetAsyncQueryResult(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleCancelAsyncQuery(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleGetActiveQueries(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleRemoveAsyncQuery(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string executeAsyncQuery(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string getAsyncQueryResult(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string cancelAsyncQuery(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string getActiveQueries(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string removeAsyncQuery(std::string_view params) = 0;
 };
 
 }  // namespace velocitydb

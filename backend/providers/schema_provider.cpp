@@ -71,7 +71,7 @@ SchemaProvider::SchemaProvider(IConnectionProvider& connections) : m_connections
 
 SchemaProvider::~SchemaProvider() = default;
 
-std::string SchemaProvider::handleGetDatabases(std::string_view params) {
+std::string SchemaProvider::getDatabases(std::string_view params) {
     auto connectionIdResult = extractConnectionId(params);
     if (!connectionIdResult) {
         return JsonUtils::errorResponse(connectionIdResult.error());
@@ -92,8 +92,8 @@ std::string SchemaProvider::handleGetDatabases(std::string_view params) {
     }
 }
 
-std::string SchemaProvider::handleGetTables(std::string_view params) {
-    log<LogLevel::DEBUG>(std::format("SchemaProvider::handleGetTables called with params: {}", params));
+std::string SchemaProvider::getTables(std::string_view params) {
+    log<LogLevel::DEBUG>(std::format("SchemaProvider::getTables called with params: {}", params));
     auto connectionIdResult = extractConnectionId(params);
     if (!connectionIdResult) {
         return JsonUtils::errorResponse(connectionIdResult.error());
@@ -119,7 +119,7 @@ std::string SchemaProvider::handleGetTables(std::string_view params) {
     }
 }
 
-std::string SchemaProvider::handleGetColumns(std::string_view params) {
+std::string SchemaProvider::getColumns(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
@@ -150,7 +150,7 @@ std::string SchemaProvider::handleGetColumns(std::string_view params) {
     }
 }
 
-std::string SchemaProvider::handleGetIndexes(std::string_view params) {
+std::string SchemaProvider::getIndexes(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
@@ -181,7 +181,7 @@ std::string SchemaProvider::handleGetIndexes(std::string_view params) {
     }
 }
 
-std::string SchemaProvider::handleGetConstraints(std::string_view params) {
+std::string SchemaProvider::getConstraints(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
@@ -212,7 +212,7 @@ std::string SchemaProvider::handleGetConstraints(std::string_view params) {
     }
 }
 
-std::string SchemaProvider::handleGetForeignKeys(std::string_view params) {
+std::string SchemaProvider::getForeignKeys(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
@@ -247,7 +247,7 @@ std::string SchemaProvider::handleGetForeignKeys(std::string_view params) {
     }
 }
 
-std::string SchemaProvider::handleGetReferencingForeignKeys(std::string_view params) {
+std::string SchemaProvider::getReferencingForeignKeys(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
@@ -282,7 +282,7 @@ std::string SchemaProvider::handleGetReferencingForeignKeys(std::string_view par
     }
 }
 
-std::string SchemaProvider::handleGetTriggers(std::string_view params) {
+std::string SchemaProvider::getTriggers(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
@@ -314,7 +314,7 @@ std::string SchemaProvider::handleGetTriggers(std::string_view params) {
     }
 }
 
-std::string SchemaProvider::handleGetTableMetadata(std::string_view params) {
+std::string SchemaProvider::getTableMetadata(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
@@ -353,7 +353,7 @@ std::string SchemaProvider::handleGetTableMetadata(std::string_view params) {
     }
 }
 
-std::string SchemaProvider::handleGetTableDDL(std::string_view params) {
+std::string SchemaProvider::getTableDDL(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
@@ -416,7 +416,7 @@ std::string SchemaProvider::handleGetTableDDL(std::string_view params) {
     }
 }
 
-std::string SchemaProvider::handleGetExecutionPlan(std::string_view params) {
+std::string SchemaProvider::getExecutionPlan(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);

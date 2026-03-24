@@ -10,22 +10,22 @@ class IQueryProvider {
 public:
     virtual ~IQueryProvider() = default;
 
-    [[nodiscard]] virtual std::string handleExecuteQuery(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleExecuteQueryPaginated(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleGetRowCount(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleCancelQuery(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleFilterResultSet(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleGetCacheStats(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleClearCache(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleGetQueryHistory(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleRemoveQueryHistory(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleClearQueryHistory(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleSetQueryHistoryFavorite(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string executeQuery(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string executeQueryPaginated(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string getRowCount(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string cancelQuery(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string filterResultSet(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string getCacheStats(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string clearCache(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string getQueryHistory(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string removeQueryHistory(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string clearQueryHistory(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string setQueryHistoryFavorite(std::string_view params) = 0;
 
     // SQL builder (dialect-aware)
-    [[nodiscard]] virtual std::string handleBuildDataViewSql(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleBuildWhereClause(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string handleBuildDmlStatements(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string buildDataViewSql(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string buildWhereClause(std::string_view params) = 0;
+    [[nodiscard]] virtual std::string buildDmlStatements(std::string_view params) = 0;
 };
 
 }  // namespace velocitydb

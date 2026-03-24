@@ -21,9 +21,9 @@ public:
     ExportProvider(ExportProvider&&) = delete;
     ExportProvider& operator=(ExportProvider&&) = delete;
 
-    [[nodiscard]] std::string handleExportCSV(std::string_view params) override;
-    [[nodiscard]] std::string handleExportJSON(std::string_view params) override;
-    [[nodiscard]] std::string handleExportExcel(std::string_view params) override;
+    [[nodiscard]] std::string exportCSV(std::string_view params) override;
+    [[nodiscard]] std::string exportJSON(std::string_view params) override;
+    [[nodiscard]] std::string exportExcel(std::string_view params) override;
     [[nodiscard]] std::vector<std::string> getSupportedFormats() const override;
 
 private:

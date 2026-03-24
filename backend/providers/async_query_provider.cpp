@@ -18,7 +18,7 @@ AsyncQueryProvider::AsyncQueryProvider(IConnectionProvider& connections, QueryHi
 
 AsyncQueryProvider::~AsyncQueryProvider() = default;
 
-std::string AsyncQueryProvider::handleExecuteAsyncQuery(std::string_view params) {
+std::string AsyncQueryProvider::executeAsyncQuery(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
@@ -64,7 +64,7 @@ std::string AsyncQueryProvider::handleExecuteAsyncQuery(std::string_view params)
     }
 }
 
-std::string AsyncQueryProvider::handleGetAsyncQueryResult(std::string_view params) {
+std::string AsyncQueryProvider::getAsyncQueryResult(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
@@ -157,7 +157,7 @@ std::string AsyncQueryProvider::handleGetAsyncQueryResult(std::string_view param
     }
 }
 
-std::string AsyncQueryProvider::handleCancelAsyncQuery(std::string_view params) {
+std::string AsyncQueryProvider::cancelAsyncQuery(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
@@ -173,7 +173,7 @@ std::string AsyncQueryProvider::handleCancelAsyncQuery(std::string_view params) 
     }
 }
 
-std::string AsyncQueryProvider::handleRemoveAsyncQuery(std::string_view params) {
+std::string AsyncQueryProvider::removeAsyncQuery(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
@@ -191,7 +191,7 @@ std::string AsyncQueryProvider::handleRemoveAsyncQuery(std::string_view params) 
     }
 }
 
-std::string AsyncQueryProvider::handleGetActiveQueries(std::string_view) {
+std::string AsyncQueryProvider::getActiveQueries(std::string_view) {
     auto activeIds = m_asyncExecutor->getActiveQueryIds();
     auto jsonResponse = JsonUtils::buildArray(activeIds, [](std::string& out, const std::string& id) { out += std::format(R"("{}")", id); });
     return JsonUtils::successResponse(jsonResponse);

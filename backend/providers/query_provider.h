@@ -23,22 +23,22 @@ public:
     QueryProvider(QueryProvider&&) = delete;
     QueryProvider& operator=(QueryProvider&&) = delete;
 
-    [[nodiscard]] std::string handleExecuteQuery(std::string_view params) override;
-    [[nodiscard]] std::string handleExecuteQueryPaginated(std::string_view params) override;
-    [[nodiscard]] std::string handleGetRowCount(std::string_view params) override;
-    [[nodiscard]] std::string handleCancelQuery(std::string_view params) override;
-    [[nodiscard]] std::string handleFilterResultSet(std::string_view params) override;
-    [[nodiscard]] std::string handleGetCacheStats(std::string_view params) override;
-    [[nodiscard]] std::string handleClearCache(std::string_view params) override;
-    [[nodiscard]] std::string handleGetQueryHistory(std::string_view params) override;
-    [[nodiscard]] std::string handleRemoveQueryHistory(std::string_view params) override;
-    [[nodiscard]] std::string handleClearQueryHistory(std::string_view params) override;
-    [[nodiscard]] std::string handleSetQueryHistoryFavorite(std::string_view params) override;
+    [[nodiscard]] std::string executeQuery(std::string_view params) override;
+    [[nodiscard]] std::string executeQueryPaginated(std::string_view params) override;
+    [[nodiscard]] std::string getRowCount(std::string_view params) override;
+    [[nodiscard]] std::string cancelQuery(std::string_view params) override;
+    [[nodiscard]] std::string filterResultSet(std::string_view params) override;
+    [[nodiscard]] std::string getCacheStats(std::string_view params) override;
+    [[nodiscard]] std::string clearCache(std::string_view params) override;
+    [[nodiscard]] std::string getQueryHistory(std::string_view params) override;
+    [[nodiscard]] std::string removeQueryHistory(std::string_view params) override;
+    [[nodiscard]] std::string clearQueryHistory(std::string_view params) override;
+    [[nodiscard]] std::string setQueryHistoryFavorite(std::string_view params) override;
 
     // SQL builder (dialect-aware)
-    [[nodiscard]] std::string handleBuildDataViewSql(std::string_view params) override;
-    [[nodiscard]] std::string handleBuildWhereClause(std::string_view params) override;
-    [[nodiscard]] std::string handleBuildDmlStatements(std::string_view params) override;
+    [[nodiscard]] std::string buildDataViewSql(std::string_view params) override;
+    [[nodiscard]] std::string buildWhereClause(std::string_view params) override;
+    [[nodiscard]] std::string buildDmlStatements(std::string_view params) override;
 
 private:
     void recordHistory(const std::string& sql, const std::string& connectionId, double execTimeMs, bool success, std::string_view errorMsg = {}, int64_t affectedRows = 0);

@@ -20,13 +20,13 @@ public:
     IOProvider(IOProvider&&) = delete;
     IOProvider& operator=(IOProvider&&) = delete;
 
-    [[nodiscard]] std::string handleWriteFrontendLog(std::string_view params) override;
-    [[nodiscard]] std::string handleSaveQueryToFile(std::string_view params) override;
-    [[nodiscard]] std::string handleLoadQueryFromFile(std::string_view params) override;
-    [[nodiscard]] std::string handleBrowseFile(std::string_view params) override;
-    [[nodiscard]] std::string handleGetBookmarks(std::string_view params) override;
-    [[nodiscard]] std::string handleSaveBookmark(std::string_view params) override;
-    [[nodiscard]] std::string handleDeleteBookmark(std::string_view params) override;
+    [[nodiscard]] std::string writeFrontendLog(std::string_view params) override;
+    [[nodiscard]] std::string saveQueryToFile(std::string_view params) override;
+    [[nodiscard]] std::string loadQueryFromFile(std::string_view params) override;
+    [[nodiscard]] std::string browseFile(std::string_view params) override;
+    [[nodiscard]] std::string getBookmarks(std::string_view params) override;
+    [[nodiscard]] std::string saveBookmark(std::string_view params) override;
+    [[nodiscard]] std::string deleteBookmark(std::string_view params) override;
 
 private:
     std::atomic<bool> m_firstLogWrite{true};

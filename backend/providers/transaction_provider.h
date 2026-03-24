@@ -24,9 +24,9 @@ public:
     TransactionProvider(TransactionProvider&&) = delete;
     TransactionProvider& operator=(TransactionProvider&&) = delete;
 
-    [[nodiscard]] std::string handleBeginTransaction(std::string_view params) override;
-    [[nodiscard]] std::string handleCommitTransaction(std::string_view params) override;
-    [[nodiscard]] std::string handleRollbackTransaction(std::string_view params) override;
+    [[nodiscard]] std::string beginTransaction(std::string_view params) override;
+    [[nodiscard]] std::string commitTransaction(std::string_view params) override;
+    [[nodiscard]] std::string rollbackTransaction(std::string_view params) override;
     void cleanupConnection(std::string_view params) override;
 
 private:

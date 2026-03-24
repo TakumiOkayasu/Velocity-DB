@@ -22,7 +22,7 @@ constexpr auto kBookmarksPath = "data/bookmarks.json";
 
 }  // namespace
 
-std::string IOProvider::handleWriteFrontendLog(std::string_view params) {
+std::string IOProvider::writeFrontendLog(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
@@ -50,7 +50,7 @@ std::string IOProvider::handleWriteFrontendLog(std::string_view params) {
     }
 }
 
-std::string IOProvider::handleSaveQueryToFile(std::string_view params) {
+std::string IOProvider::saveQueryToFile(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
@@ -82,7 +82,7 @@ std::string IOProvider::handleSaveQueryToFile(std::string_view params) {
     }
 }
 
-std::string IOProvider::handleLoadQueryFromFile(std::string_view) {
+std::string IOProvider::loadQueryFromFile(std::string_view) {
     try {
         auto result = FileDialog::showOpenDialog("SQL Files (*.sql)\0*.sql\0All Files (*.*)\0*.*\0");
         if (!result) {
@@ -101,7 +101,7 @@ std::string IOProvider::handleLoadQueryFromFile(std::string_view) {
     }
 }
 
-std::string IOProvider::handleBrowseFile(std::string_view params) {
+std::string IOProvider::browseFile(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
@@ -124,7 +124,7 @@ std::string IOProvider::handleBrowseFile(std::string_view params) {
     }
 }
 
-std::string IOProvider::handleGetBookmarks(std::string_view) {
+std::string IOProvider::getBookmarks(std::string_view) {
     try {
         std::filesystem::path bookmarksPath(kBookmarksPath);
         if (!std::filesystem::exists(bookmarksPath)) {
@@ -142,7 +142,7 @@ std::string IOProvider::handleGetBookmarks(std::string_view) {
     }
 }
 
-std::string IOProvider::handleSaveBookmark(std::string_view params) {
+std::string IOProvider::saveBookmark(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
@@ -220,7 +220,7 @@ std::string IOProvider::handleSaveBookmark(std::string_view params) {
     }
 }
 
-std::string IOProvider::handleDeleteBookmark(std::string_view params) {
+std::string IOProvider::deleteBookmark(std::string_view params) {
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params);
