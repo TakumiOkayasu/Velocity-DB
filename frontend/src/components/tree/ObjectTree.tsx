@@ -35,7 +35,7 @@ interface ObjectTreeProps {
 
 export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
   const { connections } = useConnectionStore();
-  const { addConnection } = useConnectionActions();
+  const { addConnection, cancelConnection } = useConnectionActions();
   const [profiles, setProfiles] = useState<SavedProfile[]>([]);
   const [confirmingProfile, setConfirmingProfile] = useState<SavedProfile | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -122,8 +122,12 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
   }, [confirmingProfile, addConnection]);
 
   const handleCancel = useCallback(() => {
+    if (isConnecting) {
+      cancelConnection();
+      setIsConnecting(false);
+    }
     setConfirmingProfile(null);
-  }, []);
+  }, [isConnecting, cancelConnection]);
 
   return (
     <div className={styles.container}>
@@ -185,12 +189,8 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
               </div>
             </div>
             <div className={styles.dialogActions}>
-              <button
-                className={styles.cancelButton}
-                onClick={handleCancel}
-                disabled={isConnecting}
-              >
-                キャンセル
+              <button className={styles.cancelButton} onClick={handleCancel}>
+                {isConnecting ? '接続中止' : 'キャンセル'}
               </button>
               <button
                 className={`${styles.connectButton} ${confirmingProfile.isProduction ? styles.productionButton : ''}`}

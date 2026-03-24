@@ -290,7 +290,6 @@ export function ConnectionDialog({
             type="button"
             className={styles.connectButton}
             onClick={isConnecting ? onCancelConnect : handleConnect}
-            disabled={false}
           >
             {isConnecting ? '接続中止' : '接続'}
           </button>
