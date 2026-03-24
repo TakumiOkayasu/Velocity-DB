@@ -84,6 +84,14 @@ export function createManageSlice(set: SetState, get: GetState, deps: ManageSlic
       set({ activeQueryId: id });
     },
 
+    migrateConnection: (oldId, newId) => {
+      set((state) => ({
+        queries: state.queries.map((q) =>
+          q.connectionId === oldId ? { ...q, connectionId: newId } : q
+        ),
+      }));
+    },
+
     reorderQuery: (fromIndex, toIndex) => {
       set((state) => {
         if (

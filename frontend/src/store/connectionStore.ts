@@ -13,7 +13,9 @@ interface ConnectionState {
   connectCancelled: boolean;
   error: string | null;
 
-  addConnection: (connection: Omit<Connection, 'id' | 'isActive'>) => Promise<void>;
+  addConnection: (
+    connection: Omit<Connection, 'id' | 'isActive'>
+  ) => Promise<{ replaced?: { oldId: string; newId: string } }>;
   cancelConnection: () => Promise<void>;
   removeConnection: (id: string) => Promise<void>;
   setActive: (id: string | null) => void;
@@ -62,7 +64,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
       if (get().connectCancelled) {
         await bridge.cancelConnect(requestId).catch(() => {});
         set({ isConnecting: false, connectRequestId: null, connectCancelled: false });
-        return;
+        return {};
       }
 
       set({ connectRequestId: requestId });
@@ -116,6 +118,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
       };
 
       const existing = get().connections.find((c) => c.name === connection.name);
+      const oldId = existing?.id;
       if (existing) {
         await bridge.disconnect(existing.id).catch(() => {});
       }
@@ -130,11 +133,13 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         connectRequestId: null,
         connectCancelled: false,
       }));
+
+      return oldId ? { replaced: { oldId, newId: result.connectionId } } : {};
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Connection failed';
       // If already cancelled by cancelConnection(), don't overwrite state
       if (message === 'Connection cancelled' || get().connectCancelled || !get().isConnecting) {
-        return;
+        return {};
       }
       set({
         isConnecting: false,
@@ -142,6 +147,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         connectCancelled: false,
         error: message,
       });
+      return {};
     }
   },
 

@@ -92,6 +92,7 @@ export const useQueryActions = () =>
       renameQuery: state.renameQuery,
       setActive: state.setActive,
       reorderQuery: state.reorderQuery,
+      migrateConnection: state.migrateConnection,
       executeQuery: state.executeQuery,
       executeSelectedText: state.executeSelectedText,
       cancelQuery: state.cancelQuery,

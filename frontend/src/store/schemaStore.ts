@@ -25,6 +25,7 @@ interface SchemaState {
   getTableColumns: (connectionId: string, tableName: string) => Column[] | undefined;
   getTables: (connectionId: string) => TableSchema[];
   clearSchema: (connectionId: string) => void;
+  migrateConnection: (oldId: string, newId: string) => void;
 }
 
 export const useSchemaStore = create<SchemaState>((set, get) => ({
@@ -187,6 +188,14 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
     set((state) => {
       const newSchemas = new Map(state.schemas);
       newSchemas.delete(connectionId);
+      return { schemas: newSchemas };
+    });
+  },
+
+  migrateConnection: (oldId: string, _newId: string) => {
+    set((state) => {
+      const newSchemas = new Map(state.schemas);
+      newSchemas.delete(oldId);
       return { schemas: newSchemas };
     });
   },

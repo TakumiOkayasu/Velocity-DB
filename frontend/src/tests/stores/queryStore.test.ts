@@ -379,4 +379,40 @@ describe('queryStore', () => {
       expect(mockedBridge.removeAsyncQuery).toHaveBeenCalledWith('async_2');
     });
   });
+
+  describe('migrateConnection', () => {
+    it('該当タブの connectionId が newId に更新される', () => {
+      const { addQuery } = useQueryStore.getState();
+      addQuery('conn_1');
+      addQuery('conn_1');
+
+      useQueryStore.getState().migrateConnection('conn_1', 'conn_2');
+
+      const updated = useQueryStore.getState().queries;
+      expect(updated[0].connectionId).toBe('conn_2');
+      expect(updated[1].connectionId).toBe('conn_2');
+    });
+
+    it('該当しないタブの connectionId は変更されない', () => {
+      const { addQuery } = useQueryStore.getState();
+      addQuery('conn_1');
+      addQuery('conn_other');
+
+      useQueryStore.getState().migrateConnection('conn_1', 'conn_2');
+
+      const updated = useQueryStore.getState().queries;
+      expect(updated[0].connectionId).toBe('conn_2');
+      expect(updated[1].connectionId).toBe('conn_other');
+    });
+
+    it('oldId に該当するタブが無い場合、何も変更されない', () => {
+      const { addQuery } = useQueryStore.getState();
+      addQuery('conn_x');
+
+      useQueryStore.getState().migrateConnection('conn_1', 'conn_2');
+
+      const updated = useQueryStore.getState().queries;
+      expect(updated[0].connectionId).toBe('conn_x');
+    });
+  });
 });
