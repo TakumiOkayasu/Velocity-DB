@@ -1,5 +1,6 @@
 import { Handle, type HandleType, Position } from '@xyflow/react';
 import { memo } from 'react';
+import { useERDiagramStore } from '../../store/erDiagramStore';
 import type { ERColumn } from '../../types';
 import { readableColor } from '../../utils/colorContrast';
 import styles from './TableNode.module.css';
@@ -13,6 +14,7 @@ interface TableNodeData {
 }
 
 interface TableNodeProps {
+  id: string;
   data: TableNodeData;
   selected?: boolean;
 }
@@ -68,7 +70,8 @@ function ColumnRow({ col, isPK }: { col: ERColumn; isPK: boolean }) {
   );
 }
 
-export const TableNode = memo(function TableNode({ data, selected }: TableNodeProps) {
+export const TableNode = memo(function TableNode({ id, data, selected }: TableNodeProps) {
+  const isFocused = useERDiagramStore((s) => s.focusedNodeId === id);
   const { tableName, logicalName, columns, color, bkColor } = data;
 
   const useLogicalTable = !isPlaceholder(logicalName);
@@ -79,7 +82,9 @@ export const TableNode = memo(function TableNode({ data, selected }: TableNodePr
   const regularColumns = columns.filter((c) => !c.isPrimaryKey);
 
   return (
-    <div className={`${styles.container} ${selected ? styles.selected : ''}`}>
+    <div
+      className={`${styles.container}${selected ? ` ${styles.selected}` : ''}${isFocused ? ` ${styles.focused}` : ''}`}
+    >
       {HANDLE_DEFS.map((h) => (
         <Handle key={h.id} type={h.type} position={h.position} id={h.id} style={HIDDEN_HANDLE} />
       ))}
