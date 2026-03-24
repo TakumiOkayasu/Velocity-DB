@@ -167,8 +167,9 @@ export function MainLayout() {
             }
           : undefined,
       });
-    } catch (error) {
-      console.error('Connection failed:', error);
+      setIsConnectionDialogOpen(false);
+    } catch {
+      // Error is displayed in ConnectionDialog via connectionStore.error
     }
   };
 
@@ -565,7 +566,10 @@ export function MainLayout() {
         <Suspense fallback={<LoadingFallback />}>
           <ConnectionDialog
             isOpen={isConnectionDialogOpen}
-            onClose={() => setIsConnectionDialogOpen(false)}
+            onClose={() => {
+              if (isConnecting) cancelConnection();
+              setIsConnectionDialogOpen(false);
+            }}
             onConnect={connectToDatabase}
             isConnecting={isConnecting}
             onCancelConnect={cancelConnection}

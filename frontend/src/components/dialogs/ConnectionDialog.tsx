@@ -143,7 +143,6 @@ export function ConnectionDialog({
 
   const handleConnect = () => {
     onConnect(config);
-    onClose();
   };
 
   return (
@@ -280,20 +279,21 @@ export function ConnectionDialog({
           <button
             type="button"
             className={styles.cancelButton}
-            onClick={onClose}
-            disabled={isConnecting}
+            onClick={() => {
+              if (isConnecting) onCancelConnect?.();
+              onClose();
+            }}
           >
             キャンセル
           </button>
-          {isConnecting ? (
-            <button type="button" className={styles.connectButton} onClick={onCancelConnect}>
-              接続中止
-            </button>
-          ) : (
-            <button type="button" className={styles.connectButton} onClick={handleConnect}>
-              接続
-            </button>
-          )}
+          <button
+            type="button"
+            className={styles.connectButton}
+            onClick={isConnecting ? onCancelConnect : handleConnect}
+            disabled={false}
+          >
+            {isConnecting ? '接続中止' : '接続'}
+          </button>
         </div>
       </div>
 
