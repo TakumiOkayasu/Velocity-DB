@@ -13,7 +13,7 @@ let mockQueries: Query[] = [];
 
 vi.mock('../../store/queryStore', () => ({
   useQueries: () => mockQueries,
-  useQueryStore: (selector: (s: Record<string, unknown>) => unknown) =>
+  useQueryStore: (selector: (s: { activeQueryId: string | null }) => string | null) =>
     selector({ activeQueryId: null }),
   useQueryActions: () => ({
     addQuery: mockAddQuery,

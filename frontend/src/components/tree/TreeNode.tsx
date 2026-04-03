@@ -166,9 +166,7 @@ export const TreeNode = memo(function TreeNode({
   const nodeStyle = useMemo(
     () => ({
       paddingLeft: `${level * 12 + 4}px`,
-      ...(node.type === 'database' && connColor
-        ? ({ '--connection-color': connColor } as React.CSSProperties)
-        : {}),
+      ...(node.type === 'database' && connColor ? { '--connection-color': connColor } : {}),
     }),
     [level, node.type, connColor]
   );

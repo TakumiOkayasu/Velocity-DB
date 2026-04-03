@@ -66,8 +66,8 @@ describe('ErrorDetailDialog', () => {
   it('オーバーレイクリックでonClose発火', () => {
     const onClose = vi.fn();
     const { container } = render(<ErrorDetailDialog {...defaultProps} onClose={onClose} />);
-    const overlay = container.firstChild as HTMLElement;
-    fireEvent.click(overlay);
+    if (!(container.firstChild instanceof HTMLElement)) throw new Error('overlay not found');
+    fireEvent.click(container.firstChild);
     expect(onClose).toHaveBeenCalledOnce();
   });
 });

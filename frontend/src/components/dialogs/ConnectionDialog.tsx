@@ -184,11 +184,7 @@ export function ConnectionDialog({
                     type="button"
                     key={profile.id}
                     className={`${styles.profileItem} ${mode === 'edit' && editingProfileId === profile.id ? styles.selected : ''}`}
-                    style={
-                      {
-                        '--connection-color': connColor,
-                      } as React.CSSProperties
-                    }
+                    style={{ '--connection-color': connColor }}
                     onClick={() => handleProfileSelect(profile.id)}
                   >
                     <span className={styles.profileIcon}>🗄️</span>

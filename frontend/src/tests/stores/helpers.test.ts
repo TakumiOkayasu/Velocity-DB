@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { toQueryResult } from '../../store/query/helpers/asyncPolling';
 import {
+  type ExecutionFields,
   endExecution,
   failExecution,
   generateQueryId,
@@ -8,20 +9,15 @@ import {
   resetQueryCounter,
   startExecution,
 } from '../../store/query/helpers/executionState';
-import type { QueryState } from '../../store/query/types';
 import type { AsyncPollResult } from '../../types';
 
-/** helpers under test only use data fields — action stubs are unnecessary */
-function makeState(overrides?: Partial<QueryState>): QueryState {
+function makeState(overrides?: Partial<ExecutionFields>): ExecutionFields {
   return {
-    queries: [],
-    activeQueryId: null,
-    results: {},
     executingQueryIds: new Set<string>(),
     errors: {},
     isExecuting: false,
     ...overrides,
-  } as QueryState;
+  };
 }
 
 describe('executionState helpers', () => {

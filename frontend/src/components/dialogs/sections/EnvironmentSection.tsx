@@ -1,4 +1,4 @@
-import type { EnvironmentType } from '../../../types';
+import { type EnvironmentType, isEnvironmentType } from '../../../types';
 import type { ConnectionConfig } from '../ConnectionDialog';
 import styles from '../ConnectionDialog.module.css';
 
@@ -33,10 +33,9 @@ export function EnvironmentSection({ environment, isReadOnly, onChange }: Enviro
                 value={option.value}
                 checked={environment === option.value}
                 onChange={(e) => {
-                  const newEnv = e.target.value as EnvironmentType;
-                  onChange('environment', newEnv);
-                  // isProductionを同期
-                  onChange('isProduction', newEnv === 'production');
+                  if (!isEnvironmentType(e.target.value)) return;
+                  onChange('environment', e.target.value);
+                  onChange('isProduction', e.target.value === 'production');
                 }}
               />
               <span className={styles.environmentLabel}>{option.label}</span>

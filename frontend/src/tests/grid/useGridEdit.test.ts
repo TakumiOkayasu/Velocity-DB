@@ -53,23 +53,25 @@ const baseOptions = {
   isReadOnly: false,
 };
 
-const mockResultSet = {
+const mockResultSet: ResultSet = {
   columns: [
-    { name: 'id', type: 'int', isPrimaryKey: true },
-    { name: 'name', type: 'varchar', isPrimaryKey: false },
+    { name: 'id', type: 'int', size: 4, nullable: false, isPrimaryKey: true },
+    { name: 'name', type: 'varchar', size: 255, nullable: true, isPrimaryKey: false },
   ],
   rows: [],
   executionTimeMs: 1,
   affectedRows: 0,
   truncated: false,
-} as unknown as ResultSet;
+};
 
-const mockQuery = {
+const mockQuery: Query = {
   id: 'q1',
+  name: 'test-query',
+  content: 'SELECT * FROM users',
   connectionId: 'conn-1',
+  isDirty: false,
   sourceTable: 'users',
-  sql: 'SELECT * FROM users',
-} as unknown as Query;
+};
 
 describe('useGridEdit', () => {
   beforeEach(() => {
@@ -106,7 +108,7 @@ describe('useGridEdit', () => {
       const { result } = renderHook(() =>
         useGridEdit({
           ...baseOptions,
-          currentQuery: { ...mockQuery, sourceTable: undefined } as unknown as Query,
+          currentQuery: { ...mockQuery, sourceTable: undefined },
         })
       );
       expect(result.current.isEditMode).toBe(false);

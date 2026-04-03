@@ -148,7 +148,8 @@ export function EditorTabs() {
   useEffect(() => {
     if (!menuOpen) return;
     const close = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+      if (menuRef.current && e.target instanceof Node && !menuRef.current.contains(e.target))
+        setMenuOpen(false);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
@@ -157,7 +158,7 @@ export function EditorTabs() {
   useEffect(() => {
     if (!addMenuOpen) return;
     const close = (e: MouseEvent) => {
-      if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node))
+      if (addMenuRef.current && e.target instanceof Node && !addMenuRef.current.contains(e.target))
         setAddMenuOpen(false);
     };
     document.addEventListener('mousedown', close);
@@ -197,7 +198,7 @@ export function EditorTabs() {
   );
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
-    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    if (e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget)) return;
     setDropTarget(null);
   }, []);
 
@@ -241,13 +242,7 @@ export function EditorTabs() {
             <div
               key={query.id}
               className={className}
-              style={
-                connColor
-                  ? ({
-                      '--connection-color': connColor,
-                    } as React.CSSProperties)
-                  : undefined
-              }
+              style={connColor ? { '--connection-color': connColor } : undefined}
               role="tab"
               tabIndex={0}
               onClick={() => setActive(query.id)}

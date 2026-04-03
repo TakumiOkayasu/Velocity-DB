@@ -15,7 +15,9 @@ export function resetQueryCounter(): void {
   queryCounter = 0;
 }
 
-export function startExecution(state: QueryState, id: string): Partial<QueryState> {
+export type ExecutionFields = Pick<QueryState, 'executingQueryIds' | 'errors' | 'isExecuting'>;
+
+export function startExecution(state: ExecutionFields, id: string): Partial<ExecutionFields> {
   const newExecuting = new Set(state.executingQueryIds).add(id);
   return {
     executingQueryIds: newExecuting,
@@ -24,7 +26,7 @@ export function startExecution(state: QueryState, id: string): Partial<QueryStat
   };
 }
 
-export function endExecution(state: QueryState, id: string): Partial<QueryState> {
+export function endExecution(state: ExecutionFields, id: string): Partial<ExecutionFields> {
   const newExecuting = new Set(state.executingQueryIds);
   newExecuting.delete(id);
   return {
@@ -34,10 +36,10 @@ export function endExecution(state: QueryState, id: string): Partial<QueryState>
 }
 
 export function failExecution(
-  state: QueryState,
+  state: ExecutionFields,
   id: string,
   errorMessage: string
-): Partial<QueryState> {
+): Partial<ExecutionFields> {
   return {
     ...endExecution(state, id),
     errors: { ...state.errors, [id]: errorMessage },

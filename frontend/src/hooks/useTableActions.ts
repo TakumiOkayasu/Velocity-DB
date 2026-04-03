@@ -35,7 +35,7 @@ interface UseTableActionsParams {
 }
 
 function parseTableName(node: DatabaseObject): { schema: string; table: string } {
-  const schema = (node.metadata?.schema as string) ?? 'dbo';
+  const schema = node.metadata?.schema ?? 'dbo';
   const parts = node.name.split('.');
   const table = parts.length >= 2 ? parts[1] : parts[0];
   return { schema, table };

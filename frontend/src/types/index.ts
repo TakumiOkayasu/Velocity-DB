@@ -1,11 +1,23 @@
 // SSH authentication type
 export type SshAuthType = 'password' | 'privateKey';
 
+export function isSshAuthType(value: string): value is SshAuthType {
+  return value === 'password' || value === 'privateKey';
+}
+
 // Environment type for connection
 export type EnvironmentType = 'development' | 'staging' | 'production';
 
+export function isEnvironmentType(value: string): value is EnvironmentType {
+  return value === 'development' || value === 'staging' || value === 'production';
+}
+
 // Database type for multi-DB support
 export type DatabaseType = 'sqlserver' | 'postgresql' | 'mysql';
+
+export function isDatabaseType(value: string): value is DatabaseType {
+  return value === 'sqlserver' || value === 'postgresql' || value === 'mysql';
+}
 
 // SSH configuration types (runtime, includes secrets)
 export interface SshConfig {
@@ -271,15 +283,22 @@ export interface TableMetadata {
   comment: string;
 }
 
+export interface DatabaseObjectMetadata {
+  comment?: string;
+  schema?: string;
+  tableName?: string;
+  isPrimaryKey?: boolean;
+  nullable?: boolean;
+  columnType?: string;
+  objectType?: 'table' | 'view';
+}
+
 export interface DatabaseObject {
   id: string;
   name: string;
   type: 'database' | 'folder' | 'table' | 'view' | 'procedure' | 'function' | 'column' | 'index';
   children?: DatabaseObject[];
-  metadata?: {
-    comment?: string;
-    [key: string]: unknown;
-  };
+  metadata?: DatabaseObjectMetadata;
 }
 
 // ER Diagram types

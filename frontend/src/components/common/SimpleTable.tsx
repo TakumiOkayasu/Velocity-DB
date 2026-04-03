@@ -1,15 +1,17 @@
 import styles from './SimpleTable.module.css';
 
+export type CellValue = string | number | boolean | string[] | null;
+
 interface Column {
   field: string;
   headerName: string;
   width?: number | string;
-  formatter?: (value: unknown) => string;
+  formatter?: (value: CellValue) => string;
 }
 
 interface SimpleTableProps {
   columns: Column[];
-  data: Record<string, unknown>[];
+  data: Record<string, CellValue>[];
 }
 
 export function SimpleTable({ columns, data }: SimpleTableProps) {

@@ -93,8 +93,8 @@ export function useColumnActions({
   const getColumnMenuItems = useCallback(
     (node: DatabaseObject): MenuItem[] => {
       const colName = node.name.split(' ')[0];
-      const schema = (node.metadata?.schema as string) ?? 'dbo';
-      const tblName = (node.metadata?.tableName as string) ?? '';
+      const schema = node.metadata?.schema ?? 'dbo';
+      const tblName = node.metadata?.tableName ?? '';
       const isPK = Boolean(node.metadata?.isPrimaryKey);
       const isView = node.metadata?.objectType === 'view';
       const missingMeta = !tblName;

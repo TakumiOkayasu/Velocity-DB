@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { Column } from '../../../types';
-import { SimpleTable } from '../../common/SimpleTable';
+import { type CellValue, SimpleTable } from '../../common/SimpleTable';
 
 interface ColumnsTabProps {
   columns: Column[];
@@ -21,7 +21,7 @@ export function ColumnsTab({ columns, showLogicalNames }: ColumnsTabProps) {
         field: 'size',
         headerName: 'Size',
         width: 80,
-        formatter: (value: unknown) => {
+        formatter: (value: CellValue) => {
           const num = Number(value);
           if (num === 0 || num === -1) return 'MAX';
           return String(value ?? '');
@@ -31,13 +31,13 @@ export function ColumnsTab({ columns, showLogicalNames }: ColumnsTabProps) {
         field: 'nullable',
         headerName: 'Nullable',
         width: 80,
-        formatter: (value: unknown) => (value ? 'Yes' : 'No'),
+        formatter: (value: CellValue) => (value ? 'Yes' : 'No'),
       },
       {
         field: 'isPrimaryKey',
         headerName: 'PK',
         width: 60,
-        formatter: (value: unknown) => (value ? 'Yes' : ''),
+        formatter: (value: CellValue) => (value ? 'Yes' : ''),
       },
     ],
     [showLogicalNames]

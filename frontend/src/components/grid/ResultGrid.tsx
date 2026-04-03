@@ -123,16 +123,17 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   }, [error]);
 
   // --- Derived data ---
-  const multipleResult = queryResult && 'multipleResults' in queryResult ? queryResult : null;
+  const isMultiple =
+    queryResult !== null && queryResult !== undefined && 'multipleResults' in queryResult;
+  const multipleResult = isMultiple ? queryResult : null;
   const filteredResults = multipleResult
     ? multipleResult.results.filter((r) => !r.statement.trim().toUpperCase().startsWith('USE '))
     : null;
   const hasFilteredResults = filteredResults && filteredResults.length > 0;
+  const singleResult: ResultSet | null = !isMultiple && queryResult ? queryResult : null;
   const resultSet: ResultSet | null = hasFilteredResults
     ? (filteredResults[activeResultIndex]?.data ?? null)
-    : multipleResult
-      ? null
-      : (queryResult as ResultSet | null);
+    : singleResult;
 
   // --- Row / Column data ---
   const baseRowData = useMemo<RowData[]>(() => {

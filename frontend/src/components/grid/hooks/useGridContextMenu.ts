@@ -1,8 +1,25 @@
-import type { Row, Table } from '@tanstack/react-table';
 import { useCallback, useRef, useState } from 'react';
 import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard';
 import type { ColumnMeta, RowData } from '../../../types/grid';
 import type { ContextMenuItem } from '../../common/ContextMenu';
+
+/** Row から実際に使用するプロパティのみを要求 (ISP) */
+export interface GridRow {
+  original: RowData;
+}
+
+/** Table から実際に使用するプロパティのみを要求 (ISP) */
+export interface GridTable {
+  getColumn: (id: string) => { toggleSorting: (desc: boolean) => void } | undefined;
+}
+
+/** MouseEvent から実際に使用するプロパティのみを要求 (ISP) */
+export interface GridMouseEvent {
+  preventDefault: () => void;
+  stopPropagation: () => void;
+  clientX: number;
+  clientY: number;
+}
 
 type ContextMenuState =
   | { x: number; y: number; type: 'header'; columnId: string }
@@ -20,8 +37,8 @@ interface UseGridContextMenuOptions {
 
 export function useGridContextMenu(
   columnsMeta: ColumnMeta[],
-  rows: Row<RowData>[],
-  table: Table<RowData>,
+  rows: GridRow[],
+  table: GridTable,
   { isEditMode = false, updateCell }: UseGridContextMenuOptions = { isEditMode: false }
 ) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -33,12 +50,12 @@ export function useGridContextMenu(
     if (contextMenu) setContextMenu(null);
   }
 
-  const openHeaderMenu = useCallback((e: React.MouseEvent, columnId: string) => {
+  const openHeaderMenu = useCallback((e: GridMouseEvent, columnId: string) => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY, type: 'header', columnId });
   }, []);
 
-  const openCellMenu = useCallback((e: React.MouseEvent, rowIndex: number, columnId: string) => {
+  const openCellMenu = useCallback((e: GridMouseEvent, rowIndex: number, columnId: string) => {
     e.preventDefault();
     e.stopPropagation();
     setContextMenu({ x: e.clientX, y: e.clientY, type: 'cell', columnId, rowIndex });

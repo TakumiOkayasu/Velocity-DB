@@ -64,11 +64,7 @@ export function CenterPanel() {
         <EditorTabs />
         <select
           className={styles.connectionSelector}
-          style={
-            selectorColor
-              ? ({ '--connection-color': selectorColor } as React.CSSProperties)
-              : undefined
-          }
+          style={selectorColor ? { '--connection-color': selectorColor } : undefined}
           value={activeQuery?.connectionId ?? ''}
           onChange={handleConnectionChange}
           disabled={connections.length === 0 || !activeQuery}

@@ -1,6 +1,5 @@
-import type { Row, Table } from '@tanstack/react-table';
 import { describe, expect, it, vi } from 'vitest';
-import type { ColumnMeta, RowData } from '../../types/grid';
+import type { ColumnMeta } from '../../types/grid';
 
 // Mock useCopyToClipboard
 const mockCopyToClipboard = vi.fn();
@@ -9,6 +8,11 @@ vi.mock('../../hooks/useCopyToClipboard', () => ({
 }));
 
 import { act, renderHook } from '@testing-library/react';
+import type {
+  GridMouseEvent,
+  GridRow,
+  GridTable,
+} from '../../components/grid/hooks/useGridContextMenu';
 import { useGridContextMenu } from '../../components/grid/hooks/useGridContextMenu';
 
 const mockColumnsMeta: ColumnMeta[] = [
@@ -17,16 +21,20 @@ const mockColumnsMeta: ColumnMeta[] = [
   { name: 'email', comment: '', type: 'varchar' },
 ];
 
-const mockRows = [
+const mockRows: GridRow[] = [
   { original: { __rowIndex: '1', __originalIndex: '0', id: '1', name: 'Alice', email: 'a@b.com' } },
   { original: { __rowIndex: '2', __originalIndex: '1', id: '2', name: "Bob's", email: null } },
-] as unknown as Row<RowData>[];
+];
 
-const mockTable = {
+const mockTable: GridTable = {
   getColumn: vi.fn().mockReturnValue({
     toggleSorting: vi.fn(),
   }),
-} as unknown as Table<RowData>;
+};
+
+function createMockEvent(): GridMouseEvent {
+  return { preventDefault: vi.fn(), stopPropagation: vi.fn(), clientX: 100, clientY: 200 };
+}
 
 describe('useGridContextMenu', () => {
   describe('header context menu', () => {
@@ -34,10 +42,7 @@ describe('useGridContextMenu', () => {
       const { result } = renderHook(() => useGridContextMenu(mockColumnsMeta, mockRows, mockTable));
 
       act(() => {
-        result.current.openHeaderMenu(
-          { preventDefault: vi.fn(), clientX: 100, clientY: 200 } as unknown as React.MouseEvent,
-          'id'
-        );
+        result.current.openHeaderMenu(createMockEvent(), 'id');
       });
 
       const items = result.current.getMenuItems();
@@ -55,10 +60,7 @@ describe('useGridContextMenu', () => {
       const { result } = renderHook(() => useGridContextMenu(mockColumnsMeta, mockRows, mockTable));
 
       act(() => {
-        result.current.openHeaderMenu(
-          { preventDefault: vi.fn(), clientX: 100, clientY: 200 } as unknown as React.MouseEvent,
-          'email'
-        );
+        result.current.openHeaderMenu(createMockEvent(), 'email');
       });
 
       const items = result.current.getMenuItems();
@@ -70,10 +72,7 @@ describe('useGridContextMenu', () => {
       const { result } = renderHook(() => useGridContextMenu(mockColumnsMeta, mockRows, mockTable));
 
       act(() => {
-        result.current.openHeaderMenu(
-          { preventDefault: vi.fn(), clientX: 100, clientY: 200 } as unknown as React.MouseEvent,
-          'name'
-        );
+        result.current.openHeaderMenu(createMockEvent(), 'name');
       });
 
       const items = result.current.getMenuItems();
@@ -89,16 +88,7 @@ describe('useGridContextMenu', () => {
       const { result } = renderHook(() => useGridContextMenu(mockColumnsMeta, mockRows, mockTable));
 
       act(() => {
-        result.current.openCellMenu(
-          {
-            preventDefault: vi.fn(),
-            stopPropagation: vi.fn(),
-            clientX: 100,
-            clientY: 200,
-          } as unknown as React.MouseEvent,
-          0,
-          'name'
-        );
+        result.current.openCellMenu(createMockEvent(), 0, 'name');
       });
 
       const items = result.current.getMenuItems();
@@ -114,16 +104,7 @@ describe('useGridContextMenu', () => {
       const { result } = renderHook(() => useGridContextMenu(mockColumnsMeta, mockRows, mockTable));
 
       act(() => {
-        result.current.openCellMenu(
-          {
-            preventDefault: vi.fn(),
-            stopPropagation: vi.fn(),
-            clientX: 100,
-            clientY: 200,
-          } as unknown as React.MouseEvent,
-          1,
-          'name'
-        );
+        result.current.openCellMenu(createMockEvent(), 1, 'name');
       });
 
       const items = result.current.getMenuItems();
@@ -146,16 +127,7 @@ describe('useGridContextMenu', () => {
       );
 
       act(() => {
-        result.current.openCellMenu(
-          {
-            preventDefault: vi.fn(),
-            stopPropagation: vi.fn(),
-            clientX: 100,
-            clientY: 200,
-          } as unknown as React.MouseEvent,
-          0,
-          'name'
-        );
+        result.current.openCellMenu(createMockEvent(), 0, 'name');
       });
 
       const items = result.current.getMenuItems();
@@ -167,16 +139,7 @@ describe('useGridContextMenu', () => {
       const { result } = renderHook(() => useGridContextMenu(mockColumnsMeta, mockRows, mockTable));
 
       act(() => {
-        result.current.openCellMenu(
-          {
-            preventDefault: vi.fn(),
-            stopPropagation: vi.fn(),
-            clientX: 100,
-            clientY: 200,
-          } as unknown as React.MouseEvent,
-          0,
-          'name'
-        );
+        result.current.openCellMenu(createMockEvent(), 0, 'name');
       });
 
       const items = result.current.getMenuItems();
@@ -188,10 +151,7 @@ describe('useGridContextMenu', () => {
       const { result } = renderHook(() => useGridContextMenu(mockColumnsMeta, mockRows, mockTable));
 
       act(() => {
-        result.current.openHeaderMenu(
-          { preventDefault: vi.fn(), clientX: 100, clientY: 200 } as unknown as React.MouseEvent,
-          'name'
-        );
+        result.current.openHeaderMenu(createMockEvent(), 'name');
       });
 
       const items = result.current.getMenuItems();
@@ -214,16 +174,7 @@ describe('useGridContextMenu', () => {
       );
 
       act(() => {
-        result.current.openCellMenu(
-          {
-            preventDefault: vi.fn(),
-            stopPropagation: vi.fn(),
-            clientX: 100,
-            clientY: 200,
-          } as unknown as React.MouseEvent,
-          0,
-          'name'
-        );
+        result.current.openCellMenu(createMockEvent(), 0, 'name');
       });
 
       const items = result.current.getMenuItems();

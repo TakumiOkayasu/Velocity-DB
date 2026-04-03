@@ -11,7 +11,7 @@ const baseProps = {
     executionTimeMs: 1.23,
     affectedRows: 0,
     truncated: false,
-  } as unknown as ResultSet,
+  } satisfies ResultSet,
   filteredRowCount: 0,
   isFiltered: false,
   isReadOnly: false,
@@ -30,7 +30,7 @@ describe('GridStatusBar', () => {
 
   describe('transpose mode', () => {
     it('viewMode=transpose で「行 N / M」形式を表示', () => {
-      const resultSet = { ...baseProps.resultSet, rows: [[], [], []] } as unknown as ResultSet;
+      const resultSet: ResultSet = { ...baseProps.resultSet, rows: [[], [], []] };
       render(
         <GridStatusBar
           {...baseProps}
@@ -49,12 +49,12 @@ describe('GridStatusBar', () => {
   });
 
   describe('pagination mode', () => {
-    const rows10k = Array.from({ length: 10000 }, () => [] as string[]);
-    const paginatedResultSet = {
+    const rows10k = Array.from<unknown, string[]>({ length: 10000 }, () => []);
+    const paginatedResultSet: ResultSet = {
       ...baseProps.resultSet,
       rows: rows10k,
       truncated: false,
-    } as unknown as ResultSet;
+    };
 
     const basePagination: PaginationState = {
       totalRowCount: 50000,

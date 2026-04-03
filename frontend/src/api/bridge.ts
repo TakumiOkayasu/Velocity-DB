@@ -1,7 +1,14 @@
-import type { AsyncQueryResultResponse, IPCRequest, IPCResponse } from '../types';
+import type {
+  AsyncQueryResultResponse,
+  ConstraintInfo,
+  IPCRequest,
+  IPCResponse,
+  TableMetadata,
+} from '../types';
 import { DEFAULT_PAGE } from '../utils/erDiagramConstants';
 import type { ERDiagramModel } from '../utils/erDiagramParser';
 import { log } from '../utils/logger';
+import * as S from './schemas';
 
 declare global {
   interface Window {
@@ -102,7 +109,7 @@ export function toERDiagramModel(
       targetTable: r.childTable,
       sourceColumn: r.parentColumn,
       targetColumn: r.childColumn,
-      cardinality: (r.cardinality as '1:1' | '1:N' | 'N:M') || '1:N',
+      cardinality: toCardinality(r.cardinality),
     })),
     shapes: result.shapes.map((s) => ({
       shapeType: s.shapeType,
@@ -124,8 +131,19 @@ function isIPCResponse(obj: unknown): obj is IPCResponse {
   return typeof obj === 'object' && obj !== null && 'success' in obj;
 }
 
+type Cardinality = '1:1' | '1:N' | 'N:M';
+
+function toCardinality(value: string): Cardinality {
+  if (value === '1:1' || value === '1:N' || value === 'N:M') return value;
+  return '1:N';
+}
+
 class Bridge {
-  private async call<T>(method: string, params: Record<string, unknown> = {}): Promise<T> {
+  private async call<T>(
+    method: string,
+    params: Record<string, unknown>,
+    schema: { parse(data: unknown): T }
+  ): Promise<T> {
     const request: IPCRequest = {
       method,
       params: JSON.stringify(params),
@@ -147,16 +165,16 @@ class Bridge {
       }
 
       // If response is already an object, webview may have parsed it
-      let response: IPCResponse<T>;
+      let response: IPCResponse;
       if (typeof responseRaw === 'string') {
         const parsed: unknown = JSON.parse(responseRaw);
         if (!isIPCResponse(parsed)) {
           log.error(`[Bridge] Invalid response structure for ${method}`);
           throw new Error(`Invalid response structure for ${method}`);
         }
-        response = parsed as IPCResponse<T>;
+        response = parsed;
       } else if (isIPCResponse(responseRaw)) {
-        response = responseRaw as IPCResponse<T>;
+        response = responseRaw;
       } else {
         log.error(`[Bridge] Unexpected response type: ${typeof responseRaw}`);
         throw new Error(`Unexpected response type: ${typeof responseRaw}`);
@@ -170,7 +188,7 @@ class Bridge {
       if (shouldLog) {
         log.debug(`[Bridge] Successfully processed ${method}`);
       }
-      return response.data as T;
+      return schema.parse(response.data);
     }
 
     // Development mode only: dynamically import mock data
@@ -183,10 +201,10 @@ class Bridge {
       const data = mockData[method];
       if (data === undefined) {
         log.warning(`[Bridge DEV] No mock data for method: ${method}`);
-        return {} as T;
+        throw new Error(`[Bridge DEV] No mock data for method: ${method}`);
       }
       log.debug(`[Bridge DEV] Returning mock data for ${method}`);
-      return data as T;
+      return schema.parse(data);
     }
 
     throw new Error('Backend not available');
@@ -213,7 +231,7 @@ class Bridge {
       keyPassphrase?: string;
     };
   }): Promise<{ requestId: string }> {
-    return this.call('connectAsync', connectionInfo);
+    return this.call('connectAsync', connectionInfo, S.connectAsync);
   }
 
   async getConnectResult(requestId: string): Promise<{
@@ -221,15 +239,15 @@ class Bridge {
     connectionId?: string;
     error?: string;
   }> {
-    return this.call('getConnectResult', { requestId });
+    return this.call('getConnectResult', { requestId }, S.connectResult);
   }
 
   async cancelConnect(requestId: string): Promise<void> {
-    return this.call('cancelConnect', { requestId });
+    return this.call('cancelConnect', { requestId }, S.cancelConnect);
   }
 
   async disconnect(connectionId: string): Promise<void> {
-    return this.call('disconnect', { connectionId });
+    return this.call('disconnect', { connectionId }, S.disconnect);
   }
 
   async testConnection(connectionInfo: {
@@ -251,7 +269,7 @@ class Bridge {
       keyPassphrase?: string;
     };
   }): Promise<{ success: boolean; message: string }> {
-    return this.call('testConnection', connectionInfo);
+    return this.call('testConnection', connectionInfo, S.testConnection);
   }
 
   // Query methods
@@ -266,7 +284,7 @@ class Bridge {
     executionTimeMs: number;
     cached: boolean;
   }> {
-    return this.call('executeQuery', { connectionId, sql, useCache });
+    return this.call('executeQuery', { connectionId, sql, useCache }, S.executeQuery);
   }
 
   async executeQueryPaginated(
@@ -281,26 +299,30 @@ class Bridge {
     affectedRows: number;
     executionTimeMs: number;
   }> {
-    return this.call('executeQueryPaginated', {
-      connectionId,
-      sql,
-      startRow,
-      endRow,
-      sortModel,
-    });
+    return this.call(
+      'executeQueryPaginated',
+      {
+        connectionId,
+        sql,
+        startRow,
+        endRow,
+        sortModel,
+      },
+      S.executeQueryPaginated
+    );
   }
 
   async getRowCount(connectionId: string, sql: string): Promise<{ rowCount: number }> {
-    return this.call('getRowCount', { connectionId, sql });
+    return this.call('getRowCount', { connectionId, sql }, S.getRowCount);
   }
 
   async cancelQuery(connectionId: string): Promise<void> {
-    return this.call('cancelQuery', { connectionId });
+    return this.call('cancelQuery', { connectionId }, S.cancelQuery);
   }
 
   // Schema methods
   async getDatabases(connectionId: string): Promise<string[]> {
-    return this.call('getDatabases', { connectionId });
+    return this.call('getDatabases', { connectionId }, S.getDatabases);
   }
 
   async getTables(
@@ -317,14 +339,7 @@ class Bridge {
   }> {
     log.info(`[Bridge] Getting tables for connection: ${connectionId}, database: ${database}`);
     const startTime = performance.now();
-    const tables = await this.call<
-      {
-        schema: string;
-        name: string;
-        type: string;
-        comment?: string;
-      }[]
-    >('getTables', { connectionId, database });
+    const tables = await this.call('getTables', { connectionId, database }, S.getTables);
     const endTime = performance.now();
     const loadTimeMs = endTime - startTime;
 
@@ -349,33 +364,33 @@ class Bridge {
       comment?: string;
     }[]
   > {
-    return this.call('getColumns', { connectionId, table });
+    return this.call('getColumns', { connectionId, table }, S.getColumns);
   }
 
   // Transaction methods
   async beginTransaction(connectionId: string): Promise<void> {
-    return this.call('beginTransaction', { connectionId });
+    return this.call('beginTransaction', { connectionId }, S.beginTransaction);
   }
 
   async commit(connectionId: string): Promise<void> {
-    return this.call('commit', { connectionId });
+    return this.call('commit', { connectionId }, S.commit);
   }
 
   async rollback(connectionId: string): Promise<void> {
-    return this.call('rollback', { connectionId });
+    return this.call('rollback', { connectionId }, S.rollback);
   }
 
   // Export methods
-  async exportCSV(data: unknown, filepath: string): Promise<void> {
-    return this.call('exportCSV', { data, filepath });
+  async exportCSV(data: Record<string, string | null>[], filepath: string): Promise<void> {
+    return this.call('exportCSV', { data, filepath }, S.exportCSV);
   }
 
-  async exportJSON(data: unknown, filepath: string): Promise<void> {
-    return this.call('exportJSON', { data, filepath });
+  async exportJSON(data: Record<string, string | null>[], filepath: string): Promise<void> {
+    return this.call('exportJSON', { data, filepath }, S.exportJSON);
   }
 
-  async exportExcel(data: unknown, filepath: string): Promise<void> {
-    return this.call('exportExcel', { data, filepath });
+  async exportExcel(data: Record<string, string | null>[], filepath: string): Promise<void> {
+    return this.call('exportExcel', { data, filepath }, S.exportExcel);
   }
 
   // SQL builder methods (dialect-aware, delegated to backend)
@@ -385,14 +400,18 @@ class Bridge {
     limit: number,
     whereClause?: string
   ): Promise<{ sql: string }> {
-    return this.call('buildDataViewSql', { connectionId, tableName, limit, whereClause });
+    return this.call(
+      'buildDataViewSql',
+      { connectionId, tableName, limit, whereClause },
+      S.buildDataViewSql
+    );
   }
 
   async buildWhereClause(
     connectionId: string,
     conditions: { column: string; value: string | null }[]
   ): Promise<{ whereClause: string }> {
-    return this.call('buildWhereClause', { connectionId, conditions });
+    return this.call('buildWhereClause', { connectionId, conditions }, S.buildWhereClause);
   }
 
   async buildDmlStatements(
@@ -409,12 +428,12 @@ class Bridge {
       deletes?: Record<string, string | null>[];
     }
   ): Promise<{ statements: string[] }> {
-    return this.call('buildDmlStatements', { connectionId, ...params });
+    return this.call('buildDmlStatements', { connectionId, ...params }, S.buildDmlStatements);
   }
 
   // SQL methods
   async uppercaseKeywords(sql: string): Promise<{ sql: string }> {
-    return this.call('uppercaseKeywords', { sql });
+    return this.call('uppercaseKeywords', { sql }, S.uppercaseKeywords);
   }
 
   // History methods
@@ -431,19 +450,19 @@ class Bridge {
       isFavorite: boolean;
     }[]
   > {
-    return this.call('getQueryHistory', {});
+    return this.call('getQueryHistory', {}, S.getQueryHistory);
   }
 
   async removeQueryHistory(id: string): Promise<{ removed: boolean }> {
-    return this.call('removeQueryHistory', { id });
+    return this.call('removeQueryHistory', { id }, S.removeQueryHistory);
   }
 
   async clearQueryHistory(): Promise<{ cleared: boolean }> {
-    return this.call('clearQueryHistory', {});
+    return this.call('clearQueryHistory', {}, S.clearQueryHistory);
   }
 
   async setQueryHistoryFavorite(id: string, isFavorite: boolean): Promise<{ updated: boolean }> {
-    return this.call('setQueryHistoryFavorite', { id, isFavorite });
+    return this.call('setQueryHistoryFavorite', { id, isFavorite }, S.setQueryHistoryFavorite);
   }
 
   // ER diagram methods
@@ -452,7 +471,7 @@ class Bridge {
     filename?: string;
     filepath?: string;
   }): Promise<ERDiagramParseResult> {
-    return this.call('parseERDiagram', params);
+    return this.call('parseERDiagram', params, S.parseERDiagram);
   }
 
   // Execution plan methods
@@ -461,7 +480,7 @@ class Bridge {
     sql: string,
     actual = false
   ): Promise<{ plan: string; actual: boolean }> {
-    return this.call('getExecutionPlan', { connectionId, sql, actual });
+    return this.call('getExecutionPlan', { connectionId, sql, actual }, S.getExecutionPlan);
   }
 
   // Cache methods
@@ -470,32 +489,32 @@ class Bridge {
     maxSizeBytes: number;
     usagePercent: number;
   }> {
-    return this.call('getCacheStats', {});
+    return this.call('getCacheStats', {}, S.getCacheStats);
   }
 
   async clearCache(): Promise<{ cleared: boolean }> {
-    return this.call('clearCache', {});
+    return this.call('clearCache', {}, S.clearCache);
   }
 
   // Async query methods
   async executeAsyncQuery(connectionId: string, sql: string): Promise<{ queryId: string }> {
-    return this.call('executeAsyncQuery', { connectionId, sql });
+    return this.call('executeAsyncQuery', { connectionId, sql }, S.executeAsyncQuery);
   }
 
   async getAsyncQueryResult(queryId: string): Promise<AsyncQueryResultResponse> {
-    return this.call('getAsyncQueryResult', { queryId });
+    return this.call('getAsyncQueryResult', { queryId }, S.getAsyncQueryResult);
   }
 
   async cancelAsyncQuery(queryId: string): Promise<{ cancelled: boolean }> {
-    return this.call('cancelAsyncQuery', { queryId });
+    return this.call('cancelAsyncQuery', { queryId }, S.cancelAsyncQuery);
   }
 
   async removeAsyncQuery(queryId: string): Promise<{ removed: boolean }> {
-    return this.call('removeAsyncQuery', { queryId });
+    return this.call('removeAsyncQuery', { queryId }, S.removeAsyncQuery);
   }
 
   async getActiveQueries(): Promise<string[]> {
-    return this.call('getActiveQueries', {});
+    return this.call('getActiveQueries', {}, S.getActiveQueries);
   }
 
   // SIMD filter methods
@@ -513,14 +532,18 @@ class Bridge {
     filteredRows: number;
     simdAvailable: boolean;
   }> {
-    return this.call('filterResultSet', {
-      connectionId,
-      sql,
-      columnIndex,
-      filterType,
-      filterValue,
-      filterValueMax,
-    });
+    return this.call(
+      'filterResultSet',
+      {
+        connectionId,
+        sql,
+        columnIndex,
+        filterType,
+        filterValue,
+        filterValueMax,
+      },
+      S.filterResultSet
+    );
   }
 
   // Settings methods
@@ -554,7 +577,7 @@ class Bridge {
       timeoutSeconds: number;
     };
   }> {
-    return this.call('getSettings', {});
+    return this.call('getSettings', {}, S.getSettings);
   }
 
   async updateSettings(settings: {
@@ -587,7 +610,7 @@ class Bridge {
       isMaximized: boolean;
     }>;
   }): Promise<{ saved: boolean }> {
-    return this.call('updateSettings', settings);
+    return this.call('updateSettings', settings, S.updateSettings);
   }
 
   // Connection profile methods
@@ -616,7 +639,7 @@ class Bridge {
       };
     }[];
   }> {
-    return this.call('getConnectionProfiles', {});
+    return this.call('getConnectionProfiles', {}, S.getConnectionProfiles);
   }
 
   async saveConnectionProfile(profile: {
@@ -645,23 +668,23 @@ class Bridge {
       keyPassphrase?: string;
     };
   }): Promise<{ id: string }> {
-    return this.call('saveConnectionProfile', profile);
+    return this.call('saveConnectionProfile', profile, S.saveConnectionProfile);
   }
 
   async deleteConnectionProfile(id: string): Promise<{ deleted: boolean }> {
-    return this.call('deleteConnectionProfile', { id });
+    return this.call('deleteConnectionProfile', { id }, S.deleteConnectionProfile);
   }
 
   async getProfilePassword(profileId: string): Promise<{ password: string }> {
-    return this.call('getProfilePassword', { id: profileId });
+    return this.call('getProfilePassword', { id: profileId }, S.getProfilePassword);
   }
 
   async getSshPassword(profileId: string): Promise<{ password: string }> {
-    return this.call('getSshPassword', { id: profileId });
+    return this.call('getSshPassword', { id: profileId }, S.getSshPassword);
   }
 
   async getSshKeyPassphrase(profileId: string): Promise<{ passphrase: string }> {
-    return this.call('getSshKeyPassphrase', { id: profileId });
+    return this.call('getSshKeyPassphrase', { id: profileId }, S.getSshKeyPassphrase);
   }
 
   // Session methods
@@ -686,7 +709,7 @@ class Bridge {
     }[];
     expandedTreeNodes: string[];
   }> {
-    return this.call('getSessionState', {});
+    return this.call('getSessionState', {}, S.getSessionState);
   }
 
   async saveSessionState(state: {
@@ -710,7 +733,7 @@ class Bridge {
     }[];
     expandedTreeNodes?: string[];
   }): Promise<{ saved: boolean }> {
-    return this.call('saveSessionState', state);
+    return this.call('saveSessionState', state, S.saveSessionState);
   }
 
   // Search methods
@@ -734,11 +757,11 @@ class Bridge {
       parentName: string;
     }[]
   > {
-    return this.call('searchObjects', { connectionId, pattern, ...options });
+    return this.call('searchObjects', { connectionId, pattern, ...options }, S.searchObjects);
   }
 
   async quickSearch(connectionId: string, prefix: string, limit = 20): Promise<string[]> {
-    return this.call('quickSearch', { connectionId, prefix, limit });
+    return this.call('quickSearch', { connectionId, prefix, limit }, S.quickSearch);
   }
 
   // Table metadata methods
@@ -754,21 +777,11 @@ class Bridge {
       type: string;
     }[]
   > {
-    return this.call('getIndexes', { connectionId, table });
+    return this.call('getIndexes', { connectionId, table }, S.getIndexes);
   }
 
-  async getConstraints(
-    connectionId: string,
-    table: string
-  ): Promise<
-    {
-      name: string;
-      type: string;
-      columns: string[];
-      definition: string;
-    }[]
-  > {
-    return this.call('getConstraints', { connectionId, table });
+  async getConstraints(connectionId: string, table: string): Promise<ConstraintInfo[]> {
+    return this.call('getConstraints', { connectionId, table }, S.getConstraints);
   }
 
   async getForeignKeys(
@@ -784,7 +797,7 @@ class Bridge {
       onUpdate: string;
     }[]
   > {
-    return this.call('getForeignKeys', { connectionId, table });
+    return this.call('getForeignKeys', { connectionId, table }, S.getForeignKeys);
   }
 
   async getReferencingForeignKeys(
@@ -800,7 +813,11 @@ class Bridge {
       onUpdate: string;
     }[]
   > {
-    return this.call('getReferencingForeignKeys', { connectionId, table });
+    return this.call(
+      'getReferencingForeignKeys',
+      { connectionId, table },
+      S.getReferencingForeignKeys
+    );
   }
 
   async getTriggers(
@@ -815,44 +832,32 @@ class Bridge {
       definition: string;
     }[]
   > {
-    return this.call('getTriggers', { connectionId, table });
+    return this.call('getTriggers', { connectionId, table }, S.getTriggers);
   }
 
-  async getTableMetadata(
-    connectionId: string,
-    table: string
-  ): Promise<{
-    schema: string;
-    name: string;
-    type: string;
-    rowCount: number;
-    createdAt: string;
-    modifiedAt: string;
-    owner: string;
-    comment: string;
-  }> {
-    return this.call('getTableMetadata', { connectionId, table });
+  async getTableMetadata(connectionId: string, table: string): Promise<TableMetadata> {
+    return this.call('getTableMetadata', { connectionId, table }, S.getTableMetadata);
   }
 
   async getTableDDL(connectionId: string, table: string): Promise<{ ddl: string }> {
-    return this.call('getTableDDL', { connectionId, table });
+    return this.call('getTableDDL', { connectionId, table }, S.getTableDDL);
   }
 
   async writeFrontendLog(content: string): Promise<void> {
-    return this.call('writeFrontendLog', { content });
+    return this.call('writeFrontendLog', { content }, S.writeFrontendLog);
   }
 
   // File operations
   async saveQueryToFile(content: string, defaultFileName?: string): Promise<{ filePath: string }> {
-    return this.call('saveQueryToFile', { content, defaultFileName });
+    return this.call('saveQueryToFile', { content, defaultFileName }, S.saveQueryToFile);
   }
 
   async loadQueryFromFile(): Promise<{ filePath: string; content: string }> {
-    return this.call('loadQueryFromFile', {});
+    return this.call('loadQueryFromFile', {}, S.loadQueryFromFile);
   }
 
   async browseFile(filter?: string): Promise<{ filePath: string }> {
-    return this.call('browseFile', { filter });
+    return this.call('browseFile', { filter }, S.browseFile);
   }
 
   // Bookmark operations
@@ -863,15 +868,15 @@ class Bridge {
       content: string;
     }[]
   > {
-    return this.call('getBookmarks', {});
+    return this.call('getBookmarks', {}, S.getBookmarks);
   }
 
   async saveBookmark(id: string, name: string, content: string): Promise<void> {
-    return this.call('saveBookmark', { id, name, content });
+    return this.call('saveBookmark', { id, name, content }, S.saveBookmark);
   }
 
   async deleteBookmark(id: string): Promise<void> {
-    return this.call('deleteBookmark', { id });
+    return this.call('deleteBookmark', { id }, S.deleteBookmark);
   }
 }
 

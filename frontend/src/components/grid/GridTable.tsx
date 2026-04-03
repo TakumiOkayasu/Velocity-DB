@@ -140,7 +140,7 @@ function GridTableInner({
                     type="text"
                     className={styles.columnFilterInput}
                     placeholder="..."
-                    value={(header.column.getFilterValue() as string) ?? ''}
+                    value={String(header.column.getFilterValue() ?? '')}
                     onChange={(e) => header.column.setFilterValue(e.target.value || undefined)}
                   />
                 </th>
@@ -189,7 +189,7 @@ function GridTableInner({
                     : null;
                   const isChanged = change !== null;
                   const isNull = value === null;
-                  const align = (cell.column.columnDef.meta as { align?: string })?.align ?? 'left';
+                  const align = cell.column.columnDef.meta?.align ?? 'left';
                   const isEditing =
                     edit.editingCell?.rowIndex === originalIndex &&
                     edit.editingCell?.columnId === field;
@@ -220,7 +220,7 @@ function GridTableInner({
                       title={validationError?.message}
                       style={{
                         width: cell.column.getSize(),
-                        textAlign: isNull ? 'center' : (align as 'left' | 'right' | 'center'),
+                        textAlign: isNull ? 'center' : align,
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -237,7 +237,8 @@ function GridTableInner({
                       onContextMenu={(e) => openCellMenu(e, rowIndex, field)}
                       onDoubleClick={() => {
                         if (isEditable) {
-                          callbacks.onStartEdit(originalIndex, field, value as string | null);
+                          const cellValue = typeof value === 'string' ? value : null;
+                          callbacks.onStartEdit(originalIndex, field, cellValue);
                         }
                       }}
                     >
