@@ -10,12 +10,20 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  css: {
+    transformer: 'lightningcss',
+    lightningcss: {
+      // WebView2 targets Chromium 120+. lightningcss encodes versions as (major << 16 | minor << 8 | patch).
+      targets: { chrome: 120 << 16 },
+    },
+  },
   build: {
     outDir: 'dist',
-    sourcemap: true,
-    minify: 'esbuild', // Explicitly use esbuild for faster minification
-    target: 'es2020', // Modern target for faster builds and smaller output
-    chunkSizeWarningLimit: 1000, // Large libraries like AG Grid v33 and Monaco exceed 600KB
+    sourcemap: 'hidden',
+    cssMinify: 'lightningcss',
+    minify: 'esbuild',
+    target: 'es2020',
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         // Optimize chunk naming for better caching
@@ -44,6 +52,10 @@ export default defineConfig({
             // State management (always loaded)
             if (id.includes('zustand') || id.includes('immer')) {
               return 'vendor-state';
+            }
+            // SQL Formatter (lazy loaded via dynamic import)
+            if (id.includes('sql-formatter')) {
+              return 'vendor-sql-formatter';
             }
           }
         },

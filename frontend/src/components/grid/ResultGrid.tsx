@@ -9,7 +9,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useConnectionStore } from '../../store/connectionStore';
 import {
   useIsActiveDataView,
@@ -32,10 +32,7 @@ import {
 } from '../../types/grid';
 import { parseErrorMessage } from '../../utils/errorParser';
 import { log } from '../../utils/logger';
-import { DmlPreviewDialog } from '../dialogs/DmlPreviewDialog';
-import { ErrorDetailDialog } from '../dialogs/ErrorDetailDialog';
 import { QueryConfirmDialog } from '../dialogs/QueryConfirmDialog';
-import { ExportDialog } from '../export/ExportDialog';
 import { GridFilterBar } from './GridFilterBar';
 import { GridStatusBar } from './GridStatusBar';
 import { GridTable } from './GridTable';
@@ -49,6 +46,16 @@ import styles from './ResultGrid.module.css';
 import { ResultTabs } from './ResultTabs';
 import { TransposeView } from './TransposeView';
 import { ValueEditorDialog } from './ValueEditorDialog';
+
+const DmlPreviewDialog = lazy(() =>
+  import('../dialogs/DmlPreviewDialog').then((m) => ({ default: m.DmlPreviewDialog }))
+);
+const ErrorDetailDialog = lazy(() =>
+  import('../dialogs/ErrorDetailDialog').then((m) => ({ default: m.ErrorDetailDialog }))
+);
+const ExportDialog = lazy(() =>
+  import('../export/ExportDialog').then((m) => ({ default: m.ExportDialog }))
+);
 
 const ELAPSED_CAUTION_SECONDS = 10;
 const ELAPSED_WARNING_SECONDS = 30;
@@ -592,11 +599,13 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         <button className={styles.errorDetailButton} onClick={() => setIsErrorDialogOpen(true)}>
           詳細を表示
         </button>
-        <ErrorDetailDialog
-          isOpen={isErrorDialogOpen}
-          errorMessage={error}
-          onClose={() => setIsErrorDialogOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <ErrorDetailDialog
+            isOpen={isErrorDialogOpen}
+            errorMessage={error}
+            onClose={() => setIsErrorDialogOpen(false)}
+          />
+        </Suspense>
       </div>
     );
   }
@@ -703,11 +712,13 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         pagination={pagination}
       />
 
-      <ExportDialog
-        isOpen={isExportDialogOpen}
-        onClose={() => setIsExportDialogOpen(false)}
-        resultSet={resultSet}
-      />
+      <Suspense fallback={null}>
+        <ExportDialog
+          isOpen={isExportDialogOpen}
+          onClose={() => setIsExportDialogOpen(false)}
+          resultSet={resultSet}
+        />
+      </Suspense>
 
       <ValueEditorDialog
         isOpen={valueEditorState.isOpen}
@@ -717,13 +728,15 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         onCancel={() => setValueEditorState((prev) => ({ ...prev, isOpen: false }))}
       />
 
-      <DmlPreviewDialog
-        isOpen={previewStatements.length > 0}
-        statements={previewStatements}
-        isExecuting={isApplying}
-        onExecute={executePreview}
-        onCancel={dismissPreview}
-      />
+      <Suspense fallback={null}>
+        <DmlPreviewDialog
+          isOpen={previewStatements.length > 0}
+          statements={previewStatements}
+          isExecuting={isApplying}
+          onExecute={executePreview}
+          onCancel={dismissPreview}
+        />
+      </Suspense>
 
       <QueryConfirmDialog
         isOpen={whereFilterError !== null}
