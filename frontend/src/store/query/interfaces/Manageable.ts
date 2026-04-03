@@ -7,4 +7,5 @@ export interface Manageable {
   setActive: (id: string | null) => void;
   reorderQuery: (fromIndex: number, toIndex: number) => void;
   migrateConnection: (oldId: string, newId: string) => void;
+  addQueryFromFile: (name: string, content: string, connectionId?: string | null) => void;
 }

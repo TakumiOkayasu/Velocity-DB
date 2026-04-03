@@ -86,6 +86,7 @@ export const useQueryActions = () =>
   useQueryStore(
     useShallow((state) => ({
       addQuery: state.addQuery,
+      addQueryFromFile: state.addQueryFromFile,
       removeQuery: state.removeQuery,
       updateQuery: state.updateQuery,
       updateQueryConnection: state.updateQueryConnection,

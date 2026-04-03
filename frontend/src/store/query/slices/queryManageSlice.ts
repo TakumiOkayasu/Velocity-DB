@@ -11,21 +11,15 @@ interface ManageSliceDeps {
 export function createManageSlice(set: SetState, get: GetState, deps: ManageSliceDeps): Manageable {
   const { abort } = deps;
 
+  const appendQuery = (name: string, content: string, connectionId: string | null = null) => {
+    const id = generateQueryId();
+    const newQuery: Query = { id, name, content, connectionId, isDirty: false };
+    set((state) => ({ queries: [...state.queries, newQuery], activeQueryId: id }));
+  };
+
   return {
     addQuery: (connectionId = null) => {
-      const id = generateQueryId();
-      const newQuery: Query = {
-        id,
-        name: `Query ${getQueryCounter()}`,
-        content: '',
-        connectionId,
-        isDirty: false,
-      };
-
-      set((state) => ({
-        queries: [...state.queries, newQuery],
-        activeQueryId: id,
-      }));
+      appendQuery(`Query ${getQueryCounter()}`, '', connectionId);
     },
 
     removeQuery: (id) => {
@@ -91,6 +85,8 @@ export function createManageSlice(set: SetState, get: GetState, deps: ManageSlic
         ),
       }));
     },
+
+    addQueryFromFile: appendQuery,
 
     reorderQuery: (fromIndex, toIndex) => {
       set((state) => {
