@@ -284,7 +284,15 @@ export function EditorTabs() {
               style={
                 connColor ? ({ '--connection-color': connColor } as React.CSSProperties) : undefined
               }
+              role="tab"
+              tabIndex={0}
               onClick={() => setActive(query.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setActive(query.id);
+                }
+              }}
               onMouseDown={(e) => {
                 if (e.button === 1) {
                   e.preventDefault();
@@ -305,6 +313,7 @@ export function EditorTabs() {
                 {stripBrackets(query.name)}
               </span>
               <button
+                type="button"
                 className={styles.closeButton}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -321,6 +330,7 @@ export function EditorTabs() {
       {isOverflowing && (
         <div className={styles.overflowMenuWrapper} ref={menuRef}>
           <button
+            type="button"
             className={styles.overflowButton}
             onClick={() => setMenuOpen((prev) => !prev)}
             title="全タブ一覧"
@@ -331,6 +341,7 @@ export function EditorTabs() {
             <div className={styles.overflowMenu}>
               {queries.map((query) => (
                 <button
+                  type="button"
                   key={query.id}
                   className={`${styles.overflowMenuItem} ${query.id === activeQueryId ? styles.activeItem : ''}`}
                   onClick={() => {
@@ -348,6 +359,7 @@ export function EditorTabs() {
       )}
       <div className={styles.addMenuWrapper} ref={addMenuRef}>
         <button
+          type="button"
           className={styles.addButton}
           onClick={() => setAddMenuOpen((prev) => !prev)}
           title="新規タブ (Ctrl+N)"
@@ -357,6 +369,7 @@ export function EditorTabs() {
         {addMenuOpen && (
           <div className={styles.overflowMenu}>
             <button
+              type="button"
               className={styles.overflowMenuItem}
               onClick={() => {
                 addQuery(activeQueryConnectionId);
@@ -366,7 +379,7 @@ export function EditorTabs() {
               {SqlIcon}
               <span>新規クエリ</span>
             </button>
-            <button className={styles.overflowMenuItem} onClick={createERDiagram}>
+            <button type="button" className={styles.overflowMenuItem} onClick={createERDiagram}>
               {ERDiagramIcon}
               <span>新規ER図</span>
             </button>
