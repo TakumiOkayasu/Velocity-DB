@@ -256,3 +256,34 @@
   border-radius: 50%;
   background-color: currentColor;
 }
+
+/* File Drop Overlay */
+.fileDropOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(30, 30, 30, 0.85);
+  pointer-events: none;
+}
+
+.fileDropOverlayInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 64px;
+  border: 2px dashed var(--accent-color);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.fileDropOverlayIcon {
+  width: 48px;
+  height: 48px;
+  color: var(--accent-color);
+}

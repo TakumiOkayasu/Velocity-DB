@@ -88,8 +88,7 @@ export function EditorTabs() {
       ),
     [connections]
   );
-  const { addQuery, addQueryFromFile, removeQuery, setActive, reorderQuery, openERDiagram } =
-    useQueryActions();
+  const { addQuery, removeQuery, setActive, reorderQuery, openERDiagram } = useQueryActions();
 
   // Ctrl+W: close active tab
   useEffect(() => {
@@ -115,8 +114,6 @@ export function EditorTabs() {
   // DnD state
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropTarget, setDropTarget] = useState<number | null>(null);
-  const [isFileDragOver, setIsFileDragOver] = useState(false);
-
   const checkOverflow = useCallback(() => {
     const el = tabsRef.current;
     if (el) {
@@ -209,41 +206,6 @@ export function EditorTabs() {
     setDropTarget(null);
   }, []);
 
-  // --- File DnD handlers (external .sql files) ---
-  const fileDrop = useCallback(
-    (e: React.DragEvent) => {
-      if (!e.dataTransfer.types.includes('Files') || dragIndex !== null) return;
-      e.preventDefault();
-      setIsFileDragOver(false);
-
-      const files = Array.from(e.dataTransfer.files);
-      for (const file of files) {
-        if (!file.name.toLowerCase().endsWith('.sql')) continue;
-        const reader = new FileReader();
-        reader.onload = () => {
-          const content = reader.result as string;
-          const name = file.name.replace(/\.sql$/i, '');
-          addQueryFromFile(name, content, activeQueryConnectionId);
-        };
-        reader.readAsText(file);
-      }
-    },
-    [addQueryFromFile, activeQueryConnectionId, dragIndex]
-  );
-
-  const fileDragOver = useCallback((e: React.DragEvent) => {
-    if (e.dataTransfer.types.includes('Files')) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'copy';
-      setIsFileDragOver(true);
-    }
-  }, []);
-
-  const fileDragLeave = useCallback((e: React.DragEvent) => {
-    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-    setIsFileDragOver(false);
-  }, []);
-
   const createERDiagram = useCallback(() => {
     const existingNames = new Set(queries.filter((q) => q.isERDiagram).map((q) => q.name));
     let idx = 1;
@@ -257,13 +219,7 @@ export function EditorTabs() {
   }, [queries, openERDiagram]);
 
   return (
-    <div
-      role="toolbar"
-      className={`${styles.container}${isFileDragOver ? ` ${styles.fileDragOver}` : ''}`}
-      onDragOver={fileDragOver}
-      onDragLeave={fileDragLeave}
-      onDrop={fileDrop}
-    >
+    <div role="toolbar" className={styles.container}>
       <div className={styles.tabs} ref={tabsRef} role="tablist">
         {queries.map((query, index) => {
           const connColor = query.connectionId
