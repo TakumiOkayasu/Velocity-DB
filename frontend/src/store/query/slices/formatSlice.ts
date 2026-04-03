@@ -9,7 +9,7 @@ export function createFormatSlice(set: SetState, get: GetState): Formattable {
       if (!query || !query.content.trim() || query.isDataView) return;
 
       try {
-        const formatted = formatSQL(query.content);
+        const formatted = await formatSQL(query.content);
         set((state) => ({
           queries: state.queries.map((q) =>
             q.id === id ? { ...q, content: formatted, isDirty: true } : q

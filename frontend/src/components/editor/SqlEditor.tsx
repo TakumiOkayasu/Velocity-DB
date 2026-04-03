@@ -10,6 +10,7 @@ import { log } from '../../utils/logger';
 import { formatSQL } from '../../utils/sqlFormat';
 import { getStatementAtCursor } from '../../utils/sqlParser';
 import { createCompletionProvider } from './completionProvider';
+import './monacoEnvironment';
 import styles from './SqlEditor.module.css';
 
 // Use local bundle instead of CDN (WebView2 Tracking Prevention blocks cdn.jsdelivr.net)
@@ -67,7 +68,7 @@ export function SqlEditor() {
 
       // INLINE EXECUTION - NO ALERTS AT ALL to avoid WebView2 message loop blocking
       requestAnimationFrame(() => {
-        setTimeout(() => {
+        setTimeout(async () => {
           log.info('[SqlEditor] Format: Starting inline format');
 
           if (isFormattingRef.current) {
@@ -101,7 +102,7 @@ export function SqlEditor() {
           log.info('[SqlEditor] Format: Calling formatSQL');
 
           try {
-            const formatted = formatSQL(currentValue);
+            const formatted = await formatSQL(currentValue);
             log.info('[SqlEditor] Format: formatSQL SUCCESS');
             if (editorRef.current) {
               lastEditorValueRef.current = formatted;
