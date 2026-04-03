@@ -31,6 +31,7 @@
 #include <Windows.h>
 #include <wrl.h>
 #include <WebView2.h>
+#include <WebView2EnvironmentOptions.h>
 #include <shlwapi.h>
 #include <dwmapi.h>
 // WebView2LoaderStatic.lib is linked via CMake (third_party/CMakeLists.txt)
@@ -197,13 +198,11 @@ private:
         BOOL useDarkMode = TRUE;
 
         // Try newer attribute first (Windows 10 20H1+)
-        HRESULT hr = DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
-                                           &useDarkMode, sizeof(useDarkMode));
+        HRESULT hr = DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &useDarkMode, sizeof(useDarkMode));
 
         // If failed, try older attribute for compatibility
         if (FAILED(hr)) {
-            DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1,
-                                 &useDarkMode, sizeof(useDarkMode));
+            DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1, &useDarkMode, sizeof(useDarkMode));
         }
     }
 
@@ -221,8 +220,16 @@ private:
         }
         LPCWSTR userDataFolderPtr = wUserDataFolder.empty() ? nullptr : wUserDataFolder.c_str();
 
+        // GPU compositing can intermittently fail to render specific tiles/layers
+        // on some Windows environments (Chromium known issue). Disabling GPU
+        // compositing prevents partial rendering failures in WebView2.
+        auto options = Microsoft::WRL::Make<CoreWebView2EnvironmentOptions>();
+        if (options) {
+            options->put_AdditionalBrowserArguments(L"--disable-gpu-compositing");
+        }
+
         HRESULT hr = CreateCoreWebView2EnvironmentWithOptions(
-            nullptr, userDataFolderPtr, nullptr,
+            nullptr, userDataFolderPtr, options.Get(),
             Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
                 [this](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
                     return onEnvironmentCreated(result, env);
