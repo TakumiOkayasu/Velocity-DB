@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { IndexInfo } from '../../../types';
-import { SimpleTable } from '../../common/SimpleTable';
+import { type CellValue, SimpleTable } from '../../common/SimpleTable';
 
 interface IndexesTabProps {
   indexes: IndexInfo[];
@@ -17,7 +17,7 @@ export function IndexesTab({ indexes, showLogicalNames }: IndexesTabProps) {
         field: 'isUnique',
         headerName: 'Unique',
         width: 80,
-        formatter: (value: unknown) => (value ? 'Yes' : 'No'),
+        formatter: (value: CellValue) => (value ? 'Yes' : 'No'),
       },
     ],
     [showLogicalNames]

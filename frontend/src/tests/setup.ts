@@ -7,9 +7,11 @@ Object.defineProperty(window, 'invoke', {
 });
 
 // Mock ResizeObserver
-(globalThis as unknown as { ResizeObserver: typeof ResizeObserver }).ResizeObserver =
-  class ResizeObserver {
+Object.defineProperty(globalThis, 'ResizeObserver', {
+  value: class ResizeObserver {
     observe() {}
     unobserve() {}
     disconnect() {}
-  };
+  },
+  writable: true,
+});

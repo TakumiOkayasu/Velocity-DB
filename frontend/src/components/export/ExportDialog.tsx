@@ -3,7 +3,7 @@ import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
 import { useConnectionStore } from '../../store/connectionStore';
 import type { ResultSet } from '../../types';
 import styles from './ExportDialog.module.css';
-import { type ExportFormat, type ExportOptions, getExporter } from './exporters';
+import { type ExportFormat, type ExportOptions, getExporter, isExportFormat } from './exporters';
 
 function isInputFocused(): boolean {
   const tag = document.activeElement?.tagName;
@@ -102,12 +102,10 @@ export function ExportDialog({ isOpen, onClose, resultSet }: ExportDialogProps) 
             <label>形式</label>
             <select
               value={options.format}
-              onChange={(e) =>
-                setOptions({
-                  ...options,
-                  format: e.target.value as ExportFormat,
-                })
-              }
+              onChange={(e) => {
+                if (!isExportFormat(e.target.value)) return;
+                setOptions({ ...options, format: e.target.value });
+              }}
             >
               <option value="csv">CSV</option>
               <option value="json">JSON</option>

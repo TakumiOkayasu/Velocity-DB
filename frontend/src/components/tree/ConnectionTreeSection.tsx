@@ -9,6 +9,7 @@ import { log } from '../../utils/logger';
 import { buildSelectSql } from '../../utils/sqlIdentifier';
 import {
   type ExpandableType,
+  isExpandableType,
   parseTableNodeId,
   shouldLoadColumns,
   updateNodeChildren,
@@ -318,8 +319,8 @@ export function ConnectionTreeSection({
         items.push({
           label: 'データを開く',
           action: () => {
-            if (onTableOpen) {
-              onTableOpen(node.name, node.type as ExpandableType, connection.id);
+            if (onTableOpen && isExpandableType(node.type)) {
+              onTableOpen(node.name, node.type, connection.id);
             }
           },
         });

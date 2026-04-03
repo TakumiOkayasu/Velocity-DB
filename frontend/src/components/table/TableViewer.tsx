@@ -118,7 +118,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
     if (!activeConnectionId) return;
     try {
       const result = await bridge.getConstraints(activeConnectionId, fullTableName);
-      setConstraints(result as ConstraintInfo[]);
+      setConstraints(result);
     } catch (err) {
       console.error('Failed to load constraints:', err);
     }
@@ -158,7 +158,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
     if (!activeConnectionId) return;
     try {
       const result = await bridge.getTableMetadata(activeConnectionId, fullTableName);
-      setMetadata(result as TableMetadata);
+      setMetadata(result);
     } catch (err) {
       console.error('Failed to load metadata:', err);
     }

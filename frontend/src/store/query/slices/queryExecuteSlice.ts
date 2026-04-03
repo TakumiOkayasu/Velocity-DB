@@ -1,5 +1,4 @@
 import { bridge as apiBridge } from '../../../api/bridge';
-import type { ResultSet } from '../../../types';
 import { log } from '../../../utils/logger';
 import { getSettings } from '../../../utils/settingsUtils';
 import {
@@ -121,13 +120,18 @@ export function createExecuteSlice(
         results: { ...state.results, [id]: queryResult },
       }));
 
-      if (!result.multipleResults && result.truncated && !hasExplicitLimit(sql)) {
+      if (
+        !result.multipleResults &&
+        result.truncated &&
+        !hasExplicitLimit(sql) &&
+        'rows' in queryResult
+      ) {
         set((state) => ({
           paginationStates: {
             ...state.paginationStates,
             [id]: {
               totalRowCount: -1,
-              loadedRowCount: (queryResult as ResultSet).rows.length,
+              loadedRowCount: queryResult.rows.length,
               isLoadingMore: false,
               hasMore: true,
               baseSql: sql,

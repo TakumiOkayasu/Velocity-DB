@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { bridge } from '../../../api/bridge';
-import type {
-  DatabaseType,
-  EnvironmentType,
-  SavedConnectionProfile,
-  SshAuthType,
+import {
+  type EnvironmentType,
+  isDatabaseType,
+  isEnvironmentType,
+  isSshAuthType,
+  type SavedConnectionProfile,
 } from '../../../types';
 import type { ConnectionConfig, SshConfig } from '../ConnectionDialog';
 
@@ -159,16 +160,19 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
           savePassword: p.savePassword ?? false,
           isProduction: p.isProduction ?? false,
           isReadOnly: p.isReadOnly ?? false,
-          environment:
-            (p.environment as EnvironmentType) ?? (p.isProduction ? 'production' : 'development'),
-          dbType: (p.dbType as DatabaseType) ?? 'sqlserver',
+          environment: isEnvironmentType(p.environment ?? '')
+            ? p.environment
+            : p.isProduction
+              ? 'production'
+              : 'development',
+          dbType: isDatabaseType(p.dbType ?? '') ? p.dbType : 'sqlserver',
           ssh: p.ssh
             ? {
                 enabled: p.ssh.enabled ?? false,
                 host: p.ssh.host ?? '',
                 port: p.ssh.port ?? 22,
                 username: p.ssh.username ?? '',
-                authType: (p.ssh.authType as SshAuthType) ?? 'password',
+                authType: isSshAuthType(p.ssh.authType ?? '') ? p.ssh.authType : 'password',
                 privateKeyPath: p.ssh.privateKeyPath ?? '',
                 savePassword: p.ssh.savePassword ?? false,
               }

@@ -7,6 +7,16 @@ export enum LogLevel {
   ERROR = 'ERROR',
 }
 
+function isLogLevel(value: unknown): value is LogLevel {
+  return (
+    typeof value === 'string' &&
+    (value === LogLevel.DEBUG ||
+      value === LogLevel.INFO ||
+      value === LogLevel.WARNING ||
+      value === LogLevel.ERROR)
+  );
+}
+
 class Logger {
   private minLevel: LogLevel;
   private logQueue: string[] = [];
@@ -16,19 +26,8 @@ class Logger {
     // Read log level from environment variable (VITE_LOG_LEVEL)
     // Valid values: DEBUG, INFO, WARNING, ERROR
     // Default: INFO
-    const envLogLevel = import.meta.env.VITE_LOG_LEVEL as string | undefined;
-    const validLevels: LogLevel[] = [
-      LogLevel.DEBUG,
-      LogLevel.INFO,
-      LogLevel.WARNING,
-      LogLevel.ERROR,
-    ];
-
-    if (envLogLevel && validLevels.includes(envLogLevel as LogLevel)) {
-      this.minLevel = envLogLevel as LogLevel;
-    } else {
-      this.minLevel = LogLevel.INFO; // Default
-    }
+    const envLogLevel: unknown = import.meta.env.VITE_LOG_LEVEL;
+    this.minLevel = isLogLevel(envLogLevel) ? envLogLevel : LogLevel.INFO;
   }
 
   setMinLevel(level: LogLevel): void {

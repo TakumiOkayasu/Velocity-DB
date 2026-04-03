@@ -32,7 +32,8 @@ describe('ConnectionDialog', () => {
     const onClose = vi.fn();
     const { container } = render(<ConnectionDialog {...defaultProps} onClose={onClose} />);
     await waitFor(() => {
-      const backdrop = container.querySelector('[class*="backdrop"]') as HTMLElement;
+      const backdrop = container.querySelector('[class*="backdrop"]');
+      if (!(backdrop instanceof HTMLElement)) throw new Error('backdrop not found');
       fireEvent.click(backdrop);
       expect(onClose).toHaveBeenCalledOnce();
     });
@@ -42,7 +43,8 @@ describe('ConnectionDialog', () => {
     const onClose = vi.fn();
     const { container } = render(<ConnectionDialog {...defaultProps} onClose={onClose} />);
     await waitFor(() => {
-      const dialog = container.querySelector('[class*="dialog"]') as HTMLElement;
+      const dialog = container.querySelector('[class*="dialog"]');
+      if (!(dialog instanceof HTMLElement)) throw new Error('dialog not found');
       fireEvent.click(dialog);
       expect(onClose).not.toHaveBeenCalled();
     });

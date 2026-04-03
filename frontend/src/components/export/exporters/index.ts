@@ -6,6 +6,7 @@ import { sqlExporter } from './sqlExporter';
 import type { Exportable, ExportFormat } from './types';
 
 export type { Exportable, ExportFormat, ExportOptions } from './types';
+export { isExportFormat } from './types';
 
 const exporterRegistry: Record<ExportFormat, Exportable> = {
   csv: csvExporter,

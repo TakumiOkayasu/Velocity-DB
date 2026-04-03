@@ -34,7 +34,7 @@ export function DataTab({
     if (!resultSet) return [];
 
     return resultSet.rows.map((row, idx) => {
-      const obj: Record<string, unknown> = { __rowIndex: idx + 1 };
+      const obj: Record<string, string | number | null> = { __rowIndex: idx + 1 };
       resultSet.columns.forEach((col, colIdx) => {
         obj[col.name] = row[colIdx] ?? null;
       });

@@ -15,9 +15,9 @@ export function useFileDrop({ addQueryFromFile, activeQueryConnectionId }: UseFi
         if (!file.name.toLowerCase().endsWith('.sql')) continue;
         const reader = new FileReader();
         reader.onload = () => {
-          const content = reader.result as string;
+          if (typeof reader.result !== 'string') return;
           const name = file.name.replace(/\.sql$/i, '');
-          addQueryFromFile(name, content, activeQueryConnectionId);
+          addQueryFromFile(name, reader.result, activeQueryConnectionId);
         };
         reader.readAsText(file);
       }

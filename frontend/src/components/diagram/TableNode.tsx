@@ -46,9 +46,9 @@ const HANDLE_DEFS: HandleDef[] = [
 
 function ColumnRow({ col, isPK }: { col: ERColumn; isPK: boolean }) {
   const isInt = col.type ? INT_RE.test(col.type) : false;
-  const useLogical = !isPlaceholder(col.logicalName);
-  const displayName = useLogical ? (col.logicalName as string) : col.name;
-  const altName = useLogical ? col.name : undefined;
+  const hasLogical = !isPlaceholder(col.logicalName) && col.logicalName;
+  const displayName = hasLogical ? col.logicalName : col.name;
+  const altName = hasLogical ? col.name : undefined;
 
   return (
     <div
@@ -74,9 +74,9 @@ export const TableNode = memo(function TableNode({ id, data, selected }: TableNo
   const isFocused = useERDiagramStore((s) => s.focusedNodeId === id);
   const { tableName, logicalName, columns, color, bkColor } = data;
 
-  const useLogicalTable = !isPlaceholder(logicalName);
-  const displayTableName = useLogicalTable ? (logicalName as string) : tableName;
-  const altTableName = useLogicalTable ? tableName : undefined;
+  const hasLogicalName = !isPlaceholder(logicalName) && logicalName;
+  const displayTableName = hasLogicalName ? logicalName : tableName;
+  const altTableName = hasLogicalName ? tableName : undefined;
 
   const primaryKeys = columns.filter((c) => c.isPrimaryKey);
   const regularColumns = columns.filter((c) => !c.isPrimaryKey);

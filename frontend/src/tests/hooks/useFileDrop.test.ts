@@ -2,8 +2,8 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useFileDrop } from '../../hooks/useFileDrop';
 
-function createDragEvent(type: string, files: File[] = []): DragEvent {
-  const event = new Event(type, { bubbles: true, cancelable: true }) as DragEvent;
+function createDragEvent(type: string, files: File[] = []): Event {
+  const event = new Event(type, { bubbles: true, cancelable: true });
   const dataTransfer = {
     types: files.length > 0 ? ['Files'] : [],
     files,
@@ -104,7 +104,7 @@ describe('useFileDrop', () => {
       useFileDrop({ addQueryFromFile, activeQueryConnectionId: null })
     );
 
-    const event = new Event('dragenter', { bubbles: true, cancelable: true }) as DragEvent;
+    const event = new Event('dragenter', { bubbles: true, cancelable: true });
     Object.defineProperty(event, 'dataTransfer', { value: { types: ['text/plain'], files: [] } });
 
     act(() => {

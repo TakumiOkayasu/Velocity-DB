@@ -1,6 +1,11 @@
 import type { DatabaseType, ResultSet } from '../../../types';
 
-export type ExportFormat = 'csv' | 'json' | 'sql' | 'html' | 'markdown';
+const EXPORT_FORMATS = ['csv', 'json', 'sql', 'html', 'markdown'] as const;
+export type ExportFormat = (typeof EXPORT_FORMATS)[number];
+
+export function isExportFormat(value: string): value is ExportFormat {
+  return (EXPORT_FORMATS as readonly string[]).includes(value);
+}
 
 export interface ExportOptions {
   format: ExportFormat;

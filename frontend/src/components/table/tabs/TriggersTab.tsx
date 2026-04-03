@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { TriggerInfo } from '../../../types';
-import { SimpleTable } from '../../common/SimpleTable';
+import { type CellValue, SimpleTable } from '../../common/SimpleTable';
 
 interface TriggersTabProps {
   triggers: TriggerInfo[];
@@ -16,7 +16,7 @@ export function TriggersTab({ triggers }: TriggersTabProps) {
         field: 'isEnabled',
         headerName: 'Enabled',
         width: 80,
-        formatter: (value: unknown) => (value ? 'Yes' : 'No'),
+        formatter: (value: CellValue) => (value ? 'Yes' : 'No'),
       },
     ],
     []

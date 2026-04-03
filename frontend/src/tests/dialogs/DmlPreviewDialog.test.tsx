@@ -55,7 +55,8 @@ describe('DmlPreviewDialog', () => {
   it('overlayクリックでonCancelが発火', () => {
     const onCancel = vi.fn();
     const { container } = render(<DmlPreviewDialog {...defaultProps} onCancel={onCancel} />);
-    fireEvent.click(container.firstChild as Element);
+    if (!(container.firstChild instanceof Element)) throw new Error('overlay not found');
+    fireEvent.click(container.firstChild);
     expect(onCancel).toHaveBeenCalledOnce();
   });
 
@@ -64,7 +65,8 @@ describe('DmlPreviewDialog', () => {
     const { container } = render(
       <DmlPreviewDialog {...defaultProps} isExecuting={true} onCancel={onCancel} />
     );
-    fireEvent.click(container.firstChild as Element);
+    if (!(container.firstChild instanceof Element)) throw new Error('overlay not found');
+    fireEvent.click(container.firstChild);
     expect(onCancel).not.toHaveBeenCalled();
   });
 

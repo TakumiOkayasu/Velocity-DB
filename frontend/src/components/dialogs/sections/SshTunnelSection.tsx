@@ -1,5 +1,5 @@
 import { bridge } from '../../../api/bridge';
-import type { SshAuthType } from '../../../types';
+import { isSshAuthType } from '../../../types';
 import type { SshConfig } from '../ConnectionDialog';
 import styles from '../ConnectionDialog.module.css';
 
@@ -56,7 +56,9 @@ export function SshTunnelSection({ ssh, onChange }: SshTunnelSectionProps) {
             <label>認証方式</label>
             <select
               value={ssh.authType}
-              onChange={(e) => onChange('authType', e.target.value as SshAuthType)}
+              onChange={(e) => {
+                if (isSshAuthType(e.target.value)) onChange('authType', e.target.value);
+              }}
               className={styles.selectInput}
             >
               <option value="password">パスワード</option>
