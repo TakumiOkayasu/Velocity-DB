@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { bridge } from '../../api/bridge';
+import { useFileDrop } from '../../hooks/useFileDrop';
 import { useKeyboardHandler } from '../../hooks/useKeyboardHandler';
 import { applyConnectionMigration } from '../../store/connectionMigration';
 import { useConnectionStore } from '../../store/connectionStore';
@@ -119,6 +120,7 @@ export function MainLayout() {
     activeQueryId,
     results,
     addQuery,
+    addQueryFromFile,
     removeQuery,
     executeQuery,
     cancelQuery,
@@ -127,6 +129,8 @@ export function MainLayout() {
   } = useQueryStore();
   const activeQuery = queries.find((q) => q.id === activeQueryId);
   const activeQueryConnectionId = activeQuery?.connectionId ?? null;
+
+  const { isFileDragOver } = useFileDrop({ addQueryFromFile, activeQueryConnectionId });
   const activeQueryConnection = connections.find((c) => c.id === activeQueryConnectionId);
   const isProduction = activeQueryConnection?.isProduction ?? false;
   const isReadOnly = activeQueryConnection?.isReadOnly ?? false;
@@ -563,6 +567,25 @@ export function MainLayout() {
           </span>
         </div>
       </footer>
+
+      {isFileDragOver && (
+        <div className={styles.fileDropOverlay}>
+          <div className={styles.fileDropOverlayInner}>
+            <svg
+              className={styles.fileDropOverlayIcon}
+              viewBox="0 0 48 48"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <path d="M24 4v28M14 22l10 10 10-10" />
+              <path d="M4 32v8a4 4 0 004 4h32a4 4 0 004-4v-8" />
+            </svg>
+            <span>.sql ファイルをドロップ</span>
+          </div>
+        </div>
+      )}
 
       {isConnectionDialogOpen && (
         <Suspense fallback={<LoadingFallback />}>

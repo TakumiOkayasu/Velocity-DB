@@ -9,7 +9,7 @@ export default defineConfig({
     headless: true,
   },
   webServer: {
-    command: 'npm run dev',
+    command: 'bun run dev',
     url: 'http://localhost:5173',
     reuseExistingServer: true,
     timeout: 30_000,

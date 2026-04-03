@@ -52,24 +52,13 @@ def run_command(
 
 
 def find_package_manager() -> PackageManager | None:
-    """Find available package manager (Bun or npm)."""
-    # Try Bun first (preferred)
+    """Find Bun package manager."""
     bun_path = shutil.which("bun")
     if bun_path:
         try:
             result = subprocess.run([bun_path, "--version"], capture_output=True, text=True)
             if result.returncode == 0:
                 return ("bun", Path(bun_path))
-        except Exception:
-            pass
-
-    # Try npm as fallback
-    npm_path = shutil.which("npm")
-    if npm_path:
-        try:
-            result = subprocess.run([npm_path, "--version"], capture_output=True, text=True)
-            if result.returncode == 0:
-                return ("npm", Path(npm_path))
         except Exception:
             pass
 
@@ -185,7 +174,7 @@ def ensure_frontend_deps() -> PackageManager | None:
     pkg_info = find_package_manager()
     if not pkg_info:
         print("\nERROR: No package manager found")
-        print("  Install one of: bun (https://bun.sh), npm (https://nodejs.org)")
+        print("  Install bun: https://bun.sh")
         return None
 
     pkg_manager, pkg_path = pkg_info

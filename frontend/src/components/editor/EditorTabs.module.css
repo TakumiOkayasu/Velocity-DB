@@ -230,13 +230,6 @@
   position: relative;
 }
 
-/* File Drag & Drop */
-.fileDragOver {
-  outline: 2px dashed var(--accent-color);
-  outline-offset: -2px;
-  background-color: var(--bg-hover);
-}
-
 /* Tab Drag & Drop */
 .dragging {
   opacity: 0.6;

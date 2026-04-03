@@ -18,6 +18,7 @@ export default defineConfig({
     },
   },
   build: {
+    cssCodeSplit: false, // WebView2仮想ホストでのCSSプリロード失敗を防止
     outDir: 'dist',
     sourcemap: 'hidden',
     cssMinify: 'lightningcss',
