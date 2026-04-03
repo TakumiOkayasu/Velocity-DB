@@ -254,7 +254,7 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/frontend/dist")
         COMMENT "Copying frontend files..."
     )
 else()
-    message(STATUS "Frontend dist not found. Run 'npm run build' in frontend/ first.")
+    message(STATUS "Frontend dist not found. Run 'bun run build' in frontend/ first.")
 endif()
 
 # Copy config directory to output directory

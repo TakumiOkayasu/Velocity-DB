@@ -6,9 +6,9 @@
   "scripts": {
     "prepare": "husky",
     "lint": "uv run scripts/pdg.py lint",
-    "lint:frontend": "cd frontend && npm run lint",
-    "lint:fix": "cd frontend && npm run lint:fix",
-    "build:frontend": "cd frontend && npm run build",
+    "lint:frontend": "cd frontend && bun run lint",
+    "lint:fix": "cd frontend && bun run lint:fix",
+    "build:frontend": "cd frontend && bun run build",
     "build": "uv run scripts/pdg.py build backend",
     "package": "uv run scripts/pdg.py package"
   },
@@ -18,7 +18,7 @@
   },
   "lint-staged": {
     "frontend/src/**/*.{ts,tsx,js,jsx,json,css}": [
-      "npx biome check --write --config-path=frontend"
+      "bunx biome check --write --config-path=frontend"
     ],
     "backend/**/*.{cpp,h}": [
       "clang-format -i --style=file"

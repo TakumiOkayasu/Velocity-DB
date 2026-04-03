@@ -41,26 +41,26 @@ hookが node/npm 直接実行をブロックするため、Docker経由で実行
 # 全テスト (Vitest)
 docker run --rm -v "C:/prog/Velocity-DB://app" \
   --mount "type=volume,target=//app/frontend/node_modules" \
-  -w "//app/frontend" node:latest \
-  sh -c 'npm install && npx vitest run --reporter=verbose'
+  -w "//app/frontend" oven/bun:latest \
+  sh -c 'bun install && bunx vitest run --reporter=verbose'
 
 # 単一テストファイル
 docker run --rm -v "C:/prog/Velocity-DB://app" \
   --mount "type=volume,target=//app/frontend/node_modules" \
-  -w "//app/frontend" node:latest \
-  sh -c 'npm install && npx vitest run --reporter=verbose src/tests/hooks/useColumnActions.test.ts'
+  -w "//app/frontend" oven/bun:latest \
+  sh -c 'bun install && bunx vitest run --reporter=verbose src/tests/hooks/useColumnActions.test.ts'
 
 # biome lint (変更ファイルのみ)
 docker run --rm -v "C:/prog/Velocity-DB://app" \
   --mount "type=volume,target=//app/frontend/node_modules" \
-  -w "//app/frontend" node:latest \
-  sh -c 'npm install && npx biome check src/path/to/file.ts'
+  -w "//app/frontend" oven/bun:latest \
+  sh -c 'bun install && bunx biome check src/path/to/file.ts'
 
 # E2Eテスト (Playwright)
 docker run --rm -v "C:/prog/Velocity-DB://app" \
   --mount "type=volume,target=//app/frontend/node_modules" \
-  -w "//app/frontend" node:latest \
-  sh -c 'npm install && npx playwright install --with-deps chromium && npx playwright test'
+  -w "//app/frontend" oven/bun:latest \
+  sh -c 'bun install && bunx playwright install --with-deps chromium && bunx playwright test'
 ```
 
 `--mount type=volume` で node_modules を隔離（Windows/Linux バイナリ非互換対策）。
