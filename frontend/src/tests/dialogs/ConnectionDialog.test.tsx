@@ -80,6 +80,17 @@ describe('ConnectionDialog', () => {
     });
   });
 
+  it('ダイアログ内のフォーム要素クリックでは閉じない', async () => {
+    const onClose = vi.fn();
+    render(<ConnectionDialog {...defaultProps} onClose={onClose} />);
+    await waitFor(() => {
+      const input = document.querySelector('input');
+      if (!(input instanceof HTMLElement)) throw new Error('input not found');
+      fireEvent.click(input);
+      expect(onClose).not.toHaveBeenCalled();
+    });
+  });
+
   it('接続中にキャンセルボタンでonCancelConnect+onCloseが呼ばれる', async () => {
     const onClose = vi.fn();
     const onCancelConnect = vi.fn();

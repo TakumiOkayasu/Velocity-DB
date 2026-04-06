@@ -154,7 +154,7 @@ export function ConnectionDialog({
         tabIndex={-1}
         aria-label="ダイアログを閉じる"
       />
-      <div className={styles.dialog}>
+      <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <h2>DB接続</h2>
           <button type="button" className={styles.closeButton} onClick={onClose}>
