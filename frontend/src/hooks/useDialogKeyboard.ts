@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useLayoutEffect } from 'react';
 
 interface UseDialogKeyboardOptions {
   /** ダイアログが開いているかどうか */
@@ -30,7 +30,7 @@ export function useDialogKeyboard({ isOpen, onEscape, onSubmit }: UseDialogKeybo
     [isOpen, onEscape, onSubmit]
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
