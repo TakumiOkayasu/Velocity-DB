@@ -99,8 +99,7 @@ std::string IOProvider::loadQueryFromFile(std::string_view) {
         }
         if (fileSize > kMaxFileSize) {
             auto sizeMB = static_cast<double>(fileSize) / (1024.0 * 1024.0);
-            return JsonUtils::errorResponse(
-                std::format("File too large ({:.1f} MB). Maximum supported size: 10 MB", sizeMB));
+            return JsonUtils::errorResponse(std::format("File too large ({:.1f} MB). Maximum supported size: 10 MB", sizeMB));
         }
 
         auto readResult = FileDialog::readFile(result.value());
