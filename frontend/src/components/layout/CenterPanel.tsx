@@ -1,23 +1,24 @@
-import { lazy, Suspense, useCallback, useMemo } from 'react';
+import { Suspense, useCallback, useMemo } from 'react';
 import { useERImport } from '../../hooks/useERImport';
 import { useConnectionStore } from '../../store/connectionStore';
 import { useActiveQuery, useQueryStore } from '../../store/queryStore';
 import { connectionColor } from '../../utils/colorContrast';
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
 import { log } from '../../utils/logger';
 import { EditorTabs } from '../editor/EditorTabs';
 import styles from './CenterPanel.module.css';
 
 // Lazy load heavy components to reduce initial bundle size
-const SqlEditor = lazy(() =>
+const SqlEditor = lazyWithRetry(() =>
   import('../editor/SqlEditor').then((module) => ({ default: module.SqlEditor }))
 );
-const ResultGrid = lazy(() =>
+const ResultGrid = lazyWithRetry(() =>
   import('../grid/ResultGrid').then((module) => ({ default: module.ResultGrid }))
 );
-const ERDiagramView = lazy(() =>
+const ERDiagramView = lazyWithRetry(() =>
   import('../diagram/ERDiagram').then((module) => ({ default: module.ERDiagram }))
 );
-const ERImportDialog = lazy(() =>
+const ERImportDialog = lazyWithRetry(() =>
   import('../dialogs/ERImportDialog').then((module) => ({ default: module.ERImportDialog }))
 );
 

@@ -9,7 +9,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useConnectionStore } from '../../store/connectionStore';
 import {
   useIsActiveDataView,
@@ -31,6 +31,7 @@ import {
   type RowData,
 } from '../../types/grid';
 import { parseErrorMessage } from '../../utils/errorParser';
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
 import { log } from '../../utils/logger';
 import { QueryConfirmDialog } from '../dialogs/QueryConfirmDialog';
 import { GridFilterBar } from './GridFilterBar';
@@ -47,13 +48,13 @@ import { ResultTabs } from './ResultTabs';
 import { TransposeView } from './TransposeView';
 import { ValueEditorDialog } from './ValueEditorDialog';
 
-const DmlPreviewDialog = lazy(() =>
+const DmlPreviewDialog = lazyWithRetry(() =>
   import('../dialogs/DmlPreviewDialog').then((m) => ({ default: m.DmlPreviewDialog }))
 );
-const ErrorDetailDialog = lazy(() =>
+const ErrorDetailDialog = lazyWithRetry(() =>
   import('../dialogs/ErrorDetailDialog').then((m) => ({ default: m.ErrorDetailDialog }))
 );
-const ExportDialog = lazy(() =>
+const ExportDialog = lazyWithRetry(() =>
   import('../export/ExportDialog').then((m) => ({ default: m.ExportDialog }))
 );
 
