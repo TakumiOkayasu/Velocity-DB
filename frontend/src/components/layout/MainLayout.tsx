@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { bridge } from '../../api/bridge';
 import { useFileDrop } from '../../hooks/useFileDrop';
 import { useKeyboardHandler } from '../../hooks/useKeyboardHandler';
@@ -6,6 +6,7 @@ import { applyConnectionMigration } from '../../store/connectionMigration';
 import { useConnectionStore } from '../../store/connectionStore';
 import { useQueryStore } from '../../store/queryStore';
 import { useSessionStore } from '../../store/sessionStore';
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
 import {
   checkSqlSafety,
   getQueryWarnings,
@@ -17,19 +18,19 @@ import { CenterPanel } from './CenterPanel';
 import styles from './MainLayout.module.css';
 
 // Lazy load heavy components (dialogs, panels) to reduce initial bundle size
-const LeftPanel = lazy(() =>
+const LeftPanel = lazyWithRetry(() =>
   import('./LeftPanel').then((module) => ({ default: module.LeftPanel }))
 );
-const BottomPanel = lazy(() =>
+const BottomPanel = lazyWithRetry(() =>
   import('./BottomPanel').then((module) => ({ default: module.BottomPanel }))
 );
-const ConnectionDialog = lazy(() =>
+const ConnectionDialog = lazyWithRetry(() =>
   import('../dialogs/ConnectionDialog').then((module) => ({ default: module.ConnectionDialog }))
 );
-const SearchDialog = lazy(() =>
+const SearchDialog = lazyWithRetry(() =>
   import('../dialogs/SearchDialog').then((module) => ({ default: module.SearchDialog }))
 );
-const SettingsDialog = lazy(() =>
+const SettingsDialog = lazyWithRetry(() =>
   import('../dialogs/SettingsDialog').then((module) => ({ default: module.SettingsDialog }))
 );
 // Simple loading fallback

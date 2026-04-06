@@ -1,11 +1,12 @@
-import { lazy, Suspense, useState } from 'react';
+import { Suspense, useState } from 'react';
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
 import styles from './BottomPanel.module.css';
 
 // Lazy load heavy components (TanStack Table)
-const ResultGrid = lazy(() =>
+const ResultGrid = lazyWithRetry(() =>
   import('../grid/ResultGrid').then((module) => ({ default: module.ResultGrid }))
 );
-const QueryHistory = lazy(() =>
+const QueryHistory = lazyWithRetry(() =>
   import('../history/QueryHistory').then((module) => ({ default: module.QueryHistory }))
 );
 
