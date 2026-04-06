@@ -325,4 +325,19 @@ describe('connectionStore', () => {
       expect(useConnectionStore.getState().error).toBeNull();
     });
   });
+
+  describe('profileVersion', () => {
+    it('初期値は0', () => {
+      const state = useConnectionStore.getState();
+      expect(state.profileVersion).toBe(0);
+    });
+
+    it('incrementProfileVersionで値が1増加する', () => {
+      useConnectionStore.getState().incrementProfileVersion();
+      expect(useConnectionStore.getState().profileVersion).toBe(1);
+
+      useConnectionStore.getState().incrementProfileVersion();
+      expect(useConnectionStore.getState().profileVersion).toBe(2);
+    });
+  });
 });

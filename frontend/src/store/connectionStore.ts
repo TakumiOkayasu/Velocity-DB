@@ -24,6 +24,8 @@ interface ConnectionState {
   clearError: () => void;
   setTableListLoadTime: (connectionId: string, loadTimeMs: number) => void;
   setTableOpenTime: (connectionId: string, loadTimeMs: number) => void;
+  profileVersion: number;
+  incrementProfileVersion: () => void;
 }
 
 export const useConnectionStore = create<ConnectionState>((set, get) => ({
@@ -245,6 +247,11 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         c.id === connectionId ? { ...c, tableOpenTimeMs: loadTimeMs } : c
       ),
     }));
+  },
+
+  profileVersion: 0,
+  incrementProfileVersion: () => {
+    set((state) => ({ profileVersion: state.profileVersion + 1 }));
   },
 }));
 
