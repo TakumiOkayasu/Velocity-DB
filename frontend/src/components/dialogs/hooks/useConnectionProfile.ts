@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { bridge } from '../../../api/bridge';
+import { useConnectionStore } from '../../../store/connectionStore';
 import {
   type EnvironmentType,
   isDatabaseType,
@@ -325,6 +326,7 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
       setMode('edit');
       setEditingProfileId(result.id);
       setTestResult({ success: true, message: 'Profile saved' });
+      useConnectionStore.getState().incrementProfileVersion();
     } catch (e) {
       console.error('Failed to save profile:', e);
       setTestResult({ success: false, message: 'Failed to save profile' });
@@ -345,6 +347,7 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
 
       const updatedProfiles = profiles.filter((p) => p.id !== editingProfileId);
       setProfiles(updatedProfiles);
+      useConnectionStore.getState().incrementProfileVersion();
 
       if (updatedProfiles.length > 0) {
         const operationId = ++operationCounterRef.current;

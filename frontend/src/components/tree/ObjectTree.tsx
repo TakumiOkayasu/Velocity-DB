@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { bridge } from '../../api/bridge';
 import { applyConnectionMigration } from '../../store/connectionMigration';
 import { useConnectionActions, useConnectionStore } from '../../store/connectionStore';
@@ -35,13 +36,18 @@ interface ObjectTreeProps {
 }
 
 export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
-  const { connections } = useConnectionStore();
+  const { connections, profileVersion } = useConnectionStore(
+    useShallow((state) => ({
+      connections: state.connections,
+      profileVersion: state.profileVersion,
+    }))
+  );
   const { addConnection, cancelConnection } = useConnectionActions();
   const [profiles, setProfiles] = useState<SavedProfile[]>([]);
   const [confirmingProfile, setConfirmingProfile] = useState<SavedProfile | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
 
-  // Fetch profiles on mount
+  // biome-ignore lint/correctness/useExhaustiveDependencies: profileVersion is an intentional re-fetch trigger
   useEffect(() => {
     const fetchProfiles = async () => {
       try {
@@ -52,7 +58,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
       }
     };
     fetchProfiles();
-  }, []);
+  }, [profileVersion]);
 
   // Get active connections
   const activeConnections = connections.filter((c) => c.isActive);
