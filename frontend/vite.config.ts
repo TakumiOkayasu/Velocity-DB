@@ -24,8 +24,8 @@ export default defineConfig({
     cssMinify: 'lightningcss',
     minify: 'esbuild',
     target: 'es2020',
-    chunkSizeWarningLimit: 1000,
-    rollupOptions: {
+    chunkSizeWarningLimit: 5000, // Monaco Editor vendor chunk is ~4.3MB
+    rolldownOptions: {
       output: {
         // Optimize chunk naming for better caching
         entryFileNames: 'assets/[name]-[hash].js',
