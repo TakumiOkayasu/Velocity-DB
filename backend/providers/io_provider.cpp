@@ -89,6 +89,19 @@ std::string IOProvider::loadQueryFromFile(std::string_view) {
             return JsonUtils::errorResponse(result.error());
         }
 
+        // ファイルサイズチェック（OOM防止）
+        // NOTE: file_size→readFile間のTOCTOUは許容（ユーザー選択のローカルファイル）
+        constexpr auto kMaxFileSize = static_cast<std::uintmax_t>(10) * 1024 * 1024;  // 10MB
+        std::error_code ec;
+        auto fileSize = std::filesystem::file_size(result.value(), ec);
+        if (ec) {
+            return JsonUtils::errorResponse(std::format("Failed to get file size: {}", ec.message()));
+        }
+        if (fileSize > kMaxFileSize) {
+            auto sizeMB = static_cast<double>(fileSize) / (1024.0 * 1024.0);
+            return JsonUtils::errorResponse(std::format("File too large ({:.1f} MB). Maximum supported size: 10 MB", sizeMB));
+        }
+
         auto readResult = FileDialog::readFile(result.value());
         if (!readResult) {
             return JsonUtils::errorResponse(readResult.error());
