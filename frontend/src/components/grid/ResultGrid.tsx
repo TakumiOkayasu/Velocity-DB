@@ -349,14 +349,15 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   // --- Reset scroll & UI state when switching query tabs ---
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally triggered by targetQueryId change
   useEffect(() => {
+    rowVirtualizer.scrollToOffset(0);
     if (tableContainerRef.current) {
-      tableContainerRef.current.scrollTop = 0;
       tableContainerRef.current.scrollLeft = 0;
     }
     setSelectedRows(new Set());
     setSelectedColumns(new Set());
     setSorting([]);
     setColumnFilters([]);
+    setShowColumnFilters(false);
     setActiveResultIndex(0);
   }, [targetQueryId]);
 
