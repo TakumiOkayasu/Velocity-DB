@@ -346,6 +346,20 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   const virtualTotalSize = rowVirtualizer.getTotalSize();
   const lastVirtualIndex = virtualRows[virtualRows.length - 1]?.index ?? -1;
 
+  // --- Reset scroll & UI state when switching query tabs ---
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally triggered by targetQueryId change
+  useEffect(() => {
+    if (tableContainerRef.current) {
+      tableContainerRef.current.scrollTop = 0;
+      tableContainerRef.current.scrollLeft = 0;
+    }
+    setSelectedRows(new Set());
+    setSelectedColumns(new Set());
+    setSorting([]);
+    setColumnFilters([]);
+    setActiveResultIndex(0);
+  }, [targetQueryId]);
+
   // --- Infinite scroll: fetch more rows when nearing bottom ---
   useEffect(() => {
     if (!targetQueryId || lastVirtualIndex < 0 || rows.length === 0) return;
