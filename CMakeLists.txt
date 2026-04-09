@@ -53,6 +53,29 @@ if(ENABLE_SIMD AND MSVC)
     add_compile_options(/arch:AVX2)
 endif()
 
+# Link-Time Optimization (Release only)
+# MSVC: adds /GL (compile) + /LTCG (link) for cross-translation-unit inlining
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ipo_supported OUTPUT ipo_output LANGUAGES CXX)
+if(ipo_supported)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+    message(STATUS "LTO enabled for Release builds")
+else()
+    message(STATUS "LTO not supported: ${ipo_output}")
+endif()
+
+# Additional Release optimizations (MSVC)
+if(MSVC)
+    add_compile_options(
+        $<$<CONFIG:Release>:/Gy>  # Function-level linking (unused function removal)
+        $<$<CONFIG:Release>:/Gw>  # Global data optimization (unused data removal)
+    )
+    add_link_options(
+        $<$<CONFIG:Release>:/OPT:REF>   # Remove unreferenced functions
+        $<$<CONFIG:Release>:/OPT:ICF>   # Fold identical COMDATs
+    )
+endif()
+
 # Third-party libraries
 add_subdirectory(third_party)
 
