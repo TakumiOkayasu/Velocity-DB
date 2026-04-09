@@ -225,7 +225,10 @@ private:
         // compositing prevents partial rendering failures in WebView2.
         auto options = Microsoft::WRL::Make<CoreWebView2EnvironmentOptions>();
         if (options) {
-            options->put_AdditionalBrowserArguments(L"--disable-gpu-compositing");
+            options->put_AdditionalBrowserArguments(
+                L"--disable-gpu-compositing "
+                L"--disable-renderer-backgrounding"
+            );
         }
 
         HRESULT hr = CreateCoreWebView2EnvironmentWithOptions(

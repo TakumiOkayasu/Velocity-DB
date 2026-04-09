@@ -61,6 +61,19 @@ const preventShiftSelect = (e: MouseEvent) => {
   if (e.shiftKey) e.preventDefault();
 };
 
+/** Extract row/cell info from a bubbled event via data attributes */
+function findCellFromEvent(e: MouseEvent) {
+  const td = (e.target as HTMLElement).closest('td[data-field]') as HTMLElement | null;
+  if (!td) return null;
+  const tr = td.closest('tr[data-row-index]') as HTMLElement | null;
+  if (!tr) return null;
+  const field = td.dataset.field;
+  const rowIndexStr = tr.dataset.rowIndex;
+  const originalIndexStr = tr.dataset.originalIndex;
+  if (!field || rowIndexStr == null || originalIndexStr == null) return null;
+  return { field, rowIndex: Number(rowIndexStr), originalIndex: Number(originalIndexStr) };
+}
+
 function GridTableInner({
   table,
   tableContainerRef,
@@ -148,7 +161,37 @@ function GridTableInner({
             </tr>
           )}
         </thead>
-        <tbody className={styles.tbody}>
+        <tbody
+          className={styles.tbody}
+          onClick={(e) => {
+            const info = findCellFromEvent(e);
+            if (!info) return;
+            const { field, rowIndex } = info;
+            if (isSystemColumn(field)) {
+              e.shiftKey ? callbacks.onRowRangeSelect(rowIndex) : callbacks.onRowToggle(rowIndex);
+            } else {
+              e.shiftKey
+                ? callbacks.onCellRangeSelect(rowIndex, field)
+                : callbacks.onCellClick(rowIndex, field);
+            }
+          }}
+          onContextMenu={(e) => {
+            const info = findCellFromEvent(e);
+            if (!info) return;
+            openCellMenu(e, info.rowIndex, info.field);
+          }}
+          onDoubleClick={(e) => {
+            if (!edit.isEditMode) return;
+            const info = findCellFromEvent(e);
+            if (!info) return;
+            const { field, rowIndex, originalIndex } = info;
+            if (isSystemColumn(field)) return;
+            const row = rows[rowIndex];
+            if (!row) return;
+            const value = row.getValue(field);
+            callbacks.onStartEdit(originalIndex, field, typeof value === 'string' ? value : null);
+          }}
+        >
           {paddingTop > 0 && (
             <tr>
               <td style={{ height: `${paddingTop}px` }} />
@@ -175,11 +218,8 @@ function GridTableInner({
               <tr
                 key={row.id}
                 className={rowClasses}
-                onClick={(e) =>
-                  e.shiftKey
-                    ? callbacks.onRowRangeSelect(rowIndex)
-                    : callbacks.onRowToggle(rowIndex)
-                }
+                data-row-index={rowIndex}
+                data-original-index={originalIndex}
               >
                 {row.getVisibleCells().map((cell) => {
                   const value = cell.getValue();
@@ -193,7 +233,6 @@ function GridTableInner({
                   const isEditing =
                     edit.editingCell?.rowIndex === originalIndex &&
                     edit.editingCell?.columnId === field;
-                  const isEditable = edit.isEditMode && !isSystemColumn(field);
                   const validationError = !isSystemColumn(field)
                     ? edit.getValidationError(originalIndex, field)
                     : null;
@@ -222,25 +261,7 @@ function GridTableInner({
                         width: cell.column.getSize(),
                         textAlign: isNull ? 'center' : align,
                       }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (isSystemColumn(field)) {
-                          e.shiftKey
-                            ? callbacks.onRowRangeSelect(rowIndex)
-                            : callbacks.onRowToggle(rowIndex);
-                          return;
-                        }
-                        e.shiftKey
-                          ? callbacks.onCellRangeSelect(rowIndex, field)
-                          : callbacks.onCellClick(rowIndex, field);
-                      }}
-                      onContextMenu={(e) => openCellMenu(e, rowIndex, field)}
-                      onDoubleClick={() => {
-                        if (isEditable) {
-                          const cellValue = typeof value === 'string' ? value : null;
-                          callbacks.onStartEdit(originalIndex, field, cellValue);
-                        }
-                      }}
+                      data-field={field}
                     >
                       {isEditing ? (
                         <input
