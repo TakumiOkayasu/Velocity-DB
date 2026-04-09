@@ -76,6 +76,10 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
       }
 
       const result = await bridge.executeQuery(activeConnectionId, sql, false);
+      if ('multipleResults' in result) {
+        setError('複数ステートメントの結果はテーブルビューアでは表示できません');
+        return;
+      }
       setResultSet({
         columns: result.columns.map((c) => ({
           ...c,

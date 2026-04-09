@@ -277,13 +277,27 @@ class Bridge {
     connectionId: string,
     sql: string,
     useCache = true
-  ): Promise<{
-    columns: { name: string; type: string; comment?: string }[];
-    rows: (string | null)[][];
-    affectedRows: number;
-    executionTimeMs: number;
-    cached: boolean;
-  }> {
+  ): Promise<
+    | {
+        columns: { name: string; type: string; comment?: string }[];
+        rows: (string | null)[][];
+        affectedRows: number;
+        executionTimeMs: number;
+        cached: boolean;
+      }
+    | {
+        multipleResults: true;
+        results: {
+          statement: string;
+          data: {
+            columns: { name: string; type: string }[];
+            rows: (string | null)[][];
+            affectedRows: number;
+            executionTimeMs: number;
+          };
+        }[];
+      }
+  > {
     return this.call('executeQuery', { connectionId, sql, useCache }, S.executeQuery);
   }
 

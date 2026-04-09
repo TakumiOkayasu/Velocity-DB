@@ -20,13 +20,28 @@ const columnSchema = z.object({
   type: z.string(),
   comment: z.string().optional(),
 });
-export const executeQuery = z.object({
+const singleResultSchema = z.object({
   columns: z.array(columnSchema),
   rows: z.any(), // perf: skip per-row validation
   affectedRows: z.number(),
   executionTimeMs: z.number(),
   cached: z.boolean(),
 });
+const multipleResultSchema = z.object({
+  multipleResults: z.literal(true),
+  results: z.array(
+    z.object({
+      statement: z.string(),
+      data: z.object({
+        columns: z.array(z.object({ name: z.string(), type: z.string() })),
+        rows: z.any(),
+        affectedRows: z.number(),
+        executionTimeMs: z.number(),
+      }),
+    })
+  ),
+});
+export const executeQuery = z.union([singleResultSchema, multipleResultSchema]);
 export const executeQueryPaginated = z.object({
   columns: z.array(z.object({ name: z.string(), type: z.string() })),
   rows: z.any(),

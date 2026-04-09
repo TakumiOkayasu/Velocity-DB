@@ -33,13 +33,10 @@ export function ExecutionPlanDialog({ isOpen, onClose, sql }: ExecutionPlanDialo
 
         const result = await bridge.executeQuery(activeConnectionId, planQuery);
 
-        if (result.rows.length > 0) {
-          // Combine all plan text rows
-          const plan = result.rows.map((row) => row.map((v) => v ?? '').join(' ')).join('\n');
-          setPlanText(plan);
-        } else {
-          setPlanText('実行計画を取得できません');
-        }
+        const allRows: (string | null)[][] =
+          'multipleResults' in result ? result.results.flatMap((r) => r.data.rows) : result.rows;
+        const plan = allRows.map((row) => row.map((v) => v ?? '').join(' ')).join('\n');
+        setPlanText(plan || '実行計画を取得できません');
       } catch (err) {
         setError(err instanceof Error ? err.message : '実行計画の取得に失敗しました');
       } finally {
