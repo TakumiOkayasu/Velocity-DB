@@ -54,7 +54,7 @@ std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<IDatabaseDriver> dri
     // Capture shared_ptr by value to ensure driver and task lifetime extends through async execution
     if (statements.size() > 1) {
         // Multiple statements: execute sequentially and collect all results
-        task->future = std::async(std::launch::async, [driver, statements, task, wrapTransaction]() -> QueryResultVariant {
+        task->future = m_pool.submit([driver, statements, task, wrapTransaction]() -> QueryResultVariant {
             try {
                 if (wrapTransaction)
                     (void)driver->execute(beginTransactionSQL(driver->getType()));
@@ -109,7 +109,7 @@ std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<IDatabaseDriver> dri
     } else {
         // Single statement
         std::string sqlCopy(sql);
-        task->future = std::async(std::launch::async, [driver, sqlCopy, task]() -> QueryResultVariant {
+        task->future = m_pool.submit([driver, sqlCopy, task]() -> QueryResultVariant {
             try {
                 auto result = driver->execute(sqlCopy);
                 task->endTime = std::chrono::steady_clock::now();
@@ -137,7 +137,7 @@ std::string AsyncQueryExecutor::submitTask(std::function<QueryResultVariant()> t
     queryTask->startTime = std::chrono::steady_clock::now();
     queryTask->status = QueryStatus::Running;
 
-    queryTask->future = std::async(std::launch::async, [queryTask, fn = std::move(task)]() -> QueryResultVariant {
+    queryTask->future = m_pool.submit([queryTask, fn = std::move(task)]() -> QueryResultVariant {
         try {
             auto result = fn();
             queryTask->endTime = std::chrono::steady_clock::now();
