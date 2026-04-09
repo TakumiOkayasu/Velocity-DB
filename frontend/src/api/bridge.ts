@@ -496,6 +496,10 @@ class Bridge {
     return this.call('clearCache', {}, S.clearCache);
   }
 
+  async clearSchemaCache(): Promise<{ cleared: boolean }> {
+    return this.call('clearSchemaCache', {}, S.clearCache);
+  }
+
   // Async query methods
   async executeAsyncQuery(connectionId: string, sql: string): Promise<{ queryId: string }> {
     return this.call('executeAsyncQuery', { connectionId, sql }, S.executeAsyncQuery);
