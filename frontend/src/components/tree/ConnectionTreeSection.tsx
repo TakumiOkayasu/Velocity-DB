@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { bridge } from '../../api/bridge';
-import { useColumnActions, validateIdentifier } from '../../hooks/useColumnActions';
+import { useColumnActions } from '../../hooks/useColumnActions';
 import { useTableActions } from '../../hooks/useTableActions';
 import { useConnectionStore } from '../../store/connectionStore';
 import type { Connection, DatabaseObject, MenuItem } from '../../types';
@@ -14,10 +14,9 @@ import {
   shouldLoadColumns,
   updateNodeChildren,
 } from '../../utils/treeNode';
-import { InputDialog } from '../dialogs/InputDialog';
-import { QueryConfirmDialog } from '../dialogs/QueryConfirmDialog';
 import { ContextMenu } from './ContextMenu';
 import styles from './ObjectTree.module.css';
+import { TreeDialogs } from './TreeDialogs';
 import { TreeNode } from './TreeNode';
 
 interface ConnectionTreeSectionProps {
@@ -433,69 +432,16 @@ export function ConnectionTreeSection({
         />
       )}
 
-      <InputDialog
-        isOpen={columnAction?.type === 'rename-input'}
-        title="カラム名を変更"
-        message={`"${columnAction?.type === 'rename-input' ? columnAction.colName : ''}" の新しい名前を入力してください`}
-        defaultValue={columnAction?.type === 'rename-input' ? columnAction.colName : ''}
-        placeholder="新しいカラム名"
-        confirmLabel="変更"
-        validate={validateIdentifier}
-        onConfirm={handleRenameInput}
-        onCancel={dismiss}
-      />
-
-      <QueryConfirmDialog
-        isOpen={columnAction?.type === 'rename-confirm'}
-        title="カラム名変更の確認"
-        message="以下のSQLを実行します。よろしいですか？"
-        details={columnAction?.type === 'rename-confirm' ? columnAction.sql : undefined}
-        confirmLabel="実行"
-        onConfirm={handleRenameConfirm}
-        onCancel={dismiss}
-      />
-
-      <QueryConfirmDialog
-        isOpen={columnAction?.type === 'drop-confirm'}
-        title="カラム削除の確認"
-        message={`カラム "${columnAction?.type === 'drop-confirm' ? columnAction.colName : ''}" を削除します。この操作は元に戻せません。`}
-        details={columnAction?.type === 'drop-confirm' ? columnAction.sql : undefined}
-        isDestructive
-        confirmLabel="削除"
-        onConfirm={handleDropConfirm}
-        onCancel={dismiss}
-      />
-
-      <QueryConfirmDialog
-        isOpen={tableAction?.type === 'drop-confirm'}
-        title="テーブル削除の確認"
-        message={
-          tableAction?.type === 'drop-confirm'
-            ? `テーブル "${tableAction.tableName}" を削除します。${tableAction.hasFK ? 'FK制約が自動的に削除されます。' : ''}この操作は元に戻せません。`
-            : ''
-        }
-        details={tableAction?.type === 'drop-confirm' ? tableAction.sqls.join(';\n') : undefined}
-        isDestructive
-        confirmLabel="削除"
-        onConfirm={confirmTableDrop}
-        onCancel={dismissTableAction}
-      />
-
-      <QueryConfirmDialog
-        isOpen={tableAction?.type === 'truncate-confirm'}
-        title="テーブルを空にする確認"
-        message={
-          tableAction?.type === 'truncate-confirm'
-            ? `テーブル "${tableAction.tableName}" の全データを削除します。${tableAction.hasFK ? 'FK制約が自動的に処理されます。' : ''}`
-            : ''
-        }
-        details={
-          tableAction?.type === 'truncate-confirm' ? tableAction.sqls.join(';\n') : undefined
-        }
-        isDestructive
-        confirmLabel="実行"
-        onConfirm={confirmTruncate}
-        onCancel={dismissTableAction}
+      <TreeDialogs
+        columnAction={columnAction}
+        tableAction={tableAction}
+        onRenameInput={handleRenameInput}
+        onRenameConfirm={handleRenameConfirm}
+        onDropColumnConfirm={handleDropConfirm}
+        onDismissColumn={dismiss}
+        onDropTableConfirm={confirmTableDrop}
+        onTruncateConfirm={confirmTruncate}
+        onDismissTable={dismissTableAction}
       />
     </div>
   );

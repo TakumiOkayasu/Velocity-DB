@@ -23,13 +23,7 @@ import {
 } from '../../store/queryStore';
 import { useSessionStore } from '../../store/sessionStore';
 import type { ResultSet } from '../../types';
-import {
-  type ColumnMeta,
-  type GridViewMode,
-  isNumericType,
-  isSystemColumn,
-  type RowData,
-} from '../../types/grid';
+import { type ColumnMeta, type GridViewMode, isNumericType, type RowData } from '../../types/grid';
 import { parseErrorMessage } from '../../utils/errorParser';
 import { lazyWithRetry } from '../../utils/lazyWithRetry';
 import { log } from '../../utils/logger';
@@ -42,7 +36,9 @@ import { useColumnAutoSize } from './hooks/useColumnAutoSize';
 import { useElapsedTimer } from './hooks/useElapsedTimer';
 import { useGridEdit } from './hooks/useGridEdit';
 import { useGridKeyboard } from './hooks/useGridKeyboard';
+import { useGridSelection } from './hooks/useGridSelection';
 import { useRelatedRows } from './hooks/useRelatedRows';
+import { useWhereFilter } from './hooks/useWhereFilter';
 import styles from './ResultGrid.module.css';
 import { ResultTabs } from './ResultTabs';
 import { TransposeView } from './TransposeView';
@@ -93,12 +89,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   } = useQueryActions();
 
   // --- Local state ---
-  const [whereClause, setWhereClause] = useState('');
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
-  const [selectedColumns, setSelectedColumns] = useState<Set<string>>(new Set());
-  const lastClickedRowRef = useRef<number | null>(null);
-  const lastClickedColumnRef = useRef<string | null>(null);
   const rowsLengthRef = useRef(0);
   const columnOrderRef = useRef<string[]>([]);
   const viewRowsRef = useRef<Row<RowData>[]>([]);
@@ -114,10 +105,36 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [showColumnFilters, setShowColumnFilters] = useState(false);
-  const [whereFilterError, setWhereFilterError] = useState<string | null>(null);
   const [isErrorDialogOpen, setIsErrorDialogOpen] = useState(false);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const elapsedSeconds = useElapsedTimer(isExecuting);
+
+  const {
+    selectedRows,
+    selectedColumns,
+    selectionState: gridSelectionState,
+    toggleRow,
+    rangeSelectRow,
+    selectCell,
+    rangeCellSelect,
+    selectColumn,
+    rangeSelectColumn,
+    resetSelection,
+  } = useGridSelection(rowsLengthRef, columnOrderRef);
+
+  const {
+    whereClause,
+    setWhereClause,
+    whereFilterError,
+    setWhereFilterError,
+    whereKeyDown,
+    whereApply,
+    whereClear,
+  } = useWhereFilter({
+    activeQueryId: targetQueryId,
+    queryConnectionId,
+    applyWhereFilter,
+  });
 
   useEffect(() => {
     setIsErrorDialogOpen(!!error);
@@ -353,8 +370,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     if (tableContainerRef.current) {
       tableContainerRef.current.scrollLeft = 0;
     }
-    setSelectedRows(new Set());
-    setSelectedColumns(new Set());
+    resetSelection();
     setSorting([]);
     setColumnFilters([]);
     setShowColumnFilters(false);
@@ -394,93 +410,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     ]
   );
 
-  const gridSelectionState = useMemo(
-    () => ({ selectedRows, selectedColumns }),
-    [selectedRows, selectedColumns]
-  );
-
   // --- Callbacks for sub-components ---
-  const toggleRow = useCallback((rowIndex: number) => {
-    setSelectedRows((prev) => {
-      const next = new Set(prev);
-      if (next.has(rowIndex)) next.delete(rowIndex);
-      else next.add(rowIndex);
-      return next;
-    });
-    lastClickedRowRef.current = rowIndex;
-    setSelectedColumns(new Set());
-  }, []);
-
-  const rangeSelectRow = useCallback((rowIndex: number) => {
-    if (lastClickedRowRef.current === null) return;
-    const start = Math.min(lastClickedRowRef.current, rowIndex);
-    const end = Math.max(lastClickedRowRef.current, rowIndex);
-    const range = new Set<number>();
-    for (let i = start; i <= end; i++) range.add(i);
-    setSelectedRows(range);
-    setSelectedColumns(new Set());
-  }, []);
-
-  const selectCell = useCallback((rowIndex: number, field: string) => {
-    if (isSystemColumn(field)) return;
-    setSelectedRows(new Set([rowIndex]));
-    setSelectedColumns(new Set([field]));
-    lastClickedRowRef.current = rowIndex;
-    lastClickedColumnRef.current = field;
-  }, []);
-
-  const rangeCellSelect = useCallback(
-    (rowIndex: number, field: string) => {
-      if (isSystemColumn(field)) return;
-      if (lastClickedRowRef.current === null || lastClickedColumnRef.current !== field) {
-        selectCell(rowIndex, field);
-        return;
-      }
-      const start = Math.min(lastClickedRowRef.current, rowIndex);
-      const end = Math.max(lastClickedRowRef.current, rowIndex);
-      const range = new Set<number>();
-      for (let i = start; i <= end; i++) range.add(i);
-      setSelectedRows(range);
-      setSelectedColumns(new Set([field]));
-    },
-    [selectCell]
-  );
-
-  const selectAllRows = useCallback(() => {
-    const count = rowsLengthRef.current;
-    setSelectedRows((prev) => {
-      if (prev.size === count) return prev;
-      const allRows = new Set<number>();
-      for (let i = 0; i < count; i++) allRows.add(i);
-      return allRows;
-    });
-  }, []);
-
-  const selectColumn = useCallback(
-    (columnId: string) => {
-      setSelectedColumns(new Set([columnId]));
-      selectAllRows();
-      lastClickedRowRef.current = null;
-      lastClickedColumnRef.current = columnId;
-    },
-    [selectAllRows]
-  );
-
-  const rangeSelectColumn = useCallback(
-    (columnId: string) => {
-      if (!lastClickedColumnRef.current) return;
-      const allColumnIds = columnOrderRef.current;
-      const startIdx = allColumnIds.indexOf(lastClickedColumnRef.current);
-      const endIdx = allColumnIds.indexOf(columnId);
-      if (startIdx === -1 || endIdx === -1) return;
-      const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
-      setSelectedColumns(new Set(allColumnIds.slice(from, to + 1)));
-      selectAllRows();
-      lastClickedRowRef.current = null;
-    },
-    [selectAllRows]
-  );
-
   const gridCallbacks = useMemo(
     () => ({
       onSetEditValue: setEditValue,
@@ -507,35 +437,6 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
       updateCell,
     ]
   );
-
-  const whereKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter' && activeQueryId && queryConnectionId && currentQuery?.sourceTable) {
-        applyWhereFilter(activeQueryId, queryConnectionId, whereClause).then((errorMessage) => {
-          if (errorMessage) setWhereFilterError(errorMessage);
-        });
-      }
-    },
-    [activeQueryId, queryConnectionId, currentQuery?.sourceTable, whereClause, applyWhereFilter]
-  );
-
-  const whereApply = useCallback(() => {
-    if (activeQueryId && queryConnectionId) {
-      applyWhereFilter(activeQueryId, queryConnectionId, whereClause).then((errorMessage) => {
-        if (errorMessage) setWhereFilterError(errorMessage);
-      });
-    }
-  }, [activeQueryId, queryConnectionId, whereClause, applyWhereFilter]);
-
-  const whereClear = useCallback(() => {
-    setWhereClause('');
-    setWhereFilterError(null);
-    if (activeQueryId && queryConnectionId) {
-      applyWhereFilter(activeQueryId, queryConnectionId, '').then((errorMessage) => {
-        if (errorMessage) setWhereFilterError(errorMessage);
-      });
-    }
-  }, [activeQueryId, queryConnectionId, applyWhereFilter]);
 
   const cancelCurrentQuery = useCallback(() => {
     if (queryConnectionId) cancelQuery(queryConnectionId);
