@@ -35,6 +35,7 @@ set(TEST_SOURCES
     providers/test_settings_provider.cpp
     providers/test_utility_provider.cpp
     utils/test_sql_validation.cpp
+    database/test_thread_pool.cpp
 )
 
 add_executable(VelocityDBTests ${TEST_SOURCES})

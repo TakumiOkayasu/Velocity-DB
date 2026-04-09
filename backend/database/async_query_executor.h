@@ -1,6 +1,7 @@
 #pragma once
 
 #include "driver_interface.h"
+#include "thread_pool.h"
 
 #include <atomic>
 #include <chrono>
@@ -87,6 +88,7 @@ private:
 
     static constexpr auto EVICT_INTERVAL = std::chrono::seconds{60};
 
+    ThreadPool m_pool;
     mutable std::mutex m_mutex;
     std::unordered_map<std::string, std::shared_ptr<QueryTask>> m_queries;
     std::chrono::steady_clock::time_point m_lastEvictTime{};  // guarded by m_mutex
