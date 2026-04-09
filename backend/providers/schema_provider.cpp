@@ -71,6 +71,28 @@ SchemaProvider::SchemaProvider(IConnectionProvider& connections) : m_connections
 
 SchemaProvider::~SchemaProvider() = default;
 
+std::optional<std::string> SchemaProvider::getCached(const std::string& key) {
+    std::lock_guard lock(m_cacheMutex);
+    if (auto it = m_schemaCache.find(key); it != m_schemaCache.end()) {
+        if (std::chrono::steady_clock::now() - it->second.timestamp < SCHEMA_CACHE_TTL) {
+            return it->second.response;
+        }
+        m_schemaCache.erase(it);
+    }
+    return std::nullopt;
+}
+
+void SchemaProvider::putCache(const std::string& key, const std::string& response) {
+    std::lock_guard lock(m_cacheMutex);
+    m_schemaCache[key] = {response, std::chrono::steady_clock::now()};
+}
+
+std::string SchemaProvider::clearSchemaCache(std::string_view) {
+    std::lock_guard lock(m_cacheMutex);
+    m_schemaCache.clear();
+    return JsonUtils::successResponse(R"({"cleared":true})");
+}
+
 std::string SchemaProvider::getDatabases(std::string_view params) {
     auto connectionIdResult = extractConnectionId(params);
     if (!connectionIdResult) {
@@ -94,6 +116,10 @@ std::string SchemaProvider::getDatabases(std::string_view params) {
 
 std::string SchemaProvider::getTables(std::string_view params) {
     log<LogLevel::DEBUG>(std::format("SchemaProvider::getTables called with params: {}", params));
+    auto cacheKey = "getTables:" + std::string(params);
+    if (auto cached = getCached(cacheKey)) {
+        return *cached;
+    }
     auto connectionIdResult = extractConnectionId(params);
     if (!connectionIdResult) {
         return JsonUtils::errorResponse(connectionIdResult.error());
@@ -113,13 +139,19 @@ std::string SchemaProvider::getTables(std::string_view params) {
             out += std::format(R"({{"schema":"{}","name":"{}","type":"{}","comment":"{}"}})", JsonUtils::escapeString(row.values[0]), JsonUtils::escapeString(row.values[1]),
                                JsonUtils::escapeString(row.values[2]), JsonUtils::escapeString(comment));
         });
-        return JsonUtils::successResponse(jsonResponse);
+        auto result = JsonUtils::successResponse(jsonResponse);
+        putCache(cacheKey, result);
+        return result;
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
     }
 }
 
 std::string SchemaProvider::getColumns(std::string_view params) {
+    auto cacheKey = "getColumns:" + std::string(params);
+    if (auto cached = getCached(cacheKey)) {
+        return *cached;
+    }
     try {
         simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
@@ -144,7 +176,9 @@ std::string SchemaProvider::getColumns(std::string_view params) {
             out += std::format(R"({{"name":"{}","type":"{}","size":{},"nullable":{},"isPrimaryKey":{},"comment":"{}"}})", JsonUtils::escapeString(row.values[0]),
                                JsonUtils::escapeString(row.values[1]), colSize, nullable, isPk, JsonUtils::escapeString(comment));
         });
-        return JsonUtils::successResponse(jsonResponse);
+        auto result = JsonUtils::successResponse(jsonResponse);
+        putCache(cacheKey, result);
+        return result;
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
     }

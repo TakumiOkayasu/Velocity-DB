@@ -26,6 +26,7 @@ set(TEST_SOURCES
     database/test_schema_inspector.cpp
     database/test_query_history.cpp
     database/test_transaction_manager.cpp
+    database/test_result_cache.cpp
     parsers/test_a5er_parser.cpp
     parsers/test_sql_formatter.cpp
     parsers/test_sql_parser.cpp

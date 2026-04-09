@@ -1,7 +1,6 @@
 #include "result_cache.h"
 
 #include <climits>
-#include <ranges>
 
 namespace velocitydb {
 
@@ -10,7 +9,6 @@ void ResultCache::put(std::string_view key, const ResultSet& result) {
 
     auto resultSize = estimateSize(result);
 
-    // Skip caching if result is larger than max cache size to prevent exceeding limits
     if (resultSize > m_maxSizeBytes) {
         return;
     }
@@ -19,12 +17,15 @@ void ResultCache::put(std::string_view key, const ResultSet& result) {
 
     if (auto it = m_cache.find(keyStr); it != m_cache.end()) {
         m_currentSizeBytes -= it->second.sizeBytes;
+        m_lruList.erase(it->second.lruIt);
         m_cache.erase(it);
     }
 
     evictIfNeeded(resultSize);
 
-    m_cache[keyStr] = CachedResult{.data = result, .timestamp = std::chrono::steady_clock::now(), .sizeBytes = resultSize};
+    m_lruList.push_back(keyStr);
+    auto lruIt = std::prev(m_lruList.end());
+    m_cache[keyStr] = CachedResult{.data = result, .sizeBytes = resultSize, .lruIt = lruIt};
     m_currentSizeBytes += resultSize;
 }
 
@@ -33,7 +34,9 @@ std::optional<ResultSet> ResultCache::get(std::string_view key) {
 
     std::string keyStr(key);
     if (auto it = m_cache.find(keyStr); it != m_cache.end()) {
-        it->second.timestamp = std::chrono::steady_clock::now();
+        m_lruList.erase(it->second.lruIt);
+        m_lruList.push_back(keyStr);
+        it->second.lruIt = std::prev(m_lruList.end());
         return it->second.data;
     }
 
@@ -46,6 +49,7 @@ void ResultCache::invalidate(std::string_view key) {
     std::string keyStr(key);
     if (auto it = m_cache.find(keyStr); it != m_cache.end()) {
         m_currentSizeBytes -= it->second.sizeBytes;
+        m_lruList.erase(it->second.lruIt);
         m_cache.erase(it);
     }
 }
@@ -53,6 +57,7 @@ void ResultCache::invalidate(std::string_view key) {
 void ResultCache::clear() {
     std::lock_guard lock(m_mutex);
     m_cache.clear();
+    m_lruList.clear();
     m_currentSizeBytes = 0;
 }
 
@@ -62,11 +67,13 @@ size_t ResultCache::getCurrentSize() const {
 }
 
 void ResultCache::evictIfNeeded(size_t requiredSize) {
-    while (m_currentSizeBytes + requiredSize > m_maxSizeBytes && !m_cache.empty()) {
-        auto oldest = std::ranges::min_element(m_cache, [](const auto& a, const auto& b) { return a.second.timestamp < b.second.timestamp; });
-
-        m_currentSizeBytes -= oldest->second.sizeBytes;
-        m_cache.erase(oldest);
+    while (m_currentSizeBytes + requiredSize > m_maxSizeBytes && !m_lruList.empty()) {
+        auto& oldestKey = m_lruList.front();
+        if (auto it = m_cache.find(oldestKey); it != m_cache.end()) {
+            m_currentSizeBytes -= it->second.sizeBytes;
+            m_cache.erase(it);
+        }
+        m_lruList.pop_front();
     }
 }
 

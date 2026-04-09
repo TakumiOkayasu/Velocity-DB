@@ -60,6 +60,7 @@ void IPCHandler::registerRoutes() {
     m_routes["getTableMetadata"] = [this](auto p) { return m_ctx.schema().getTableMetadata(p); };
     m_routes["getTableDDL"] = [this](auto p) { return m_ctx.schema().getTableDDL(p); };
     m_routes["getExecutionPlan"] = [this](auto p) { return m_ctx.schema().getExecutionPlan(p); };
+    m_routes["clearSchemaCache"] = [this](auto p) { return m_ctx.schema().clearSchemaCache(p); };
 
     // Transactions
     m_routes["beginTransaction"] = [this](auto p) { return m_ctx.transactions().beginTransaction(p); };

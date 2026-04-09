@@ -21,6 +21,8 @@ public:
     [[nodiscard]] virtual std::string getTableMetadata(std::string_view params) = 0;
     [[nodiscard]] virtual std::string getTableDDL(std::string_view params) = 0;
     [[nodiscard]] virtual std::string getExecutionPlan(std::string_view params) = 0;
+
+    [[nodiscard]] virtual std::string clearSchemaCache(std::string_view params) { return R"({"success":true})"; }
 };
 
 }  // namespace velocitydb

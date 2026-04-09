@@ -2,7 +2,7 @@
 
 #include "driver_interface.h"
 
-#include <chrono>
+#include <list>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -13,8 +13,8 @@ namespace velocitydb {
 
 struct CachedResult {
     ResultSet data;
-    std::chrono::steady_clock::time_point timestamp;
     size_t sizeBytes = 0;
+    std::list<std::string>::iterator lruIt;
 };
 
 class ResultCache {
@@ -41,6 +41,7 @@ private:
     size_t m_currentSizeBytes = 0;
     mutable std::mutex m_mutex;
     std::unordered_map<std::string, CachedResult> m_cache;
+    std::list<std::string> m_lruList;  // front=oldest, back=newest
 };
 
 }  // namespace velocitydb

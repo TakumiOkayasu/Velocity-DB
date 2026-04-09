@@ -2,8 +2,11 @@
 
 #include "../interfaces/providers/schema_provider.h"
 
+#include <chrono>
+#include <mutex>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 
 namespace velocitydb {
 
@@ -31,9 +34,22 @@ public:
     [[nodiscard]] std::string getTableMetadata(std::string_view params) override;
     [[nodiscard]] std::string getTableDDL(std::string_view params) override;
     [[nodiscard]] std::string getExecutionPlan(std::string_view params) override;
+    [[nodiscard]] std::string clearSchemaCache(std::string_view params) override;
 
 private:
     IConnectionProvider& m_connections;
+
+    struct SchemaCacheEntry {
+        std::string response;
+        std::chrono::steady_clock::time_point timestamp;
+    };
+
+    static constexpr auto SCHEMA_CACHE_TTL = std::chrono::minutes(5);
+    std::unordered_map<std::string, SchemaCacheEntry> m_schemaCache;
+    mutable std::mutex m_cacheMutex;
+
+    [[nodiscard]] std::optional<std::string> getCached(const std::string& key);
+    void putCache(const std::string& key, const std::string& response);
 };
 
 }  // namespace velocitydb
