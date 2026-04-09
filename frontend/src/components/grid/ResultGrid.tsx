@@ -358,10 +358,29 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     getScrollElement: () => tableContainerRef.current,
     estimateSize: () => 32,
     overscan: 10,
+    // WebView2 software compositing delays flex layout resolution,
+    // causing the container's clientHeight to be 0 on first measure.
+    // Provide a non-zero fallback so calculateRange returns items
+    // instead of null while ResizeObserver catches up.
+    initialRect: { width: 0, height: window.innerHeight },
   });
   const virtualRows = rowVirtualizer.getVirtualItems();
   const virtualTotalSize = rowVirtualizer.getTotalSize();
   const lastVirtualIndex = virtualRows[virtualRows.length - 1]?.index ?? -1;
+
+  // --- Force virtualizer re-measure when container size changes ---
+  // WebView2 software compositing may delay layout; the built-in
+  // ResizeObserver inside @tanstack/react-virtual can miss the first
+  // resize if it fires before the element is observed.
+  useEffect(() => {
+    const el = tableContainerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      rowVirtualizer.measure();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [rowVirtualizer]);
 
   // --- Reset scroll & UI state when switching query tabs ---
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally triggered by targetQueryId change
@@ -370,6 +389,10 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     if (tableContainerRef.current) {
       tableContainerRef.current.scrollLeft = 0;
     }
+    // Re-measure after paint to handle WebView2 layout delay
+    requestAnimationFrame(() => {
+      rowVirtualizer.measure();
+    });
     resetSelection();
     setSorting([]);
     setColumnFilters([]);
