@@ -47,7 +47,7 @@ std::string QueryProvider::executeQuery(std::string_view params) {
     std::string sqlQuery;
 
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto connectionIdResult = doc["connectionId"].get_string();
@@ -217,7 +217,7 @@ std::string QueryProvider::executeQuery(std::string_view params) {
 
 std::string QueryProvider::executeQueryPaginated(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto connectionIdResult = doc["connectionId"].get_string();
@@ -275,7 +275,7 @@ std::string QueryProvider::executeQueryPaginated(std::string_view params) {
 
 std::string QueryProvider::getRowCount(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto connectionIdResult = doc["connectionId"].get_string();
@@ -320,7 +320,7 @@ std::string QueryProvider::cancelQuery(std::string_view params) {
 
 std::string QueryProvider::filterResultSet(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto connectionIdResult = doc["connectionId"].get_string();
@@ -409,7 +409,7 @@ std::string QueryProvider::getQueryHistory(std::string_view) {
 
 std::string QueryProvider::removeQueryHistory(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
         auto idResult = doc["id"].get_string();
         if (idResult.error()) [[unlikely]] {
@@ -429,7 +429,7 @@ std::string QueryProvider::clearQueryHistory(std::string_view) {
 
 std::string QueryProvider::setQueryHistoryFavorite(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
         auto idResult = doc["id"].get_string();
         auto isFavoriteResult = doc["isFavorite"].get_bool();
@@ -445,7 +445,7 @@ std::string QueryProvider::setQueryHistoryFavorite(std::string_view params) {
 
 std::string QueryProvider::buildDataViewSql(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto connectionIdResult = doc["connectionId"].get_string();
@@ -477,7 +477,7 @@ std::string QueryProvider::buildDataViewSql(std::string_view params) {
 
 std::string QueryProvider::buildWhereClause(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto connectionIdResult = doc["connectionId"].get_string();
@@ -525,7 +525,7 @@ std::string QueryProvider::buildWhereClause(std::string_view params) {
 
 std::string QueryProvider::buildDmlStatements(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto connectionIdResult = doc["connectionId"].get_string();

@@ -19,7 +19,7 @@ namespace {
 // webview's bind passes arguments as a JSON array, e.g., ["arg1", "arg2"]
 std::string extractFirstArgument(const std::string& jsonArray) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(jsonArray);
         auto arr = doc.get_array();
         if (arr.error()) {

@@ -87,7 +87,7 @@ std::string ConnectionProvider::connectAsync(std::string_view params) {
 
 std::string ConnectionProvider::getConnectResult(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
         auto requestIdResult = doc["requestId"].get_string();
         if (requestIdResult.error()) {
@@ -132,7 +132,7 @@ std::string ConnectionProvider::getConnectResult(std::string_view params) {
 
 std::string ConnectionProvider::cancelConnect(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
         auto requestIdResult = doc["requestId"].get_string();
         if (requestIdResult.error()) {

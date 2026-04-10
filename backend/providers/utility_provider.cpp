@@ -55,7 +55,7 @@ UtilityProvider& UtilityProvider::operator=(UtilityProvider&&) noexcept = defaul
 
 std::string UtilityProvider::uppercaseKeywords(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto sqlResult = doc["sql"].get_string();
@@ -73,7 +73,7 @@ std::string UtilityProvider::uppercaseKeywords(std::string_view params) {
 
 std::string UtilityProvider::parseERDiagram(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         std::string content;

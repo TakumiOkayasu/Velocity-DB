@@ -89,7 +89,7 @@ std::expected<std::string, std::string> buildConnectionString(const DatabaseConn
 
 std::expected<DatabaseConnectionParams, std::string> extractConnectionParams(std::string_view jsonParams) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(jsonParams);
 
         DatabaseConnectionParams result;
@@ -177,7 +177,7 @@ std::expected<DatabaseConnectionParams, std::string> extractConnectionParams(std
 
 std::expected<std::string, std::string> extractConnectionId(std::string_view jsonParams) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(jsonParams);
         auto result = doc["connectionId"].get_string();
         if (result.error()) {
