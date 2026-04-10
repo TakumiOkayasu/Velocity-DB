@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../utils/transparent_hash.h"
 #include "driver_interface.h"
 #include "thread_pool.h"
 
@@ -91,7 +92,7 @@ private:
 
     ThreadPool m_pool;
     mutable std::mutex m_mutex;
-    std::unordered_map<std::string, std::shared_ptr<QueryTask>> m_queries;
+    std::unordered_map<std::string, std::shared_ptr<QueryTask>, TransparentStringHash, TransparentStringEqual> m_queries;
     std::chrono::steady_clock::time_point m_lastEvictTime{};  // guarded by m_mutex
     std::atomic<int> m_queryIdCounter{1};
 };

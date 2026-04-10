@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../network/ssh_tunnel.h"
+#include "../utils/transparent_hash.h"
 #include "connection_utils.h"
 #include "driver_interface.h"
 
@@ -86,7 +87,7 @@ private:
     };
 
     mutable std::shared_mutex m_mutex;
-    std::unordered_map<std::string, ConnectionEntry> m_connections;
+    std::unordered_map<std::string, ConnectionEntry, TransparentStringHash, TransparentStringEqual> m_connections;
     std::atomic<int> m_counter{1};
 };
 

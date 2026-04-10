@@ -162,7 +162,7 @@ AsyncQueryResult AsyncQueryExecutor::getQueryResult(std::string_view queryId) {
     // Lock only to find and copy the task pointer
     {
         std::lock_guard lock(m_mutex);
-        auto iter = m_queries.find(std::string(queryId));
+        auto iter = m_queries.find(queryId);
         if (iter == m_queries.end()) {
             return AsyncQueryResult{.queryId = std::string(queryId), .status = QueryStatus::Failed, .errorMessage = "Query not found"};
         }
@@ -212,7 +212,7 @@ AsyncQueryResult AsyncQueryExecutor::getQueryResult(std::string_view queryId) {
 std::expected<void, std::string> AsyncQueryExecutor::cancelQuery(std::string_view queryId) {
     std::lock_guard lock(m_mutex);
 
-    auto iter = m_queries.find(std::string(queryId));
+    auto iter = m_queries.find(queryId);
     if (iter == m_queries.end()) {
         return std::unexpected(std::format("Query not found: {}", queryId));
     }
@@ -232,7 +232,7 @@ std::expected<void, std::string> AsyncQueryExecutor::cancelQuery(std::string_vie
 bool AsyncQueryExecutor::isQueryRunning(std::string_view queryId) const {
     std::lock_guard lock(m_mutex);
 
-    auto iter = m_queries.find(std::string(queryId));
+    auto iter = m_queries.find(queryId);
     if (iter == m_queries.end()) {
         return false;
     }
@@ -242,7 +242,7 @@ bool AsyncQueryExecutor::isQueryRunning(std::string_view queryId) const {
 
 std::expected<void, std::string> AsyncQueryExecutor::removeQuery(std::string_view queryId) {
     std::lock_guard lock(m_mutex);
-    auto it = m_queries.find(std::string(queryId));
+    auto it = m_queries.find(queryId);
     if (it == m_queries.end()) {
         return std::unexpected(std::format("Query not found: {}", queryId));
     }
