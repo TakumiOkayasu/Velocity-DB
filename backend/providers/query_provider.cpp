@@ -70,7 +70,8 @@ std::string QueryProvider::executeQuery(std::string_view params) {
             if (!connParams) {
                 return JsonUtils::errorResponse("Connection parameters not found for psql delegation");
             }
-            auto psqlResult = executePsql(toPsqlConnectionInfo(*connParams), sqlQuery);
+            static const std::atomic<bool> neverCancelled{false};
+            auto psqlResult = executePsql(toPsqlConnectionInfo(*connParams), sqlQuery, neverCancelled);
             if (psqlResult) {
                 recordHistory(sqlQuery, connectionId, psqlResult->executionTimeMs, true, {}, psqlResult->affectedRows);
                 return JsonUtils::successResponse(JsonUtils::serializeResultSet(*psqlResult, false));

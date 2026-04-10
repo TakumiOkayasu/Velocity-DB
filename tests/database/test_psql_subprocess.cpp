@@ -111,7 +111,8 @@ TEST(PsqlSubprocessTest, ExecutePsqlFailsWithBadConnection) {
         .password = "wrong",
     };
 
-    auto result = executePsql(conn, "SELECT 1");
+    std::atomic<bool> cancelled{false};
+    auto result = executePsql(conn, "SELECT 1", cancelled);
     EXPECT_FALSE(result.has_value());
 }
 

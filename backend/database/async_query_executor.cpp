@@ -25,9 +25,10 @@ AsyncQueryExecutor::~AsyncQueryExecutor() {
     for (auto& task : tasks) {
         if (task->future.valid()) {
             // Cancel if still running
-            if (task->status == QueryStatus::Running && task->driver) {
+            if (task->status == QueryStatus::Running) {
                 task->cancelled.store(true, std::memory_order_release);
-                task->driver->cancel();
+                if (task->driver)
+                    task->driver->cancel();
             }
             // Wait for completion (this can block, but we're not holding the mutex)
             task->future.wait();
@@ -130,7 +131,7 @@ std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<IDatabaseDriver> dri
     return queryId;
 }
 
-std::string AsyncQueryExecutor::submitTask(std::function<QueryResultVariant()> task) {
+std::string AsyncQueryExecutor::submitTask(std::function<QueryResultVariant(const std::atomic<bool>&)> task) {
     auto queryId = std::format("query_{}", m_queryIdCounter++);
 
     auto queryTask = std::make_shared<QueryTask>();
@@ -139,7 +140,7 @@ std::string AsyncQueryExecutor::submitTask(std::function<QueryResultVariant()> t
 
     queryTask->future = m_pool.submit([queryTask, fn = std::move(task)]() -> QueryResultVariant {
         try {
-            auto result = fn();
+            auto result = fn(queryTask->cancelled);
             queryTask->endTime = std::chrono::steady_clock::now();
             queryTask->status = QueryStatus::Completed;
             return result;
@@ -218,9 +219,10 @@ std::expected<void, std::string> AsyncQueryExecutor::cancelQuery(std::string_vie
     }
 
     auto& task = iter->second;
-    if (task->status == QueryStatus::Running && task->driver) {
+    if (task->status == QueryStatus::Running) {
         task->cancelled.store(true, std::memory_order_release);
-        task->driver->cancel();
+        if (task->driver)
+            task->driver->cancel();
         task->status = QueryStatus::Cancelled;
         task->endTime = std::chrono::steady_clock::now();
         return {};

@@ -53,8 +53,9 @@ public:
     /// Uses shared_ptr to ensure driver lifetime extends through async execution
     [[nodiscard]] std::string submitQuery(std::shared_ptr<IDatabaseDriver> driver, std::string_view sql);
 
-    /// Submits an arbitrary task for asynchronous execution (e.g., psql subprocess)
-    [[nodiscard]] std::string submitTask(std::function<QueryResultVariant()> task);
+    /// Submits an arbitrary cancellable task for asynchronous execution (e.g., psql subprocess).
+    /// The task function receives a cancellation flag that it should poll periodically.
+    [[nodiscard]] std::string submitTask(std::function<QueryResultVariant(const std::atomic<bool>& cancelled)> task);
 
     /// Gets the current status and result of a query
     [[nodiscard]] AsyncQueryResult getQueryResult(std::string_view queryId);

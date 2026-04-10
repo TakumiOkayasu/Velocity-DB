@@ -45,8 +45,8 @@ std::string AsyncQueryProvider::executeAsyncQuery(std::string_view params) {
                 return JsonUtils::errorResponse("Connection parameters not found for psql delegation");
             }
             auto connInfo = toPsqlConnectionInfo(*connParams);
-            queryId = m_asyncExecutor->submitTask([connInfo = std::move(connInfo), sqlCopy = std::string(sqlQuery)]() -> QueryResultVariant {
-                auto result = executePsql(connInfo, sqlCopy);
+            queryId = m_asyncExecutor->submitTask([connInfo = std::move(connInfo), sqlCopy = std::string(sqlQuery)](const std::atomic<bool>& cancelled) -> QueryResultVariant {
+                auto result = executePsql(connInfo, sqlCopy, cancelled);
                 if (!result)
                     throw std::runtime_error(result.error());
                 return *result;

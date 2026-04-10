@@ -8,7 +8,6 @@
 #include <cstdlib>
 #include <filesystem>
 #include <format>
-#include <future>
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -245,7 +244,7 @@ PsqlConnectionInfo toPsqlConnectionInfo(const DatabaseConnectionParams& params) 
     };
 }
 
-std::expected<ResultSet, std::string> executePsql(const PsqlConnectionInfo& conn, std::string_view sql) {
+std::expected<ResultSet, std::string> executePsql(const PsqlConnectionInfo& conn, std::string_view sql, const std::atomic<bool>& cancelled) {
     const auto startTime = std::chrono::high_resolution_clock::now();
 
     // Write SQL to temp file (W2: check return values)
@@ -340,24 +339,33 @@ std::expected<ResultSet, std::string> executePsql(const PsqlConnectionInfo& conn
     outWrite.reset();
     errWrite.reset();
 
-    // Wait for process with timeout BEFORE reading pipes.
-    // readPipe blocks until the write-end is closed (process exit or terminate).
+    // Poll for process exit with cancellation support.
+    // readPipe blocks until write-end is closed (process exit or terminate).
     constexpr DWORD kTimeoutMs = 300'000;
-    auto waitResult = WaitForSingleObject(pi.hProcess, kTimeoutMs);
-    if (waitResult == WAIT_TIMEOUT) {
+    constexpr DWORD kPollIntervalMs = 200;
+
+    auto killAndDrain = [&](const char* reason) -> std::unexpected<std::string> {
         TerminateProcess(pi.hProcess, 1);
         WaitForSingleObject(pi.hProcess, 5000);
-        // Drain remaining pipe data to prevent zombie handles
         (void)readPipe(stdoutRead);
         (void)readPipe(stderrRead);
-        return std::unexpected("psql process timed out after 300 seconds");
-    }
+        return std::unexpected<std::string>(reason);
+    };
 
-    // Process has exited — EOF guaranteed. Concurrent read avoids deadlock
-    // if combined stdout+stderr exceed the 64KB pipe buffer.
-    auto stderrFuture = std::async(std::launch::async, readPipe, stderrRead);
+    DWORD waitResult = WAIT_TIMEOUT;
+    for (DWORD elapsed = 0; elapsed < kTimeoutMs; elapsed += kPollIntervalMs) {
+        waitResult = WaitForSingleObject(pi.hProcess, kPollIntervalMs);
+        if (waitResult == WAIT_OBJECT_0)
+            break;
+        if (cancelled.load(std::memory_order_acquire))
+            return killAndDrain("psql process was cancelled");
+    }
+    if (waitResult == WAIT_TIMEOUT)
+        return killAndDrain("psql process timed out after 300 seconds");
+
+    // Process has exited — pipe data is finite. Sequential reads are safe.
     auto stdoutData = readPipe(stdoutRead);
-    auto stderrData = stderrFuture.get();
+    auto stderrData = readPipe(stderrRead);
 
     DWORD exitCode = 1;
     GetExitCodeProcess(pi.hProcess, &exitCode);
