@@ -21,7 +21,7 @@ endif()
 # CXX detection is kept intact — Google Test requires compile feature info.
 set(CMAKE_C_COMPILER_FORCED TRUE)
 
-project(VelocityDB VERSION 0.1.0 LANGUAGES CXX)
+project(VelocityDB VERSION 1.4.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

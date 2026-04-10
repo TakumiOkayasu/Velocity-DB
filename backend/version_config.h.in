@@ -1,0 +1,7 @@
+#pragma once
+
+namespace velocitydb {
+
+inline constexpr const char* kAppVersion = "@PROJECT_VERSION@";
+
+}  // namespace velocitydb

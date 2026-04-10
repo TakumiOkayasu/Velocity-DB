@@ -5,6 +5,7 @@
 #include "simdjson.h"
 #include "utils/logger.h"
 #include "utils/settings_manager.h"
+#include "version_config.h"
 #include "webview.h"
 
 #include <array>
@@ -115,7 +116,7 @@ void WebViewApp::saveWindowSettings() {
 void WebViewApp::createAndConfigureWebView() {
     m_webview = std::make_unique<webview::webview>(false, nullptr);
 
-    m_webview->set_title("Velocity-DB");
+    m_webview->set_title(std::format("Velocity-DB - v{}", kAppVersion));
 
     // Calculate and set window size
     const auto windowSize = calculateWindowSize();

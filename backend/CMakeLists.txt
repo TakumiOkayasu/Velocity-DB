@@ -171,11 +171,19 @@ if(SSH_TUNNEL_ENABLED)
     list(APPEND HEADERS network/ssh_tunnel.h)
 endif()
 
+# Generate version header from CMake project version
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/version_config.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/generated/version_config.h
+    @ONLY
+)
+
 # Create a static library for the core functionality
 add_library(VelocityDBCore STATIC ${LIB_SOURCES} ${HEADERS})
 
 target_include_directories(VelocityDBCore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}/generated
     ${CMAKE_SOURCE_DIR}/third_party
 )
 
@@ -195,6 +203,7 @@ target_link_libraries(VelocityDBCore PUBLIC
 if(MSVC)
     target_compile_options(VelocityDBCore PUBLIC /Zc:preprocessor)
 endif()
+
 
 # Link libssh2 if available
 if(SSH_TUNNEL_ENABLED)
