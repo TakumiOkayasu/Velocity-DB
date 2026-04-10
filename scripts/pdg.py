@@ -89,9 +89,7 @@ def cmd_dev(_args: argparse.Namespace) -> bool:
     project_root = utils.get_project_root()
     frontend_dir = project_root / "frontend"
 
-    print(f"\n{'#' * 60}")
-    print("#  Starting Development Server")
-    print(f"{'#' * 60}")
+    utils.print_header("Starting Development Server")
 
     # Ensure dependencies
     pkg_info = utils.ensure_frontend_deps()
@@ -114,9 +112,7 @@ def cmd_package(_args: argparse.Namespace) -> bool:
     project_root = utils.get_project_root()
     dist_dir = project_root / "dist"
 
-    print(f"\n{'#' * 60}")
-    print("#  Packaging Application")
-    print(f"{'#' * 60}")
+    utils.print_header("Packaging Application")
 
     # Build all first
     print("\n[1/2] Building all...")
@@ -154,9 +150,7 @@ def cmd_package(_args: argparse.Namespace) -> bool:
         return False
 
     # Summary
-    print(f"\n{'=' * 60}")
-    print("  PACKAGE CREATED")
-    print(f"{'=' * 60}")
+    utils.print_footer("PACKAGE CREATED")
     print(f"\n  Output: {dist_dir}")
     total_size = sum(f.stat().st_size for f in dist_dir.rglob("*") if f.is_file())
     print(f"  Total size: {total_size / 1024 / 1024:.2f} MB")
@@ -192,9 +186,7 @@ def cmd_release(args: argparse.Namespace) -> bool:
         version = "1.0.0"
         print("\n  No existing tags found. Using v1.0.0")
 
-    print(f"\n{'#' * 60}")
-    print(f"#  Creating Release v{version}")
-    print(f"{'#' * 60}")
+    utils.print_header(f"Creating Release v{version}")
 
     # Step 1: Run checks (unless skipped)
     skip_checks: bool = args.skip_checks
@@ -258,24 +250,18 @@ def cmd_release(args: argparse.Namespace) -> bool:
     print(f"  [OK] Created: {zip_name} ({zip_size:.2f} MB)")
 
     # Summary
-    print(f"\n{'=' * 60}")
-    print("  RELEASE PACKAGE CREATED")
-    print(f"{'=' * 60}")
+    utils.print_footer("RELEASE PACKAGE CREATED")
     print(f"\n  Version:       v{version}")
     print(f"  Archive:       {zip_path}")
     print(f"  Size:          {zip_size:.2f} MB")
     print(f"  Release Notes: {notes_path}")
 
     # Show release notes preview
-    print(f"\n{'=' * 60}")
-    print("  RELEASE NOTES PREVIEW")
-    print(f"{'=' * 60}")
+    utils.print_footer("RELEASE NOTES PREVIEW")
     print(release_notes[:500] + ("..." if len(release_notes) > 500 else ""))
 
     # Commands to execute
-    print(f"\n{'=' * 60}")
-    print("  RELEASE COMMANDS")
-    print(f"{'=' * 60}")
+    utils.print_footer("RELEASE COMMANDS")
     draft: bool = args.draft
     draft_flag = "--draft " if draft else ""
     print(f"""
@@ -294,9 +280,7 @@ def cmd_check(args: argparse.Namespace) -> bool:
     """Handle check command - comprehensive project check."""
     build_type: str = args.type
 
-    print(f"\n{'=' * 60}")
-    print(f"  Comprehensive Project Check ({build_type})")
-    print(f"{'=' * 60}")
+    utils.print_footer(f"Comprehensive Project Check ({build_type})")
 
     errors = 0
 
@@ -316,12 +300,10 @@ def cmd_check(args: argparse.Namespace) -> bool:
         errors += 1
 
     # Summary
-    print(f"\n{'=' * 60}")
     if errors == 0:
-        print("  ALL CHECKS PASSED [OK]")
+        utils.print_footer("ALL CHECKS PASSED [OK]")
     else:
-        print(f"  {errors} CHECK(S) FAILED [FAIL]")
-    print(f"{'=' * 60}")
+        utils.print_footer(f"{errors} CHECK(S) FAILED [FAIL]")
 
     return errors == 0
 
@@ -333,9 +315,7 @@ def cmd_clean(args: argparse.Namespace) -> bool:
     project_root = utils.get_project_root()
     target: str = args.target
 
-    print(f"\n{'#' * 60}")
-    print(f"#  Cleaning: {target}")
-    print(f"{'#' * 60}\n")
+    utils.print_header(f"Cleaning: {target}")
 
     cleaned_items: list[str] = []
 
@@ -369,9 +349,7 @@ def cmd_clean(args: argparse.Namespace) -> bool:
     for item in cleaned_items:
         print(item)
 
-    print(f"\n{'=' * 60}")
-    print("  CLEAN COMPLETE")
-    print(f"{'=' * 60}")
+    utils.print_footer("CLEAN COMPLETE")
 
     return True
 

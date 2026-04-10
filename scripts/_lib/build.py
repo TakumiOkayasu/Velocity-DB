@@ -10,11 +10,8 @@ def build_frontend(clean: bool = False) -> bool:
     project_root = utils.get_project_root()
     frontend_dir = project_root / "frontend"
 
-    print(f"\n{'#' * 60}")
-    print("#  Building Frontend")
-    if clean:
-        print("#  Mode: Clean Build")
-    print(f"{'#' * 60}")
+    subtitles = ("Mode: Clean Build",) if clean else ()
+    utils.print_header("Building Frontend", *subtitles)
 
     # Clear caches if --clean
     if clean:
@@ -54,9 +51,7 @@ def build_frontend(clean: bool = False) -> bool:
     total_size = sum(f.stat().st_size for f in dist_dir.rglob("*") if f.is_file())
     file_count = sum(1 for _ in dist_dir.rglob("*") if _.is_file())
 
-    print(f"\n{'=' * 60}")
-    print("  BUILD SUCCESSFUL")
-    print(f"{'=' * 60}")
+    utils.print_footer("BUILD SUCCESSFUL")
     print(f"\n  Output: {dist_dir}")
     print(f"  Size: {total_size / 1024 / 1024:.2f} MB")
     print(f"  Files: {file_count}")
@@ -77,11 +72,8 @@ def build_backend(build_type: str = "Release", clean: bool = False) -> bool:
     build_dir = project_root / "build"
     preset = build_type.lower()  # "debug" or "release"
 
-    print(f"\n{'#' * 60}")
-    print(f"#  Building Backend ({build_type})")
-    if clean:
-        print("#  Mode: Clean Build")
-    print(f"{'#' * 60}")
+    subtitles = ("Mode: Clean Build",) if clean else ()
+    utils.print_header(f"Building Backend ({build_type})", *subtitles)
 
     # Clean build directory if requested
     if clean and build_dir.exists():
@@ -124,9 +116,7 @@ def build_backend(build_type: str = "Release", clean: bool = False) -> bool:
             exe_path = exe
             break
 
-    print(f"\n{'=' * 60}")
-    print("  BUILD SUCCESSFUL")
-    print(f"{'=' * 60}")
+    utils.print_footer("BUILD SUCCESSFUL")
     if exe_path.exists():
         print(f"\n  Executable: {exe_path}")
         print(f"  Size: {exe_path.stat().st_size / 1024 / 1024:.2f} MB")
@@ -155,11 +145,8 @@ def build_backend(build_type: str = "Release", clean: bool = False) -> bool:
 
     # Final output: Show binary location
     if exe_path.exists():
-        print(f"\n{'=' * 60}")
-        print("  BINARY LOCATION")
-        print(f"{'=' * 60}")
-        print(f"\n  {exe_path.absolute()}")
-        print()
+        utils.print_footer("BINARY LOCATION")
+        print(f"\n  {exe_path.absolute()}\n")
 
     return True
 
@@ -169,9 +156,7 @@ def build_all(build_type: str = "Release", clean: bool = False) -> bool:
     project_root = utils.get_project_root()
     build_dir = project_root / "build"
 
-    print(f"\n{'=' * 60}")
-    print("  Building All (Frontend + Backend)")
-    print(f"{'=' * 60}")
+    utils.print_footer("Building All (Frontend + Backend)")
 
     # Build frontend first
     if not build_frontend(clean=clean):
@@ -181,9 +166,7 @@ def build_all(build_type: str = "Release", clean: bool = False) -> bool:
     if not build_backend(build_type=build_type, clean=clean):
         return False
 
-    print(f"\n{'=' * 60}")
-    print("  ALL BUILDS SUCCESSFUL")
-    print(f"{'=' * 60}")
+    utils.print_footer("ALL BUILDS SUCCESSFUL")
 
     # Show final binary location
     exe_path = build_dir / build_type / "VelocityDB.exe"

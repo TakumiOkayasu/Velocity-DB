@@ -8,6 +8,24 @@ from pathlib import Path
 
 PackageManager = tuple[str, Path]
 
+_BANNER_WIDTH = 60
+
+
+def print_header(title: str, *subtitles: str) -> None:
+    """Print a section header (e.g. '#  Building Backend (Debug)')."""
+    print(f"\n{'#' * _BANNER_WIDTH}")
+    print(f"#  {title}")
+    for s in subtitles:
+        print(f"#  {s}")
+    print(f"{'#' * _BANNER_WIDTH}")
+
+
+def print_footer(message: str) -> None:
+    """Print a footer banner (e.g. 'BUILD SUCCESSFUL')."""
+    print(f"\n{'=' * _BANNER_WIDTH}")
+    print(f"  {message}")
+    print(f"{'=' * _BANNER_WIDTH}")
+
 
 def get_project_root() -> Path:
     """Get the project root directory (resolves symlinks)."""
@@ -23,12 +41,12 @@ def run_command(
     capture_output: bool = False,
 ) -> tuple[bool, str]:
     """Run a command and return success status and output."""
-    print(f"\n{'=' * 60}")
-    print(f"  {description}")
-    print(f"  Command: {' '.join(cmd)}")
+    extras = [f"Command: {' '.join(cmd)}"]
     if cwd:
-        print(f"  Working directory: {cwd}")
-    print(f"{'=' * 60}\n")
+        extras.append(f"Working directory: {cwd}")
+    print_footer(description)
+    for e in extras:
+        print(f"  {e}")
 
     merged_env = os.environ.copy()
     if env:
