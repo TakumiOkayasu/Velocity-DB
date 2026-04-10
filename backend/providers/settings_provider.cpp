@@ -152,8 +152,8 @@ namespace {
 }  // namespace
 
 SettingsProvider::SettingsProvider() : m_settingsManager(std::make_unique<SettingsManager>()), m_sessionManager(std::make_unique<SessionManager>()) {
-    m_settingsManager->load();
-    m_sessionManager->load();
+    (void)m_settingsManager->load();
+    (void)m_sessionManager->load();
 }
 
 SettingsProvider::~SettingsProvider() = default;
@@ -229,7 +229,7 @@ std::string SettingsProvider::updateSettings(std::string_view params) {
         }
 
         m_settingsManager->updateSettings(settings);
-        m_settingsManager->save();
+        (void)m_settingsManager->save();
 
         return JsonUtils::successResponse(R"({"saved":true})");
     } catch (const std::exception& e) {
@@ -334,7 +334,7 @@ std::string SettingsProvider::saveConnectionProfile(std::string_view params) {
             }
         }
 
-        m_settingsManager->save();
+        (void)m_settingsManager->save();
 
         return JsonUtils::successResponse(std::format(R"({{"id":"{}"}})", JsonUtils::escapeString(profile.id)));
     } catch (const std::exception& e) {
@@ -353,7 +353,7 @@ std::string SettingsProvider::deleteConnectionProfile(std::string_view params) {
         }
         auto profileId = std::string(profileIdResult.value());
         m_settingsManager->removeConnectionProfile(profileId);
-        m_settingsManager->save();
+        (void)m_settingsManager->save();
 
         return JsonUtils::successResponse(R"({"deleted":true})");
     } catch (const std::exception& e) {
@@ -495,7 +495,7 @@ std::string SettingsProvider::saveSessionState(std::string_view params) {
         }
 
         m_sessionManager->updateState(state);
-        m_sessionManager->save();
+        (void)m_sessionManager->save();
 
         return JsonUtils::successResponse(R"({"saved":true})");
     } catch (const std::exception& e) {

@@ -31,44 +31,52 @@ SettingsManager::SettingsManager() {
     m_settingsPath /= "settings.json";
 }
 
-bool SettingsManager::load() {
+std::expected<void, std::string> SettingsManager::load() {
     std::lock_guard lock(m_mutex);
 
     if (!std::filesystem::exists(m_settingsPath)) {
-        // Create default settings file (without lock - saveInternal handles it)
         std::ofstream file(m_settingsPath);
         if (!file.is_open()) {
-            return false;
+            return std::unexpected(std::format("Failed to create default settings file: {}", m_settingsPath.string()));
         }
         file << serializeSettings();
-        return file.good();
+        if (!file.good()) {
+            return std::unexpected(std::format("Failed to write default settings file: {}", m_settingsPath.string()));
+        }
+        return {};
     }
 
     std::ifstream file(m_settingsPath);
     if (!file.is_open()) {
-        return false;
+        return std::unexpected(std::format("Failed to open settings file: {}", m_settingsPath.string()));
     }
 
     std::stringstream buffer;
     buffer << file.rdbuf();
-    return deserializeSettings(buffer.str());
+    if (!deserializeSettings(buffer.str())) {
+        return std::unexpected("Failed to parse settings file");
+    }
+    return {};
 }
 
-bool SettingsManager::save() {
+std::expected<void, std::string> SettingsManager::save() {
     std::lock_guard lock(m_mutex);
 
     auto json = serializeSettings();
     if (json.empty()) {
-        return false;  // Serialization failed — preserve existing file
+        return std::unexpected("Serialization failed — preserving existing file");
     }
 
     std::ofstream file(m_settingsPath);
     if (!file.is_open()) {
-        return false;
+        return std::unexpected(std::format("Failed to open settings file for writing: {}", m_settingsPath.string()));
     }
 
     file << json;
-    return file.good();
+    if (!file.good()) {
+        return std::unexpected(std::format("Failed to write settings file: {}", m_settingsPath.string()));
+    }
+    return {};
 }
 
 void SettingsManager::updateSettings(const AppSettings& settings) {

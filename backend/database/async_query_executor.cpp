@@ -209,12 +209,12 @@ AsyncQueryResult AsyncQueryExecutor::getQueryResult(std::string_view queryId) {
     return result;
 }
 
-bool AsyncQueryExecutor::cancelQuery(std::string_view queryId) {
+std::expected<void, std::string> AsyncQueryExecutor::cancelQuery(std::string_view queryId) {
     std::lock_guard lock(m_mutex);
 
     auto iter = m_queries.find(std::string(queryId));
     if (iter == m_queries.end()) {
-        return false;
+        return std::unexpected(std::format("Query not found: {}", queryId));
     }
 
     auto& task = iter->second;
@@ -223,10 +223,10 @@ bool AsyncQueryExecutor::cancelQuery(std::string_view queryId) {
         task->driver->cancel();
         task->status = QueryStatus::Cancelled;
         task->endTime = std::chrono::steady_clock::now();
-        return true;
+        return {};
     }
 
-    return false;
+    return std::unexpected("Query is not running");
 }
 
 bool AsyncQueryExecutor::isQueryRunning(std::string_view queryId) const {
@@ -240,18 +240,18 @@ bool AsyncQueryExecutor::isQueryRunning(std::string_view queryId) const {
     return iter->second->status == QueryStatus::Running;
 }
 
-bool AsyncQueryExecutor::removeQuery(std::string_view queryId) {
+std::expected<void, std::string> AsyncQueryExecutor::removeQuery(std::string_view queryId) {
     std::lock_guard lock(m_mutex);
     auto it = m_queries.find(std::string(queryId));
     if (it == m_queries.end()) {
-        return false;
+        return std::unexpected(std::format("Query not found: {}", queryId));
     }
     auto status = it->second->status.load();
     if (status == QueryStatus::Pending || status == QueryStatus::Running) {
-        return false;
+        return std::unexpected("Cannot remove a running query");
     }
     m_queries.erase(it);
-    return true;
+    return {};
 }
 
 std::vector<std::string> AsyncQueryExecutor::getActiveQueryIds() const {

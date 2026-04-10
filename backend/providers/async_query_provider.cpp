@@ -165,7 +165,7 @@ std::string AsyncQueryProvider::cancelAsyncQuery(std::string_view params) {
         if (queryIdResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing required field: queryId");
         }
-        bool cancelled = m_asyncExecutor->cancelQuery(queryIdResult.value());
+        bool cancelled = m_asyncExecutor->cancelQuery(queryIdResult.value()).has_value();
         return JsonUtils::successResponse(std::format(R"({{"cancelled":{}}})", cancelled ? "true" : "false"));
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
@@ -182,7 +182,7 @@ std::string AsyncQueryProvider::removeAsyncQuery(std::string_view params) {
             return JsonUtils::errorResponse("Missing required field: queryId");
         }
         auto qid = std::string(queryIdResult.value());
-        bool removed = m_asyncExecutor->removeQuery(qid);
+        bool removed = m_asyncExecutor->removeQuery(qid).has_value();
         m_queryMeta.erase(qid);
         return JsonUtils::successResponse(std::format(R"({{"removed":{}}})", removed ? "true" : "false"));
     } catch (const std::exception& e) {

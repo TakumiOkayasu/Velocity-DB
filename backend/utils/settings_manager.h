@@ -101,10 +101,10 @@ public:
     SettingsManager& operator=(const SettingsManager&) = delete;
 
     /// Load settings from disk
-    bool load();
+    [[nodiscard]] std::expected<void, std::string> load();
 
     /// Save settings to disk
-    bool save();
+    [[nodiscard]] std::expected<void, std::string> save();
 
     /// Get current settings
     [[nodiscard]] const AppSettings& getSettings() const { return m_settings; }

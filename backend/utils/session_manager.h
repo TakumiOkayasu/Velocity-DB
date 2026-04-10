@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <expected>
 #include <filesystem>
 #include <mutex>
 #include <string>
@@ -46,10 +47,10 @@ public:
     SessionManager& operator=(const SessionManager&) = delete;
 
     /// Load session state from disk
-    bool load();
+    [[nodiscard]] std::expected<void, std::string> load();
 
     /// Save session state to disk
-    bool save();
+    [[nodiscard]] std::expected<void, std::string> save();
 
     /// Get current session state
     [[nodiscard]] const SessionState& getState() const { return m_state; }
