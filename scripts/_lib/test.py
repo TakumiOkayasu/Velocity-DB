@@ -90,10 +90,9 @@ def test_backend(build_type: str = "Release") -> bool:
     # Setup MSVC environment
     env = utils.get_msvc_env()
 
-    # Run CTest
-    test_cmd = ["ctest", "--test-dir", "build", "--output-on-failure", "--parallel"]
-    if build_type:
-        test_cmd.extend(["--build-config", build_type])
+    # Run CTest with Preset
+    preset = build_type.lower()  # "debug" or "release"
+    test_cmd = ["ctest", "--preset", preset, "--output-on-failure", "--parallel"]
 
     success, _ = utils.run_command(test_cmd, "CTest", env=env)
 
