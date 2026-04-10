@@ -64,6 +64,7 @@ std::string AsyncConnectionExecutor::submitConnect(DatabaseConnectionParams para
             queryDriverPtr->setConnectionTimeout(task->effectiveParams.connectionTimeoutSeconds);
 
             if (!queryDriverPtr->connect(prepared->connectionString)) {
+                if (task->tunnel) task->tunnel->disconnect();
                 task->errorMessage = std::format("Connection failed: {}", queryDriverPtr->getLastError());
                 task->status = ConnectStatus::Failed;
                 return;
@@ -71,6 +72,7 @@ std::string AsyncConnectionExecutor::submitConnect(DatabaseConnectionParams para
 
             if (task->cancelled.load(std::memory_order_acquire)) {
                 queryDriverPtr->disconnect();
+                if (task->tunnel) task->tunnel->disconnect();
                 task->status = ConnectStatus::Cancelled;
                 return;
             }
@@ -82,6 +84,7 @@ std::string AsyncConnectionExecutor::submitConnect(DatabaseConnectionParams para
 
             if (!metadataDriverPtr->connect(prepared->connectionString)) {
                 queryDriverPtr->disconnect();
+                if (task->tunnel) task->tunnel->disconnect();
                 task->errorMessage = std::format("Metadata connection failed: {}", metadataDriverPtr->getLastError());
                 task->status = ConnectStatus::Failed;
                 return;
@@ -90,6 +93,7 @@ std::string AsyncConnectionExecutor::submitConnect(DatabaseConnectionParams para
             if (task->cancelled.load(std::memory_order_acquire)) {
                 queryDriverPtr->disconnect();
                 metadataDriverPtr->disconnect();
+                if (task->tunnel) task->tunnel->disconnect();
                 task->status = ConnectStatus::Cancelled;
                 return;
             }
@@ -100,6 +104,7 @@ std::string AsyncConnectionExecutor::submitConnect(DatabaseConnectionParams para
 
             log<LogLevel::DEBUG>("[DB] Async connection completed successfully");
         } catch (const std::exception& e) {
+            if (task->tunnel) task->tunnel->disconnect();
             task->errorMessage = e.what();
             task->status = ConnectStatus::Failed;
         }
