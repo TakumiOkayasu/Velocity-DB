@@ -114,7 +114,7 @@ std::string AsyncConnectionExecutor::submitConnect(DatabaseConnectionParams para
 std::expected<void, std::string> AsyncConnectionExecutor::cancelConnect(std::string_view requestId) {
     std::lock_guard lock(m_mutex);
 
-    auto iter = m_tasks.find(std::string(requestId));
+    auto iter = m_tasks.find(requestId);
     if (iter == m_tasks.end()) {
         return std::unexpected(std::format("Connection request not found: {}", requestId));
     }
@@ -133,7 +133,7 @@ std::expected<void, std::string> AsyncConnectionExecutor::cancelConnect(std::str
 std::expected<AsyncConnectionExecutor::ConnectedDrivers, ConnectResult> AsyncConnectionExecutor::getResultAndConsume(std::string_view requestId) {
     std::lock_guard lock(m_mutex);
 
-    auto iter = m_tasks.find(std::string(requestId));
+    auto iter = m_tasks.find(requestId);
     if (iter == m_tasks.end()) {
         return std::unexpected(ConnectResult{
             .requestId = std::string(requestId),

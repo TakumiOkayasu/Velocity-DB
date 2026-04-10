@@ -1,5 +1,7 @@
 #pragma once
 
+#include "utils/transparent_hash.h"
+
 #include <functional>
 #include <string>
 #include <string_view>
@@ -27,7 +29,7 @@ private:
     void registerRoutes();
 
     using Handler = std::function<std::string(std::string_view)>;
-    std::unordered_map<std::string, Handler> m_routes;
+    std::unordered_map<std::string, Handler, TransparentStringHash, TransparentStringEqual> m_routes;
     ISystemContext& m_ctx;
 };
 

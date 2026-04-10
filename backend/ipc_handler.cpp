@@ -134,7 +134,7 @@ std::string IPCHandler::dispatchRequest(std::string_view request) {
             params = paramsResult.value();
         }
 
-        if (auto route = m_routes.find(std::string(method)); route != m_routes.end()) [[likely]] {
+        if (auto route = m_routes.find(method); route != m_routes.end()) [[likely]] {
             return route->second(params);
         }
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../utils/transparent_hash.h"
 #include "connection_utils.h"
 #include "driver_interface.h"
 
@@ -68,7 +69,7 @@ private:
     };
 
     mutable std::mutex m_mutex;
-    std::unordered_map<std::string, std::shared_ptr<ConnectTask>> m_tasks;
+    std::unordered_map<std::string, std::shared_ptr<ConnectTask>, TransparentStringHash, TransparentStringEqual> m_tasks;
     std::atomic<int> m_counter{1};
 };
 

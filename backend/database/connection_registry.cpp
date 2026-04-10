@@ -32,9 +32,8 @@ std::string ConnectionRegistry::add(DriverPtr queryDriver, DriverPtr metadataDri
 
 void ConnectionRegistry::remove(std::string_view id) {
     std::lock_guard lock(m_mutex);
-    auto idStr = std::string(id);
 
-    auto it = m_connections.find(idStr);
+    auto it = m_connections.find(id);
     if (it == m_connections.end()) {
         return;
     }
@@ -55,7 +54,7 @@ void ConnectionRegistry::remove(std::string_view id) {
 std::expected<ConnectionRegistry::DriverPtr, std::string> ConnectionRegistry::getQueryDriver(std::string_view id) {
     std::lock_guard lock(m_mutex);
 
-    auto it = m_connections.find(std::string(id));
+    auto it = m_connections.find(id);
     if (it != m_connections.end()) {
         it->second.lastUsed = std::chrono::steady_clock::now();
         return it->second.queryDriver;
@@ -66,7 +65,7 @@ std::expected<ConnectionRegistry::DriverPtr, std::string> ConnectionRegistry::ge
 std::expected<ConnectionRegistry::DriverPtr, std::string> ConnectionRegistry::getMetadataDriver(std::string_view id) {
     std::lock_guard lock(m_mutex);
 
-    auto it = m_connections.find(std::string(id));
+    auto it = m_connections.find(id);
     if (it != m_connections.end()) {
         it->second.lastUsed = std::chrono::steady_clock::now();
         return it->second.metadataDriver;
@@ -81,7 +80,7 @@ std::expected<ConnectionRegistry::DriverPtr, std::string> ConnectionRegistry::ge
 std::expected<ConnectionRegistry::DriverPtr, std::string> ConnectionRegistry::getQueryDriverChecked(std::string_view id) {
     std::lock_guard lock(m_mutex);
 
-    auto it = m_connections.find(std::string(id));
+    auto it = m_connections.find(id);
     if (it == m_connections.end()) {
         return std::unexpected(std::format("Connection '{}' not found", id));
     }
@@ -118,7 +117,7 @@ std::expected<ConnectionRegistry::DriverPtr, std::string> ConnectionRegistry::ge
 
 std::expected<DriverType, std::string> ConnectionRegistry::getDriverType(std::string_view id) const {
     std::shared_lock lock(m_mutex);
-    auto it = m_connections.find(std::string(id));
+    auto it = m_connections.find(id);
     if (it != m_connections.end()) {
         return it->second.driverType;
     }
@@ -127,7 +126,7 @@ std::expected<DriverType, std::string> ConnectionRegistry::getDriverType(std::st
 
 bool ConnectionRegistry::exists(std::string_view id) const {
     std::shared_lock lock(m_mutex);
-    return m_connections.contains(std::string(id));
+    return m_connections.contains(id);
 }
 
 size_t ConnectionRegistry::count() const {
@@ -137,7 +136,7 @@ size_t ConnectionRegistry::count() const {
 
 void ConnectionRegistry::attachTunnel(std::string_view connectionId, std::unique_ptr<SshTunnel> tunnel) {
     std::lock_guard lock(m_mutex);
-    auto it = m_connections.find(std::string(connectionId));
+    auto it = m_connections.find(connectionId);
     if (it != m_connections.end()) {
         it->second.tunnel = std::move(tunnel);
     }
@@ -145,7 +144,7 @@ void ConnectionRegistry::attachTunnel(std::string_view connectionId, std::unique
 
 void ConnectionRegistry::storeParams(std::string_view connectionId, const DatabaseConnectionParams& params) {
     std::lock_guard lock(m_mutex);
-    auto it = m_connections.find(std::string(connectionId));
+    auto it = m_connections.find(connectionId);
     if (it != m_connections.end()) {
         it->second.params = params;
     }
@@ -153,7 +152,7 @@ void ConnectionRegistry::storeParams(std::string_view connectionId, const Databa
 
 std::optional<DatabaseConnectionParams> ConnectionRegistry::getParams(std::string_view connectionId) const {
     std::shared_lock lock(m_mutex);
-    auto it = m_connections.find(std::string(connectionId));
+    auto it = m_connections.find(connectionId);
     if (it != m_connections.end()) {
         return it->second.params;
     }
@@ -162,7 +161,7 @@ std::optional<DatabaseConnectionParams> ConnectionRegistry::getParams(std::strin
 
 SshTunnel* ConnectionRegistry::getTunnel(std::string_view connectionId) const {
     std::shared_lock lock(m_mutex);
-    auto it = m_connections.find(std::string(connectionId));
+    auto it = m_connections.find(connectionId);
     if (it != m_connections.end()) {
         return it->second.tunnel.get();
     }
