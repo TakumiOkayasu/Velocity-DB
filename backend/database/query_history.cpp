@@ -155,7 +155,7 @@ bool QueryHistory::load(std::string_view filepath) {
     }
 
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(jsonContent);
 
         if (!doc.is_array()) {

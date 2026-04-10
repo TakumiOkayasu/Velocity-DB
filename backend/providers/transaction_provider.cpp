@@ -15,7 +15,7 @@ TransactionProvider::~TransactionProvider() = default;
 
 void TransactionProvider::cleanupConnection(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
         auto idResult = doc["connectionId"].get_string();
         if (idResult.error())
@@ -29,7 +29,7 @@ void TransactionProvider::cleanupConnection(std::string_view params) {
 
 std::string TransactionProvider::beginTransaction(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto connectionIdResult = doc["connectionId"].get_string();
@@ -60,7 +60,7 @@ std::string TransactionProvider::beginTransaction(std::string_view params) {
 
 std::string TransactionProvider::commitTransaction(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto connectionIdResult = doc["connectionId"].get_string();
@@ -85,7 +85,7 @@ std::string TransactionProvider::commitTransaction(std::string_view params) {
 
 std::string TransactionProvider::rollbackTransaction(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto connectionIdResult = doc["connectionId"].get_string();

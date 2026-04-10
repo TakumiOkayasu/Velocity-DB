@@ -120,7 +120,7 @@ void IPCHandler::registerRoutes() {
 
 std::string IPCHandler::dispatchRequest(std::string_view request) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(request);
 
         auto methodResult = doc["method"].get_string();

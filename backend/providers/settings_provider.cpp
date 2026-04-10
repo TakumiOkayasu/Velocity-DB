@@ -172,7 +172,7 @@ std::string SettingsProvider::getSettings() {
 
 std::string SettingsProvider::updateSettings(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         AppSettings settings = m_settingsManager->getSettings();
@@ -249,7 +249,7 @@ std::string SettingsProvider::getConnectionProfiles() {
 
 std::string SettingsProvider::saveConnectionProfile(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         ConnectionProfile profile;
@@ -344,7 +344,7 @@ std::string SettingsProvider::saveConnectionProfile(std::string_view params) {
 
 std::string SettingsProvider::deleteConnectionProfile(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto profileIdResult = doc["id"].get_string();
@@ -363,7 +363,7 @@ std::string SettingsProvider::deleteConnectionProfile(std::string_view params) {
 
 std::string SettingsProvider::getProfilePassword(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto idResult = doc["id"].get_string();
@@ -385,7 +385,7 @@ std::string SettingsProvider::getProfilePassword(std::string_view params) {
 
 std::string SettingsProvider::getSshPassword(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto idResult = doc["id"].get_string();
@@ -407,7 +407,7 @@ std::string SettingsProvider::getSshPassword(std::string_view params) {
 
 std::string SettingsProvider::getSshKeyPassphrase(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto idResult = doc["id"].get_string();
@@ -439,7 +439,7 @@ std::string SettingsProvider::getSessionState() {
 
 std::string SettingsProvider::saveSessionState(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         SessionState state = m_sessionManager->getState();

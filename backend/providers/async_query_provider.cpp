@@ -20,7 +20,7 @@ AsyncQueryProvider::~AsyncQueryProvider() = default;
 
 std::string AsyncQueryProvider::executeAsyncQuery(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto connectionIdResult = doc["connectionId"].get_string();
@@ -66,7 +66,7 @@ std::string AsyncQueryProvider::executeAsyncQuery(std::string_view params) {
 
 std::string AsyncQueryProvider::getAsyncQueryResult(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto queryIdResult = doc["queryId"].get_string();
@@ -159,7 +159,7 @@ std::string AsyncQueryProvider::getAsyncQueryResult(std::string_view params) {
 
 std::string AsyncQueryProvider::cancelAsyncQuery(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto queryIdResult = doc["queryId"].get_string();
@@ -175,7 +175,7 @@ std::string AsyncQueryProvider::cancelAsyncQuery(std::string_view params) {
 
 std::string AsyncQueryProvider::removeAsyncQuery(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto queryIdResult = doc["queryId"].get_string();

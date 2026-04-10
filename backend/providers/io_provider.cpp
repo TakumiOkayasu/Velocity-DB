@@ -24,7 +24,7 @@ constexpr auto kBookmarksPath = "data/bookmarks.json";
 
 std::string IOProvider::writeFrontendLog(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto contentResult = doc["content"].get_string();
@@ -52,7 +52,7 @@ std::string IOProvider::writeFrontendLog(std::string_view params) {
 
 std::string IOProvider::saveQueryToFile(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto contentResult = doc["content"].get_string();
@@ -116,7 +116,7 @@ std::string IOProvider::loadQueryFromFile(std::string_view) {
 
 std::string IOProvider::browseFile(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         std::string filter = "All Files (*.*)\0*.*\0";
@@ -157,7 +157,7 @@ std::string IOProvider::getBookmarks(std::string_view) {
 
 std::string IOProvider::saveBookmark(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto idResult = doc["id"].get_string();
@@ -173,7 +173,7 @@ std::string IOProvider::saveBookmark(std::string_view params) {
         std::filesystem::path bookmarksPath(kBookmarksPath);
         std::filesystem::create_directories(bookmarksPath.parent_path());
 
-        simdjson::dom::parser existingParser;
+        thread_local static simdjson::dom::parser existingParser;
         std::string fileContent;
         simdjson::dom::array bookmarks;
         bool hasExisting = false;
@@ -235,7 +235,7 @@ std::string IOProvider::saveBookmark(std::string_view params) {
 
 std::string IOProvider::deleteBookmark(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto idResult = doc["id"].get_string();
@@ -254,7 +254,7 @@ std::string IOProvider::deleteBookmark(std::string_view params) {
             return JsonUtils::errorResponse(readResult.error());
         }
 
-        simdjson::dom::parser existingParser;
+        thread_local static simdjson::dom::parser existingParser;
         auto existingDoc = existingParser.parse(readResult.value());
         auto arrResult = existingDoc.get_array();
         if (arrResult.error()) [[unlikely]] {

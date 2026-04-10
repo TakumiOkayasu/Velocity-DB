@@ -24,7 +24,7 @@ std::vector<std::string> ExportProvider::getSupportedFormats() const {
 
 std::string ExportProvider::exportWithDriver(std::string_view params, std::string_view format) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto connectionIdResult = doc["connectionId"].get_string();

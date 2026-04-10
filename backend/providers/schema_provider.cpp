@@ -153,7 +153,7 @@ std::string SchemaProvider::getColumns(std::string_view params) {
         return *cached;
     }
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
 
         auto extracted = extractTableQueryParams(doc, m_connections);
@@ -186,7 +186,7 @@ std::string SchemaProvider::getColumns(std::string_view params) {
 
 std::string SchemaProvider::getIndexes(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
 
         auto extracted = extractTableQueryParams(doc, m_connections);
@@ -217,7 +217,7 @@ std::string SchemaProvider::getIndexes(std::string_view params) {
 
 std::string SchemaProvider::getConstraints(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
 
         auto extracted = extractTableQueryParams(doc, m_connections);
@@ -248,7 +248,7 @@ std::string SchemaProvider::getConstraints(std::string_view params) {
 
 std::string SchemaProvider::getForeignKeys(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
 
         auto extracted = extractTableQueryParams(doc, m_connections);
@@ -283,7 +283,7 @@ std::string SchemaProvider::getForeignKeys(std::string_view params) {
 
 std::string SchemaProvider::getReferencingForeignKeys(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
 
         auto extracted = extractTableQueryParams(doc, m_connections);
@@ -318,7 +318,7 @@ std::string SchemaProvider::getReferencingForeignKeys(std::string_view params) {
 
 std::string SchemaProvider::getTriggers(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
 
         auto extracted = extractTableQueryParams(doc, m_connections);
@@ -350,7 +350,7 @@ std::string SchemaProvider::getTriggers(std::string_view params) {
 
 std::string SchemaProvider::getTableMetadata(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
 
         auto extracted = extractTableQueryParams(doc, m_connections);
@@ -389,7 +389,7 @@ std::string SchemaProvider::getTableMetadata(std::string_view params) {
 
 std::string SchemaProvider::getTableDDL(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
 
         auto extracted = extractTableQueryParams(doc, m_connections);
@@ -452,7 +452,7 @@ std::string SchemaProvider::getTableDDL(std::string_view params) {
 
 std::string SchemaProvider::getExecutionPlan(std::string_view params) {
     try {
-        simdjson::dom::parser parser;
+        thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
         auto connectionIdResult = doc["connectionId"].get_string();
