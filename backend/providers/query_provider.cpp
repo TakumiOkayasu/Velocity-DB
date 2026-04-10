@@ -188,20 +188,23 @@ std::string QueryProvider::executeQuery(std::string_view params) {
         cacheKey.append(sqlQuery);
         bool selectQuery = SQLParser::isReadOnlyQuery(sqlQuery);
         if (useCache && selectQuery) {
-            if (auto cachedResult = m_resultCache->get(cacheKey); cachedResult.has_value()) {
-                return JsonUtils::successResponse(JsonUtils::serializeResultSet(*cachedResult, true));
+            if (auto cachedJson = m_resultCache->getAndApply(cacheKey, [](const ResultSet& rs) { return JsonUtils::serializeResultSet(rs, true); }); !cachedJson.empty()) {
+                return JsonUtils::successResponse(cachedJson);
             }
         }
 
         auto queryResult = driver->execute(sqlQuery);
 
-        if (useCache && selectQuery) {
-            m_resultCache->put(cacheKey, queryResult);
-        }
-
         std::string jsonResponse = JsonUtils::serializeResultSet(queryResult, false);
 
-        recordHistory(sqlQuery, connectionId, queryResult.executionTimeMs, true, {}, static_cast<int64_t>(queryResult.affectedRows));
+        if (useCache && selectQuery) {
+            auto execTimeMs = queryResult.executionTimeMs;
+            auto affectedRows = queryResult.affectedRows;
+            m_resultCache->put(cacheKey, std::move(queryResult));
+            recordHistory(sqlQuery, connectionId, execTimeMs, true, {}, affectedRows);
+        } else {
+            recordHistory(sqlQuery, connectionId, queryResult.executionTimeMs, true, {}, queryResult.affectedRows);
+        }
 
         return JsonUtils::successResponse(jsonResponse);
     } catch (const std::exception& e) {
