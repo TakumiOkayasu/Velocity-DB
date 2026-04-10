@@ -5,6 +5,11 @@
 namespace velocitydb {
 
 void ResultCache::put(std::string_view key, const ResultSet& result) {
+    auto copy = result;
+    put(key, std::move(copy));
+}
+
+void ResultCache::put(std::string_view key, ResultSet&& result) {
     std::lock_guard lock(m_mutex);
 
     auto resultSize = estimateSize(result);
@@ -13,9 +18,7 @@ void ResultCache::put(std::string_view key, const ResultSet& result) {
         return;
     }
 
-    std::string keyStr(key);
-
-    if (auto it = m_cache.find(keyStr); it != m_cache.end()) {
+    if (auto it = m_cache.find(key); it != m_cache.end()) {
         m_currentSizeBytes -= it->second.sizeBytes;
         m_lruList.erase(it->second.lruIt);
         m_cache.erase(it);
@@ -23,31 +26,21 @@ void ResultCache::put(std::string_view key, const ResultSet& result) {
 
     evictIfNeeded(resultSize);
 
-    m_lruList.push_back(keyStr);
+    m_lruList.emplace_back(key);
     auto lruIt = std::prev(m_lruList.end());
-    m_cache[keyStr] = CachedResult{.data = result, .sizeBytes = resultSize, .lruIt = lruIt};
+    m_cache.emplace(std::string(key), CachedResult{.data = std::move(result), .sizeBytes = resultSize, .lruIt = lruIt});
     m_currentSizeBytes += resultSize;
 }
 
-std::optional<ResultSet> ResultCache::get(std::string_view key) {
+bool ResultCache::contains(std::string_view key) {
     std::lock_guard lock(m_mutex);
-
-    std::string keyStr(key);
-    if (auto it = m_cache.find(keyStr); it != m_cache.end()) {
-        m_lruList.erase(it->second.lruIt);
-        m_lruList.push_back(keyStr);
-        it->second.lruIt = std::prev(m_lruList.end());
-        return it->second.data;
-    }
-
-    return std::nullopt;
+    return m_cache.find(key) != m_cache.end();
 }
 
 void ResultCache::invalidate(std::string_view key) {
     std::lock_guard lock(m_mutex);
 
-    std::string keyStr(key);
-    if (auto it = m_cache.find(keyStr); it != m_cache.end()) {
+    if (auto it = m_cache.find(key); it != m_cache.end()) {
         m_currentSizeBytes -= it->second.sizeBytes;
         m_lruList.erase(it->second.lruIt);
         m_cache.erase(it);

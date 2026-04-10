@@ -2,14 +2,25 @@
 
 #include "driver_interface.h"
 
+#include <functional>
 #include <list>
 #include <mutex>
-#include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 
 namespace velocitydb {
+
+struct TransparentStringHash {
+    using is_transparent = void;
+    size_t operator()(std::string_view sv) const noexcept { return std::hash<std::string_view>{}(sv); }
+};
+
+struct TransparentStringEqual {
+    using is_transparent = void;
+    bool operator()(std::string_view a, std::string_view b) const noexcept { return a == b; }
+};
 
 struct CachedResult {
     ResultSet data;
@@ -26,7 +37,19 @@ public:
     ResultCache& operator=(const ResultCache&) = delete;
 
     void put(std::string_view key, const ResultSet& result);
-    [[nodiscard]] std::optional<ResultSet> get(std::string_view key);
+    void put(std::string_view key, ResultSet&& result);
+
+    template <typename F>
+    auto getAndApply(std::string_view key, F&& fn) -> std::invoke_result_t<F, const ResultSet&> {
+        std::lock_guard lock(m_mutex);
+        if (auto it = m_cache.find(key); it != m_cache.end()) {
+            m_lruList.splice(m_lruList.end(), m_lruList, it->second.lruIt);
+            return fn(it->second.data);
+        }
+        return {};
+    }
+
+    [[nodiscard]] bool contains(std::string_view key);
     void invalidate(std::string_view key);
     void clear();
 
@@ -40,7 +63,7 @@ private:
     size_t m_maxSizeBytes;
     size_t m_currentSizeBytes = 0;
     mutable std::mutex m_mutex;
-    std::unordered_map<std::string, CachedResult> m_cache;
+    std::unordered_map<std::string, CachedResult, TransparentStringHash, TransparentStringEqual> m_cache;
     std::list<std::string> m_lruList;  // front=oldest, back=newest
 };
 
