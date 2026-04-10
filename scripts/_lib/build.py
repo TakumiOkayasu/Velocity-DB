@@ -75,6 +75,7 @@ def build_backend(build_type: str = "Release", clean: bool = False) -> bool:
 
     project_root = utils.get_project_root()
     build_dir = project_root / "build"
+    preset = build_type.lower()  # "debug" or "release"
 
     print(f"\n{'#' * 60}")
     print(f"#  Building Backend ({build_type})")
@@ -97,18 +98,9 @@ def build_backend(build_type: str = "Release", clean: bool = False) -> bool:
     if not utils.check_build_tools(env):
         return False
 
-    # Check for Ninja
-    has_ninja = shutil.which("ninja") is not None
-
-    # Create build directory
-    build_dir.mkdir(exist_ok=True)
-
-    # Configure
-    print("\n[3/4] Configuring with CMake...")
-    if has_ninja:
-        cmake_cmd = ["cmake", "-B", "build", "-G", "Ninja", f"-DCMAKE_BUILD_TYPE={build_type}"]
-    else:
-        cmake_cmd = ["cmake", "-B", "build", "-G", "Visual Studio 17 2022", "-A", "x64"]
+    # Configure with Preset
+    print(f"\n[3/4] Configuring with CMake (preset: {preset})...")
+    cmake_cmd = ["cmake", "--preset", preset]
 
     success, stderr = utils.run_command(cmake_cmd, "CMake Configure", env=env, capture_output=True)
     if not success:
@@ -117,9 +109,9 @@ def build_backend(build_type: str = "Release", clean: bool = False) -> bool:
             print(f"\n{stderr}")
         return False
 
-    # Build
+    # Build with Preset
     print("\n[4/4] Building...")
-    build_cmd = ["cmake", "--build", "build", "--config", build_type, "--parallel"]
+    build_cmd = ["cmake", "--build", "--preset", preset]
     success, _ = utils.run_command(build_cmd, f"CMake Build ({build_type})", env=env)
     if not success:
         print("\nERROR: Build failed")

@@ -62,13 +62,15 @@
       "name": "debug",
       "displayName": "Debug Build",
       "configurePreset": "debug",
-      "configuration": "Debug"
+      "configuration": "Debug",
+      "jobs": 0
     },
     {
       "name": "release",
       "displayName": "Release Build",
       "configurePreset": "release",
-      "configuration": "Release"
+      "configuration": "Release",
+      "jobs": 0
     }
   ],
   "testPresets": [

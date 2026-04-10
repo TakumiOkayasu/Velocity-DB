@@ -187,6 +187,11 @@ target_include_directories(VelocityDBCore PUBLIC
     ${CMAKE_SOURCE_DIR}/third_party
 )
 
+target_compile_definitions(VelocityDBCore PUBLIC
+    UNICODE _UNICODE
+    $<$<CONFIG:Debug>:_DEBUG>
+)
+
 target_link_libraries(VelocityDBCore PUBLIC
     webview
     simdjson
@@ -199,13 +204,21 @@ target_link_libraries(VelocityDBCore PUBLIC
     comdlg32
 )
 
-# Glaze requires /Zc:preprocessor for MSVC (conformant preprocessor)
+# Glaze requires conformant preprocessor
 if(MSVC)
     target_compile_options(VelocityDBCore PUBLIC /Zc:preprocessor)
 endif()
 
+# MSVC compiler options and Release optimizations (from cmake/ modules)
+target_set_msvc_options(VelocityDBCore)
+target_set_release_optimizations(VelocityDBCore)
 
-# Link libssh2 if available
+# SIMD
+if(ENABLE_SIMD AND MSVC)
+    target_compile_options(VelocityDBCore PRIVATE /arch:AVX2)
+endif()
+
+# libssh2: prefer shared, fall back to static (vcpkg may provide either)
 if(SSH_TUNNEL_ENABLED)
     target_link_libraries(VelocityDBCore PUBLIC
         $<IF:$<TARGET_EXISTS:Libssh2::libssh2_shared>,Libssh2::libssh2_shared,Libssh2::libssh2_static>
@@ -213,7 +226,7 @@ if(SSH_TUNNEL_ENABLED)
     target_compile_definitions(VelocityDBCore PUBLIC SSH_TUNNEL_ENABLED)
 endif()
 
-# Precompiled Headers for faster compilation
+# Precompiled Headers
 target_precompile_headers(VelocityDBCore PRIVATE
     <string>
     <string_view>
@@ -236,21 +249,9 @@ add_executable(VelocityDB WIN32 main.cpp resources/app.rc)
 
 target_link_libraries(VelocityDB PRIVATE VelocityDBCore)
 
-# Set output directory to build/[Debug|Release]/
-set_target_properties(VelocityDB PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug"
-    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
-    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo"
-    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_BINARY_DIR}/MinSizeRel"
-)
-
-# Also set output directory for the static library
-set_target_properties(VelocityDBCore PROPERTIES
-    ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug"
-    ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
-    ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo"
-    ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_BINARY_DIR}/MinSizeRel"
-)
+# Output directories (from cmake/OutputDirectories.cmake)
+target_set_output_directories(VelocityDBCore)
+target_set_output_directories(VelocityDB)
 
 # Copy frontend dist to output directory (if it exists)
 # Clean destination first to remove stale hashed chunks from previous builds
