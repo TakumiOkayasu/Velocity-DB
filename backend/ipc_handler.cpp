@@ -129,9 +129,9 @@ std::string IPCHandler::dispatchRequest(std::string_view request) {
         }
         auto method = methodResult.value();
 
-        std::string params;
+        std::string_view params;
         if (auto paramsResult = doc["params"].get_string(); !paramsResult.error()) {
-            params = std::string(paramsResult.value());
+            params = paramsResult.value();
         }
 
         if (auto route = m_routes.find(std::string(method)); route != m_routes.end()) [[likely]] {

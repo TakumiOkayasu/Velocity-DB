@@ -166,9 +166,9 @@ std::string IOProvider::saveBookmark(std::string_view params) {
         if (idResult.error() || nameResult.error() || contentResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing required fields: id, name, or content");
         }
-        auto id = std::string(idResult.value());
-        auto name = std::string(nameResult.value());
-        auto content = std::string(contentResult.value());
+        std::string_view id = idResult.value();
+        std::string_view name = nameResult.value();
+        std::string_view content = contentResult.value();
 
         std::filesystem::path bookmarksPath(kBookmarksPath);
         std::filesystem::create_directories(bookmarksPath.parent_path());
@@ -198,7 +198,7 @@ std::string IOProvider::saveBookmark(std::string_view params) {
                 auto bookmarkIdResult = bookmark["id"].get_string();
                 if (bookmarkIdResult.error())
                     continue;
-                auto bookmarkId = std::string(bookmarkIdResult.value());
+                std::string_view bookmarkId = bookmarkIdResult.value();
 
                 if (!first)
                     json += ",";
@@ -242,7 +242,7 @@ std::string IOProvider::deleteBookmark(std::string_view params) {
         if (idResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing required field: id");
         }
-        auto id = std::string(idResult.value());
+        std::string_view id = idResult.value();
 
         std::filesystem::path bookmarksPath(kBookmarksPath);
         if (!std::filesystem::exists(bookmarksPath)) {
@@ -268,7 +268,7 @@ std::string IOProvider::deleteBookmark(std::string_view params) {
             auto bookmarkIdResult = bookmark["id"].get_string();
             if (bookmarkIdResult.error())
                 continue;
-            auto bookmarkId = std::string(bookmarkIdResult.value());
+            std::string_view bookmarkId = bookmarkIdResult.value();
             if (bookmarkId != id) {
                 if (!first)
                     json += ",";

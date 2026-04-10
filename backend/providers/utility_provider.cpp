@@ -62,7 +62,7 @@ std::string UtilityProvider::uppercaseKeywords(std::string_view params) {
         if (sqlResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing sql field");
         }
-        std::string sqlQuery = std::string(sqlResult.value());
+        std::string_view sqlQuery = sqlResult.value();
 
         auto uppercasedSQL = m_sqlFormatter->uppercaseKeywords(sqlQuery);
         return JsonUtils::successResponse(std::format(R"({{"sql":"{}"}})", JsonUtils::escapeString(uppercasedSQL)));

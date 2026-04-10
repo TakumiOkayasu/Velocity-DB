@@ -31,10 +31,10 @@ QueryProvider::QueryProvider(IConnectionProvider& connections, QueryHistory& que
 
 QueryProvider::~QueryProvider() = default;
 
-void QueryProvider::recordHistory(const std::string& sql, const std::string& connectionId, double execTimeMs, bool success, std::string_view errorMsg, int64_t affectedRows) {
+void QueryProvider::recordHistory(std::string_view sql, std::string_view connectionId, double execTimeMs, bool success, std::string_view errorMsg, int64_t affectedRows) {
     m_queryHistory.add({.id = generateHistoryId(),
                         .sql = truncateHistorySql(sql),
-                        .connectionId = connectionId,
+                        .connectionId = std::string(connectionId),
                         .executionTimeMs = execTimeMs,
                         .success = success,
                         .errorMessage = std::string(errorMsg),
@@ -43,8 +43,8 @@ void QueryProvider::recordHistory(const std::string& sql, const std::string& con
 }
 
 std::string QueryProvider::executeQuery(std::string_view params) {
-    std::string connectionId;
-    std::string sqlQuery;
+    std::string_view connectionId;
+    std::string_view sqlQuery;
 
     try {
         thread_local static simdjson::dom::parser parser;
@@ -55,8 +55,8 @@ std::string QueryProvider::executeQuery(std::string_view params) {
         if (connectionIdResult.error() || sqlQueryResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing required fields: connectionId or sql");
         }
-        connectionId = std::string(connectionIdResult.value());
-        sqlQuery = std::string(sqlQueryResult.value());
+        connectionId = connectionIdResult.value();
+        sqlQuery = sqlQueryResult.value();
 
         auto driver = m_connections.getQueryDriver(connectionId);
         if (!driver) [[unlikely]] {
@@ -225,8 +225,8 @@ std::string QueryProvider::executeQueryPaginated(std::string_view params) {
         if (connectionIdResult.error() || sqlQueryResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing required fields: connectionId or sql");
         }
-        auto connectionId = std::string(connectionIdResult.value());
-        auto sqlQuery = std::string(sqlQueryResult.value());
+        std::string_view connectionId = connectionIdResult.value();
+        std::string_view sqlQuery = sqlQueryResult.value();
 
         int64_t startRow = 0;
         int64_t endRow = 100;
@@ -247,7 +247,7 @@ std::string QueryProvider::executeQueryPaginated(std::string_view params) {
                 if (!colId.error() && !sort.error()) {
                     if (!sortClauses.empty())
                         sortClauses += ", ";
-                    sortClauses += formatter->quoteIdentifier(std::string(colId.value())) + " " + (sort.value() == std::string_view("asc") ? "ASC" : "DESC");
+                    sortClauses += formatter->quoteIdentifier(colId.value()) + " " + (sort.value() == std::string_view("asc") ? "ASC" : "DESC");
                 }
             }
             if (!sortClauses.empty())
@@ -263,7 +263,7 @@ std::string QueryProvider::executeQueryPaginated(std::string_view params) {
         if (orderByClause.empty()) {
             paginatedQuery = formatter->paginateQuery(sqlQuery, startRow, endRow - startRow);
         } else {
-            paginatedQuery = formatter->paginateQuery(sqlQuery + orderByClause, startRow, endRow - startRow);
+            paginatedQuery = formatter->paginateQuery(std::string(sqlQuery) + orderByClause, startRow, endRow - startRow);
         }
 
         auto queryResult = driver->execute(paginatedQuery);
@@ -283,8 +283,8 @@ std::string QueryProvider::getRowCount(std::string_view params) {
         if (connectionIdResult.error() || sqlQueryResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing required fields: connectionId or sql");
         }
-        auto connectionId = std::string(connectionIdResult.value());
-        auto sqlQuery = std::string(sqlQueryResult.value());
+        std::string_view connectionId = connectionIdResult.value();
+        std::string_view sqlQuery = sqlQueryResult.value();
 
         auto driver = m_connections.getQueryDriver(connectionId);
         if (!driver) [[unlikely]] {
@@ -331,10 +331,10 @@ std::string QueryProvider::filterResultSet(std::string_view params) {
         if (connectionIdResult.error() || sqlQueryResult.error() || columnIndexResult.error() || filterTypeResult.error() || filterValueResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing required fields: connectionId, sql, columnIndex, filterType, or filterValue");
         }
-        auto connectionId = std::string(connectionIdResult.value());
-        auto sqlQuery = std::string(sqlQueryResult.value());
+        std::string_view connectionId = connectionIdResult.value();
+        std::string_view sqlQuery = sqlQueryResult.value();
         auto columnIndex = columnIndexResult.value();
-        auto filterType = std::string(filterTypeResult.value());
+        std::string_view filterType = filterTypeResult.value();
         auto filterValue = std::string(filterValueResult.value());
 
         auto driver = m_connections.getQueryDriver(connectionId);
@@ -454,8 +454,8 @@ std::string QueryProvider::buildDataViewSql(std::string_view params) {
         if (connectionIdResult.error() || tableNameResult.error() || limitResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing required fields: connectionId, tableName, or limit");
         }
-        auto connectionId = std::string(connectionIdResult.value());
-        auto tableName = std::string(tableNameResult.value());
+        std::string_view connectionId = connectionIdResult.value();
+        std::string_view tableName = tableNameResult.value();
         auto limit = std::max(limitResult.value(), int64_t{0});
 
         auto driverType = m_connections.getDriverType(connectionId);
@@ -485,7 +485,7 @@ std::string QueryProvider::buildWhereClause(std::string_view params) {
         if (connectionIdResult.error() || conditionsResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing required fields: connectionId or conditions");
         }
-        auto connectionId = std::string(connectionIdResult.value());
+        std::string_view connectionId = connectionIdResult.value();
 
         auto driverType = m_connections.getDriverType(connectionId);
         auto formatter = DriverFactory::createSqlFormattable(driverType);
@@ -500,7 +500,7 @@ std::string QueryProvider::buildWhereClause(std::string_view params) {
                 whereClause += " AND ";
             }
 
-            auto quotedCol = formatter->quoteIdentifier(std::string(columnResult.value()));
+            auto quotedCol = formatter->quoteIdentifier(columnResult.value());
 
             // null → IS NULL, string → quoted literal, numeric → unquoted
             auto valueEl = condition["value"];
@@ -534,9 +534,9 @@ std::string QueryProvider::buildDmlStatements(std::string_view params) {
         if (connectionIdResult.error() || tableResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing required fields: connectionId or table");
         }
-        auto connectionId = std::string(connectionIdResult.value());
-        auto schema = schemaResult.error() ? std::string() : std::string(schemaResult.value());
-        auto table = std::string(tableResult.value());
+        std::string_view connectionId = connectionIdResult.value();
+        std::string_view schema = schemaResult.error() ? std::string_view{} : schemaResult.value();
+        std::string_view table = tableResult.value();
 
         auto driverType = m_connections.getDriverType(connectionId);
         auto formatter = DriverFactory::createSqlFormattable(driverType);
@@ -575,7 +575,7 @@ std::string QueryProvider::buildDmlStatements(std::string_view params) {
                 for (auto field : changesObj.value()) {
                     if (!setClauses.empty())
                         setClauses += ", ";
-                    auto col = formatter->quoteIdentifier(std::string(field.key));
+                    auto col = formatter->quoteIdentifier(field.key);
                     if (field.value.is_null()) {
                         setClauses += col + " = NULL";
                     } else if (auto v = field.value.get_string(); !v.error()) {
@@ -590,7 +590,7 @@ std::string QueryProvider::buildDmlStatements(std::string_view params) {
                 auto buildWhere = [&](std::string_view colName) {
                     if (!whereClauses.empty())
                         whereClauses += " AND ";
-                    auto col = formatter->quoteIdentifier(std::string(colName));
+                    auto col = formatter->quoteIdentifier(colName);
                     // Use original value for the WHERE
                     if (!originalObj.error()) {
                         auto origVal = originalObj.value()[colName];
@@ -631,7 +631,7 @@ std::string QueryProvider::buildDmlStatements(std::string_view params) {
                         columns += ", ";
                         values += ", ";
                     }
-                    columns += formatter->quoteIdentifier(std::string(field.key));
+                    columns += formatter->quoteIdentifier(field.key);
                     if (field.value.is_null()) {
                         values += "NULL";
                     } else if (auto v = field.value.get_string(); !v.error()) {
@@ -658,7 +658,7 @@ std::string QueryProvider::buildDmlStatements(std::string_view params) {
                 auto buildWhere = [&](std::string_view colName) {
                     if (!whereClauses.empty())
                         whereClauses += " AND ";
-                    auto col = formatter->quoteIdentifier(std::string(colName));
+                    auto col = formatter->quoteIdentifier(colName);
                     auto val = obj.value()[colName];
                     if (val.is_null() || val.error()) {
                         whereClauses += col + " IS NULL";
