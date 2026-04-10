@@ -1,9 +1,32 @@
 import path from 'node:path';
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
+
+/**
+ * Prevents Vite from bundling unused Monaco language workers (css, html, json, typescript).
+ * Only the base editor.worker is needed for SQL editing.
+ * Runs before vite:worker-import-meta-url to remove the `new Worker(new URL(...))` pattern.
+ */
+function monacoWorkerExcludePlugin(): Plugin {
+  const workerManagerRE =
+    /monaco-editor[\\/]esm[\\/]vs[\\/]language[\\/](css|html|json|typescript)[\\/]workerManager\.js$/;
+  return {
+    name: 'monaco-worker-exclude',
+    enforce: 'pre',
+    transform(code, id) {
+      if (!workerManagerRE.test(id)) return null;
+      const transformed = code.replace(
+        /new Worker\(new URL\('[^']+\.worker\.js',\s*import\.meta\.url\),\s*\{[^}]*\}\)/g,
+        '(() => { throw new Error("Worker not available"); })()'
+      );
+      if (transformed !== code) return { code: transformed, map: null };
+      return null;
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), monacoWorkerExcludePlugin()],
   base: './', // Use relative paths for file:// protocol
   resolve: {
     alias: {
@@ -22,7 +45,7 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: 'hidden',
     cssMinify: 'lightningcss',
-    minify: 'esbuild',
+    minify: 'oxc',
     target: 'es2020',
     chunkSizeWarningLimit: 5000, // Monaco Editor vendor chunk is ~4.3MB
     rolldownOptions: {
@@ -31,6 +54,13 @@ export default defineConfig({
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',
+        minify: {
+          compress: {
+            dropConsole: true,
+            dropDebugger: true,
+          },
+          mangle: true,
+        },
         manualChunks(id) {
           // Split node_modules into vendor chunks
           if (id.includes('node_modules')) {
@@ -62,11 +92,6 @@ export default defineConfig({
         },
       },
     },
-  },
-  esbuild: {
-    logOverride: { 'this-is-undefined-in-esm': 'silent' },
-    // Drop console and debugger in production
-    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
   },
   server: {
     port: 5173,
