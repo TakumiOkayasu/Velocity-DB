@@ -19,6 +19,7 @@
 #include <atomic>
 #include <format>
 #include <fstream>
+#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -33,12 +34,11 @@ inline int closeSocket(socket_t s) {
     return closesocket(s);
 }
 inline void initWsa() {
-    static bool initialized = false;
-    if (!initialized) {
+    static std::once_flag flag;
+    std::call_once(flag, []() {
         WSADATA wsaData;
         WSAStartup(MAKEWORD(2, 2), &wsaData);
-        initialized = true;
-    }
+    });
 }
 inline int getLastSocketError() {
     return WSAGetLastError();
