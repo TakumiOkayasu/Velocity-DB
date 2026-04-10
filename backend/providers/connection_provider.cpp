@@ -139,7 +139,7 @@ std::string ConnectionProvider::cancelConnect(std::string_view params) {
             return JsonUtils::errorResponse("Missing requestId field");
         }
 
-        m_asyncExecutor->cancelConnect(std::string(requestIdResult.value()));
+        (void)m_asyncExecutor->cancelConnect(requestIdResult.value());
         return JsonUtils::successResponse("{}");
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());

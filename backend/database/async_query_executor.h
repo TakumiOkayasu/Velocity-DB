@@ -5,6 +5,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <expected>
 #include <functional>
 #include <future>
 #include <memory>
@@ -58,13 +59,13 @@ public:
     [[nodiscard]] AsyncQueryResult getQueryResult(std::string_view queryId);
 
     /// Cancels a running query
-    bool cancelQuery(std::string_view queryId);
+    [[nodiscard]] std::expected<void, std::string> cancelQuery(std::string_view queryId);
 
     /// Checks if a query is still running
     [[nodiscard]] bool isQueryRunning(std::string_view queryId) const;
 
-    /// Removes completed query from tracking (cleanup). Returns true if the query existed.
-    [[nodiscard]] bool removeQuery(std::string_view queryId);
+    /// Removes completed query from tracking (cleanup)
+    [[nodiscard]] std::expected<void, std::string> removeQuery(std::string_view queryId);
 
     /// Gets all active query IDs
     [[nodiscard]] std::vector<std::string> getActiveQueryIds() const;

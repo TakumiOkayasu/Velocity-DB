@@ -47,8 +47,8 @@ WebViewApp::WebViewApp(HINSTANCE hInstance)
     , m_ipcHandler(std::make_unique<IPCHandler>(*m_systemContext))
     , m_webview(nullptr)
     , m_settingsManager(std::make_unique<SettingsManager>()) {
-    // Load settings
-    m_settingsManager->load();
+    // Load settings (best-effort — defaults used on failure)
+    (void)m_settingsManager->load();
 }
 
 WebViewApp::~WebViewApp() = default;

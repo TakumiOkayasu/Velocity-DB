@@ -111,12 +111,12 @@ std::string AsyncConnectionExecutor::submitConnect(DatabaseConnectionParams para
     return requestId;
 }
 
-bool AsyncConnectionExecutor::cancelConnect(std::string_view requestId) {
+std::expected<void, std::string> AsyncConnectionExecutor::cancelConnect(std::string_view requestId) {
     std::lock_guard lock(m_mutex);
 
     auto iter = m_tasks.find(std::string(requestId));
     if (iter == m_tasks.end()) {
-        return false;
+        return std::unexpected(std::format("Connection request not found: {}", requestId));
     }
 
     auto& task = iter->second;
@@ -124,10 +124,10 @@ bool AsyncConnectionExecutor::cancelConnect(std::string_view requestId) {
     if (status == ConnectStatus::Pending) {
         task->cancelled.store(true, std::memory_order_release);
         task->status = ConnectStatus::Cancelled;
-        return true;
+        return {};
     }
 
-    return false;
+    return std::unexpected("Connection request is not pending");
 }
 
 std::expected<AsyncConnectionExecutor::ConnectedDrivers, ConnectResult> AsyncConnectionExecutor::getResultAndConsume(std::string_view requestId) {

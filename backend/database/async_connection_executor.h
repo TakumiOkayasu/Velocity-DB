@@ -40,7 +40,7 @@ public:
     [[nodiscard]] std::string submitConnect(DatabaseConnectionParams params);
 
     /// Cancel a pending/running connection request.
-    bool cancelConnect(std::string_view requestId);
+    [[nodiscard]] std::expected<void, std::string> cancelConnect(std::string_view requestId);
 
     /// Get the connected drivers (query + metadata) after successful connection.
     struct ConnectedDrivers {

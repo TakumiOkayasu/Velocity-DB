@@ -28,40 +28,46 @@ SessionManager::SessionManager() {
     m_sessionPath /= "session.json";
 }
 
-bool SessionManager::load() {
+std::expected<void, std::string> SessionManager::load() {
     std::lock_guard lock(m_mutex);
 
     if (!std::filesystem::exists(m_sessionPath)) {
-        return true;  // No session to restore, use defaults
+        return {};  // No session to restore, use defaults
     }
 
     std::ifstream file(m_sessionPath);
     if (!file.is_open()) {
-        return false;
+        return std::unexpected(std::format("Failed to open session file: {}", m_sessionPath.string()));
     }
 
     std::stringstream buffer;
     buffer << file.rdbuf();
-    return deserializeSession(buffer.str());
+    if (!deserializeSession(buffer.str())) {
+        return std::unexpected("Failed to parse session file");
+    }
+    return {};
 }
 
-bool SessionManager::save() {
+std::expected<void, std::string> SessionManager::save() {
     std::lock_guard lock(m_mutex);
 
     m_state.lastSaved = std::chrono::system_clock::now();
 
     auto json = serializeSession();
     if (json.empty()) {
-        return false;  // Serialization failed — preserve existing file
+        return std::unexpected("Serialization failed — preserving existing file");
     }
 
     std::ofstream file(m_sessionPath);
     if (!file.is_open()) {
-        return false;
+        return std::unexpected(std::format("Failed to open session file for writing: {}", m_sessionPath.string()));
     }
 
     file << json;
-    return file.good();
+    if (!file.good()) {
+        return std::unexpected(std::format("Failed to write session file: {}", m_sessionPath.string()));
+    }
+    return {};
 }
 
 void SessionManager::updateState(const SessionState& state) {

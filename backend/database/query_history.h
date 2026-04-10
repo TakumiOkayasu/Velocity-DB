@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <expected>
 #include <format>
 #include <mutex>
 #include <optional>
@@ -61,8 +62,8 @@ public:
     void remove(std::string_view id);
     void clear();
 
-    [[nodiscard]] bool save(std::string_view filepath) const;
-    [[nodiscard]] bool load(std::string_view filepath);
+    [[nodiscard]] std::expected<void, std::string> save(std::string_view filepath) const;
+    [[nodiscard]] std::expected<void, std::string> load(std::string_view filepath);
 
 private:
     size_t m_maxItems;

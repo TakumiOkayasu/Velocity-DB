@@ -97,14 +97,14 @@ void QueryHistory::clear() {
     std::erase_if(m_history, [](const HistoryItem& h) { return !h.isFavorite; });
 }
 
-bool QueryHistory::save(std::string_view filepath) const {
+std::expected<void, std::string> QueryHistory::save(std::string_view filepath) const {
     std::lock_guard lock(m_mutex);
 
     auto path = std::string(filepath);
     std::ofstream outFile;
     outFile.open(path);
     if (!outFile.is_open()) [[unlikely]] {
-        return false;
+        return std::unexpected(std::format("Failed to open history file for writing: {}", filepath));
     }
 
     outFile << "[\n";
@@ -134,16 +134,19 @@ bool QueryHistory::save(std::string_view filepath) const {
     }
     outFile << "]\n";
 
-    return true;
+    if (!outFile.good()) [[unlikely]] {
+        return std::unexpected(std::format("Failed to write history file: {}", filepath));
+    }
+    return {};
 }
 
-bool QueryHistory::load(std::string_view filepath) {
+std::expected<void, std::string> QueryHistory::load(std::string_view filepath) {
     std::lock_guard lock(m_mutex);
 
     std::string path(filepath);
     std::ifstream inFile(path);
     if (!inFile.is_open()) [[unlikely]] {
-        return false;
+        return std::unexpected(std::format("Failed to open history file: {}", filepath));
     }
 
     std::stringstream buffer;
@@ -151,7 +154,7 @@ bool QueryHistory::load(std::string_view filepath) {
     std::string jsonContent = buffer.str();
 
     if (jsonContent.empty()) {
-        return true;  // Empty file is valid
+        return {};  // Empty file is valid
     }
 
     try {
@@ -159,7 +162,7 @@ bool QueryHistory::load(std::string_view filepath) {
         auto doc = parser.parse(jsonContent);
 
         if (!doc.is_array()) {
-            return false;
+            return std::unexpected("Invalid history file: expected JSON array");
         }
 
         m_history.clear();
@@ -198,9 +201,9 @@ bool QueryHistory::load(std::string_view filepath) {
             m_history.push_back(std::move(historyItem));
         }
 
-        return true;
-    } catch (...) {
-        return false;
+        return {};
+    } catch (const std::exception& e) {
+        return std::unexpected(std::format("Failed to parse history file: {}", e.what()));
     }
 }
 
