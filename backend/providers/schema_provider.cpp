@@ -49,11 +49,11 @@ struct TableQueryParams {
     if (connectionIdResult.error() || tableNameResult.error()) [[unlikely]]
         return std::unexpected("Missing required fields: connectionId or table");
 
-    auto tableName = std::string(tableNameResult.value());
+    std::string_view tableName = tableNameResult.value();
     if (!isValidIdentifier(tableName)) [[unlikely]]
         return std::unexpected("Invalid table name");
 
-    auto connectionId = std::string(connectionIdResult.value());
+    std::string_view connectionId = connectionIdResult.value();
     auto driver = connections.getMetadataDriver(connectionId);
     if (!driver) [[unlikely]]
         return std::unexpected(std::format("Connection not found: {}", connectionId));
@@ -460,8 +460,8 @@ std::string SchemaProvider::getExecutionPlan(std::string_view params) {
         if (connectionIdResult.error() || sqlQueryResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing required fields: connectionId or sql");
         }
-        auto connectionId = std::string(connectionIdResult.value());
-        auto sqlQuery = std::string(sqlQueryResult.value());
+        std::string_view connectionId = connectionIdResult.value();
+        std::string_view sqlQuery = sqlQueryResult.value();
         bool actualPlan = false;
         if (auto actual = doc["actual"].get_bool(); !actual.error())
             actualPlan = actual.value();

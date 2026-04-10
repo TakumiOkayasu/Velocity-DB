@@ -33,9 +33,9 @@ std::string ExportProvider::exportWithDriver(std::string_view params, std::strin
         if (connectionIdResult.error() || filepathResult.error() || sqlQueryResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing required fields: connectionId, filepath, or sql");
         }
-        auto connectionId = std::string(connectionIdResult.value());
+        std::string_view connectionId = connectionIdResult.value();
         auto filepath = std::string(filepathResult.value());
-        auto sqlQuery = std::string(sqlQueryResult.value());
+        std::string_view sqlQuery = sqlQueryResult.value();
 
         if (!SQLParser::isReadOnlyQuery(sqlQuery)) [[unlikely]] {
             return JsonUtils::errorResponse("Export only supports SELECT queries");

@@ -28,8 +28,8 @@ std::string AsyncQueryProvider::executeAsyncQuery(std::string_view params) {
         if (connectionIdResult.error() || sqlQueryResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing required fields: connectionId or sql");
         }
-        auto connectionId = std::string(connectionIdResult.value());
-        auto sqlQuery = std::string(sqlQueryResult.value());
+        std::string_view connectionId = connectionIdResult.value();
+        std::string_view sqlQuery = sqlQueryResult.value();
 
         auto driver = m_connections.getQueryDriver(connectionId);
         if (!driver) [[unlikely]] {
@@ -45,8 +45,7 @@ std::string AsyncQueryProvider::executeAsyncQuery(std::string_view params) {
                 return JsonUtils::errorResponse("Connection parameters not found for psql delegation");
             }
             auto connInfo = toPsqlConnectionInfo(*connParams);
-            auto sqlCopy = std::string(sqlQuery);
-            queryId = m_asyncExecutor->submitTask([connInfo = std::move(connInfo), sqlCopy = std::move(sqlCopy)]() -> QueryResultVariant {
+            queryId = m_asyncExecutor->submitTask([connInfo = std::move(connInfo), sqlCopy = std::string(sqlQuery)]() -> QueryResultVariant {
                 auto result = executePsql(connInfo, sqlCopy);
                 if (!result)
                     throw std::runtime_error(result.error());
@@ -57,7 +56,7 @@ std::string AsyncQueryProvider::executeAsyncQuery(std::string_view params) {
         if (queryId.empty())
             queryId = m_asyncExecutor->submitQuery(driver, sqlQuery);
 
-        m_queryMeta[queryId] = {.connectionId = connectionId, .sql = truncateHistorySql(sqlQuery)};
+        m_queryMeta[queryId] = {.connectionId = std::string(connectionId), .sql = truncateHistorySql(sqlQuery)};
         return JsonUtils::successResponse(std::format(R"({{"queryId":"{}"}})", queryId));
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
@@ -166,7 +165,7 @@ std::string AsyncQueryProvider::cancelAsyncQuery(std::string_view params) {
         if (queryIdResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing required field: queryId");
         }
-        bool cancelled = m_asyncExecutor->cancelQuery(std::string(queryIdResult.value()));
+        bool cancelled = m_asyncExecutor->cancelQuery(queryIdResult.value());
         return JsonUtils::successResponse(std::format(R"({{"cancelled":{}}})", cancelled ? "true" : "false"));
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());

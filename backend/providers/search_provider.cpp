@@ -25,7 +25,7 @@ std::string SearchProvider::searchObjects(std::string_view params) {
         if (connectionIdResult.error() || patternResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing required fields: connectionId or pattern");
         }
-        auto connectionId = std::string(connectionIdResult.value());
+        std::string_view connectionId = connectionIdResult.value();
         auto pattern = std::string(patternResult.value());
 
         auto driver = m_connections.getMetadataDriver(connectionId);
@@ -75,7 +75,7 @@ std::string SearchProvider::quickSearch(std::string_view params) {
         if (connectionIdResult.error() || prefixResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing required fields: connectionId or prefix");
         }
-        auto connectionId = std::string(connectionIdResult.value());
+        std::string_view connectionId = connectionIdResult.value();
         auto prefix = std::string(prefixResult.value());
         int limit = 20;
         if (auto val = doc["limit"].get_int64(); !val.error())

@@ -41,7 +41,7 @@ public:
     [[nodiscard]] std::string buildDmlStatements(std::string_view params) override;
 
 private:
-    void recordHistory(const std::string& sql, const std::string& connectionId, double execTimeMs, bool success, std::string_view errorMsg = {}, int64_t affectedRows = 0);
+    void recordHistory(std::string_view sql, std::string_view connectionId, double execTimeMs, bool success, std::string_view errorMsg = {}, int64_t affectedRows = 0);
 
     IConnectionProvider& m_connections;
     std::unique_ptr<ResultCache> m_resultCache;
