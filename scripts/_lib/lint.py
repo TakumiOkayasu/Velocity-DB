@@ -11,12 +11,11 @@ def lint_frontend(fix: bool = False, unsafe: bool = False) -> bool:
     project_root = utils.get_project_root()
     frontend_dir = project_root / "frontend"
 
-    print(f"\n{'#' * 60}")
-    print("#  Linting Frontend")
     if fix:
         mode = "Auto-fix (safe + unsafe)" if unsafe else "Auto-fix (safe only)"
-        print(f"#  Mode: {mode}")
-    print(f"{'#' * 60}")
+        utils.print_header("Linting Frontend", f"Mode: {mode}")
+    else:
+        utils.print_header("Linting Frontend")
 
     # Ensure dependencies
     pkg_info = utils.ensure_frontend_deps()
@@ -54,11 +53,8 @@ def lint_cpp(fix: bool = False) -> bool:
     project_root = utils.get_project_root()
     src_dir = project_root / "backend"
 
-    print(f"\n{'#' * 60}")
-    print("#  Linting C++")
-    if fix:
-        print("#  Mode: Auto-fix")
-    print(f"{'#' * 60}")
+    subtitles = ("Mode: Auto-fix",) if fix else ()
+    utils.print_header("Linting C++", *subtitles)
 
     # Check for clang-format
     clang_format = shutil.which("clang-format")
@@ -85,36 +81,35 @@ def lint_cpp(fix: bool = False) -> bool:
 
     print(f"\nFound {len(cpp_files)} C++ files")
 
-    # Format files
-    errors = 0
-    for file in cpp_files:
-        if fix:
-            # Auto-fix
-            result = subprocess.run(
-                [clang_format, "-i", "-style=file", str(file)], capture_output=True
-            )
-            if result.returncode != 0:
-                print(f"  [FAIL] {file.relative_to(project_root)}")
-                errors += 1
-            else:
-                print(f"  [OK] {file.relative_to(project_root)}")
-        else:
-            # Check only
-            result = subprocess.run(
-                [clang_format, "--style=file", "--dry-run", "--Werror", str(file)],
-                capture_output=True,
-            )
-            if result.returncode != 0:
-                print(f"  [FAIL] {file.relative_to(project_root)}")
-                errors += 1
-
-    if errors > 0:
-        print(f"\n[FAIL] {errors} file(s) need formatting")
-        if not fix:
-            print("Run with --fix to auto-format")
-        return False
+    # Run clang-format on all files at once (much faster than one-by-one)
+    file_args = [str(f) for f in cpp_files]
+    if fix:
+        cmd = [clang_format, "-i", "-style=file", "--verbose"] + file_args
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.stderr:
+            print(result.stderr.strip())
+        if result.returncode != 0:
+            print("\n[FAIL] clang-format failed")
+            return False
+        print(f"\n[OK] {len(cpp_files)} files formatted!")
+        return True
     else:
-        print("\n[OK] All files properly formatted!")
+        cmd = [clang_format, "--style=file", "--dry-run", "--Werror"] + file_args
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            if result.stderr:
+                # Extract filenames from warnings
+                seen: set[str] = set()
+                for line in result.stderr.splitlines():
+                    for f in cpp_files:
+                        rel = str(f.relative_to(project_root))
+                        if str(f) in line and rel not in seen:
+                            print(f"  [FAIL] {rel}")
+                            seen.add(rel)
+            print(f"\n[FAIL] {len(seen) if result.stderr else '?'} file(s) need formatting")
+            print("Run with --fix to auto-format")
+            return False
+        print(f"\n[OK] All {len(cpp_files)} files properly formatted!")
         return True
 
 
@@ -123,11 +118,8 @@ def lint_python(fix: bool = False) -> bool:
     project_root = utils.get_project_root()
     scripts_dir = project_root / "scripts"
 
-    print(f"\n{'#' * 60}")
-    print("#  Linting Python")
-    if fix:
-        print("#  Mode: Auto-fix")
-    print(f"{'#' * 60}")
+    subtitles = ("Mode: Auto-fix",) if fix else ()
+    utils.print_header("Linting Python", *subtitles)
 
     # Check for ruff
     ruff = shutil.which("ruff")
@@ -191,20 +183,10 @@ def lint_python(fix: bool = False) -> bool:
 
 def lint_all(fix: bool = False, unsafe: bool = False) -> bool:
     """Lint frontend and C++ code (product code only)."""
-    print(f"\n{'=' * 60}")
-    print("  Linting All (Frontend + C++)")
-    print(f"{'=' * 60}")
+    utils.print_footer("Linting All (Frontend + C++)")
 
     success1 = lint_frontend(fix=fix, unsafe=unsafe)
     success2 = lint_cpp(fix=fix)
 
-    if success1 and success2:
-        print(f"\n{'=' * 60}")
-        print("  ALL LINTS PASSED")
-        print(f"{'=' * 60}")
-        return True
-    else:
-        print(f"\n{'=' * 60}")
-        print("  SOME LINTS FAILED")
-        print(f"{'=' * 60}")
-        return False
+    utils.print_footer("ALL LINTS PASSED" if (success1 and success2) else "SOME LINTS FAILED")
+    return success1 and success2

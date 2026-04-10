@@ -8,11 +8,8 @@ def test_frontend(watch: bool = False) -> bool:
     project_root = utils.get_project_root()
     frontend_dir = project_root / "frontend"
 
-    print(f"\n{'#' * 60}")
-    print("#  Running Frontend Tests")
-    if watch:
-        print("#  Mode: Watch")
-    print(f"{'#' * 60}")
+    subtitles = ("Mode: Watch",) if watch else ()
+    utils.print_header("Running Frontend Tests", *subtitles)
 
     # Ensure dependencies
     pkg_info = utils.ensure_frontend_deps()
@@ -44,9 +41,7 @@ def test_e2e() -> bool:
     project_root = utils.get_project_root()
     frontend_dir = project_root / "frontend"
 
-    print(f"\n{'#' * 60}")
-    print("#  Running E2E Tests (Playwright)")
-    print(f"{'#' * 60}")
+    utils.print_header("Running E2E Tests (Playwright)")
 
     pkg_info = utils.ensure_frontend_deps()
     if not pkg_info:
@@ -78,9 +73,7 @@ def test_backend(build_type: str = "Release") -> bool:
     project_root = utils.get_project_root()
     build_dir = project_root / "build"
 
-    print(f"\n{'#' * 60}")
-    print(f"#  Running Backend Tests ({build_type})")
-    print(f"{'#' * 60}")
+    utils.print_header(f"Running Backend Tests ({build_type})")
 
     if not build_dir.exists():
         print("\nERROR: Build directory not found")
