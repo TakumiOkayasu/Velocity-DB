@@ -24,9 +24,14 @@ vi.mock('../../store/queryStore', () => ({
   }),
 }));
 
-vi.mock('../../store/connectionStore', () => ({
-  useConnectionStore: () => [],
-}));
+vi.mock('../../store/connectionStore', () => {
+  const useConnectionStore = (selector?: (s: { connections: unknown[] }) => unknown) =>
+    selector ? selector({ connections: [] }) : [];
+  (useConnectionStore as unknown as { getState: () => unknown }).getState = () => ({
+    activeConnectionId: null,
+  });
+  return { useConnectionStore };
+});
 
 vi.mock('../../utils/colorContrast', () => ({
   connectionColor: () => '#000',
