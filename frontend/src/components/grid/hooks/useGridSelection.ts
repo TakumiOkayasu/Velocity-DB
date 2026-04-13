@@ -64,12 +64,13 @@ export function useGridSelection(
       for (let i = 0; i < count; i++) allRows.add(i);
       return allRows;
     });
+    setSelectedColumns(new Set());
   }, [rowsLengthRef]);
 
   const selectColumn = useCallback(
     (columnId: string) => {
-      setSelectedColumns(new Set([columnId]));
       selectAllRows();
+      setSelectedColumns(new Set([columnId]));
       lastClickedRowRef.current = null;
       lastClickedColumnRef.current = columnId;
     },
@@ -84,8 +85,8 @@ export function useGridSelection(
       const endIdx = allColumnIds.indexOf(columnId);
       if (startIdx === -1 || endIdx === -1) return;
       const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
-      setSelectedColumns(new Set(allColumnIds.slice(from, to + 1)));
       selectAllRows();
+      setSelectedColumns(new Set(allColumnIds.slice(from, to + 1)));
       lastClickedRowRef.current = null;
     },
     [columnOrderRef, selectAllRows]
@@ -111,6 +112,7 @@ export function useGridSelection(
     rangeCellSelect,
     selectColumn,
     rangeSelectColumn,
+    selectAllRows,
     resetSelection,
   };
 }

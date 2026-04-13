@@ -119,6 +119,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     rangeCellSelect,
     selectColumn,
     rangeSelectColumn,
+    selectAllRows,
     resetSelection,
   } = useGridSelection(rowsLengthRef, columnOrderRef);
 
@@ -310,6 +311,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     onApplyChanges: buildPreview,
     onNavigateRelated: navigateRelated,
     onOpenValueEditor: openValueEditor,
+    onSelectAll: selectAllRows,
   });
 
   const isPaginated = !!pagination;

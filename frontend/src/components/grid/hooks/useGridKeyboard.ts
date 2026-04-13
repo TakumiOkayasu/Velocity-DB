@@ -30,6 +30,7 @@ interface UseGridKeyboardOptions {
   onApplyChanges: () => Promise<void>;
   onNavigateRelated?: (rowIndex: number, columnName: string) => void;
   onOpenValueEditor?: (rowIndex: number, columnName: string, currentValue: string | null) => void;
+  onSelectAll?: () => void;
 }
 
 interface UseGridKeyboardResult {
@@ -58,6 +59,7 @@ export function useGridKeyboard({
   onApplyChanges,
   onNavigateRelated,
   onOpenValueEditor,
+  onSelectAll,
 }: UseGridKeyboardOptions): UseGridKeyboardResult {
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [editValue, setEditValue] = useState<string>('');
@@ -237,6 +239,16 @@ export function useGridKeyboard({
     if (e.ctrlKey && e.shiftKey && e.key === 'N') {
       e.preventDefault();
       setNull();
+      return;
+    }
+
+    // Ctrl+A: Select all rows (INPUT/TEXTAREA/contenteditable focus 中は既定動作優先)
+    if (e.ctrlKey && !e.shiftKey && !e.altKey && (e.key === 'a' || e.key === 'A')) {
+      const active = document.activeElement as HTMLElement | null;
+      const tag = active?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || active?.isContentEditable) return;
+      e.preventDefault();
+      onSelectAll?.();
       return;
     }
 
