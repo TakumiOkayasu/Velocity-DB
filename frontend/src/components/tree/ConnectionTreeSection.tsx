@@ -418,6 +418,7 @@ export function ConnectionTreeSection({
           loadingNodes={loadingNodes}
           selectedNodeId={selectedNodeId}
           connectionColor={connColor}
+          environment={connection.environment}
           onToggle={toggleNode}
           onTableOpen={handleTableOpen}
           onContextMenu={handleContextMenu}
