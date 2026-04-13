@@ -93,6 +93,7 @@ export function createDataViewSlice(
           connectionId,
           isDirty: false,
           sourceTable: tableName,
+          whereClause: whereClause ?? '',
           isDataView: true,
           useServerSideRowModel: false,
           logicalName,
@@ -166,7 +167,7 @@ export function createDataViewSlice(
         set((state) => ({
           ...startExecution(state, id),
           queries: state.queries.map((q) =>
-            q.id === id ? { ...q, content: sql, isDirty: true } : q
+            q.id === id ? { ...q, content: sql, whereClause: whereClause.trim(), isDirty: true } : q
           ),
         }));
 
