@@ -4,6 +4,7 @@ import { useQueries, useQueryActions, useQueryStore } from '../../store/querySto
 import type { Query } from '../../types';
 import { connectionColor } from '../../utils/colorContrast';
 import { stripBrackets } from '../../utils/stringUtils';
+import { resolveNewQueryConnectionId } from '../layout/newQueryConnection';
 import styles from './EditorTabs.module.css';
 
 // SQL file icon
@@ -331,7 +332,8 @@ export function EditorTabs() {
               type="button"
               className={styles.overflowMenuItem}
               onClick={() => {
-                addQuery(activeQueryConnectionId);
+                const activeConnectionId = useConnectionStore.getState().activeConnectionId;
+                addQuery(resolveNewQueryConnectionId(activeQueryConnectionId, activeConnectionId));
                 setAddMenuOpen(false);
               }}
             >

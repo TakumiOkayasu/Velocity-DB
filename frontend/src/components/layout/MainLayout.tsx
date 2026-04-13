@@ -16,6 +16,7 @@ import type { ConnectionConfig } from '../dialogs/ConnectionDialog';
 import { QueryConfirmDialog } from '../dialogs/QueryConfirmDialog';
 import { CenterPanel } from './CenterPanel';
 import styles from './MainLayout.module.css';
+import { resolveNewQueryConnectionId } from './newQueryConnection';
 import { isRunButtonDisabled } from './runButtonState';
 
 // Lazy load heavy components (dialogs, panels) to reduce initial bundle size
@@ -182,7 +183,8 @@ export function MainLayout() {
   };
 
   const handleNewQuery = useCallback(() => {
-    addQuery(activeQueryConnectionId);
+    const activeConnectionId = useConnectionStore.getState().activeConnectionId;
+    addQuery(resolveNewQueryConnectionId(activeQueryConnectionId, activeConnectionId));
   }, [addQuery, activeQueryConnectionId]);
 
   // Store pending execution for use after confirmation
