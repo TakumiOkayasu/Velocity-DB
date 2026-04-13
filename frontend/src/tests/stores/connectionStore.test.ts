@@ -72,6 +72,22 @@ describe('connectionStore', () => {
       expect(state.connectRequestId).toBeNull();
     });
 
+    it('should preserve explicit environment (staging) instead of inferring from isProduction', async () => {
+      mockConnectAsync.mockResolvedValue({ requestId: 'conn_1' });
+      mockGetConnectResult.mockResolvedValue({
+        status: 'connected',
+        connectionId: 'db_1',
+      });
+
+      await useConnectionStore.getState().addConnection({
+        ...baseConnection,
+        environment: 'staging',
+      });
+
+      const state = useConnectionStore.getState();
+      expect(state.connections[0].environment).toBe('staging');
+    });
+
     it('should set isConnecting=true during connection', async () => {
       let resolveConnect: ((v: { requestId: string }) => void) | undefined;
       mockConnectAsync.mockReturnValue(

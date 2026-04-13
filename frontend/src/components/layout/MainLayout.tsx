@@ -162,6 +162,7 @@ export function MainLayout() {
         dbType: config.dbType,
         isProduction: config.isProduction,
         isReadOnly: config.isReadOnly,
+        environment: config.environment,
         ssh: config.ssh.enabled
           ? {
               enabled: true,
