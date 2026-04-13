@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 interface UseWhereFilterParams {
   activeQueryId: string | null;
   queryConnectionId: string | null;
+  storedWhereClause: string;
   applyWhereFilter: (
     queryId: string,
     connectionId: string,
@@ -13,10 +14,17 @@ interface UseWhereFilterParams {
 export function useWhereFilter({
   activeQueryId,
   queryConnectionId,
+  storedWhereClause,
   applyWhereFilter,
 }: UseWhereFilterParams) {
-  const [whereClause, setWhereClause] = useState('');
+  const [whereClause, setWhereClause] = useState(storedWhereClause);
   const [whereFilterError, setWhereFilterError] = useState<string | null>(null);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally triggered by activeQueryId change
+  useEffect(() => {
+    setWhereClause(storedWhereClause);
+    setWhereFilterError(null);
+  }, [activeQueryId]);
 
   const whereKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {

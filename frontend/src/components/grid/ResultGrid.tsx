@@ -134,6 +134,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   } = useWhereFilter({
     activeQueryId: targetQueryId,
     queryConnectionId,
+    storedWhereClause: currentQuery?.whereClause ?? '',
     applyWhereFilter,
   });
 

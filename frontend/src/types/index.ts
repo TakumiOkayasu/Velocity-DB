@@ -88,6 +88,7 @@ export interface Query {
   isDirty: boolean;
   filePath?: string; // File path when saved to disk
   sourceTable?: string; // Table name when opened from Object Tree (for WHERE filter)
+  whereClause?: string; // Applied WHERE clause for data view (persists across tab switches)
   isDataView?: boolean; // True when viewing table data (show grid instead of editor)
   isERDiagram?: boolean; // True when viewing ER diagram
   useServerSideRowModel?: boolean; // Use AG Grid Server-Side Row Model for large tables
