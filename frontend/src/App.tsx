@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { ToastContainer } from './components/common/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { MainLayout } from './components/layout/MainLayout';
+import { useSuppressNativeSelectAll } from './hooks/useSuppressNativeSelectAll';
 import { useConnectionStore } from './store/connectionStore';
 import { useQueryStore } from './store/queryStore';
 
@@ -23,6 +24,8 @@ function App() {
       document.body.removeAttribute('data-production');
     }
   }, [isProduction]);
+
+  useSuppressNativeSelectAll();
 
   return (
     <ErrorBoundary>

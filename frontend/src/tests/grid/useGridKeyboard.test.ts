@@ -11,8 +11,11 @@ vi.mock('../../hooks/useCopyToClipboard', () => ({
   useCopyToClipboard: () => mockCopyToClipboard,
 }));
 
+let capturedKeydownHandler: ((e: KeyboardEvent) => void) | null = null;
 vi.mock('../../hooks/useKeyboardHandler', () => ({
-  useKeyboardHandler: vi.fn(),
+  useKeyboardHandler: (handler: (e: KeyboardEvent) => void) => {
+    capturedKeydownHandler = handler;
+  },
 }));
 
 vi.mock('../../utils/logger', () => ({
@@ -49,6 +52,49 @@ const baseOptions = {
 describe('useGridKeyboard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    capturedKeydownHandler = null;
+  });
+
+  describe('Ctrl+A', () => {
+    it('onSelectAll を呼び preventDefault する', () => {
+      const onSelectAll = vi.fn();
+      renderHook(() => useGridKeyboard({ ...baseOptions, onSelectAll }));
+
+      const event = new KeyboardEvent('keydown', { key: 'a', ctrlKey: true });
+      const preventDefault = vi.spyOn(event, 'preventDefault');
+      capturedKeydownHandler?.(event);
+
+      expect(onSelectAll).toHaveBeenCalledTimes(1);
+      expect(preventDefault).toHaveBeenCalled();
+    });
+
+    it('Shift を伴う Ctrl+Shift+A は処理しない', () => {
+      const onSelectAll = vi.fn();
+      renderHook(() => useGridKeyboard({ ...baseOptions, onSelectAll }));
+
+      const event = new KeyboardEvent('keydown', { key: 'A', ctrlKey: true, shiftKey: true });
+      capturedKeydownHandler?.(event);
+
+      expect(onSelectAll).not.toHaveBeenCalled();
+    });
+
+    it('INPUT フォーカス中は onSelectAll を呼ばず既定動作を許可する', () => {
+      const onSelectAll = vi.fn();
+      const input = document.createElement('input');
+      document.body.appendChild(input);
+      input.focus();
+      try {
+        renderHook(() => useGridKeyboard({ ...baseOptions, onSelectAll }));
+        const event = new KeyboardEvent('keydown', { key: 'a', ctrlKey: true });
+        const preventDefault = vi.spyOn(event, 'preventDefault');
+        capturedKeydownHandler?.(event);
+
+        expect(onSelectAll).not.toHaveBeenCalled();
+        expect(preventDefault).not.toHaveBeenCalled();
+      } finally {
+        document.body.removeChild(input);
+      }
+    });
   });
 
   describe('copySelection', () => {
