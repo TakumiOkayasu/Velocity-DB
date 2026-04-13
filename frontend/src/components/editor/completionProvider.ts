@@ -1,6 +1,7 @@
 import type * as Monaco from 'monaco-editor';
 import { useSchemaStore } from '../../store/schemaStore';
 import { log } from '../../utils/logger';
+import { parseAliases } from './parseAliases';
 
 // SQLキーワード（基本的なもののみ）
 const SQL_KEYWORDS = [
@@ -60,35 +61,6 @@ const SQL_KEYWORDS = [
   'CONVERT',
 ];
 
-// エイリアス情報を解析
-interface AliasInfo {
-  alias: string;
-  tableName: string;
-}
-
-function parseAliases(text: string): AliasInfo[] {
-  const aliases: AliasInfo[] = [];
-
-  // FROM table AS alias, FROM table alias, JOIN table AS alias, JOIN table alias
-  // Brackets are optional to handle both [schema].[table] and schema.table
-  const pattern = /(?:FROM|JOIN)\s+\[?(\w+)\]?(?:\.\[?(\w+)\]?)?\s+(?:AS\s+)?(\w+)/gi;
-
-  const matches = text.matchAll(pattern);
-  for (const match of matches) {
-    const schema = match[2] ? match[1] : null;
-    const table = match[2] ?? match[1];
-    const alias = match[3];
-    if (alias && table && alias.toLowerCase() !== table.toLowerCase()) {
-      aliases.push({
-        alias: alias.toLowerCase(),
-        tableName: schema ? `${schema}.${table}` : table,
-      });
-    }
-  }
-
-  return aliases;
-}
-
 // カーソル位置の文脈を判断
 type ContextType = 'table' | 'column' | 'alias_column' | 'keyword' | 'unknown';
 
@@ -97,31 +69,37 @@ interface CompletionContext {
   aliasOrTable?: string;
 }
 
-function getCompletionContext(
-  model: Monaco.editor.ITextModel,
-  position: Monaco.Position
-): CompletionContext {
-  const lineContent = model.getLineContent(position.lineNumber);
-  const textBeforeCursor = lineContent.substring(0, position.column - 1);
-
-  // ドット直後: エイリアス.カラム または テーブル.カラム
-  const dotMatch = textBeforeCursor.match(/(\w+)\.$/);
+export function detectContextFromText(textBeforeCursor: string): CompletionContext {
+  // ドット直後: エイリアス.カラム または [テーブル].カラム
+  const dotMatch = textBeforeCursor.match(/\[?(\w+)\]?\.$/);
   if (dotMatch) {
     return { type: 'alias_column', aliasOrTable: dotMatch[1] };
   }
 
-  // FROM/JOIN後: テーブル名補完
-  if (/(?:FROM|JOIN)\s+$/i.test(textBeforeCursor)) {
+  // 現在タイピング中の単語を除いた前文脈。これにより `SELECT n` のように部分入力中でも
+  // 直前キーワードで文脈判定できる。
+  const textWithoutCurrentWord = textBeforeCursor.replace(/\w*$/, '');
+
+  if (/(?:FROM|JOIN)\s+$/i.test(textWithoutCurrentWord)) {
     return { type: 'table' };
   }
-
-  // SELECT, WHERE, ON, SET, AND, OR後: カラム名補完
-  if (/(?:SELECT|WHERE|ON|SET|AND|OR|,)\s*$/i.test(textBeforeCursor)) {
+  if (/(?:SELECT|WHERE|ON|SET|AND|OR|,)\s+$/i.test(textWithoutCurrentWord)) {
     return { type: 'column' };
   }
-
-  // デフォルト: キーワード
   return { type: 'keyword' };
+}
+
+function getCompletionContext(
+  model: Monaco.editor.ITextModel,
+  position: Monaco.Position
+): CompletionContext {
+  const textBeforeCursor = model.getValueInRange({
+    startLineNumber: 1,
+    startColumn: 1,
+    endLineNumber: position.lineNumber,
+    endColumn: position.column,
+  });
+  return detectContextFromText(textBeforeCursor);
 }
 
 export function createCompletionProvider(
@@ -186,21 +164,46 @@ export function createCompletionProvider(
           }
         }
       } else if (context.type === 'column') {
-        // カラム名補完（全テーブルから）
+        // カラム名補完（FROM句のテーブルから）
         if (connectionId) {
-          // 解析済みテーブルのカラムを補完
+          // 未ロードのテーブルは遅延ロード
+          await Promise.all(
+            aliases.map((alias) => {
+              const cached = useSchemaStore
+                .getState()
+                .getTableColumns(connectionId, alias.tableName);
+              return cached
+                ? Promise.resolve(cached)
+                : useSchemaStore.getState().loadColumns(connectionId, alias.tableName);
+            })
+          );
+
           for (const alias of aliases) {
             const columns = useSchemaStore
               .getState()
               .getTableColumns(connectionId, alias.tableName);
-            if (columns) {
-              for (const col of columns) {
+            if (!columns) continue;
+
+            const emitBare = alias.alias === alias.tableName.toLowerCase();
+            for (const col of columns) {
+              // alias.column 形式(エイリアス有り時の典型入力)
+              suggestions.push({
+                label: `${alias.alias}.${col.name}`,
+                kind: 5, // Field
+                detail: `${alias.tableName}.${col.name} (${col.type})`,
+                insertText: `${alias.alias}.${col.name}`,
+                range,
+                sortText: `a${col.name}`,
+              });
+              // bare column 形式(エイリアス未指定時のみ。重複ノイズ抑制)
+              if (emitBare) {
                 suggestions.push({
-                  label: `${alias.alias}.${col.name}`,
+                  label: col.name,
                   kind: 5, // Field
                   detail: `${alias.tableName}.${col.name} (${col.type})`,
-                  insertText: `${alias.alias}.${col.name}`,
+                  insertText: col.name,
                   range,
+                  sortText: `a${col.name}`,
                 });
               }
             }
