@@ -54,6 +54,11 @@
   --icon-color: #8c8f94;
   --icon-color-hover: #dfe1e5;
 
+  /* Environment colors (shared between ConnectionDialog border and tree DB name) */
+  --env-development-color: #4caf50;
+  --env-staging-color: #ff9800;
+  --env-production-color: #f44336;
+
   /* Production environment colors */
   --production-bg-primary: #2a1f1f;
   --production-bg-secondary: #352626;

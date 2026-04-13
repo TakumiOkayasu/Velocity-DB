@@ -481,7 +481,7 @@
 
 /* Environment-specific colors */
 .environmentRadio.env-development.selected {
-  border-color: #4caf50;
+  border-color: var(--env-development-color);
   background: rgba(76, 175, 80, 0.1);
 }
 
@@ -490,7 +490,7 @@
 }
 
 .environmentRadio.env-staging.selected {
-  border-color: #ff9800;
+  border-color: var(--env-staging-color);
   background: rgba(255, 152, 0, 0.1);
 }
 
@@ -499,7 +499,7 @@
 }
 
 .environmentRadio.env-production.selected {
-  border-color: #f44336;
+  border-color: var(--env-production-color);
   background: rgba(244, 67, 54, 0.1);
 }
 

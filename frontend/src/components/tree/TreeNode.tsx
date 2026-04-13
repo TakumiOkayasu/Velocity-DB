@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react';
-import type { DatabaseObject } from '../../types';
+import type { DatabaseObject, EnvironmentType } from '../../types';
 import { type ExpandableType, isExpandableType } from '../../utils/treeNode';
 import styles from './TreeNode.module.css';
 
@@ -10,10 +10,17 @@ interface TreeNodeProps {
   loadingNodes?: Set<string>;
   selectedNodeId?: string | null;
   connectionColor?: string;
+  environment?: EnvironmentType;
   onToggle: (id: string, node: DatabaseObject) => void;
   onTableOpen?: (nodeId: string, tableName: string, tableType: ExpandableType) => void;
   onContextMenu?: (e: React.MouseEvent, node: DatabaseObject) => void;
 }
+
+const ENV_NAME_CLASS: Record<EnvironmentType, string> = {
+  development: styles.nameEnvDevelopment,
+  staging: styles.nameEnvStaging,
+  production: styles.nameEnvProduction,
+};
 
 // SVG Icons for tree nodes
 const Icons = {
@@ -129,6 +136,7 @@ export const TreeNode = memo(function TreeNode({
   loadingNodes,
   selectedNodeId,
   connectionColor: connColor,
+  environment,
   onToggle,
   onTableOpen,
   onContextMenu,
@@ -163,6 +171,9 @@ export const TreeNode = memo(function TreeNode({
 
   const nodeClasses = `${styles.node}${isLoading ? ` ${styles.loading}` : ''}${isSelected ? ` ${styles.selected}` : ''}`;
 
+  const envClass = node.type === 'database' && environment ? ENV_NAME_CLASS[environment] : '';
+  const nameClasses = `${styles.name}${envClass ? ` ${envClass}` : ''}`;
+
   const nodeStyle = useMemo(
     () => ({
       paddingLeft: `${level * 12 + 4}px`,
@@ -191,7 +202,7 @@ export const TreeNode = memo(function TreeNode({
         <span className={`${styles.icon} ${getIconClass(node.type)}`}>
           {getIcon(node.type, isExpanded)}
         </span>
-        <span className={styles.name}>{node.name}</span>
+        <span className={nameClasses}>{node.name}</span>
         {node.metadata?.comment && <span className={styles.comment}>{node.metadata.comment}</span>}
       </div>
 
