@@ -16,6 +16,7 @@ import type { ConnectionConfig } from '../dialogs/ConnectionDialog';
 import { QueryConfirmDialog } from '../dialogs/QueryConfirmDialog';
 import { CenterPanel } from './CenterPanel';
 import styles from './MainLayout.module.css';
+import { isRunButtonDisabled } from './runButtonState';
 
 // Lazy load heavy components (dialogs, panels) to reduce initial bundle size
 const LeftPanel = lazyWithRetry(() =>
@@ -419,7 +420,7 @@ export function MainLayout() {
         <div className={styles.toolbarGroup}>
           <button
             onClick={isExecuting ? handleCancel : handleExecute}
-            disabled={!activeQueryId || !activeQueryConnectionId}
+            disabled={isRunButtonDisabled(activeQuery, activeQueryConnectionId)}
             title={isExecuting ? '停止 (Escape)' : '実行 (Ctrl+Enter)'}
             className={styles.executeButton}
           >
