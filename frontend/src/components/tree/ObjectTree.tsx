@@ -3,30 +3,47 @@ import { useShallow } from 'zustand/react/shallow';
 import { bridge } from '../../api/bridge';
 import { applyConnectionMigration } from '../../store/connectionMigration';
 import { useConnectionActions, useConnectionStore } from '../../store/connectionStore';
+import {
+  isDatabaseType,
+  isEnvironmentType,
+  isSshAuthType,
+  type SavedConnectionProfile,
+} from '../../types';
 import type { ExpandableType } from '../../utils/treeNode';
 import { ConnectionTreeSection } from './ConnectionTreeSection';
 import styles from './ObjectTree.module.css';
 
-interface SavedProfile {
-  id: string;
-  name: string;
-  server: string;
-  port?: number;
-  database: string;
-  username: string;
-  useWindowsAuth: boolean;
-  savePassword?: boolean;
-  isProduction?: boolean;
-  isReadOnly?: boolean;
-  dbType?: 'sqlserver' | 'postgresql' | 'mysql';
-  ssh?: {
-    enabled: boolean;
-    host: string;
-    port: number;
-    username: string;
-    authType: 'password' | 'privateKey';
-    privateKeyPath: string;
-    savePassword: boolean;
+type RawProfile = Awaited<ReturnType<typeof bridge.getConnectionProfiles>>['profiles'][number];
+
+function normalizeProfile(p: RawProfile): SavedConnectionProfile {
+  return {
+    id: p.id,
+    name: p.name,
+    server: p.server,
+    port: p.port ?? 1433,
+    database: p.database,
+    username: p.username,
+    useWindowsAuth: p.useWindowsAuth,
+    savePassword: p.savePassword ?? false,
+    isProduction: p.isProduction ?? false,
+    isReadOnly: p.isReadOnly ?? false,
+    environment: isEnvironmentType(p.environment ?? '')
+      ? p.environment
+      : p.isProduction
+        ? 'production'
+        : 'development',
+    dbType: isDatabaseType(p.dbType ?? '') ? p.dbType : 'sqlserver',
+    ssh: p.ssh
+      ? {
+          enabled: p.ssh.enabled ?? false,
+          host: p.ssh.host ?? '',
+          port: p.ssh.port ?? 22,
+          username: p.ssh.username ?? '',
+          authType: isSshAuthType(p.ssh.authType ?? '') ? p.ssh.authType : 'password',
+          privateKeyPath: p.ssh.privateKeyPath ?? '',
+          savePassword: p.ssh.savePassword ?? false,
+        }
+      : undefined,
   };
 }
 
@@ -43,8 +60,8 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
     }))
   );
   const { addConnection, cancelConnection } = useConnectionActions();
-  const [profiles, setProfiles] = useState<SavedProfile[]>([]);
-  const [confirmingProfile, setConfirmingProfile] = useState<SavedProfile | null>(null);
+  const [profiles, setProfiles] = useState<SavedConnectionProfile[]>([]);
+  const [confirmingProfile, setConfirmingProfile] = useState<SavedConnectionProfile | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: profileVersion is an intentional re-fetch trigger
@@ -52,7 +69,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
     const fetchProfiles = async () => {
       try {
         const result = await bridge.getConnectionProfiles();
-        setProfiles(result.profiles);
+        setProfiles(result.profiles.map(normalizeProfile));
       } catch (error) {
         console.error('Failed to fetch profiles:', error);
       }
@@ -68,7 +85,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
     (profile) => !connections.some((c) => c.name === profile.name)
   );
 
-  const handleProfileClick = useCallback((profile: SavedProfile) => {
+  const handleProfileClick = useCallback((profile: SavedConnectionProfile) => {
     setConfirmingProfile(profile);
   }, []);
 
@@ -99,14 +116,17 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
       const result = await addConnection({
         name: confirmingProfile.name,
         server: confirmingProfile.server,
-        port: confirmingProfile.port ?? 1433,
+        port: confirmingProfile.port,
         database: confirmingProfile.database,
         username: confirmingProfile.username,
         password,
         useWindowsAuth: confirmingProfile.useWindowsAuth,
         dbType: confirmingProfile.dbType ?? 'sqlserver',
-        isProduction: confirmingProfile.isProduction ?? false,
-        isReadOnly: confirmingProfile.isReadOnly ?? false,
+        isProduction: confirmingProfile.isProduction,
+        isReadOnly: confirmingProfile.isReadOnly,
+        environment:
+          confirmingProfile.environment ??
+          (confirmingProfile.isProduction ? 'production' : 'development'),
         ssh: confirmingProfile.ssh?.enabled
           ? {
               enabled: true,
