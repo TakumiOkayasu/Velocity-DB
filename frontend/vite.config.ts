@@ -85,8 +85,8 @@ export default defineConfig({
               return 'vendor-state';
             }
             // SQL Formatter (lazy loaded via dynamic import)
-            if (id.includes('sql-formatter')) {
-              return 'vendor-sql-formatter';
+            if (id.includes('@sqltools/formatter')) {
+              return 'vendor-sqltools-formatter';
             }
           }
         },
