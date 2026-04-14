@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useQueryStore } from '../../store/queryStore';
+import { useToastStore } from '../../store/toastStore';
 
 vi.mock('../../api/bridge', () => ({
   bridge: {
@@ -87,19 +88,25 @@ describe('formatQuery', () => {
     expect(mockedFormatSQL).not.toHaveBeenCalled();
   });
 
-  it('should set error on format failure', async () => {
+  it('should show toast and not set query error on format failure', async () => {
     const { addQuery, updateQuery } = useQueryStore.getState();
     addQuery('conn_1');
     const queryId = useQueryStore.getState().queries[0].id;
     updateQuery(queryId, 'INVALID');
 
+    useToastStore.setState({ toasts: [] });
+
     vi.mocked(mockedFormatSQL).mockImplementationOnce(() => {
-      throw new Error('Parse error');
+      throw new Error('Parse error at token: ;');
     });
 
     await useQueryStore.getState().formatQuery(queryId);
 
-    expect(useQueryStore.getState().errors[queryId]).toBe('Parse error');
+    expect(useQueryStore.getState().errors[queryId]).toBeUndefined();
+    const toasts = useToastStore.getState().toasts;
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].type).toBe('error');
+    expect(toasts[0].message).toContain('Parse error at token: ;');
   });
 });
 

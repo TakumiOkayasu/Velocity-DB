@@ -1,4 +1,5 @@
 import { formatSQL } from '../../../utils/sqlFormat';
+import { useToastStore } from '../../toastStore';
 import type { Formattable } from '../interfaces/Formattable';
 import type { GetState, SetState } from '../types';
 
@@ -16,12 +17,8 @@ export function createFormatSlice(set: SetState, get: GetState): Formattable {
           ),
         }));
       } catch (error) {
-        set((state) => ({
-          errors: {
-            ...state.errors,
-            [id]: error instanceof Error ? error.message : 'Failed to format SQL',
-          },
-        }));
+        const reason = error instanceof Error ? error.message : 'Failed to format SQL';
+        useToastStore.getState().addToast(`フォーマットできません: ${reason}`, 'error');
       }
     },
 
