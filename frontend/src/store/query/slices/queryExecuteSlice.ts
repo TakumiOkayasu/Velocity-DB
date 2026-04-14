@@ -30,6 +30,37 @@ function hasExplicitLimit(sql: string): boolean {
   );
 }
 
+const STALE_CONNECTION_PATTERN = /Connection not found|is no longer active/i;
+
+function recoverStaleConnection(
+  set: SetState,
+  get: GetState,
+  id: string,
+  staleConnectionId: string
+): void {
+  const activeConnId = useConnectionStore.getState().activeConnectionId;
+  const canRebind = !!activeConnId && activeConnId !== staleConnectionId;
+  if (canRebind) {
+    get().updateQueryConnection(id, activeConnId);
+    set((state) =>
+      failExecution(
+        state,
+        id,
+        `接続 ${staleConnectionId} は失われました。アクティブ接続 ${activeConnId} に再バインドしたので、もう一度実行してください。`
+      )
+    );
+    return;
+  }
+  get().updateQueryConnection(id, null);
+  set((state) =>
+    failExecution(
+      state,
+      id,
+      `接続 ${staleConnectionId} は失われました。接続ツリーから接続を選択し直してください。`
+    )
+  );
+}
+
 export function createExecuteSlice(
   set: SetState,
   get: GetState,
@@ -148,6 +179,11 @@ export function createExecuteSlice(
         return;
       }
       const errorMessage = error instanceof Error ? error.message : 'Query execution failed';
+
+      if (STALE_CONNECTION_PATTERN.test(errorMessage)) {
+        recoverStaleConnection(set, get, id, connectionId);
+        return;
+      }
 
       set((state) => failExecution(state, id, errorMessage));
     } finally {

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '../helpers/mockSettingsUtils';
+import { useConnectionStore } from '../../store/connectionStore';
 import { useQueryStore } from '../../store/queryStore';
 
 // Mock the bridge module
@@ -31,6 +32,7 @@ describe('queryStore', () => {
       errors: {},
       isExecuting: false,
     });
+    useConnectionStore.setState({ activeConnectionId: null });
     vi.clearAllMocks();
   });
 
@@ -171,6 +173,43 @@ describe('queryStore', () => {
       expect(errors[queryId]).toBe('Syntax error');
       expect(isExecuting).toBe(false);
       expect(executingQueryIds.has(queryId)).toBe(false);
+    });
+
+    it('should rebind tab to active connection when backend reports stale connectionId', async () => {
+      const { addQuery, updateQuery, executeQuery } = useQueryStore.getState();
+
+      addQuery('conn_1');
+      const queryId = useQueryStore.getState().queries[0].id;
+      updateQuery(queryId, 'SELECT 1');
+
+      useConnectionStore.setState({ activeConnectionId: 'conn_5' });
+
+      mockedBridge.executeAsyncQuery.mockRejectedValue(new Error('Connection not found: conn_1'));
+
+      await executeQuery(queryId, 'conn_1');
+
+      const state = useQueryStore.getState();
+      expect(state.queries[0].connectionId).toBe('conn_5');
+      expect(state.errors[queryId]).toContain('conn_5');
+      expect(state.errors[queryId]).toContain('再バインド');
+    });
+
+    it('should clear tab connectionId when no active fallback is available', async () => {
+      const { addQuery, updateQuery, executeQuery } = useQueryStore.getState();
+
+      addQuery('conn_1');
+      const queryId = useQueryStore.getState().queries[0].id;
+      updateQuery(queryId, 'SELECT 1');
+
+      useConnectionStore.setState({ activeConnectionId: null });
+
+      mockedBridge.executeAsyncQuery.mockRejectedValue(new Error('Connection not found: conn_1'));
+
+      await executeQuery(queryId, 'conn_1');
+
+      const state = useQueryStore.getState();
+      expect(state.queries[0].connectionId).toBeNull();
+      expect(state.errors[queryId]).toContain('選択');
     });
   });
 
