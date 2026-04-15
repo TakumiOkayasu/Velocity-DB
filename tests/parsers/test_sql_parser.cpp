@@ -591,5 +591,43 @@ TEST_F(SQLParserSplitTest, E2E_CopyWithNullValues) {
     EXPECT_EQ(parts.data, "1\t\\N\n2\tdata\n");
 }
 
+// ===== Cross-DB 3-part names with multiple SELECTs (neighbor DB) =====
+
+TEST_F(SQLParserSplitTest, CrossDbThreePartNamesSplitsIntoTwo) {
+    // User-reported sample: two SELECTs referencing different databases
+    // via SQL Server 3-part names, with leading line comment and
+    // Japanese identifiers/values.
+    std::string sql =
+        "-- 例\n"
+        "SELECT o.ID, o.工場ID, os.allotted_data_import_status,\n"
+        "    os.allotted_data_reimport_allowed_date, os.tag_number\n"
+        "FROM [OMS_20250515].[dbo].[orders] o\n"
+        "    LEFT JOIN [OMS_20250515].[dbo].[order_subs] os ON os.order_id = o.ID\n"
+        "WHERE o.発注番号 = 'DH00588404';\n"
+        "\n"
+        "SELECT COUNT(*) AS existing_products\n"
+        "FROM [MMS].[dbo].[products] p\n"
+        "    JOIN [MMS].[dbo].[orders] o ON o.ID = p.order_id\n"
+        "WHERE o.発注番号 = 'DH00588404'\n"
+        "    AND p.deleted IS NULL;\n";
+
+    auto stmts = SQLParser::splitStatements(sql);
+    ASSERT_EQ(stmts.size(), 2u) << "Expected 2 statements after splitting on ';'";
+
+    // 1st statement: should start with SELECT (line comment removed)
+    EXPECT_TRUE(stmts[0].starts_with("SELECT")) << "stmt[0]=" << stmts[0];
+    EXPECT_NE(stmts[0].find("[OMS_20250515].[dbo].[orders]"), std::string::npos);
+    EXPECT_NE(stmts[0].find("[OMS_20250515].[dbo].[order_subs]"), std::string::npos);
+    EXPECT_NE(stmts[0].find("o.発注番号"), std::string::npos);
+    EXPECT_NE(stmts[0].find("o.工場ID"), std::string::npos);
+    EXPECT_NE(stmts[0].find("'DH00588404'"), std::string::npos);
+
+    // 2nd statement: should start with SELECT COUNT(*)
+    EXPECT_TRUE(stmts[1].starts_with("SELECT")) << "stmt[1]=" << stmts[1];
+    EXPECT_NE(stmts[1].find("[MMS].[dbo].[products]"), std::string::npos);
+    EXPECT_NE(stmts[1].find("[MMS].[dbo].[orders]"), std::string::npos);
+    EXPECT_NE(stmts[1].find("existing_products"), std::string::npos);
+}
+
 }  // namespace test
 }  // namespace velocitydb

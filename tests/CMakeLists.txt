@@ -56,6 +56,9 @@ target_link_libraries(VelocityDBTests PRIVATE
     gmock
 )
 
+# MSVC compiler options (includes /utf-8 so tests can use non-ASCII string literals)
+target_set_msvc_options(VelocityDBTests)
+
 # Output directories (from cmake/OutputDirectories.cmake)
 target_set_output_directories(VelocityDBTests)
 
