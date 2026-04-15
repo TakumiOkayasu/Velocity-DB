@@ -137,8 +137,7 @@ std::string filterNonExecutableLines(std::string_view sql) {
         const bool insideBlockComment = (lex.state == LexState::BlockComment);
         advanceLexerThrough(lex, sql, pos, end);
 
-        const bool keepLine =
-            insideBlockComment || (!isPsqlMetaCommand(line) && !isSqlLineComment(line));
+        const bool keepLine = insideBlockComment || (!isPsqlMetaCommand(line) && !isSqlLineComment(line));
         if (keepLine)
             result.append(line);
         pos = end;
