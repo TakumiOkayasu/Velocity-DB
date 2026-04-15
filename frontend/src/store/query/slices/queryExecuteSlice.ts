@@ -1,5 +1,6 @@
 import { bridge as apiBridge } from '../../../api/bridge';
 import type { SqlMarkerInput } from '../../../utils/editorMarkers';
+import { parseErrorMessage } from '../../../utils/errorParser';
 import { log } from '../../../utils/logger';
 import { getSettings } from '../../../utils/settingsUtils';
 import {
@@ -33,6 +34,8 @@ function hasExplicitLimit(sql: string): boolean {
 }
 
 const STALE_CONNECTION_PATTERN = /Connection not found|is no longer active/i;
+// ODBCエラーは通常 column 情報を持たない。行頭にマーカー配置 (editorMarkers が行末まで伸ばす)
+const RUNTIME_MARKER_DEFAULT_COLUMN = 1;
 
 function recoverStaleConnection(
   set: SetState,
@@ -142,8 +145,11 @@ export function createExecuteSlice(
       set((state) => failExecution(state, id, prsMarkers[0].message));
       return;
     }
-    // lint通過 or lintUnavailable: 古いmarkerをクリアして実行継続
-    set((state) => ({ lintDiagnostics: { ...state.lintDiagnostics, [id]: [] } }));
+    // lint通過 or lintUnavailable: 古いmarker(sqruff/runtime両方)をクリアして実行継続
+    set((state) => ({
+      lintDiagnostics: { ...state.lintDiagnostics, [id]: [] },
+      runtimeDiagnostics: { ...state.runtimeDiagnostics, [id]: [] },
+    }));
 
     const controller = new AbortController();
     abort.register(id, controller);
@@ -237,7 +243,22 @@ export function createExecuteSlice(
         return;
       }
 
-      set((state) => failExecution(state, id, errorMessage));
+      // 行情報が取れた場合のみruntime markerセット (owner: runtime)。failExecution と1回にまとめる
+      const parsedErr = parseErrorMessage(errorMessage);
+      const runtimeMarker: SqlMarkerInput | null =
+        parsedErr.line !== undefined
+          ? {
+              line: parsedErr.line,
+              column: RUNTIME_MARKER_DEFAULT_COLUMN,
+              message: parsedErr.summary,
+            }
+          : null;
+      set((state) => ({
+        ...failExecution(state, id, errorMessage),
+        ...(runtimeMarker && {
+          runtimeDiagnostics: { ...state.runtimeDiagnostics, [id]: [runtimeMarker] },
+        }),
+      }));
     } finally {
       activeQueryIds.delete(id);
       abort.unregister(id);

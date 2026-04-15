@@ -31,6 +31,7 @@ export interface QueryState
   errors: Record<string, string | null>;
   paginationStates: Record<string, PaginationState>;
   lintDiagnostics: Record<string, SqlMarkerInput[]>;
+  runtimeDiagnostics: Record<string, SqlMarkerInput[]>;
   /** @deprecated Use executingQueryIds instead. Kept for toolbar compatibility. */
   isExecuting: boolean;
 }

@@ -14,4 +14,5 @@ export {
   useQueryError,
   useQueryResult,
   useQueryStore,
+  useRuntimeDiagnostics,
 } from './query';

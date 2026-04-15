@@ -11,6 +11,7 @@ export {
   useQueryError,
   useQueryResult,
   useQueryStore,
+  useRuntimeDiagnostics,
 } from './queryStore';
 
 export type { QueryState } from './types';

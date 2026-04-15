@@ -54,6 +54,27 @@ describe('parseErrorMessage', () => {
     });
   });
 
+  describe('行番号抽出', () => {
+    it('SQL Server: Msg行からLine番号を抽出', () => {
+      const raw = "Msg 208, Level 16, State 1, Line 3\nInvalid object name 'x'.";
+      expect(parseErrorMessage(raw).line).toBe(3);
+    });
+
+    it('PostgreSQL: LINE Nパターンを抽出', () => {
+      const raw = 'ERROR:  syntax error\nLINE 2: SELECT foo\n        ^';
+      expect(parseErrorMessage(raw).line).toBe(2);
+    });
+
+    it('MySQL: at line N パターンを抽出', () => {
+      const raw = "ERROR 1064 (42000): You have an error in your SQL syntax near 'foo' at line 4";
+      expect(parseErrorMessage(raw).line).toBe(4);
+    });
+
+    it('行情報がない場合はundefined', () => {
+      expect(parseErrorMessage('random error').line).toBeUndefined();
+    });
+  });
+
   describe('不明形式', () => {
     it('パースできない場合はrawメッセージをsummaryに返す', () => {
       const raw = 'Something went wrong';
