@@ -1,6 +1,7 @@
 import type {
   AsyncQueryResultResponse,
   ConstraintInfo,
+  DatabaseType,
   IPCRequest,
   IPCResponse,
   TableMetadata,
@@ -332,6 +333,17 @@ class Bridge {
 
   async cancelQuery(connectionId: string): Promise<void> {
     return this.call('cancelQuery', { connectionId }, S.cancelQuery);
+  }
+
+  async lintSql(
+    sql: string,
+    dbType: DatabaseType
+  ): Promise<{
+    diagnostics: { line: number; column: number; code: string; message: string }[];
+    lintUnavailable?: boolean;
+    reason?: string;
+  }> {
+    return this.call('lintSql', { sql, dbType }, S.lintSql);
   }
 
   // Schema methods

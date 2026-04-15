@@ -28,10 +28,12 @@ set(TEST_SOURCES
     database/test_transaction_manager.cpp
     parsers/test_a5er_parser.cpp
     parsers/test_sql_formatter.cpp
+    parsers/test_sql_linter.cpp
     parsers/test_sql_parser.cpp
     database/test_postgresql_driver.cpp
     database/test_psql_subprocess.cpp
     exporters/test_csv_exporter.cpp
+    providers/test_lint_provider.cpp
     providers/test_settings_provider.cpp
     providers/test_utility_provider.cpp
     utils/test_sql_validation.cpp

@@ -12,6 +12,7 @@ class ISearchProvider;
 class IUtilityProvider;
 class ISettingsProvider;
 class IIOProvider;
+class ILintProvider;
 
 /// Top-level interface aggregating all provider interfaces
 class ISystemContext {
@@ -28,6 +29,7 @@ public:
     [[nodiscard]] virtual IUtilityProvider& utility() noexcept = 0;
     [[nodiscard]] virtual ISettingsProvider& settings() noexcept = 0;
     [[nodiscard]] virtual IIOProvider& io() noexcept = 0;
+    [[nodiscard]] virtual ILintProvider& lint() noexcept = 0;
 };
 
 }  // namespace velocitydb

@@ -29,6 +29,7 @@ public:
     [[nodiscard]] IUtilityProvider& utility() noexcept override;
     [[nodiscard]] ISettingsProvider& settings() noexcept override;
     [[nodiscard]] IIOProvider& io() noexcept override;
+    [[nodiscard]] ILintProvider& lint() noexcept override;
 
 private:
     std::unique_ptr<IConnectionProvider> m_connections;
@@ -42,6 +43,7 @@ private:
     std::unique_ptr<IUtilityProvider> m_utility;
     std::unique_ptr<ISettingsProvider> m_settings;
     std::unique_ptr<IIOProvider> m_io;
+    std::unique_ptr<ILintProvider> m_lint;
 };
 
 }  // namespace velocitydb

@@ -34,6 +34,8 @@ export const useQueryStore = create<QueryState>((set, get) => ({
   executingQueryIds: new Set<string>(),
   errors: {},
   paginationStates: {},
+  lintDiagnostics: {},
+  runtimeDiagnostics: {},
   isExecuting: false,
 
   // Slices (Device Layer implementations injected via DI)
@@ -81,6 +83,14 @@ export const useIsQueryExecuting = (queryId: string | null | undefined) =>
 /** Per-query pagination state selector */
 export const usePaginationState = (queryId: string | null | undefined) =>
   useQueryStore((state) => (queryId ? (state.paginationStates[queryId] ?? null) : null));
+
+/** Per-query lint diagnostics selector (sqruff PRS) */
+export const useLintDiagnostics = (queryId: string | null | undefined) =>
+  useQueryStore((state) => (queryId ? (state.lintDiagnostics[queryId] ?? null) : null));
+
+/** Per-query runtime diagnostics selector (ODBC実行エラー等) */
+export const useRuntimeDiagnostics = (queryId: string | null | undefined) =>
+  useQueryStore((state) => (queryId ? (state.runtimeDiagnostics[queryId] ?? null) : null));
 
 export const useQueryActions = () =>
   useQueryStore(

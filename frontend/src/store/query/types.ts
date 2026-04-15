@@ -1,4 +1,5 @@
 import type { Query, QueryResult } from '../../types';
+import type { SqlMarkerInput } from '../../utils/editorMarkers';
 import type { DataViewable } from './interfaces/DataViewable';
 import type { ERDiagrammable } from './interfaces/ERDiagrammable';
 import type { Executable } from './interfaces/Executable';
@@ -29,6 +30,8 @@ export interface QueryState
   executingQueryIds: Set<string>;
   errors: Record<string, string | null>;
   paginationStates: Record<string, PaginationState>;
+  lintDiagnostics: Record<string, SqlMarkerInput[]>;
+  runtimeDiagnostics: Record<string, SqlMarkerInput[]>;
   /** @deprecated Use executingQueryIds instead. Kept for toolbar compatibility. */
   isExecuting: boolean;
 }

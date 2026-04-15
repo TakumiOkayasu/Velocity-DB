@@ -2,10 +2,16 @@ import loader from '@monaco-editor/loader';
 import Editor, { type OnMount } from '@monaco-editor/react';
 import type * as Monaco from 'monaco-editor';
 import * as monaco from 'monaco-editor';
-import { useCallback, useEffect, useRef } from 'react';
+import { type MutableRefObject, useCallback, useEffect, useRef } from 'react';
 import { useKeyboardHandler } from '../../hooks/useKeyboardHandler';
-import { useQueryStore } from '../../store/queryStore';
+import { useLintDiagnostics, useQueryStore, useRuntimeDiagnostics } from '../../store/queryStore';
 import { useSchemaStore } from '../../store/schemaStore';
+import {
+  clearSqlMarkers,
+  type SqlMarkerInput,
+  type SqlMarkerOwner,
+  setSqlMarkers,
+} from '../../utils/editorMarkers';
 import { log } from '../../utils/logger';
 import { formatSQL } from '../../utils/sqlFormat';
 import { getStatementAtCursor } from '../../utils/sqlParser';
@@ -20,6 +26,23 @@ loader.config({ monaco });
 // to avoid stale closures captured at handler invocation time
 const getQueryState = () => useQueryStore.getState();
 
+/** owner別diagnosticsをMonaco markerに反映する汎用hook */
+function useApplyMarkers(
+  editorRef: MutableRefObject<Parameters<OnMount>[0] | null>,
+  diagnostics: SqlMarkerInput[] | null,
+  owner: SqlMarkerOwner
+): void {
+  useEffect(() => {
+    const model = editorRef.current?.getModel();
+    if (!model) return;
+    if (!diagnostics || diagnostics.length === 0) {
+      clearSqlMarkers(model, owner);
+      return;
+    }
+    setSqlMarkers(model, diagnostics, owner);
+  }, [editorRef, diagnostics, owner]);
+}
+
 /** Get the connection ID of the active query tab (not the global activeConnectionId). */
 const getActiveQueryConnectionId = () => {
   const { queries, activeQueryId } = getQueryState();
@@ -31,6 +54,8 @@ export function SqlEditor() {
   const { queries, activeQueryId, updateQuery } = useQueryStore();
   const activeQuery = queries.find((q) => q.id === activeQueryId);
   const queryConnectionId = activeQuery?.connectionId ?? null;
+  const lintDiagnostics = useLintDiagnostics(activeQueryId);
+  const runtimeDiagnostics = useRuntimeDiagnostics(activeQueryId);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
   const completionDisposableRef = useRef<Monaco.IDisposable | null>(null);
@@ -243,6 +268,10 @@ export function SqlEditor() {
       log.debug(`[SqlEditor] Completion provider updated for connection: ${queryConnectionId}`);
     }
   }, [queryConnectionId]);
+
+  // sqruff lint + ODBC実行エラー(runtime)をMonaco markerに反映 (owner別に独立管理)
+  useApplyMarkers(editorRef, lintDiagnostics, 'sqruff');
+  useApplyMarkers(editorRef, runtimeDiagnostics, 'runtime');
 
   // クリーンアップ
   useEffect(() => {

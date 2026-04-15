@@ -3,6 +3,7 @@ export {
   useIsActiveDataView,
   useIsActiveERDiagram,
   useIsQueryExecuting,
+  useLintDiagnostics,
   usePaginationState,
   useQueries,
   useQueryActions,
@@ -10,6 +11,7 @@ export {
   useQueryError,
   useQueryResult,
   useQueryStore,
+  useRuntimeDiagnostics,
 } from './queryStore';
 
 export type { QueryState } from './types';

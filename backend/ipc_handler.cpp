@@ -4,6 +4,7 @@
 #include "interfaces/providers/connection_provider.h"
 #include "interfaces/providers/export_provider.h"
 #include "interfaces/providers/io_provider.h"
+#include "interfaces/providers/lint_provider.h"
 #include "interfaces/providers/query_provider.h"
 #include "interfaces/providers/schema_provider.h"
 #include "interfaces/providers/search_provider.h"
@@ -116,6 +117,9 @@ void IPCHandler::registerRoutes() {
     m_routes["getBookmarks"] = [this](auto p) { return m_ctx.io().getBookmarks(p); };
     m_routes["saveBookmark"] = [this](auto p) { return m_ctx.io().saveBookmark(p); };
     m_routes["deleteBookmark"] = [this](auto p) { return m_ctx.io().deleteBookmark(p); };
+
+    // Lint (static SQL check via sqruff)
+    m_routes["lintSql"] = [this](auto p) { return m_ctx.lint().lintSql(p); };
 }
 
 std::string IPCHandler::dispatchRequest(std::string_view request) {

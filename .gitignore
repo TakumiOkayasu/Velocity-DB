@@ -114,3 +114,6 @@ build-tidy/
 
 # CMake system information
 __cmake_systeminformation/
+
+# sqruff binary (fetched by CMake from GitHub Release at build time)
+third_party/sqruff/
