@@ -82,6 +82,7 @@ desktop.ini
 *.test.csv
 *.test.json
 test_export.*
+build-test/
 
 # Logs
 logs/
