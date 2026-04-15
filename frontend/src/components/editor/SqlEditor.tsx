@@ -283,6 +283,8 @@ export function SqlEditor() {
           matchBrackets: 'always',
           folding: true,
           suggestOnTriggerCharacters: true,
+          // .horizontalResizer の margin: -4px 食い込みを相殺 + 視認性余裕 4px
+          padding: { bottom: 8 },
         }}
       />
     </div>
