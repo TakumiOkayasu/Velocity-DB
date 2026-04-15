@@ -1,4 +1,5 @@
 import { bridge as apiBridge } from '../../../api/bridge';
+import type { SqlMarkerInput } from '../../../utils/editorMarkers';
 import { log } from '../../../utils/logger';
 import { getSettings } from '../../../utils/settingsUtils';
 import {
@@ -8,6 +9,7 @@ import {
   SQL_BEGIN_TRANSACTION,
 } from '../../../utils/sqlIdentifier';
 import { useConnectionStore } from '../../connectionStore';
+import { useToastStore } from '../../toastStore';
 import { executeAsyncWithPolling, toQueryResult } from '../helpers/asyncPolling';
 import { endExecution, failExecution, startExecution } from '../helpers/executionState';
 import { fetchAndUpdateRowCount } from '../helpers/paginationHelper';
@@ -92,7 +94,57 @@ export function createExecuteSlice(
     }
   }
 
+  function buildSyntaxErrorToast(markers: SqlMarkerInput[]): string {
+    const first = markers[0];
+    if (markers.length === 1) return `構文エラー: L${first.line} ${first.message}`;
+    return `構文エラー ${markers.length}件 (L${first.line}...): エディタのマーカーを参照`;
+  }
+
+  async function precheckWithSqruff(
+    id: string,
+    connectionId: string,
+    sql: string
+  ): Promise<SqlMarkerInput[] | null> {
+    // dialect判定不能ならlintスキップ (実行側のfail-openに委ねる)
+    const conn = useConnectionStore.getState().connections.find((c) => c.id === connectionId);
+    if (!conn?.dbType) return null;
+
+    try {
+      const result = await apiBridge.lintSql(sql, conn.dbType);
+      if (result.lintUnavailable) {
+        log.warning(`[queryExecuteSlice] lint unavailable: ${result.reason ?? 'unknown'}`);
+        return null;
+      }
+      // backend側で既にPRSのみに絞り込み済み。diagnostics破損時の保険として再確認
+      const prs = result.diagnostics.filter((d) => d.code.startsWith('PRS'));
+      if (prs.length === 0) return null;
+      const markers: SqlMarkerInput[] = prs.map((d) => ({
+        line: d.line,
+        column: d.column,
+        code: d.code,
+        message: d.message,
+      }));
+      set((state) => ({
+        lintDiagnostics: { ...state.lintDiagnostics, [id]: markers },
+      }));
+      useToastStore.getState().addToast(buildSyntaxErrorToast(markers), 'error');
+      return markers;
+    } catch (error) {
+      log.warning(`[queryExecuteSlice] lint invocation failed: ${error}`);
+      return null;
+    }
+  }
+
   async function executeAsync(id: string, connectionId: string, sql: string): Promise<void> {
+    // 事前lint: 構文エラー(PRS)検出時はexecuteQueryを呼ばずmarkerのみ
+    const prsMarkers = await precheckWithSqruff(id, connectionId, sql);
+    if (prsMarkers) {
+      set((state) => failExecution(state, id, prsMarkers[0].message));
+      return;
+    }
+    // lint通過 or lintUnavailable: 古いmarkerをクリアして実行継続
+    set((state) => ({ lintDiagnostics: { ...state.lintDiagnostics, [id]: [] } }));
+
     const controller = new AbortController();
     abort.register(id, controller);
 

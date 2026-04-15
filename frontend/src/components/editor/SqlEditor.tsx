@@ -4,8 +4,9 @@ import type * as Monaco from 'monaco-editor';
 import * as monaco from 'monaco-editor';
 import { useCallback, useEffect, useRef } from 'react';
 import { useKeyboardHandler } from '../../hooks/useKeyboardHandler';
-import { useQueryStore } from '../../store/queryStore';
+import { useLintDiagnostics, useQueryStore } from '../../store/queryStore';
 import { useSchemaStore } from '../../store/schemaStore';
+import { clearSqlMarkers, setSqlMarkers } from '../../utils/editorMarkers';
 import { log } from '../../utils/logger';
 import { formatSQL } from '../../utils/sqlFormat';
 import { getStatementAtCursor } from '../../utils/sqlParser';
@@ -31,6 +32,7 @@ export function SqlEditor() {
   const { queries, activeQueryId, updateQuery } = useQueryStore();
   const activeQuery = queries.find((q) => q.id === activeQueryId);
   const queryConnectionId = activeQuery?.connectionId ?? null;
+  const lintDiagnostics = useLintDiagnostics(activeQueryId);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
   const completionDisposableRef = useRef<Monaco.IDisposable | null>(null);
@@ -243,6 +245,17 @@ export function SqlEditor() {
       log.debug(`[SqlEditor] Completion provider updated for connection: ${queryConnectionId}`);
     }
   }, [queryConnectionId]);
+
+  // sqruff lint診断をMonaco markerに反映
+  useEffect(() => {
+    const model = editorRef.current?.getModel();
+    if (!model) return;
+    if (!lintDiagnostics || lintDiagnostics.length === 0) {
+      clearSqlMarkers(model, 'sqruff');
+      return;
+    }
+    setSqlMarkers(model, lintDiagnostics, 'sqruff');
+  }, [lintDiagnostics]);
 
   // クリーンアップ
   useEffect(() => {

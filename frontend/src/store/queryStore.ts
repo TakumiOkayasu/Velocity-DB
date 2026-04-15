@@ -6,6 +6,7 @@ export {
   useIsActiveDataView,
   useIsActiveERDiagram,
   useIsQueryExecuting,
+  useLintDiagnostics,
   usePaginationState,
   useQueries,
   useQueryActions,

@@ -5,6 +5,7 @@
 #include "../providers/connection_provider.h"
 #include "../providers/export_provider.h"
 #include "../providers/io_provider.h"
+#include "../providers/lint_provider.h"
 #include "../providers/query_provider.h"
 #include "../providers/schema_provider.h"
 #include "../providers/search_provider.h"
@@ -25,7 +26,8 @@ SystemContext::SystemContext()
     , m_search(std::make_unique<SearchProvider>(*m_connections))
     , m_utility(std::make_unique<UtilityProvider>())
     , m_settings(std::make_unique<SettingsProvider>())
-    , m_io(std::make_unique<IOProvider>()) {}
+    , m_io(std::make_unique<IOProvider>())
+    , m_lint(std::make_unique<LintProvider>()) {}
 
 SystemContext::~SystemContext() = default;
 
@@ -58,6 +60,9 @@ ISettingsProvider& SystemContext::settings() noexcept {
 }
 IIOProvider& SystemContext::io() noexcept {
     return *m_io;
+}
+ILintProvider& SystemContext::lint() noexcept {
+    return *m_lint;
 }
 
 }  // namespace velocitydb

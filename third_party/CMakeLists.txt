@@ -62,3 +62,38 @@ FetchContent_MakeAvailable(glaze)
 
 # Note: xlsxwriter requires separate build
 # For now, it's disabled until properly integrated
+
+# sqruff - SQL linter (Windows x86_64 prebuilt binary)
+# https://github.com/quarylabs/sqruff
+# License: Apache-2.0
+set(SQRUFF_VERSION "0.38.0")
+set(SQRUFF_SHA256 "004e2b7a7a8c32256bc76bc61b642014856ff3fa1c4aedf9854e66c5b8a4817b")
+set(SQRUFF_ARCHIVE "${CMAKE_CURRENT_SOURCE_DIR}/sqruff/sqruff-${SQRUFF_VERSION}.zip")
+set(SQRUFF_EXTRACT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/sqruff/${SQRUFF_VERSION}")
+set(SQRUFF_EXE "${SQRUFF_EXTRACT_DIR}/sqruff.exe")
+
+if(NOT EXISTS "${SQRUFF_EXE}")
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/sqruff")
+    if(NOT EXISTS "${SQRUFF_ARCHIVE}")
+        message(STATUS "Downloading sqruff v${SQRUFF_VERSION}...")
+        file(DOWNLOAD
+            "https://github.com/quarylabs/sqruff/releases/download/v${SQRUFF_VERSION}/sqruff-windows-x86_64.zip"
+            "${SQRUFF_ARCHIVE}"
+            EXPECTED_HASH SHA256=${SQRUFF_SHA256}
+            SHOW_PROGRESS
+            TLS_VERIFY ON
+        )
+    endif()
+    file(ARCHIVE_EXTRACT
+        INPUT "${SQRUFF_ARCHIVE}"
+        DESTINATION "${SQRUFF_EXTRACT_DIR}"
+    )
+endif()
+
+if(EXISTS "${SQRUFF_EXE}")
+    message(STATUS "sqruff binary: ${SQRUFF_EXE}")
+    add_library(sqruff_binary INTERFACE)
+    set(SQRUFF_BINARY_PATH "${SQRUFF_EXE}" CACHE INTERNAL "Path to sqruff.exe")
+else()
+    message(FATAL_ERROR "sqruff.exe extraction failed: ${SQRUFF_EXE}")
+endif()

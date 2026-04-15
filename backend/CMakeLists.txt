@@ -48,11 +48,13 @@ set(LIB_SOURCES
     providers/utility_provider.cpp
     providers/settings_provider.cpp
     providers/io_provider.cpp
+    providers/lint_provider.cpp
     # Parsers
     parsers/a5er_parser.cpp
     parsers/a5er_utils.cpp
     parsers/er_diagram_parser_factory.cpp
     parsers/sql_formatter.cpp
+    parsers/sql_linter.cpp
     parsers/sql_parser.cpp
     parsers/copy_block_detector.cpp
     # Exporters
@@ -122,6 +124,7 @@ set(HEADERS
     interfaces/providers/utility_provider.h
     interfaces/providers/settings_provider.h
     interfaces/providers/io_provider.h
+    interfaces/providers/lint_provider.h
     # Contexts
     contexts/system_context.h
     # Providers
@@ -135,6 +138,7 @@ set(HEADERS
     providers/utility_provider.h
     providers/settings_provider.h
     providers/io_provider.h
+    providers/lint_provider.h
     # Interfaces (Parser)
     interfaces/parsers/er_model.h
     interfaces/parsers/er_diagram_parser.h
@@ -143,6 +147,7 @@ set(HEADERS
     parsers/a5er_utils.h
     parsers/er_diagram_parser_factory.h
     parsers/sql_formatter.h
+    parsers/sql_linter.h
     parsers/sql_parser.h
     parsers/copy_block_detector.h
     parsers/split_utils.h
@@ -274,5 +279,16 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/config")
         ${CMAKE_SOURCE_DIR}/config
         $<TARGET_FILE_DIR:VelocityDB>/config
         COMMENT "Copying config files..."
+    )
+endif()
+
+# Copy sqruff.exe to output directory (expected at <exe_dir>/sqruff/sqruff.exe)
+if(DEFINED SQRUFF_BINARY_PATH AND EXISTS "${SQRUFF_BINARY_PATH}")
+    add_custom_command(TARGET VelocityDB POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:VelocityDB>/sqruff
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${SQRUFF_BINARY_PATH}
+        $<TARGET_FILE_DIR:VelocityDB>/sqruff/sqruff.exe
+        COMMENT "Copying sqruff.exe..."
     )
 endif()

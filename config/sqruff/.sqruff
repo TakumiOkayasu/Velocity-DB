@@ -1,0 +1,4 @@
+[sqruff]
+# Velocity-DB: report parse errors (PRS) only, ignore all style/layout linting
+ignore = linting
+nocolor = True

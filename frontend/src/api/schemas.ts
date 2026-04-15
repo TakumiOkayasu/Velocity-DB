@@ -234,3 +234,17 @@ export const getBookmarks = z.array(
 );
 export const saveBookmark = zVoid;
 export const deleteBookmark = zVoid;
+
+// --- Lint (sqruff) ---
+export const lintSql = z.object({
+  diagnostics: z.array(
+    z.object({
+      line: z.number(),
+      column: z.number(),
+      code: z.string(),
+      message: z.string(),
+    })
+  ),
+  lintUnavailable: z.boolean().optional(),
+  reason: z.string().optional(),
+});
