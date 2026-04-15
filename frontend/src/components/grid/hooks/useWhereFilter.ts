@@ -45,6 +45,18 @@ export function useWhereFilter({
     }
   }, [activeQueryId, queryConnectionId, whereClause, applyWhereFilter]);
 
+  const whereChange = useCallback(
+    (value: string) => {
+      setWhereClause(value);
+      if (value.trim() === '' && storedWhereClause !== '' && activeQueryId && queryConnectionId) {
+        applyWhereFilter(activeQueryId, queryConnectionId, '').then((errorMessage) => {
+          setWhereFilterError(errorMessage);
+        });
+      }
+    },
+    [storedWhereClause, activeQueryId, queryConnectionId, applyWhereFilter]
+  );
+
   const whereClear = useCallback(() => {
     setWhereClause('');
     setWhereFilterError(null);
@@ -63,5 +75,6 @@ export function useWhereFilter({
     whereKeyDown,
     whereApply,
     whereClear,
+    whereChange,
   };
 }

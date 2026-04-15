@@ -85,4 +85,62 @@ describe('useWhereFilter', () => {
 
     expect(hook.result.current.whereFilterError).toBeNull();
   });
+
+  it('フィルタ適用中に入力が空になったら自動で applyWhereFilter("") を呼ぶ', async () => {
+    const { hook, applyWhereFilter } = setup({
+      activeQueryId: 'q1',
+      queryConnectionId: 'c1',
+      storedWhereClause: 'id = 1',
+    });
+
+    await act(async () => {
+      hook.result.current.whereChange('');
+    });
+
+    expect(applyWhereFilter).toHaveBeenCalledWith('q1', 'c1', '');
+    expect(hook.result.current.whereClause).toBe('');
+  });
+
+  it('storedWhereClause が既に空なら空入力で applyWhereFilter は呼ばれない', () => {
+    const { hook, applyWhereFilter } = setup({
+      activeQueryId: 'q1',
+      queryConnectionId: 'c1',
+      storedWhereClause: '',
+    });
+
+    act(() => {
+      hook.result.current.whereChange('');
+    });
+
+    expect(applyWhereFilter).not.toHaveBeenCalled();
+  });
+
+  it('空白のみの入力も空扱いで自動解除する', async () => {
+    const { hook, applyWhereFilter } = setup({
+      activeQueryId: 'q1',
+      queryConnectionId: 'c1',
+      storedWhereClause: 'id = 1',
+    });
+
+    await act(async () => {
+      hook.result.current.whereChange('   ');
+    });
+
+    expect(applyWhereFilter).toHaveBeenCalledWith('q1', 'c1', '');
+  });
+
+  it('非空入力では applyWhereFilter は呼ばれず、ローカル値のみ更新する', () => {
+    const { hook, applyWhereFilter } = setup({
+      activeQueryId: 'q1',
+      queryConnectionId: 'c1',
+      storedWhereClause: 'id = 1',
+    });
+
+    act(() => {
+      hook.result.current.whereChange('age > 18');
+    });
+
+    expect(applyWhereFilter).not.toHaveBeenCalled();
+    expect(hook.result.current.whereClause).toBe('age > 18');
+  });
 });

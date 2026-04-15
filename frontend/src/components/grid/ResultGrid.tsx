@@ -125,12 +125,12 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
 
   const {
     whereClause,
-    setWhereClause,
     whereFilterError,
     setWhereFilterError,
     whereKeyDown,
     whereApply,
     whereClear,
+    whereChange,
   } = useWhereFilter({
     activeQueryId: targetQueryId,
     queryConnectionId,
@@ -617,7 +617,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         <GridFilterBar
           whereClause={whereClause}
           isExecuting={isExecuting}
-          onWhereChange={setWhereClause}
+          onWhereChange={whereChange}
           onApply={whereApply}
           onClear={whereClear}
           onKeyDown={whereKeyDown}
