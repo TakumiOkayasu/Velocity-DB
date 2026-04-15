@@ -8,21 +8,29 @@ interface ResultTabsProps {
   onSelect: (index: number) => void;
 }
 
+const MAX_TAB_LABEL_LENGTH = 50;
+
 function ResultTabsInner({ results, activeIndex, onSelect }: ResultTabsProps) {
   return (
     <div className={styles.resultTabs}>
-      {results.map((result, index) => (
-        <button
-          key={result.statement}
-          className={`${styles.resultTab} ${activeIndex === index ? styles.activeResultTab : ''}`}
-          onClick={() => onSelect(index)}
-          title={result.statement}
-        >
-          {result.statement.length > 50
-            ? `${result.statement.substring(0, 50)}...`
-            : result.statement}
-        </button>
-      ))}
+      {results.map((result, index) => {
+        const label =
+          result.statement.length > MAX_TAB_LABEL_LENGTH
+            ? `${result.statement.substring(0, MAX_TAB_LABEL_LENGTH)}...`
+            : result.statement;
+        // statement は first-line のみなので重複し得る。実行順で固定配列のため index 併用が必要。
+        const key = `${index}-${result.statement}`;
+        return (
+          <button
+            key={key}
+            className={`${styles.resultTab} ${activeIndex === index ? styles.activeResultTab : ''}`}
+            onClick={() => onSelect(index)}
+            title={result.statement}
+          >
+            {`[${index + 1}] ${label}`}
+          </button>
+        );
+      })}
     </div>
   );
 }

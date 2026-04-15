@@ -32,6 +32,7 @@ import { GridFilterBar } from './GridFilterBar';
 import { GridStatusBar } from './GridStatusBar';
 import { GridTable } from './GridTable';
 import { GridToolbar } from './GridToolbar';
+import { useClampedActiveIndex } from './hooks/useClampedActiveIndex';
 import { useColumnAutoSize } from './hooks/useColumnAutoSize';
 import { useElapsedTimer } from './hooks/useElapsedTimer';
 import { useGridEdit } from './hooks/useGridEdit';
@@ -93,7 +94,6 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   const rowsLengthRef = useRef(0);
   const columnOrderRef = useRef<string[]>([]);
   const viewRowsRef = useRef<Row<RowData>[]>([]);
-  const [activeResultIndex, setActiveResultIndex] = useState(0);
   const [valueEditorState, setValueEditorState] = useState<{
     isOpen: boolean;
     rowIndex: number;
@@ -151,6 +151,9 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     : null;
   const hasFilteredResults = filteredResults && filteredResults.length > 0;
   const singleResult: ResultSet | null = !isMultiple && queryResult ? queryResult : null;
+  const [activeResultIndex, setActiveResultIndex] = useClampedActiveIndex(
+    filteredResults?.length ?? 0
+  );
   const resultSet: ResultSet | null = hasFilteredResults
     ? (filteredResults[activeResultIndex]?.data ?? null)
     : singleResult;
