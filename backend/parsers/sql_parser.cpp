@@ -99,6 +99,11 @@ size_t advanceLexer(LexerState& lex, std::string_view sql, size_t i) {
     return 0;
 }
 
+void advanceLexerThrough(LexerState& lex, std::string_view sql, size_t begin, size_t end) {
+    for (size_t i = begin; i < end; ++i)
+        i += advanceLexer(lex, sql, i);
+}
+
 /// True if line is a psql meta-command (lowercase \cmd), excluding \. (COPY terminator).
 bool isPsqlMetaCommand(std::string_view line) {
     auto t = trim(line);
@@ -114,15 +119,26 @@ bool isSqlLineComment(std::string_view line) {
 
 /// Remove psql meta-commands and standalone SQL comment lines.
 /// Preserves \. (COPY terminator) and inline comments (e.g. "SELECT 1; -- ok").
+/// Block-comment aware: a line starting with `--` or `\cmd` that is inside a
+/// /* ... */ block is arbitrary text, not a SQL line comment, and is kept.
+/// Without this, closing `*/` on a decorative line like `---- */` would be
+/// dropped, leaving the block comment unterminated and corrupting statement
+/// splitting.
 std::string filterNonExecutableLines(std::string_view sql) {
     std::string result;
     result.reserve(sql.size());
+    LexerState lex;
     size_t pos = 0;
     while (pos < sql.size()) {
         auto nl = sql.find('\n', pos);
         auto end = (nl != std::string_view::npos) ? nl + 1 : sql.size();
         auto line = sql.substr(pos, end - pos);
-        if (!isPsqlMetaCommand(line) && !isSqlLineComment(line))
+
+        const bool insideBlockComment = (lex.state == LexState::BlockComment);
+        advanceLexerThrough(lex, sql, pos, end);
+
+        const bool keepLine = insideBlockComment || (!isPsqlMetaCommand(line) && !isSqlLineComment(line));
+        if (keepLine)
             result.append(line);
         pos = end;
     }

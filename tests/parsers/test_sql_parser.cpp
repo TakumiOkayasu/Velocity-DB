@@ -124,6 +124,55 @@ TEST_F(SQLParserSplitTest, NestedBlockComments) {
     EXPECT_NE(stmts[0].find("SELECT"), std::string::npos);
 }
 
+// Regression: closing `*/` on a line starting with `--` (decorative dashes) must
+// not be stripped by the line-comment filter. Without block-aware filtering,
+// `filterNonExecutableLines` drops the `*/` line and the block comment leaks
+// to EOF, causing `splitStatements` to return 0 and the whole SQL to be sent
+// to ODBC as a single batch (only the first result set is fetched).
+TEST_F(SQLParserSplitTest, BlockCommentClosedByDashDecoratedLine) {
+    std::string sql =
+        "/* header\n"
+        "------------ */\n"
+        "SELECT 1;\n"
+        "/* another\n"
+        "------------ */\n"
+        "SELECT 2;\n";
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 2);
+    EXPECT_NE(stmts[0].find("SELECT 1"), std::string::npos);
+    EXPECT_NE(stmts[1].find("SELECT 2"), std::string::npos);
+}
+
+// Regression (SQL Server / MySQL path, no detectors): same bug surfaces through
+// the no-detector `splitStatements(sql)` overload used by non-PostgreSQL drivers
+// (see backend/parsers/split_utils.h). The original report is against SQL Server.
+TEST_F(SQLParserSplitTest, BlockCommentClosedByDashDecoratedLine_NoDetectors) {
+    std::string sql =
+        "/* header\n"
+        "------------ */\n"
+        "SELECT 1;\n"
+        "/* another\n"
+        "------------ */\n"
+        "SELECT 2;\n";
+    auto stmts = SQLParser::splitStatements(sql);
+    ASSERT_EQ(stmts.size(), 2);
+    EXPECT_NE(stmts[0].find("SELECT 1"), std::string::npos);
+    EXPECT_NE(stmts[1].find("SELECT 2"), std::string::npos);
+}
+
+// Regression: lines starting with `--` that are INSIDE a block comment must
+// not be treated as SQL line comments (they are arbitrary text per SQL spec).
+TEST_F(SQLParserSplitTest, DashPrefixLineInsideBlockCommentPreserved) {
+    std::string sql =
+        "/*\n"
+        "-- this looks like a line comment but is inside /* ... */\n"
+        "*/\n"
+        "SELECT 1;\n";
+    auto stmts = SQLParser::splitStatements(sql, pgDetectors);
+    ASSERT_EQ(stmts.size(), 1);
+    EXPECT_NE(stmts[0].find("SELECT 1"), std::string::npos);
+}
+
 TEST_F(SQLParserSplitTest, PgDumpSetConfig) {
     std::string sql =
         "SET statement_timeout = 0;\n"
