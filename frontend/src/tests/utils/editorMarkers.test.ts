@@ -26,7 +26,11 @@ describe('editorMarkers', () => {
 
   it('converts Diagnostic to Monaco Error marker with 1-based coords', () => {
     const model = makeModel('SELEC * FROM t');
-    setSqlMarkers(model as unknown as monaco.editor.ITextModel, [{ line: 1, column: 1, code: 'PRS', message: 'parse error' }], 'sqruff');
+    setSqlMarkers(
+      model as unknown as monaco.editor.ITextModel,
+      [{ line: 1, column: 1, code: 'PRS', message: 'parse error' }],
+      'sqruff'
+    );
     expect(monaco.editor.setModelMarkers).toHaveBeenCalledWith(model, 'sqruff', [
       expect.objectContaining({
         severity: monaco.MarkerSeverity.Error,
@@ -49,12 +53,20 @@ describe('editorMarkers', () => {
     const model = makeModel('');
     clearSqlMarkers(model as unknown as monaco.editor.ITextModel, 'sqruff');
     expect(monaco.editor.setModelMarkers).toHaveBeenCalledWith(model, 'sqruff', []);
-    expect(monaco.editor.setModelMarkers).not.toHaveBeenCalledWith(model, 'runtime', expect.anything());
+    expect(monaco.editor.setModelMarkers).not.toHaveBeenCalledWith(
+      model,
+      'runtime',
+      expect.anything()
+    );
   });
 
   it('normalizes end column to at least startColumn+1 when line is short', () => {
     const model = makeModel('a');
-    setSqlMarkers(model as unknown as monaco.editor.ITextModel, [{ line: 1, column: 10, message: 'msg' }], 'sqruff');
+    setSqlMarkers(
+      model as unknown as monaco.editor.ITextModel,
+      [{ line: 1, column: 10, message: 'msg' }],
+      'sqruff'
+    );
     const call = vi.mocked(monaco.editor.setModelMarkers).mock.calls[0];
     const marker = (call?.[2] as monaco.editor.IMarkerData[])[0];
     expect(marker.endColumn).toBeGreaterThan(marker.startColumn);

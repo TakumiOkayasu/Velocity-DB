@@ -84,14 +84,13 @@ describe('runtimeDiagnostics', () => {
     // 2回目: 実行開始時にクリアされてから成功
     mockedBridge.executeAsyncQuery.mockResolvedValueOnce({ queryId: 'async_1' });
     mockedBridge.getAsyncQueryResult.mockResolvedValueOnce({
+      queryId: 'async_1',
       status: 'completed',
-      result: {
-        columns: [],
-        rows: [],
-        affectedRows: 0,
-        executionTimeMs: 0,
-        truncated: false,
-      },
+      columns: [],
+      rows: [],
+      affectedRows: 0,
+      executionTimeMs: 0,
+      truncated: false,
     });
     await executeQuery(queryId, 'conn_1');
     expect(useQueryStore.getState().runtimeDiagnostics[queryId]).toEqual([]);
