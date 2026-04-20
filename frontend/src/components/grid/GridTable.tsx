@@ -1,6 +1,6 @@
 import { flexRender, type Row, type Table } from '@tanstack/react-table';
 import type { VirtualItem } from '@tanstack/react-virtual';
-import { type MouseEvent, memo, type RefObject, useCallback } from 'react';
+import { type MouseEvent, memo, type RefObject, type UIEvent, useCallback } from 'react';
 import { type ColumnMeta, isSystemColumn, type RowData } from '../../types/grid';
 import type { ValidationError } from '../../utils/validation';
 import { ContextMenu } from '../common/ContextMenu';
@@ -57,6 +57,8 @@ interface GridTableProps {
   callbacks: GridTableCallbacks;
   /** Table name embedded in INSERT copy (sourceTable for data-view tabs, undefined for arbitrary SQL) */
   tableName?: string;
+  /** Scroll 位置保存のためのハンドラ (ResultGrid 側で store 更新) */
+  onScroll?: (e: UIEvent<HTMLDivElement>) => void;
 }
 
 /** Extract row/cell info from a bubbled event via data attributes */
@@ -85,6 +87,7 @@ function GridTableInner({
   selection,
   callbacks,
   tableName,
+  onScroll,
 }: GridTableProps) {
   const paddingTop = virtualRows.length > 0 ? (virtualRows[0]?.start ?? 0) : 0;
   const paddingBottom =
@@ -120,8 +123,26 @@ function GridTableInner({
       className={styles.tableContainer}
       tabIndex={-1}
       onMouseDown={onContainerMouseDown}
+      onScroll={onScroll}
     >
-      <table key={`table-${showLogicalNamesInGrid}`} className={styles.table}>
+      <table
+        key={`table-${showLogicalNamesInGrid}`}
+        className={styles.table}
+        style={{
+          // inline style で table-layout/width を強制 (#368)。
+          // CSS Modules scoping や specificity 由来の適用漏れを排除する。
+          tableLayout: 'fixed',
+          width:
+            table.getHeaderGroups()[0]?.headers.reduce((sum, h) => sum + h.getSize(), 0) ?? 'auto',
+        }}
+      >
+        {/* colgroup で列幅を明示的に固定 (#368)。table-layout: fixed の参照元として
+            最も信頼性が高く、virtualization の spacer <tr> の影響を受けない */}
+        <colgroup>
+          {table.getHeaderGroups()[0]?.headers.map((header) => (
+            <col key={header.id} style={{ width: header.getSize() }} />
+          ))}
+        </colgroup>
         <thead className={styles.thead}>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id} className={styles.theadRow}>

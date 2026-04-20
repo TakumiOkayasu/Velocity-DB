@@ -347,6 +347,8 @@
 }
 
 .table {
+  /* fixed: 縦スクロール時の列幅変動を防ぐ (#368)。<th> の explicit width を尊重 */
+  table-layout: fixed;
   width: max-content;
   border-collapse: collapse;
   font-size: 14px;
