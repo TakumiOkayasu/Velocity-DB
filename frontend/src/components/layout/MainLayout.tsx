@@ -331,7 +331,8 @@ export function MainLayout() {
     } else if (e.ctrlKey && e.key === 'w') {
       e.preventDefault();
       handleCloseTab();
-    } else if (e.ctrlKey && e.key === 'Enter') {
+    } else if (e.key === 'F9' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+      // F9 単独のみ実行トリガ。Ctrl/Shift/Alt+F9 は将来の拡張用に予約
       e.preventDefault();
       handleExecute();
     } else if (e.ctrlKey && e.shiftKey && e.key === 'F') {
@@ -424,7 +425,7 @@ export function MainLayout() {
           <button
             onClick={isExecuting ? handleCancel : handleExecute}
             disabled={isRunButtonDisabled(activeQuery, activeQueryConnectionId)}
-            title={isExecuting ? '停止 (Escape)' : '実行 (Ctrl+Enter)'}
+            title={isExecuting ? '停止 (Escape)' : '実行 (F9)'}
             className={styles.executeButton}
           >
             {isExecuting ? Icons.stop : Icons.play}

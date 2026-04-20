@@ -9,6 +9,14 @@ interface SettingsDialogProps {
   onClose: () => void;
 }
 
+// ショートカット表示。値は実キーハンドラ実装 (MainLayout.tsx) と同期させる
+const SHORTCUT_DISPLAY: ReadonlyArray<{ label: string; keys: string }> = [
+  { label: 'クエリを実行', keys: 'F9' },
+  { label: '新規クエリ', keys: 'Ctrl+N' },
+  { label: 'SQLフォーマット', keys: 'Ctrl+Shift+F' },
+  { label: '検索', keys: 'Ctrl+Shift+P' },
+];
+
 export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
   useDialogKeyboard({ isOpen, onEscape: onClose });
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
@@ -223,22 +231,12 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
 
             {activeTab === 'shortcuts' && (
               <div className={styles.settingsGroup}>
-                <div className={styles.setting}>
-                  <label>クエリを実行</label>
-                  <input type="text" value={settings.shortcuts.execute} readOnly />
-                </div>
-                <div className={styles.setting}>
-                  <label>新規クエリ</label>
-                  <input type="text" value={settings.shortcuts.newQuery} readOnly />
-                </div>
-                <div className={styles.setting}>
-                  <label>SQLフォーマット</label>
-                  <input type="text" value={settings.shortcuts.format} readOnly />
-                </div>
-                <div className={styles.setting}>
-                  <label>検索</label>
-                  <input type="text" value={settings.shortcuts.search} readOnly />
-                </div>
+                {SHORTCUT_DISPLAY.map(({ label, keys }) => (
+                  <div key={label} className={styles.setting}>
+                    <label>{label}</label>
+                    <input type="text" value={keys} readOnly />
+                  </div>
+                ))}
                 <p className={styles.shortcutNote}>
                   このバージョンではキーボードショートカットのカスタマイズはできません。
                 </p>

@@ -39,7 +39,7 @@ export const defaultSettings: AppSettings = {
     theme: 'dark',
   },
   shortcuts: {
-    execute: 'Ctrl+Enter',
+    execute: 'F9',
     newQuery: 'Ctrl+N',
     format: 'Ctrl+Shift+F',
     search: 'Ctrl+Shift+P',
