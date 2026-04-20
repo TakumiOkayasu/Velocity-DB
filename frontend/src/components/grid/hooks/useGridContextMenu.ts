@@ -21,6 +21,32 @@ export interface GridMouseEvent {
   clientY: number;
 }
 
+const DEFAULT_TABLE_PLACEHOLDER = 'table_name';
+// 識別子として安全な文字のみ許可 (英数/_/./角括弧/バッククォート/ダブルクォート/空白/$/-)
+const SAFE_IDENT_PATTERN = /^[\w.[\]"` $-]+$/;
+
+function resolveTargetTable(tableName: string | undefined): string {
+  if (!tableName || tableName.length === 0) return DEFAULT_TABLE_PLACEHOLDER;
+  return SAFE_IDENT_PATTERN.test(tableName) ? tableName : DEFAULT_TABLE_PLACEHOLDER;
+}
+
+function escapeSqlLiteral(value: unknown): string {
+  if (value === null || value === undefined) return 'NULL';
+  const s = String(value).replace(/\\/g, '\\\\').replace(/'/g, "''");
+  return `'${s}'`;
+}
+
+/** INSERT SQL 生成 (純粋関数、単体テスト可能) */
+export function buildInsertSql(
+  tableName: string | undefined,
+  columnNames: readonly string[],
+  row: RowData
+): string {
+  const target = resolveTargetTable(tableName);
+  const values = columnNames.map((c) => escapeSqlLiteral(row[c]));
+  return `INSERT INTO ${target} (${columnNames.join(', ')}) VALUES (${values.join(', ')});`;
+}
+
 type ContextMenuState =
   | { x: number; y: number; type: 'header'; columnId: string }
   | { x: number; y: number; type: 'cell'; columnId: string; rowIndex: number };
@@ -33,13 +59,15 @@ interface UseGridContextMenuOptions {
     oldValue: string | null,
     newValue: string | null
   ) => void;
+  /** INSERT文に埋め込むテーブル名。未指定時は `table_name` プレースホルダ */
+  tableName?: string;
 }
 
 export function useGridContextMenu(
   columnsMeta: ColumnMeta[],
   rows: GridRow[],
   table: GridTable,
-  { isEditMode = false, updateCell }: UseGridContextMenuOptions = { isEditMode: false }
+  { isEditMode = false, updateCell, tableName }: UseGridContextMenuOptions = { isEditMode: false }
 ) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const copyToClipboard = useCopyToClipboard();
@@ -150,12 +178,7 @@ export function useGridContextMenu(
         action: () => {
           if (!row) return;
           const colNames = columnsMeta.map((c) => c.name);
-          const values = colNames.map((colName) => {
-            const v = row.original[colName];
-            if (v === null || v === undefined) return 'NULL';
-            return `'${String(v).replace(/\\/g, '\\\\').replace(/'/g, "''")}'`;
-          });
-          const sql = `INSERT INTO table_name (${colNames.join(', ')}) VALUES (${values.join(', ')});`;
+          const sql = buildInsertSql(tableName, colNames, row.original);
           copyToClipboard(sql, 'SQL INSERTをコピーしました');
         },
       },
@@ -183,7 +206,7 @@ export function useGridContextMenu(
     });
 
     return items;
-  }, [contextMenu, columnsMeta, rows, table, copyToClipboard, isEditMode, updateCell]);
+  }, [contextMenu, columnsMeta, rows, table, copyToClipboard, isEditMode, updateCell, tableName]);
 
   return {
     contextMenu,
