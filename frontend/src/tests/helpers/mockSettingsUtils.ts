@@ -5,7 +5,7 @@ const mockSettings = {
   query: { autoCommit: true, timeout: 30000, maxRows: 10000 },
   appearance: { theme: 'dark' as const },
   shortcuts: {
-    execute: 'Ctrl+Enter',
+    execute: 'F9',
     newQuery: 'Ctrl+N',
     format: 'Ctrl+Shift+F',
     search: 'Ctrl+Shift+P',

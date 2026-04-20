@@ -564,7 +564,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         <span>クエリを実行して結果を表示</span>
         <div className={styles.shortcutList}>
           <span className={styles.shortcutItem}>
-            <kbd>Ctrl+Enter</kbd> SQLを実行
+            <kbd>F9</kbd> SQLを実行
           </span>
           <span className={styles.shortcutItem}>
             <kbd>Ctrl+N</kbd> 新規タブ

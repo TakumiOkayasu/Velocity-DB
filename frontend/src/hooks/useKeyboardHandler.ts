@@ -1,5 +1,11 @@
 import { useEffect, useRef } from 'react';
 
+// Monaco Editor が bubbling phase 到達前に stopPropagation するため、
+// capture phase で先に捕捉しないと F9/Ctrl+S 等のグローバルショートカットが発火しない。
+// 運用ルール: 同一キーに対して複数の useKeyboardHandler を置かないこと。
+// capture phase では兄弟リスナーが順次発火し、二重実行になる (例: F9 → executeQuery が2回)。
+const USE_CAPTURE = true;
+
 /**
  * Registers a global keydown handler that always reflects the latest callback.
  * The listener is registered once on mount and never re-registered.
@@ -23,7 +29,7 @@ export function useKeyboardHandler(
       if (containerRef && !containerRef.current?.contains(document.activeElement)) return;
       handlerRef.current(e);
     };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', onKeyDown, USE_CAPTURE);
+    return () => window.removeEventListener('keydown', onKeyDown, USE_CAPTURE);
   }, [containerRef]);
 }

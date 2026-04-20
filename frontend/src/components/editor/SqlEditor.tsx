@@ -14,7 +14,6 @@ import {
 } from '../../utils/editorMarkers';
 import { log } from '../../utils/logger';
 import { formatSQL } from '../../utils/sqlFormat';
-import { getStatementAtCursor } from '../../utils/sqlParser';
 import { createCompletionProvider } from './completionProvider';
 import './monacoEnvironment';
 import styles from './SqlEditor.module.css';
@@ -42,13 +41,6 @@ function useApplyMarkers(
     setSqlMarkers(model, diagnostics, owner);
   }, [editorRef, diagnostics, owner]);
 }
-
-/** Get the connection ID of the active query tab (not the global activeConnectionId). */
-const getActiveQueryConnectionId = () => {
-  const { queries, activeQueryId } = getQueryState();
-  const found = queries.find((q) => q.id === activeQueryId);
-  return found?.connectionId ?? null;
-};
 
 export function SqlEditor() {
   const { queries, activeQueryId, updateQuery } = useQueryStore();
@@ -140,59 +132,6 @@ export function SqlEditor() {
             log.error(`[SqlEditor] Format: ERROR - ${msg}`);
           } finally {
             isFormattingRef.current = false;
-          }
-        }, 0);
-      });
-      return;
-    }
-
-    // F9 for query execution
-    if (event.key === 'F9' && !event.ctrlKey && !event.shiftKey && !event.altKey) {
-      event.preventDefault();
-      log.debug('[SqlEditor] Global F9 detected');
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          const qId = getQueryState().activeQueryId;
-          const cId = getActiveQueryConnectionId();
-          if (qId && cId) {
-            getQueryState().executeQuery(qId, cId);
-          }
-        }, 0);
-      });
-      return;
-    }
-
-    // Ctrl+Enter for executing current statement at cursor position
-    if (event.ctrlKey && event.key === 'Enter' && !event.shiftKey && !event.altKey) {
-      event.preventDefault();
-      log.debug('[SqlEditor] Global Ctrl+Enter detected');
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          if (!editorRef.current) return;
-          const qId = getQueryState().activeQueryId;
-          const cId = getActiveQueryConnectionId();
-          if (!qId || !cId) return;
-
-          const model = editorRef.current.getModel();
-          const position = editorRef.current.getPosition();
-          if (!model || !position) {
-            // フォールバック: 全体を実行
-            getQueryState().executeQuery(qId, cId);
-            return;
-          }
-
-          const cursorOffset = model.getOffsetAt(position);
-          const fullText = model.getValue();
-          const currentStatement = getStatementAtCursor(fullText, cursorOffset);
-
-          if (currentStatement) {
-            log.debug(
-              `[SqlEditor] Executing statement at cursor: ${currentStatement.slice(0, 50)}...`
-            );
-            getQueryState().executeSelectedText(qId, cId, currentStatement);
-          } else {
-            // フォールバック: 全体を実行
-            getQueryState().executeQuery(qId, cId);
           }
         }, 0);
       });
