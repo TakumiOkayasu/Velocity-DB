@@ -21,6 +21,7 @@ import {
   useQueryResult,
   useQueryStore,
 } from '../../store/queryStore';
+import { useScrollPositionStore } from '../../store/scrollPositionStore';
 import { useSessionStore } from '../../store/sessionStore';
 import type { ResultSet } from '../../types';
 import { type ColumnMeta, type GridViewMode, isNumericType, type RowData } from '../../types/grid';
@@ -388,23 +389,52 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     return () => observer.disconnect();
   }, [rowVirtualizer]);
 
-  // --- Reset scroll & UI state when switching query tabs ---
+  // --- Preserve scroll position per query when switching tabs ---
+  // UI state (sort/filter/selection) は per-tab 独立のためリセット維持。
+  // スクロール位置のみ前 queryId 単位で保存→復元 (Issue #366)。
+  const prevQueryIdRef = useRef<string | null>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally triggered by targetQueryId change
   useEffect(() => {
-    rowVirtualizer.scrollToOffset(0);
-    if (tableContainerRef.current) {
-      tableContainerRef.current.scrollLeft = 0;
+    const el = tableContainerRef.current;
+    const prev = prevQueryIdRef.current;
+    const { savePosition, getPosition } = useScrollPositionStore.getState();
+
+    // 1. 旧タブのスクロール位置を保存
+    if (prev && el) {
+      savePosition(prev, { top: el.scrollTop, left: el.scrollLeft });
     }
-    // Re-measure after paint to handle WebView2 layout delay
+    // 2. measure() 後に復元 (仮想化総サイズ未計算時は scrollToOffset が clamp されるため)
+    const saved = targetQueryId ? getPosition(targetQueryId) : undefined;
     requestAnimationFrame(() => {
       rowVirtualizer.measure();
+      if (saved) {
+        rowVirtualizer.scrollToOffset(saved.top);
+        if (el) el.scrollLeft = saved.left;
+      } else {
+        rowVirtualizer.scrollToOffset(0);
+        if (el) el.scrollLeft = 0;
+      }
     });
     resetSelection();
     setSorting([]);
     setColumnFilters([]);
     setShowColumnFilters(false);
     setActiveResultIndex(0);
+    prevQueryIdRef.current = targetQueryId;
   }, [targetQueryId]);
+
+  // --- Save scroll position on unmount (tab switched to non-grid view) ---
+  useEffect(() => {
+    return () => {
+      const el = tableContainerRef.current;
+      const qid = prevQueryIdRef.current;
+      if (qid && el) {
+        useScrollPositionStore
+          .getState()
+          .savePosition(qid, { top: el.scrollTop, left: el.scrollLeft });
+      }
+    };
+  }, []);
 
   // --- Infinite scroll: fetch more rows when nearing bottom ---
   useEffect(() => {
