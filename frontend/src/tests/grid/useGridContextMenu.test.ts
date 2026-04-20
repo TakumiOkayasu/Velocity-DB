@@ -117,6 +117,75 @@ describe('useGridContextMenu', () => {
       );
     });
 
+    it('SQL INSERTコピーが tableName 指定時は実テーブル名を埋め込む', () => {
+      const { result } = renderHook(() =>
+        useGridContextMenu(mockColumnsMeta, mockRows, mockTable, {
+          isEditMode: false,
+          tableName: 'users',
+        })
+      );
+
+      act(() => {
+        result.current.openCellMenu(createMockEvent(), 1, 'name');
+      });
+
+      const items = result.current.getMenuItems();
+      const sqlItem = items.find((i) => i.label === 'SQL INSERTとしてコピー');
+      sqlItem?.action();
+
+      expect(mockCopyToClipboard).toHaveBeenCalledWith(
+        "INSERT INTO users (id, name, email) VALUES ('2', 'Bob''s', NULL);",
+        'SQL INSERTをコピーしました'
+      );
+    });
+
+    it('SQL INSERTコピーがブラケット付きテーブル名をそのまま埋め込む', () => {
+      const { result } = renderHook(() =>
+        useGridContextMenu(mockColumnsMeta, mockRows, mockTable, {
+          isEditMode: false,
+          tableName: '[db].[dbo].[users]',
+        })
+      );
+
+      act(() => {
+        result.current.openCellMenu(createMockEvent(), 1, 'name');
+      });
+
+      const items = result.current.getMenuItems();
+      const sqlItem = items.find((i) => i.label === 'SQL INSERTとしてコピー');
+      sqlItem?.action();
+
+      expect(mockCopyToClipboard).toHaveBeenCalledWith(
+        "INSERT INTO [db].[dbo].[users] (id, name, email) VALUES ('2', 'Bob''s', NULL);",
+        'SQL INSERTをコピーしました'
+      );
+    });
+
+    it.each([
+      ['空文字', ''],
+      ['セミコロン混入', 'users; DROP TABLE x;'],
+      ['改行混入', 'a\nb'],
+    ])('SQL INSERTコピーが不正な tableName (%s) では table_name にフォールバック', (_, bad) => {
+      const { result } = renderHook(() =>
+        useGridContextMenu(mockColumnsMeta, mockRows, mockTable, {
+          isEditMode: false,
+          tableName: bad,
+        })
+      );
+
+      act(() => {
+        result.current.openCellMenu(createMockEvent(), 1, 'name');
+      });
+
+      const items = result.current.getMenuItems();
+      items.find((i) => i.label === 'SQL INSERTとしてコピー')?.action();
+
+      expect(mockCopyToClipboard).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO table_name '),
+        'SQL INSERTをコピーしました'
+      );
+    });
+
     it('isEditMode=true で「NULLに設定」が表示される', () => {
       const mockUpdateCell = vi.fn();
       const { result } = renderHook(() =>

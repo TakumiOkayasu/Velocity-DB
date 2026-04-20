@@ -637,6 +637,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
           edit={gridEditState}
           selection={gridSelectionState}
           callbacks={gridCallbacks}
+          tableName={currentQuery?.sourceTable}
         />
       ) : (
         <TransposeView

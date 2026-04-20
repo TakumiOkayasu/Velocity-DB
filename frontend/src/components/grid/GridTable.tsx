@@ -55,6 +55,8 @@ interface GridTableProps {
   edit: GridEditContext;
   selection: GridSelectionState;
   callbacks: GridTableCallbacks;
+  /** Table name embedded in INSERT copy (sourceTable for data-view tabs, undefined for arbitrary SQL) */
+  tableName?: string;
 }
 
 const preventShiftSelect = (e: MouseEvent) => {
@@ -86,6 +88,7 @@ function GridTableInner({
   edit,
   selection,
   callbacks,
+  tableName,
 }: GridTableProps) {
   const paddingTop = virtualRows.length > 0 ? (virtualRows[0]?.start ?? 0) : 0;
   const paddingBottom =
@@ -98,6 +101,7 @@ function GridTableInner({
     {
       isEditMode: edit.isEditMode,
       updateCell: callbacks.onUpdateCell,
+      tableName,
     }
   );
 
