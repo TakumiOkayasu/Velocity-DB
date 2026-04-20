@@ -9,7 +9,16 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  memo,
+  Suspense,
+  type UIEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useConnectionStore } from '../../store/connectionStore';
 import {
   useIsActiveDataView,
@@ -34,7 +43,6 @@ import { GridStatusBar } from './GridStatusBar';
 import { GridTable } from './GridTable';
 import { GridToolbar } from './GridToolbar';
 import { useClampedActiveIndex } from './hooks/useClampedActiveIndex';
-import { useColumnAutoSize } from './hooks/useColumnAutoSize';
 import { useElapsedTimer } from './hooks/useElapsedTimer';
 import { useGridEdit } from './hooks/useGridEdit';
 import { useGridKeyboard } from './hooks/useGridKeyboard';
@@ -188,9 +196,14 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     });
   }, [baseRowData]);
 
+  // dep は resultSet.columns に絞る: fetchMoreRows で resultSet identity が変わっても
+  // columns プロパティは `...currentResult` で維持されるため再生成不要。
+  // resultSet 全体を dep にすると columnDef が毎回新規生成され、TanStack Table の
+  // columnSizing との紐付けがスクロールのたびに揺らぎ、列幅変動に繋がる (#368)。
+  const resultSetColumns = resultSet?.columns;
   const columns = useMemo<ColumnDef<RowData>[]>(() => {
-    if (!resultSet) return [];
-    return resultSet.columns.map((col) => {
+    if (!resultSetColumns) return [];
+    return resultSetColumns.map((col) => {
       const isNumeric = isNumericType(col.type);
       const displayName = showLogicalNamesInGrid && col.comment ? col.comment : col.name;
       return {
@@ -202,23 +215,21 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         meta: { type: col.type, align: isNumeric ? 'right' : 'left' },
       };
     });
-  }, [resultSet, showLogicalNamesInGrid]);
+  }, [resultSetColumns, showLogicalNamesInGrid]);
 
   const columnsMeta = useMemo<ColumnMeta[]>(() => {
-    if (!resultSet) return [];
-    return resultSet.columns.map((col) => ({
+    if (!resultSetColumns) return [];
+    return resultSetColumns.map((col) => ({
       name: col.name,
       comment: col.comment ?? '',
       type: col.type,
     }));
-  }, [resultSet]);
+  }, [resultSetColumns]);
 
   // --- Hooks ---
-  const { columnSizing, setColumnSizing } = useColumnAutoSize({
-    resultSet,
-    columns,
-    rowData: baseRowData,
-  });
+  // 列幅は columnDef.size=150 を初期値に固定。ユーザー drag resize 時のみ columnSizing に
+  // 値が入る。動的 auto-size は #368 の安定性問題のため廃止 (progress.md 参照)。
+  const [columnSizing, setColumnSizing] = useState<Record<string, number>>({});
 
   const {
     isEditMode,
@@ -393,35 +404,102 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   // UI state (sort/filter/selection) は per-tab 独立のためリセット維持。
   // スクロール位置のみ前 queryId 単位で保存→復元 (Issue #366)。
   const prevQueryIdRef = useRef<string | null>(null);
+  const scrollRestoredForQueryRef = useRef<string | null>(null);
+  // タブ切替の過渡期 (queryId 変化 → E2 復元完了まで) に発火する scroll event を
+  // ユーザー操作として扱わないための抑止フラグ。スクロール復元の programmatic scroll や
+  // DOM height 変化による clamp-scroll が store[newQueryId] に旧値を書き込むのを防ぐ。
+  const suppressScrollSaveRef = useRef(false);
+
+  // 1. タブ切替時: UI reset + scroll save 抑止 ON (scroll 保存は onScroll で常時実施)
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally triggered by targetQueryId change
   useEffect(() => {
-    const el = tableContainerRef.current;
-    const prev = prevQueryIdRef.current;
-    const { savePosition, getPosition } = useScrollPositionStore.getState();
-
-    // 1. 旧タブのスクロール位置を保存
-    if (prev && el) {
-      savePosition(prev, { top: el.scrollTop, left: el.scrollLeft });
-    }
-    // 2. measure() 後に復元 (仮想化総サイズ未計算時は scrollToOffset が clamp されるため)
-    const saved = targetQueryId ? getPosition(targetQueryId) : undefined;
-    requestAnimationFrame(() => {
-      rowVirtualizer.measure();
-      if (saved) {
-        rowVirtualizer.scrollToOffset(saved.top);
-        if (el) el.scrollLeft = saved.left;
-      } else {
-        rowVirtualizer.scrollToOffset(0);
-        if (el) el.scrollLeft = 0;
-      }
-    });
+    // 過渡期に発火する scroll event が新 queryId の store を汚染するのを防ぐ。
+    // E2 復元完了または rows 未到達で成立し得ない場合の timeout でクリア。
+    suppressScrollSaveRef.current = true;
     resetSelection();
     setSorting([]);
     setColumnFilters([]);
     setShowColumnFilters(false);
     setActiveResultIndex(0);
     prevQueryIdRef.current = targetQueryId;
+    scrollRestoredForQueryRef.current = null;
   }, [targetQueryId]);
+
+  // Scroll 位置を onScroll で常時保存 (closure で現在の targetQueryId に紐付け)。
+  // useEffect での保存は ref=null or 誤 queryId 問題を起こすため廃止。
+  // 復元中の programmatic scroll は scrollRestoredForQueryRef で識別し保存を抑止する必要はない
+  // (同値を保存するだけで害なし)。
+  const handleScroll = useCallback(
+    (e: UIEvent<HTMLDivElement>) => {
+      if (!targetQueryId) return;
+      if (suppressScrollSaveRef.current) return;
+      const el = e.currentTarget;
+      useScrollPositionStore
+        .getState()
+        .savePosition(targetQueryId, { top: el.scrollTop, left: el.scrollLeft });
+    },
+    [targetQueryId]
+  );
+
+  // 2. スクロール位置復元: rows が描画可能になり container が実サイズを持った後に 1 回だけ実施。
+  // WebView2 の flex layout 解決遅延で clientHeight が 0 のままになる可能性があるため、
+  // rAF ループでリトライ。clamp を避けるため scrollToOffset は totalSize 確定後に実行する。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll restore is a one-shot per queryId
+  useEffect(() => {
+    if (!targetQueryId) return;
+    if (scrollRestoredForQueryRef.current === targetQueryId) return;
+    if (rows.length === 0) return;
+
+    let cancelled = false;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 30;
+
+    const tryRestore = () => {
+      if (cancelled) return;
+      if (scrollRestoredForQueryRef.current === targetQueryId) return;
+
+      const el = tableContainerRef.current;
+      if (!el || el.clientHeight === 0) {
+        if (attempts++ < MAX_ATTEMPTS) {
+          requestAnimationFrame(tryRestore);
+        } else {
+          // 限界超過 — 復元諦めて抑止解除 (user scroll 保存を許可)
+          suppressScrollSaveRef.current = false;
+        }
+        return;
+      }
+
+      rowVirtualizer.measure();
+      const totalSize = rowVirtualizer.getTotalSize();
+      if (totalSize === 0) {
+        if (attempts++ < MAX_ATTEMPTS) {
+          requestAnimationFrame(tryRestore);
+        } else {
+          suppressScrollSaveRef.current = false;
+        }
+        return;
+      }
+
+      const saved = useScrollPositionStore.getState().getPosition(targetQueryId);
+      if (saved) {
+        rowVirtualizer.scrollToOffset(saved.top);
+        el.scrollLeft = saved.left;
+      }
+      scrollRestoredForQueryRef.current = targetQueryId;
+      // 復元 programmatic scroll 完了後に抑止解除。scroll event は同期発火または
+      // 次 microtask で発火するため rAF 2 回待ち (1 回目: event 発火、2 回目: 解除)。
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          suppressScrollSaveRef.current = false;
+        });
+      });
+    };
+
+    requestAnimationFrame(tryRestore);
+    return () => {
+      cancelled = true;
+    };
+  }, [targetQueryId, rows.length]);
 
   // --- Save scroll position on unmount (tab switched to non-grid view) ---
   useEffect(() => {
@@ -668,6 +746,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
           selection={gridSelectionState}
           callbacks={gridCallbacks}
           tableName={currentQuery?.sourceTable}
+          onScroll={handleScroll}
         />
       ) : (
         <TransposeView

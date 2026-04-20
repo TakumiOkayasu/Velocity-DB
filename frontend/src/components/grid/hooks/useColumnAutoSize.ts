@@ -1,5 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table';
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { ResultSet } from '../../../types';
 import { isDateType, isNumericType, type RowData } from '../../../types/grid';
 import { log } from '../../../utils/logger';
@@ -21,15 +21,20 @@ function createMeasureContext(): CanvasRenderingContext2D | null {
   return canvas.getContext('2d');
 }
 
-let cachedContext: CanvasRenderingContext2D | null = null;
+// Cache a context per font string so we avoid re-assigning ctx.font on every
+// measureText call (10000+ calls per auto-size; font re-set is measurable).
+const contextByFont: Record<string, CanvasRenderingContext2D> = {};
 
 function measureTextWidth(text: string, font: string): number {
-  if (!cachedContext) {
-    cachedContext = createMeasureContext();
+  let ctx = contextByFont[font];
+  if (!ctx) {
+    const created = createMeasureContext();
+    if (!created) return 0;
+    created.font = font;
+    contextByFont[font] = created;
+    ctx = created;
   }
-  if (!cachedContext) return 0;
-  cachedContext.font = font;
-  return cachedContext.measureText(text).width;
+  return ctx.measureText(text).width;
 }
 
 interface ColumnSizeConfig {
@@ -116,8 +121,10 @@ export function useColumnAutoSize({
   columnsRef.current = columns;
   rowDataRef.current = rowData;
 
-  // Auto-size only when column structure changes (new query result)
-  useEffect(() => {
+  // Auto-size only when column structure changes (new query result).
+  // useLayoutEffect: 初回 paint 前に計算を完了させ、default (size: 150) で一瞬表示されてから
+  // auto-size 値へ切り替わる「スクロール時の列幅変化」に見える flash を防ぐ (#368)
+  useLayoutEffect(() => {
     if (!resultSet || rowDataRef.current.length === 0) return;
 
     const columnsKey = getColumnsKey(resultSet);
