@@ -343,6 +343,7 @@
   min-height: 0;
   background-color: var(--bg-primary);
   contain: strict;
+  outline: none;
 }
 
 .table {

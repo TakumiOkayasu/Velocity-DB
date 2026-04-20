@@ -1,6 +1,6 @@
 import { flexRender, type Row, type Table } from '@tanstack/react-table';
 import type { VirtualItem } from '@tanstack/react-virtual';
-import { type MouseEvent, memo, type RefObject } from 'react';
+import { type MouseEvent, memo, type RefObject, useCallback } from 'react';
 import { type ColumnMeta, isSystemColumn, type RowData } from '../../types/grid';
 import type { ValidationError } from '../../utils/validation';
 import { ContextMenu } from '../common/ContextMenu';
@@ -59,10 +59,6 @@ interface GridTableProps {
   tableName?: string;
 }
 
-const preventShiftSelect = (e: MouseEvent) => {
-  if (e.shiftKey) e.preventDefault();
-};
-
 /** Extract row/cell info from a bubbled event via data attributes */
 function findCellFromEvent(e: MouseEvent) {
   const td = (e.target as HTMLElement).closest('td[data-field]') as HTMLElement | null;
@@ -105,8 +101,26 @@ function GridTableInner({
     }
   );
 
+  // Move focus into the table container on click so global keyboard handlers
+  // (useKeyboardHandler gates by containerRef.contains(activeElement)) can
+  // receive Ctrl+C etc. Without this, the browser's default text selection
+  // copies only the last clicked cell. Also suppresses the default Shift+click
+  // text-range selection which would otherwise conflict with grid selection.
+  const onContainerMouseDown = useCallback(
+    (e: MouseEvent) => {
+      if (e.shiftKey) e.preventDefault();
+      tableContainerRef.current?.focus({ preventScroll: true });
+    },
+    [tableContainerRef]
+  );
+
   return (
-    <div ref={tableContainerRef} className={styles.tableContainer} onMouseDown={preventShiftSelect}>
+    <div
+      ref={tableContainerRef}
+      className={styles.tableContainer}
+      tabIndex={-1}
+      onMouseDown={onContainerMouseDown}
+    >
       <table key={`table-${showLogicalNamesInGrid}`} className={styles.table}>
         <thead className={styles.thead}>
           {table.getHeaderGroups().map((headerGroup) => (
