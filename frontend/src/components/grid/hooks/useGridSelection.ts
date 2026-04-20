@@ -42,18 +42,36 @@ export function useGridSelection(
   const rangeCellSelect = useCallback(
     (rowIndex: number, field: string) => {
       if (isSystemColumn(field)) return;
-      if (lastClickedRowRef.current === null || lastClickedColumnRef.current !== field) {
+      if (lastClickedRowRef.current === null || lastClickedColumnRef.current === null) {
         selectCell(rowIndex, field);
         return;
       }
-      const start = Math.min(lastClickedRowRef.current, rowIndex);
-      const end = Math.max(lastClickedRowRef.current, rowIndex);
-      const range = new Set<number>();
-      for (let i = start; i <= end; i++) range.add(i);
-      setSelectedRows(range);
-      setSelectedColumns(new Set([field]));
+      const allColumnIds = columnOrderRef.current;
+      const anchorColIdx = allColumnIds.indexOf(lastClickedColumnRef.current);
+      const targetColIdx = allColumnIds.indexOf(field);
+      if (anchorColIdx === -1 || targetColIdx === -1) {
+        selectCell(rowIndex, field);
+        return;
+      }
+      const rowStart = Math.min(lastClickedRowRef.current, rowIndex);
+      const rowEnd = Math.max(lastClickedRowRef.current, rowIndex);
+      const rowRange = new Set<number>();
+      for (let i = rowStart; i <= rowEnd; i++) rowRange.add(i);
+
+      const [colFrom, colTo] =
+        anchorColIdx < targetColIdx ? [anchorColIdx, targetColIdx] : [targetColIdx, anchorColIdx];
+      const colRange = new Set(
+        allColumnIds.slice(colFrom, colTo + 1).filter((id) => !isSystemColumn(id))
+      );
+      if (colRange.size === 0) {
+        selectCell(rowIndex, field);
+        return;
+      }
+
+      setSelectedRows(rowRange);
+      setSelectedColumns(colRange);
     },
-    [selectCell]
+    [selectCell, columnOrderRef]
   );
 
   const selectAllRows = useCallback(() => {

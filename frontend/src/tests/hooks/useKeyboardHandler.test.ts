@@ -61,6 +61,42 @@ describe('useKeyboardHandler', () => {
     expect(handler.mock.calls[0][0]).toBe(event);
   });
 
+  it('does not invoke handler when activeElement is outside containerRef', () => {
+    const handler = vi.fn();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const containerRef = { current: container };
+
+    renderHook(() => useKeyboardHandler(handler, containerRef));
+
+    // document.body is outside container → handler must not fire
+    expect(container.contains(document.activeElement)).toBe(false);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true }));
+
+    expect(handler).not.toHaveBeenCalled();
+
+    document.body.removeChild(container);
+  });
+
+  it('invokes handler when activeElement is inside containerRef', () => {
+    const handler = vi.fn();
+    const container = document.createElement('div');
+    const child = document.createElement('button');
+    container.appendChild(child);
+    document.body.appendChild(container);
+    const containerRef = { current: container };
+
+    renderHook(() => useKeyboardHandler(handler, containerRef));
+
+    child.focus();
+    expect(container.contains(document.activeElement)).toBe(true);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true }));
+
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    document.body.removeChild(container);
+  });
+
   it('always uses the latest handler (no stale closures)', () => {
     const firstHandler = vi.fn();
     const secondHandler = vi.fn();
