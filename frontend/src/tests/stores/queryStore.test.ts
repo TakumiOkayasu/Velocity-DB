@@ -175,13 +175,14 @@ describe('queryStore', () => {
       expect(executingQueryIds.has(queryId)).toBe(false);
     });
 
-    it('should rebind tab to active connection when backend reports stale connectionId', async () => {
+    it('stale エラーで activeConnectionId があってもリバインドせず null 化する', async () => {
       const { addQuery, updateQuery, executeQuery } = useQueryStore.getState();
 
       addQuery('conn_1');
       const queryId = useQueryStore.getState().queries[0].id;
       updateQuery(queryId, 'SELECT 1');
 
+      // 別 DB に誤爆しないよう、activeConnectionId があってもリバインドしない
       useConnectionStore.setState({ activeConnectionId: 'conn_5' });
 
       mockedBridge.executeAsyncQuery.mockRejectedValue(new Error('Connection not found: conn_1'));
@@ -189,12 +190,13 @@ describe('queryStore', () => {
       await executeQuery(queryId, 'conn_1');
 
       const state = useQueryStore.getState();
-      expect(state.queries[0].connectionId).toBe('conn_5');
-      expect(state.errors[queryId]).toContain('conn_5');
-      expect(state.errors[queryId]).toContain('再バインド');
+      expect(state.queries[0].connectionId).toBeNull();
+      expect(state.errors[queryId]).not.toContain('conn_5');
+      expect(state.errors[queryId]).not.toContain('再バインド');
+      expect(state.errors[queryId]).toContain('接続ツリーから');
     });
 
-    it('should clear tab connectionId when no active fallback is available', async () => {
+    it('stale エラーで activeConnectionId が無いとき null 化する', async () => {
       const { addQuery, updateQuery, executeQuery } = useQueryStore.getState();
 
       addQuery('conn_1');
@@ -209,7 +211,7 @@ describe('queryStore', () => {
 
       const state = useQueryStore.getState();
       expect(state.queries[0].connectionId).toBeNull();
-      expect(state.errors[queryId]).toContain('選択');
+      expect(state.errors[queryId]).toContain('接続ツリーから');
     });
   });
 

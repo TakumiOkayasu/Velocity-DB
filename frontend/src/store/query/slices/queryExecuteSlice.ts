@@ -43,25 +43,14 @@ function recoverStaleConnection(
   id: string,
   staleConnectionId: string
 ): void {
-  const activeConnId = useConnectionStore.getState().activeConnectionId;
-  const canRebind = !!activeConnId && activeConnId !== staleConnectionId;
-  if (canRebind) {
-    get().updateQueryConnection(id, activeConnId);
-    set((state) =>
-      failExecution(
-        state,
-        id,
-        `接続 ${staleConnectionId} は失われました。アクティブ接続 ${activeConnId} に再バインドしたので、もう一度実行してください。`
-      )
-    );
-    return;
-  }
+  // 別 DB への自動リバインドは誤爆リスクがあるため廃止 (#372)。
+  // 接続 ID を null にしてユーザーに明示的な再選択を促す。
   get().updateQueryConnection(id, null);
   set((state) =>
     failExecution(
       state,
       id,
-      `接続 ${staleConnectionId} は失われました。接続ツリーから接続を選択し直してください。`
+      `接続 ${staleConnectionId} が無効になりました。接続ツリーから接続を選択し直してください。`
     )
   );
 }
