@@ -1,6 +1,43 @@
 .container {
   height: 100%;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.editorWrapper {
+  flex: 1;
+  min-height: 0;
+}
+
+.crossDbBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  background: var(--bg-subtle, #2a2d35);
+  border-bottom: 1px solid var(--border-color, #3a3d45);
+  color: var(--text-secondary, #c8c8c8);
+  flex-shrink: 0;
+}
+
+.crossDbIcon {
+  opacity: 0.8;
+}
+
+.crossDbLabel {
+  font-weight: 600;
+  color: var(--text-primary, #e0e0e0);
+}
+
+.crossDbName {
+  padding: 1px 8px;
+  background: var(--accent-subtle, #3a4a5a);
+  border: 1px solid var(--accent-border, #4a5a6a);
+  border-radius: 10px;
+  color: var(--accent-text, #a0c4e0);
+  font-family: var(--font-mono, monospace);
 }
 
 .empty {

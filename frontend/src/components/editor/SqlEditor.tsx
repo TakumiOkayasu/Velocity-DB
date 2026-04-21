@@ -2,10 +2,12 @@ import loader from '@monaco-editor/loader';
 import Editor, { type OnMount } from '@monaco-editor/react';
 import type * as Monaco from 'monaco-editor';
 import * as monaco from 'monaco-editor';
-import { type MutableRefObject, useCallback, useEffect, useRef } from 'react';
+import { type MutableRefObject, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useKeyboardHandler } from '../../hooks/useKeyboardHandler';
+import { useConnections } from '../../store/connectionStore';
 import { useLintDiagnostics, useQueryStore, useRuntimeDiagnostics } from '../../store/queryStore';
 import { useSchemaStore } from '../../store/schemaStore';
+import { extractReferencedDatabases } from '../../utils/crossDbDetector';
 import {
   clearSqlMarkers,
   type SqlMarkerInput,
@@ -46,6 +48,12 @@ export function SqlEditor() {
   const { queries, activeQueryId, updateQuery } = useQueryStore();
   const activeQuery = queries.find((q) => q.id === activeQueryId);
   const queryConnectionId = activeQuery?.connectionId ?? null;
+  const connections = useConnections();
+  const currentDb = connections.find((c) => c.id === queryConnectionId)?.database ?? '';
+  const referencedDatabases = useMemo(
+    () => extractReferencedDatabases(activeQuery?.content ?? '', currentDb),
+    [activeQuery?.content, currentDb]
+  );
   const lintDiagnostics = useLintDiagnostics(activeQueryId);
   const runtimeDiagnostics = useRuntimeDiagnostics(activeQueryId);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
@@ -232,29 +240,44 @@ export function SqlEditor() {
 
   return (
     <div className={styles.container}>
-      <Editor
-        height="100%"
-        language="sql"
-        theme="vs-dark"
-        value={activeQuery.content}
-        onChange={handleEditorChange}
-        onMount={handleEditorDidMount}
-        options={{
-          minimap: { enabled: false },
-          fontSize: 14,
-          lineNumbers: 'on',
-          scrollBeyondLastLine: false,
-          automaticLayout: true,
-          tabSize: 4,
-          wordWrap: 'on',
-          renderLineHighlight: 'line',
-          matchBrackets: 'always',
-          folding: true,
-          suggestOnTriggerCharacters: true,
-          // .horizontalResizer の margin: -4px 食い込みを相殺 + 視認性余裕 4px
-          padding: { bottom: 8 },
-        }}
-      />
+      {referencedDatabases.length > 0 && (
+        <div className={styles.crossDbBar} data-testid="cross-db-bar">
+          <span className={styles.crossDbIcon} aria-hidden="true">
+            🔗
+          </span>
+          <span className={styles.crossDbLabel}>cross-DB:</span>
+          {referencedDatabases.map((db) => (
+            <span key={db} className={styles.crossDbName}>
+              {db}
+            </span>
+          ))}
+        </div>
+      )}
+      <div className={styles.editorWrapper}>
+        <Editor
+          height="100%"
+          language="sql"
+          theme="vs-dark"
+          value={activeQuery.content}
+          onChange={handleEditorChange}
+          onMount={handleEditorDidMount}
+          options={{
+            minimap: { enabled: false },
+            fontSize: 14,
+            lineNumbers: 'on',
+            scrollBeyondLastLine: false,
+            automaticLayout: true,
+            tabSize: 4,
+            wordWrap: 'on',
+            renderLineHighlight: 'line',
+            matchBrackets: 'always',
+            folding: true,
+            suggestOnTriggerCharacters: true,
+            // .horizontalResizer の margin: -4px 食い込みを相殺 + 視認性余裕 4px
+            padding: { bottom: 8 },
+          }}
+        />
+      </div>
     </div>
   );
 }

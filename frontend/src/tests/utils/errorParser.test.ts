@@ -96,4 +96,29 @@ describe('parseErrorMessage', () => {
       expect(result.detail).toBe('');
     });
   });
+
+  describe('cross-DB ヒント (PostgreSQL)', () => {
+    it('cross-database references not implemented エラーに hint を付与', () => {
+      const raw = 'ERROR:  cross-database references are not implemented: "db2.public.t"';
+      const result = parseErrorMessage(raw);
+      expect(result.summary).toBe('cross-database references are not implemented: "db2.public.t"');
+      expect(result.hint).toBeDefined();
+      expect(result.hint).toMatch(/postgres_fdw|dblink/);
+    });
+
+    it('hint は大文字小文字を区別せずマッチ', () => {
+      const raw = 'ERROR:  Cross-Database References Are Not Implemented: foo';
+      expect(parseErrorMessage(raw).hint).toBeDefined();
+    });
+
+    it('通常エラーには hint を付与しない', () => {
+      const raw = 'ERROR:  relation "users" does not exist';
+      expect(parseErrorMessage(raw).hint).toBeUndefined();
+    });
+
+    it('SQL Server の cross-DB エラー文言には hint を付与しない (SQL Server は実行成功前提)', () => {
+      const raw = "Msg 208, Level 16, State 1, Line 1\nInvalid object name 'db2.dbo.t'.";
+      expect(parseErrorMessage(raw).hint).toBeUndefined();
+    });
+  });
 });

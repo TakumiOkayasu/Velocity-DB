@@ -234,6 +234,9 @@ export function createExecuteSlice(
 
       // 行情報が取れた場合のみruntime markerセット (owner: runtime)。failExecution と1回にまとめる
       const parsedErr = parseErrorMessage(errorMessage);
+      const displayMessage = parsedErr.hint
+        ? `${errorMessage}\n\n💡 ${parsedErr.hint}`
+        : errorMessage;
       const runtimeMarker: SqlMarkerInput | null =
         parsedErr.line !== undefined
           ? {
@@ -243,7 +246,7 @@ export function createExecuteSlice(
             }
           : null;
       set((state) => ({
-        ...failExecution(state, id, errorMessage),
+        ...failExecution(state, id, displayMessage),
         ...(runtimeMarker && {
           runtimeDiagnostics: { ...state.runtimeDiagnostics, [id]: [runtimeMarker] },
         }),
