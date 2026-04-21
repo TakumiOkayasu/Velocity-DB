@@ -16,7 +16,6 @@ ConnectionRegistry::~ConnectionRegistry() {
 std::string ConnectionRegistry::add(DriverPtr queryDriver, DriverPtr metadataDriver, DriverType driverType) {
     std::lock_guard lock(m_mutex);
     auto id = std::format("conn_{}", m_counter.fetch_add(1));
-    auto now = std::chrono::steady_clock::now();
 
     m_connections[id] = ConnectionEntry{
         .queryDriver = std::move(queryDriver),
@@ -24,8 +23,6 @@ std::string ConnectionRegistry::add(DriverPtr queryDriver, DriverPtr metadataDri
         .driverType = driverType,
         .tunnel = nullptr,
         .params = {},
-        .lastUsed = now,
-        .createdAt = now,
     };
     return id;
 }
@@ -56,7 +53,6 @@ std::expected<ConnectionRegistry::DriverPtr, std::string> ConnectionRegistry::ge
 
     auto it = m_connections.find(id);
     if (it != m_connections.end()) {
-        it->second.lastUsed = std::chrono::steady_clock::now();
         return it->second.queryDriver;
     }
     return std::unexpected(std::format("Connection '{}' not found", id));
@@ -67,7 +63,6 @@ std::expected<ConnectionRegistry::DriverPtr, std::string> ConnectionRegistry::ge
 
     auto it = m_connections.find(id);
     if (it != m_connections.end()) {
-        it->second.lastUsed = std::chrono::steady_clock::now();
         return it->second.metadataDriver;
     }
     return std::unexpected(std::format("Connection '{}' not found", id));
@@ -75,44 +70,6 @@ std::expected<ConnectionRegistry::DriverPtr, std::string> ConnectionRegistry::ge
 
 std::expected<ConnectionRegistry::DriverPtr, std::string> ConnectionRegistry::get(std::string_view id) {
     return getQueryDriver(id);
-}
-
-std::expected<ConnectionRegistry::DriverPtr, std::string> ConnectionRegistry::getQueryDriverChecked(std::string_view id) {
-    std::lock_guard lock(m_mutex);
-
-    auto it = m_connections.find(id);
-    if (it == m_connections.end()) {
-        return std::unexpected(std::format("Connection '{}' not found", id));
-    }
-
-    auto& entry = it->second;
-    if (!entry.queryDriver || !entry.queryDriver->isConnected()) {
-        log<LogLevel::WARNING>(std::format("[DB] Health check failed for connection '{}': not connected", id));
-        // Disconnect metadata driver too
-        if (entry.metadataDriver && entry.metadataDriver->isConnected()) {
-            entry.metadataDriver->disconnect();
-        }
-        m_connections.erase(it);
-        return std::unexpected(std::format("Connection '{}' is no longer active", id));
-    }
-
-    // Lightweight health check: SELECT 1
-    try {
-        [[maybe_unused]] auto _ = entry.queryDriver->execute("SELECT 1");
-    } catch (const std::exception& e) {
-        log<LogLevel::WARNING>(std::format("[DB] Health check failed for connection '{}': {}", id, e.what()));
-        if (entry.queryDriver->isConnected()) {
-            entry.queryDriver->disconnect();
-        }
-        if (entry.metadataDriver && entry.metadataDriver->isConnected()) {
-            entry.metadataDriver->disconnect();
-        }
-        m_connections.erase(it);
-        return std::unexpected(std::format("Connection '{}' health check failed: {}", id, e.what()));
-    }
-
-    entry.lastUsed = std::chrono::steady_clock::now();
-    return entry.queryDriver;
 }
 
 std::expected<DriverType, std::string> ConnectionRegistry::getDriverType(std::string_view id) const {
@@ -183,37 +140,6 @@ void ConnectionRegistry::clear() {
         }
     }
     m_connections.clear();
-}
-
-size_t ConnectionRegistry::evictIdleConnections(std::chrono::minutes maxIdleDuration) {
-    std::lock_guard lock(m_mutex);
-    if (m_connections.empty()) {
-        return 0;
-    }
-
-    auto now = std::chrono::steady_clock::now();
-    size_t evicted = 0;
-
-    std::erase_if(m_connections, [&](auto& pair) {
-        auto& entry = pair.second;
-        if ((now - entry.lastUsed) > maxIdleDuration) {
-            log<LogLevel::INFO>(std::format("[DB] Evicting idle connection '{}'", pair.first));
-            if (entry.queryDriver && entry.queryDriver->isConnected()) {
-                entry.queryDriver->disconnect();
-            }
-            if (entry.metadataDriver && entry.metadataDriver->isConnected()) {
-                entry.metadataDriver->disconnect();
-            }
-            if (entry.tunnel) {
-                entry.tunnel->disconnect();
-            }
-            ++evicted;
-            return true;
-        }
-        return false;
-    });
-
-    return evicted;
 }
 
 }  // namespace velocitydb

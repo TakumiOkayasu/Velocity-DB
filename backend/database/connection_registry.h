@@ -6,7 +6,6 @@
 #include "driver_interface.h"
 
 #include <atomic>
-#include <chrono>
 #include <expected>
 #include <memory>
 #include <optional>
@@ -36,17 +35,14 @@ public:
     /// Remove a connection by ID (disconnects both query and metadata drivers)
     void remove(std::string_view id);
 
-    /// Get the query driver by ID (updates lastUsed timestamp)
+    /// Get the query driver by ID
     [[nodiscard]] std::expected<DriverPtr, std::string> getQueryDriver(std::string_view id);
 
-    /// Get the metadata driver by ID (updates lastUsed timestamp)
+    /// Get the metadata driver by ID
     [[nodiscard]] std::expected<DriverPtr, std::string> getMetadataDriver(std::string_view id);
 
     /// Get a connection by ID (alias for getQueryDriver, for backwards compatibility)
     [[nodiscard]] std::expected<DriverPtr, std::string> get(std::string_view id);
-
-    /// Get the query driver with health check (SELECT 1). Removes entry on failure.
-    [[nodiscard]] std::expected<DriverPtr, std::string> getQueryDriverChecked(std::string_view id);
 
     /// Get the driver type for a connection
     [[nodiscard]] std::expected<DriverType, std::string> getDriverType(std::string_view id) const;
@@ -72,9 +68,6 @@ public:
     /// Remove and close all connections
     void clear();
 
-    /// Evict connections idle longer than maxIdleDuration. Returns number evicted.
-    [[nodiscard]] size_t evictIdleConnections(std::chrono::minutes maxIdleDuration = std::chrono::minutes{30});
-
 private:
     struct ConnectionEntry {
         DriverPtr queryDriver;
@@ -82,8 +75,6 @@ private:
         DriverType driverType;
         std::unique_ptr<SshTunnel> tunnel;
         DatabaseConnectionParams params;
-        std::chrono::steady_clock::time_point lastUsed;
-        std::chrono::steady_clock::time_point createdAt;
     };
 
     mutable std::shared_mutex m_mutex;
