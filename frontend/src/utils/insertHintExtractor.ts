@@ -1,3 +1,13 @@
+import {
+  normalizeForParsing,
+  readIdentifier,
+  readKeyword,
+  readQualifiedName,
+  skipWs,
+  unwrapIdentifier,
+  WS,
+} from './sqlTokenParser';
+
 export interface InsertValuePosition {
   offset: number;
   length: number;
@@ -7,112 +17,6 @@ export interface InsertTarget {
   tableName: string;
   columnNames: string[] | null;
   valueRows: InsertValuePosition[][];
-}
-
-const WS = /\s/;
-
-function normalizeForParsing(sql: string): string {
-  const out: string[] = [];
-  let i = 0;
-  const n = sql.length;
-  while (i < n) {
-    const c = sql[i];
-    if (c === '-' && sql[i + 1] === '-') {
-      while (i < n && sql[i] !== '\n') {
-        out.push(' ');
-        i++;
-      }
-      continue;
-    }
-    if (c === '/' && sql[i + 1] === '*') {
-      out.push(' ', ' ');
-      i += 2;
-      while (i < n && !(sql[i] === '*' && sql[i + 1] === '/')) {
-        out.push(sql[i] === '\n' ? '\n' : ' ');
-        i++;
-      }
-      if (i < n) {
-        out.push(' ', ' ');
-        i += 2;
-      }
-      continue;
-    }
-    if (c === "'") {
-      out.push(' ');
-      i++;
-      while (i < n) {
-        if (sql[i] === "'" && sql[i + 1] === "'") {
-          out.push(' ', ' ');
-          i += 2;
-          continue;
-        }
-        if (sql[i] === "'") {
-          out.push(' ');
-          i++;
-          break;
-        }
-        out.push(sql[i] === '\n' ? '\n' : ' ');
-        i++;
-      }
-      continue;
-    }
-    out.push(c);
-    i++;
-  }
-  return out.join('');
-}
-
-const QUOTE_CLOSE: Record<string, string> = { '[': ']', '`': '`', '"': '"' };
-
-function unwrapIdentifier(ident: string): string {
-  if (!ident) return ident;
-  const close = QUOTE_CLOSE[ident[0]];
-  if (close && ident[ident.length - 1] === close) return ident.slice(1, -1);
-  return ident;
-}
-
-function skipWs(s: string, i: number): number {
-  while (i < s.length && WS.test(s[i])) i++;
-  return i;
-}
-
-function readIdentifier(s: string, i: number): { ident: string; end: number } | null {
-  const c = s[i];
-  const close = QUOTE_CLOSE[c];
-  if (close) {
-    const end = s.indexOf(close, i + 1);
-    if (end < 0) return null;
-    return { ident: s.slice(i, end + 1), end: end + 1 };
-  }
-  if (/[A-Za-z_]/.test(c)) {
-    let j = i + 1;
-    while (j < s.length && /[A-Za-z0-9_$]/.test(s[j])) j++;
-    return { ident: s.slice(i, j), end: j };
-  }
-  return null;
-}
-
-function readQualifiedName(s: string, i: number): { parts: string[]; end: number } | null {
-  const parts: string[] = [];
-  let cur = i;
-  while (true) {
-    const r = readIdentifier(s, cur);
-    if (!r) return parts.length === 0 ? null : { parts, end: cur };
-    parts.push(r.ident);
-    cur = r.end;
-    const afterWs = skipWs(s, cur);
-    if (s[afterWs] !== '.') return { parts, end: cur };
-    cur = skipWs(s, afterWs + 1);
-  }
-}
-
-function readKeyword(s: string, i: number, keyword: string): number | null {
-  const upper = keyword.toUpperCase();
-  const slice = s.slice(i, i + upper.length).toUpperCase();
-  if (slice !== upper) return null;
-  const after = s[i + upper.length];
-  if (after !== undefined && /[A-Za-z0-9_$]/.test(after)) return null;
-  return i + upper.length;
 }
 
 function readColumnList(s: string, i: number): { columns: string[]; end: number } | null {
@@ -142,7 +46,7 @@ function readValueTuple(
 ): { values: InsertValuePosition[]; end: number } | null {
   if (scan[i] !== '(') return null;
   let cur = i + 1;
-  while (cur < scan.length && WS.test(original[cur])) cur++;
+  cur = skipWs(original, cur);
   let valueStart = cur;
   const values: InsertValuePosition[] = [];
   let depth = 1;
@@ -174,7 +78,7 @@ function readValueTuple(
     if (c === ',' && depth === 1) {
       flush(cur);
       cur++;
-      while (cur < scan.length && WS.test(original[cur])) cur++;
+      cur = skipWs(original, cur);
       valueStart = cur;
       continue;
     }
@@ -185,6 +89,11 @@ function readValueTuple(
 
 const INSERT_INTO_RE = /\bINSERT\s+INTO\s+/gi;
 
+/**
+ * SQL から INSERT 文の VALUES 句を解析し、テーブル名・カラム名リスト・各値行の位置情報を返す。
+ * カラムリストが省略されたときは schemaStore から取得する前提で `columnNames: null` を返す。
+ * コメント・文字列リテラルは normalize 時に空白化され、値区切りとして誤認しない。
+ */
 export function extractInsertTargets(sql: string): InsertTarget[] {
   if (!sql) return [];
 

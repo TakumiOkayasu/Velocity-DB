@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { extractInsertTargets } from '../../utils/insertHintExtractor';
-
-const slice = (sql: string, p: { offset: number; length: number }) =>
-  sql.slice(p.offset, p.offset + p.length);
+import { sliceAt as slice } from './_helpers';
 
 describe('extractInsertTargets', () => {
   describe('基本的なINSERT構文', () => {

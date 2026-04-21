@@ -228,4 +228,71 @@ describe('createInlayHintProvider', () => {
       expect(result?.hints.map((h) => h.label)).toEqual(['uid:', 'uname:', 'oid:', 'uid_fk:']);
     });
   });
+
+  describe('UPDATE 文', () => {
+    it('SET 句の右辺値にカラム名ラベルを付与 (schemaStore不要)', async () => {
+      const provider = createInlayHintProvider('conn_1');
+      const model = makeModel('UPDATE users SET id = 1, name = 2, age = 3');
+      const result = await provider.provideInlayHints(model, FAKE_RANGE, makeToken());
+      expect(result?.hints.map((h) => h.label)).toEqual(['id:', 'name:', 'age:']);
+      expect(vi.mocked(bridge.getColumns)).not.toHaveBeenCalled();
+    });
+
+    it('kind が InlayHintKind.Parameter (=2)', async () => {
+      const provider = createInlayHintProvider('conn_1');
+      const model = makeModel('UPDATE t SET a = 1');
+      const result = await provider.provideInlayHints(model, FAKE_RANGE, makeToken());
+      expect(result?.hints[0].kind).toBe(2);
+      expect(result?.hints[0].paddingRight).toBe(true);
+    });
+
+    it('position.column が値の offset+1 (1-based)', async () => {
+      const provider = createInlayHintProvider('conn_1');
+      const sql = 'UPDATE t SET a = 1, b = 2, c = 3';
+      const model = makeModel(sql);
+      const result = await provider.provideInlayHints(model, FAKE_RANGE, makeToken());
+      const hints = result?.hints ?? [];
+      expect(hints[0].position.column).toBe(sql.indexOf('1') + 1);
+      expect(hints[1].position.column).toBe(sql.indexOf('2') + 1);
+      expect(hints[2].position.column).toBe(sql.indexOf('3') + 1);
+    });
+
+    it('WHERE 句は SET 句の終端 (WHERE の式にはヒントなし)', async () => {
+      const provider = createInlayHintProvider('conn_1');
+      const model = makeModel('UPDATE t SET a = 1 WHERE id = 5');
+      const result = await provider.provideInlayHints(model, FAKE_RANGE, makeToken());
+      expect(result?.hints).toHaveLength(1);
+      expect(result?.hints[0].label).toBe('a:');
+    });
+
+    it('INSERT と UPDATE が混在する SQL: 両方にヒント', async () => {
+      seedTable('conn_1', 'users', [col('uid'), col('uname')]);
+      const provider = createInlayHintProvider('conn_1');
+      const model = makeModel(
+        'INSERT INTO users VALUES (1, 2); UPDATE users SET uid = 3, uname = 4;'
+      );
+      const result = await provider.provideInlayHints(model, FAKE_RANGE, makeToken());
+      expect(result?.hints.map((h) => h.label)).toEqual(['uid:', 'uname:', 'uid:', 'uname:']);
+    });
+
+    it('複数 UPDATE 文: 各々の SET 句のカラム名で生成', async () => {
+      const provider = createInlayHintProvider('conn_1');
+      const model = makeModel('UPDATE t1 SET a = 1; UPDATE t2 SET b = 2, c = 3;');
+      const result = await provider.provideInlayHints(model, FAKE_RANGE, makeToken());
+      expect(result?.hints.map((h) => h.label)).toEqual(['a:', 'b:', 'c:']);
+    });
+
+    it('ラベルが対応する値の位置に配置される (ラベル↔値の因果関係)', async () => {
+      const provider = createInlayHintProvider('conn_1');
+      const sql = "UPDATE users SET name = 'John', count = count + 1";
+      const model = makeModel(sql);
+      const result = await provider.provideInlayHints(model, FAKE_RANGE, makeToken());
+      const hints = result?.hints ?? [];
+      expect(hints).toHaveLength(2);
+      expect(hints[0].label).toBe('name:');
+      expect(hints[0].position.column).toBe(sql.indexOf("'John'") + 1);
+      expect(hints[1].label).toBe('count:');
+      expect(hints[1].position.column).toBe(sql.lastIndexOf('count + 1') + 1);
+    });
+  });
 });
