@@ -17,6 +17,7 @@ import {
 import { log } from '../../utils/logger';
 import { formatSQL } from '../../utils/sqlFormat';
 import { createCompletionProvider } from './completionProvider';
+import { createInlayHintProvider } from './inlayHintProvider';
 import './monacoEnvironment';
 import styles from './SqlEditor.module.css';
 
@@ -59,6 +60,7 @@ export function SqlEditor() {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
   const completionDisposableRef = useRef<Monaco.IDisposable | null>(null);
+  const inlayHintDisposableRef = useRef<Monaco.IDisposable | null>(null);
   const isFormattingRef = useRef(false);
   const lastEditorValueRef = useRef<string>('');
 
@@ -191,29 +193,48 @@ export function SqlEditor() {
         createCompletionProvider(queryConnectionId)
       );
 
+      // Register inlay hint provider for INSERT VALUES column names
+      if (inlayHintDisposableRef.current) {
+        inlayHintDisposableRef.current.dispose();
+      }
+      inlayHintDisposableRef.current = monaco.languages.registerInlayHintsProvider(
+        'sql',
+        createInlayHintProvider(queryConnectionId)
+      );
+
       // Preload schema if connected
       if (queryConnectionId) {
         useSchemaStore.getState().loadTables(queryConnectionId);
       }
 
-      log.debug('[SqlEditor] Editor mounted with completion provider');
+      log.debug('[SqlEditor] Editor mounted with completion + inlay hint providers');
     },
     [queryConnectionId]
   );
 
-  // 接続IDが変わったらcompletionProviderを再登録
+  // 接続IDが変わったらcompletion + inlay hint providerを再登録
+  // null遷移時も古いproviderをdispose (切断後に古いschema cacheを参照させない)
   useEffect(() => {
-    if (monacoRef.current && queryConnectionId) {
-      if (completionDisposableRef.current) {
-        completionDisposableRef.current.dispose();
-      }
-      completionDisposableRef.current = monacoRef.current.languages.registerCompletionItemProvider(
-        'sql',
-        createCompletionProvider(queryConnectionId)
-      );
-      useSchemaStore.getState().loadTables(queryConnectionId);
-      log.debug(`[SqlEditor] Completion provider updated for connection: ${queryConnectionId}`);
+    if (!monacoRef.current) return;
+    if (completionDisposableRef.current) {
+      completionDisposableRef.current.dispose();
+      completionDisposableRef.current = null;
     }
+    if (inlayHintDisposableRef.current) {
+      inlayHintDisposableRef.current.dispose();
+      inlayHintDisposableRef.current = null;
+    }
+    if (!queryConnectionId) return;
+    completionDisposableRef.current = monacoRef.current.languages.registerCompletionItemProvider(
+      'sql',
+      createCompletionProvider(queryConnectionId)
+    );
+    inlayHintDisposableRef.current = monacoRef.current.languages.registerInlayHintsProvider(
+      'sql',
+      createInlayHintProvider(queryConnectionId)
+    );
+    useSchemaStore.getState().loadTables(queryConnectionId);
+    log.debug(`[SqlEditor] Providers updated for connection: ${queryConnectionId}`);
   }, [queryConnectionId]);
 
   // sqruff lint + ODBC実行エラー(runtime)をMonaco markerに反映 (owner別に独立管理)
@@ -225,6 +246,9 @@ export function SqlEditor() {
     return () => {
       if (completionDisposableRef.current) {
         completionDisposableRef.current.dispose();
+      }
+      if (inlayHintDisposableRef.current) {
+        inlayHintDisposableRef.current.dispose();
       }
     };
   }, []);
