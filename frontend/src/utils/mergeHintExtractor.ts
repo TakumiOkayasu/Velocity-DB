@@ -1,5 +1,11 @@
 import type { InsertTarget } from './insertHintExtractor';
-import { readAssignments, readColumnList, readValueTuple } from './sqlDmlParser';
+import {
+  type Assignment,
+  readAssignments,
+  readColumnList,
+  readValueTuple,
+  type ValuePosition,
+} from './sqlDmlParser';
 import {
   normalizeForParsing,
   readIdentifier,
@@ -162,8 +168,8 @@ function skipWhenHeader(scan: string, whenStart: number): number | null {
 }
 
 interface WhenActionResult {
-  update?: { assignments: ReturnType<typeof readAssignments> };
-  insert?: { columnNames: string[] | null; values: ReturnType<typeof readValueTuple> };
+  update?: { assignments: Assignment[] };
+  insert?: { columnNames: string[] | null; values: ValuePosition[] };
   next: number;
 }
 
@@ -202,7 +208,7 @@ function parseWhenAction(
     const tuple = readValueTuple(scan, original, cur);
     if (!tuple) return null;
     return {
-      insert: { columnNames, values: tuple },
+      insert: { columnNames, values: tuple.values },
       next: tuple.end,
     };
   }
@@ -268,7 +274,7 @@ export function extractMergeTargets(sql: string): MergeExtractResult {
         result.insertTargets.push({
           tableName,
           columnNames: action.insert.columnNames,
-          valueRows: [action.insert.values.values],
+          valueRows: [action.insert.values],
         });
       }
 

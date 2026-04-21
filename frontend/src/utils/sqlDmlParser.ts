@@ -1,4 +1,4 @@
-import { readIdentifier, skipWs, unwrapIdentifier, WS } from './sqlTokenParser';
+import { readIdentifier, readKeyword, skipWs, unwrapIdentifier, WS } from './sqlTokenParser';
 
 export interface ValuePosition {
   offset: number;
@@ -83,6 +83,7 @@ export function readValueTuple(
 function findValueEnd(scan: string, start: number, isTerminator: TerminatorCheck): number {
   let cur = start;
   let depth = 0;
+  let caseDepth = 0;
   while (cur < scan.length) {
     const c = scan[cur];
     if (c === '(') {
@@ -97,6 +98,22 @@ function findValueEnd(scan: string, start: number, isTerminator: TerminatorCheck
       continue;
     }
     if (depth === 0) {
+      const afterCase = readKeyword(scan, cur, 'CASE');
+      if (afterCase !== null) {
+        caseDepth++;
+        cur = afterCase;
+        continue;
+      }
+      if (caseDepth > 0) {
+        const afterEnd = readKeyword(scan, cur, 'END');
+        if (afterEnd !== null) {
+          caseDepth--;
+          cur = afterEnd;
+          continue;
+        }
+        cur++;
+        continue;
+      }
       if (c === ',' || c === ';') return cur;
       if (isTerminator(scan, cur)) return cur;
     }
