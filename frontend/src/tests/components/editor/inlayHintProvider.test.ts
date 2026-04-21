@@ -295,4 +295,51 @@ describe('createInlayHintProvider', () => {
       expect(hints[1].position.column).toBe(sql.lastIndexOf('count + 1') + 1);
     });
   });
+
+  describe('MERGE 文', () => {
+    it('WHEN MATCHED THEN UPDATE SET の右辺にカラム名ラベル付与 (schemaStore不要)', async () => {
+      const provider = createInlayHintProvider('conn_1');
+      const model = makeModel(
+        'MERGE INTO users t USING staging s ON t.id = s.id ' +
+          'WHEN MATCHED THEN UPDATE SET name = s.name, age = s.age;'
+      );
+      const result = await provider.provideInlayHints(model, FAKE_RANGE, makeToken());
+      expect(result?.hints.map((h) => h.label)).toEqual(['name:', 'age:']);
+      expect(vi.mocked(bridge.getColumns)).not.toHaveBeenCalled();
+    });
+
+    it('WHEN NOT MATCHED THEN INSERT (cols) VALUES (vals) にカラム名ラベル付与', async () => {
+      const provider = createInlayHintProvider('conn_1');
+      const model = makeModel(
+        'MERGE INTO users USING staging ON users.id = staging.id ' +
+          'WHEN NOT MATCHED THEN INSERT (id, name) VALUES (staging.id, staging.name);'
+      );
+      const result = await provider.provideInlayHints(model, FAKE_RANGE, makeToken());
+      expect(result?.hints.map((h) => h.label)).toEqual(['id:', 'name:']);
+    });
+
+    it('UPDATE + INSERT 両方の WHEN 句にヒント生成 (典型UPSERT)', async () => {
+      const provider = createInlayHintProvider('conn_1');
+      const sql =
+        'MERGE INTO target t USING source s ON t.id = s.id ' +
+        'WHEN MATCHED THEN UPDATE SET price = s.price ' +
+        'WHEN NOT MATCHED THEN INSERT (id, price) VALUES (s.id, s.price);';
+      const model = makeModel(sql);
+      const result = await provider.provideInlayHints(model, FAKE_RANGE, makeToken());
+      expect(result?.hints.map((h) => h.label)).toEqual(['id:', 'price:', 'price:']);
+    });
+
+    it('ラベルが値の位置に配置される (ラベル↔値の因果関係)', async () => {
+      const provider = createInlayHintProvider('conn_1');
+      const sql = 'MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN UPDATE SET a = 1, b = 2;';
+      const model = makeModel(sql);
+      const result = await provider.provideInlayHints(model, FAKE_RANGE, makeToken());
+      const hints = result?.hints ?? [];
+      expect(hints).toHaveLength(2);
+      expect(hints[0].label).toBe('a:');
+      expect(hints[0].position.column).toBe(sql.indexOf('1') + 1);
+      expect(hints[1].label).toBe('b:');
+      expect(hints[1].position.column).toBe(sql.indexOf('2') + 1);
+    });
+  });
 });

@@ -2,6 +2,7 @@ import type * as Monaco from 'monaco-editor';
 import { languages as MonacoLanguages } from 'monaco-editor';
 import { useSchemaStore } from '../../store/schemaStore';
 import { extractInsertTargets } from '../../utils/insertHintExtractor';
+import { extractMergeTargets } from '../../utils/mergeHintExtractor';
 import { extractUpdateTargets } from '../../utils/updateHintExtractor';
 
 function emptyList(): Monaco.languages.InlayHintList {
@@ -37,6 +38,9 @@ export function createInlayHintProvider(
       const sql = model.getValue();
       const insertTargets = extractInsertTargets(sql);
       const updateTargets = extractUpdateTargets(sql);
+      const merge = extractMergeTargets(sql);
+      insertTargets.push(...merge.insertTargets);
+      updateTargets.push(...merge.updateTargets);
       if (insertTargets.length === 0 && updateTargets.length === 0) return emptyList();
 
       const store = useSchemaStore.getState();

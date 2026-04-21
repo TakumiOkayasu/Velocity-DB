@@ -1,90 +1,18 @@
+import { readColumnList, readValueTuple, type ValuePosition } from './sqlDmlParser';
 import {
   normalizeForParsing,
-  readIdentifier,
   readKeyword,
   readQualifiedName,
   skipWs,
   unwrapIdentifier,
-  WS,
 } from './sqlTokenParser';
 
-export interface InsertValuePosition {
-  offset: number;
-  length: number;
-}
+export type InsertValuePosition = ValuePosition;
 
 export interface InsertTarget {
   tableName: string;
   columnNames: string[] | null;
   valueRows: InsertValuePosition[][];
-}
-
-function readColumnList(s: string, i: number): { columns: string[]; end: number } | null {
-  if (s[i] !== '(') return null;
-  let cur = skipWs(s, i + 1);
-  const columns: string[] = [];
-  while (cur < s.length && s[cur] !== ')') {
-    const r = readIdentifier(s, cur);
-    if (!r) return null;
-    columns.push(unwrapIdentifier(r.ident));
-    cur = skipWs(s, r.end);
-    if (s[cur] === ',') {
-      cur = skipWs(s, cur + 1);
-      continue;
-    }
-    if (s[cur] === ')') break;
-    return null;
-  }
-  if (s[cur] !== ')') return null;
-  return { columns, end: cur + 1 };
-}
-
-function readValueTuple(
-  scan: string,
-  original: string,
-  i: number
-): { values: InsertValuePosition[]; end: number } | null {
-  if (scan[i] !== '(') return null;
-  let cur = i + 1;
-  cur = skipWs(original, cur);
-  let valueStart = cur;
-  const values: InsertValuePosition[] = [];
-  let depth = 1;
-
-  const flush = (end: number) => {
-    let valueEnd = end;
-    while (valueEnd > valueStart && WS.test(original[valueEnd - 1])) valueEnd--;
-    if (valueEnd > valueStart) {
-      values.push({ offset: valueStart, length: valueEnd - valueStart });
-    }
-  };
-
-  while (cur < scan.length) {
-    const c = scan[cur];
-    if (c === '(') {
-      depth++;
-      cur++;
-      continue;
-    }
-    if (c === ')') {
-      depth--;
-      if (depth === 0) {
-        flush(cur);
-        return { values, end: cur + 1 };
-      }
-      cur++;
-      continue;
-    }
-    if (c === ',' && depth === 1) {
-      flush(cur);
-      cur++;
-      cur = skipWs(original, cur);
-      valueStart = cur;
-      continue;
-    }
-    cur++;
-  }
-  return null;
 }
 
 const INSERT_INTO_RE = /\bINSERT\s+INTO\s+/gi;
