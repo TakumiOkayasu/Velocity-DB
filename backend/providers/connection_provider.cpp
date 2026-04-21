@@ -77,9 +77,6 @@ std::string ConnectionProvider::connectAsync(std::string_view params) {
         return JsonUtils::errorResponse(connectionParams.error());
     }
 
-    // Evict idle connections as side-effect
-    [[maybe_unused]] auto evicted = m_registry->evictIdleConnections();
-
     // Submit raw params — SSH + DB connect happens in background thread
     auto requestId = m_asyncExecutor->submitConnect(std::move(*connectionParams));
     return JsonUtils::successResponse(std::format(R"({{"requestId":"{}"}})", requestId));
