@@ -25,7 +25,7 @@ SystemContext::SystemContext()
     , m_exports(std::make_unique<ExportProvider>(*m_connections))
     , m_search(std::make_unique<SearchProvider>(*m_connections))
     , m_utility(std::make_unique<UtilityProvider>())
-    , m_settings(std::make_unique<SettingsProvider>())
+    , m_settings(std::make_unique<SettingsProvider>(m_connections.get()))
     , m_io(std::make_unique<IOProvider>())
     , m_lint(std::make_unique<LintProvider>()) {}
 

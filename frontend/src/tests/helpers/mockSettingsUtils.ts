@@ -2,7 +2,7 @@ import { vi } from 'vitest';
 
 const mockSettings = {
   editor: { fontSize: 14, tabSize: 4, wordWrap: true, minimap: false },
-  query: { autoCommit: true, timeout: 30000, maxRows: 10000 },
+  query: { autoCommit: true, timeout: 300000, maxRows: 10000 },
   appearance: { theme: 'dark' as const },
   shortcuts: {
     execute: 'F9',

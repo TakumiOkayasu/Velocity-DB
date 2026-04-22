@@ -7,6 +7,7 @@
 #include "../utils/json_utils.h"
 #include "simdjson.h"
 
+#include <chrono>
 #include <format>
 
 namespace velocitydb {
@@ -38,6 +39,11 @@ DriverType ConnectionProvider::getDriverType(std::string_view connectionId) cons
 
 std::optional<DatabaseConnectionParams> ConnectionProvider::getConnectionParams(std::string_view connectionId) const {
     return m_registry->getParams(connectionId);
+}
+
+void ConnectionProvider::setDefaultQueryTimeoutSeconds(int seconds) {
+    m_queryTimeoutSeconds.store(seconds, std::memory_order_relaxed);
+    m_registry->forEachQueryDriver([seconds](IDatabaseDriver& driver) { driver.setQueryTimeout(std::chrono::seconds(seconds)); });
 }
 
 std::string ConnectionProvider::disconnect(std::string_view params) {
@@ -97,6 +103,10 @@ std::string ConnectionProvider::getConnectResult(std::string_view params) {
         // Connected: drivers consumed atomically
         if (result.has_value()) {
             auto& drivers = *result;
+            // Apply current query timeout before registering so first execute() picks it up.
+            // metadataDriver keeps the driver default (short metadata lookups don't need tuning).
+            auto timeoutSec = m_queryTimeoutSeconds.load(std::memory_order_relaxed);
+            drivers.queryDriver->setQueryTimeout(std::chrono::seconds(timeoutSec));
             auto connectionId = m_registry->add(drivers.queryDriver, drivers.metadataDriver, drivers.queryDriver->getType());
             m_registry->storeParams(connectionId, drivers.effectiveParams);
             if (drivers.tunnel) {

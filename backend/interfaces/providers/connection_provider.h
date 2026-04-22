@@ -32,6 +32,10 @@ public:
 
     /// Get stored effective connection parameters (for psql delegation)
     [[nodiscard]] virtual std::optional<DatabaseConnectionParams> getConnectionParams(std::string_view connectionId) const = 0;
+
+    /// Set default query timeout (seconds) applied to newly-registered drivers,
+    /// and propagate to all currently active query drivers.
+    virtual void setDefaultQueryTimeoutSeconds(int seconds) = 0;
 };
 
 }  // namespace velocitydb

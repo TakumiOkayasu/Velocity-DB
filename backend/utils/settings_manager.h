@@ -71,8 +71,12 @@ struct GeneralSettings {
     std::string language = "en";
 };
 
+inline constexpr int kQueryTimeoutMinSec = 1;
+inline constexpr int kQueryTimeoutMaxSec = 3600;
+inline constexpr int kQueryTimeoutDefaultSec = 300;
+
 struct QuerySettings {
-    int timeoutSeconds = 30;
+    int timeoutSeconds = kQueryTimeoutDefaultSec;
 };
 
 struct WindowSettings {

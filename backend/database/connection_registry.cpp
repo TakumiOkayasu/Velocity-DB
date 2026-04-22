@@ -125,6 +125,15 @@ SshTunnel* ConnectionRegistry::getTunnel(std::string_view connectionId) const {
     return nullptr;
 }
 
+void ConnectionRegistry::forEachQueryDriver(const std::function<void(IDatabaseDriver&)>& fn) const {
+    std::shared_lock lock(m_mutex);
+    for (const auto& [id, entry] : m_connections) {
+        if (entry.queryDriver) {
+            fn(*entry.queryDriver);
+        }
+    }
+}
+
 void ConnectionRegistry::clear() {
     std::lock_guard lock(m_mutex);
 

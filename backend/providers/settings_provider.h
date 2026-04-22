@@ -10,11 +10,14 @@ namespace velocitydb {
 
 class SettingsManager;
 class SessionManager;
+class IConnectionProvider;
 
 /// Provider for application settings and session management
 class SettingsProvider : public ISettingsProvider {
 public:
-    SettingsProvider();
+    /// @param connections Used to propagate query.timeoutSeconds changes to active drivers.
+    ///                    May be nullptr for unit tests that don't exercise timeout propagation.
+    explicit SettingsProvider(IConnectionProvider* connections = nullptr);
     ~SettingsProvider() override;
 
     SettingsProvider(const SettingsProvider&) = delete;
@@ -39,8 +42,11 @@ public:
     [[nodiscard]] const SessionManager& sessionManager() const { return *m_sessionManager; }
 
 private:
+    void applyQueryTimeoutToConnections(int seconds);
+
     std::unique_ptr<SettingsManager> m_settingsManager;
     std::unique_ptr<SessionManager> m_sessionManager;
+    IConnectionProvider* m_connections;  // Non-owning; may be null in tests
 };
 
 }  // namespace velocitydb
