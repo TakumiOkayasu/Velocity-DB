@@ -21,6 +21,7 @@ const defaultProps = {
   onSetShowLogicalNames: vi.fn(),
   onToggleColumnFilters: vi.fn(),
   onExport: vi.fn(),
+  onAutoSizeColumns: vi.fn(),
   onChangeViewMode: vi.fn(),
 };
 
@@ -106,6 +107,20 @@ describe('GridToolbar', () => {
     it('エクスポートボタンを表示', () => {
       render(<GridToolbar {...defaultProps} />);
       expect(screen.getByTitle('データをエクスポート')).toBeInTheDocument();
+    });
+  });
+
+  describe('auto-size columns', () => {
+    it('オートアジャストボタンをクリックで onAutoSizeColumns を呼ぶ', () => {
+      const onAutoSizeColumns = vi.fn();
+      render(<GridToolbar {...defaultProps} onAutoSizeColumns={onAutoSizeColumns} />);
+      fireEvent.click(screen.getByTitle(/列幅をオートアジャスト/));
+      expect(onAutoSizeColumns).toHaveBeenCalledTimes(1);
+    });
+
+    it('viewMode=transpose でオートアジャストボタンが disabled', () => {
+      render(<GridToolbar {...defaultProps} viewMode="transpose" />);
+      expect(screen.getByTitle(/列幅をオートアジャスト/)).toBeDisabled();
     });
   });
 

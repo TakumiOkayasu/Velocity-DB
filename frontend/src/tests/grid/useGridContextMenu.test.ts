@@ -68,6 +68,46 @@ describe('useGridContextMenu', () => {
       expect(labels).not.toContain('論理名をコピー');
     });
 
+    it('onAutoSizeColumn/onAutoSizeColumns 指定でオートアジャストメニューが表示され、アクションが呼ばれる', () => {
+      const onAutoSizeColumn = vi.fn();
+      const onAutoSizeColumns = vi.fn();
+      const { result } = renderHook(() =>
+        useGridContextMenu(mockColumnsMeta, mockRows, mockTable, {
+          isEditMode: false,
+          onAutoSizeColumn,
+          onAutoSizeColumns,
+        })
+      );
+
+      act(() => {
+        result.current.openHeaderMenu(createMockEvent(), 'name');
+      });
+
+      const items = result.current.getMenuItems();
+      const labels = items.filter((i) => !i.separator).map((i) => i.label);
+      expect(labels).toContain('この列をオートアジャスト');
+      expect(labels).toContain('全列をオートアジャスト');
+
+      items.find((i) => i.label === 'この列をオートアジャスト')?.action();
+      expect(onAutoSizeColumn).toHaveBeenCalledWith('name');
+
+      items.find((i) => i.label === '全列をオートアジャスト')?.action();
+      expect(onAutoSizeColumns).toHaveBeenCalledTimes(1);
+    });
+
+    it('onAutoSizeColumn/onAutoSizeColumns 未指定ではオートアジャストメニューが非表示', () => {
+      const { result } = renderHook(() => useGridContextMenu(mockColumnsMeta, mockRows, mockTable));
+
+      act(() => {
+        result.current.openHeaderMenu(createMockEvent(), 'name');
+      });
+
+      const items = result.current.getMenuItems();
+      const labels = items.filter((i) => !i.separator).map((i) => i.label);
+      expect(labels).not.toContain('この列をオートアジャスト');
+      expect(labels).not.toContain('全列をオートアジャスト');
+    });
+
     it('列値をすべてコピーが正しいデータをコピー', () => {
       const { result } = renderHook(() => useGridContextMenu(mockColumnsMeta, mockRows, mockTable));
 

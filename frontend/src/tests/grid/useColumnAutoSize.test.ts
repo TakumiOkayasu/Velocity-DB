@@ -1,5 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table';
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { useColumnAutoSize } from '../../components/grid/hooks/useColumnAutoSize';
 import type { ResultSet } from '../../types';
@@ -115,5 +115,113 @@ describe('useColumnAutoSize', () => {
 
     expect(result.current.columnSizing.b).toBeGreaterThan(0);
     expect(result.current.columnSizing.a).toBeUndefined();
+  });
+
+  it('全行計測: 100行を超える rowData でも最終行の長いテキストが反映され maxWidth にクランプされる', () => {
+    // 先頭100行は短い、101行目に長いテキストを置く。100行サンプリングだと見落とす。
+    const cols = [{ name: 'a', type: 'varchar' }];
+    const columns = makeColumns(['a']);
+    const rows: string[][] = [];
+    for (let i = 0; i < 100; i++) rows.push(['x']);
+    rows.push(['AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA']); // 40文字
+    const resultSet = makeResultSet(cols, rows);
+    const rowData = makeRowData(['a'], rows);
+
+    const { result } = renderHook(() => useColumnAutoSize({ resultSet, columns, rowData }));
+
+    // setup.ts mock: 40文字 × 13 × 0.6 + padding 8 = 320 → varchar maxWidth 300 にクランプ
+    // 正確値を確認することで (a) 全行計測、(b) maxWidth clamp の双方のミューテーションを検出
+    expect(result.current.columnSizing.a).toBe(300);
+  });
+
+  it('minWidth clamp: 内容もヘッダーも極端に短くても minWidth を下回らない', () => {
+    // varchar minWidth=50, padding=8 → 1文字 'x' は 7.8*1+8=15.8 で下回る
+    const cols = [{ name: 'a', type: 'varchar' }];
+    const columns = makeColumns(['a']);
+    const resultSet = makeResultSet(cols, [['x']]);
+    const rowData = makeRowData(['a'], [['x']]);
+
+    const { result } = renderHook(() => useColumnAutoSize({ resultSet, columns, rowData }));
+
+    // minWidth clamp が効かないと 15.8 になり本番でヘッダーが極端に狭くなる回帰
+    expect(result.current.columnSizing.a).toBe(50);
+  });
+
+  it('triggerAutoSize: 同じ columnsKey でも強制再計算する', () => {
+    const cols = [{ name: 'a', type: 'varchar' }];
+    const columns = makeColumns(['a']);
+    const initial = {
+      resultSet: makeResultSet(cols, [['x']]),
+      columns,
+      rowData: makeRowData(['a'], [['x']]),
+    };
+
+    const { result, rerender } = renderHook((props) => useColumnAutoSize(props), {
+      initialProps: initial,
+    });
+
+    const firstSizing = result.current.columnSizing;
+    expect(firstSizing.a).toBeGreaterThan(0);
+
+    // rowData に長いテキストを追加 (columnsKey は不変)
+    rerender({
+      resultSet: makeResultSet(cols, [['x'], ['AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA']]),
+      columns,
+      rowData: makeRowData(['a'], [['x'], ['AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA']]),
+    });
+
+    // 通常 rerender では再計算されない (既存テストで確認済)
+    act(() => {
+      result.current.triggerAutoSize();
+    });
+
+    // 強制再計算で幅が広がっていること
+    expect(result.current.columnSizing.a).toBeGreaterThan(firstSizing.a);
+  });
+
+  it('triggerAutoSizeForColumn: 指定列のみ再計算、他列は保持', () => {
+    const cols = [
+      { name: 'a', type: 'varchar' },
+      { name: 'b', type: 'varchar' },
+    ];
+    const columns = makeColumns(['a', 'b']);
+    const initial = {
+      resultSet: makeResultSet(cols, [['x', 'y']]),
+      columns,
+      rowData: makeRowData(['a', 'b'], [['x', 'y']]),
+    };
+
+    const { result, rerender } = renderHook((props) => useColumnAutoSize(props), {
+      initialProps: initial,
+    });
+
+    const initialA = result.current.columnSizing.a;
+    const initialB = result.current.columnSizing.b;
+    expect(initialA).toBeGreaterThan(0);
+    expect(initialB).toBeGreaterThan(0);
+
+    // b にのみ長いテキスト追加
+    rerender({
+      resultSet: makeResultSet(cols, [
+        ['x', 'y'],
+        ['x', 'YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY'],
+      ]),
+      columns,
+      rowData: makeRowData(
+        ['a', 'b'],
+        [
+          ['x', 'y'],
+          ['x', 'YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY'],
+        ]
+      ),
+    });
+
+    act(() => {
+      result.current.triggerAutoSizeForColumn('b');
+    });
+
+    // b は再計算で広がっている、a は不変
+    expect(result.current.columnSizing.b).toBeGreaterThan(initialB);
+    expect(result.current.columnSizing.a).toBe(initialA);
   });
 });

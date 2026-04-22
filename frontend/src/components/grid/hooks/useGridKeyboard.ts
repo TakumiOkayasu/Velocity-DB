@@ -31,6 +31,7 @@ interface UseGridKeyboardOptions {
   onNavigateRelated?: (rowIndex: number, columnName: string) => void;
   onOpenValueEditor?: (rowIndex: number, columnName: string, currentValue: string | null) => void;
   onSelectAll?: () => void;
+  onAutoSizeColumns?: () => void;
 }
 
 interface UseGridKeyboardResult {
@@ -60,6 +61,7 @@ export function useGridKeyboard({
   onNavigateRelated,
   onOpenValueEditor,
   onSelectAll,
+  onAutoSizeColumns,
 }: UseGridKeyboardOptions): UseGridKeyboardResult {
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [editValue, setEditValue] = useState<string>('');
@@ -232,6 +234,13 @@ export function useGridKeyboard({
     if (e.ctrlKey && e.shiftKey && e.key === 'C') {
       e.preventDefault();
       copySqlInsert();
+      return;
+    }
+
+    // Ctrl+Shift+A: 列幅オートアジャスト (Issue #387)
+    if (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+      e.preventDefault();
+      onAutoSizeColumns?.();
       return;
     }
 

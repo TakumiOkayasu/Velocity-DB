@@ -21,6 +21,7 @@ interface GridToolbarProps {
   onSetShowLogicalNames: (value: boolean) => void;
   onToggleColumnFilters: () => void;
   onExport: () => void;
+  onAutoSizeColumns: () => void;
   onChangeViewMode: (mode: GridViewMode) => void;
 }
 
@@ -43,6 +44,7 @@ function GridToolbarInner({
   onSetShowLogicalNames,
   onToggleColumnFilters,
   onExport,
+  onAutoSizeColumns,
   onChangeViewMode,
 }: GridToolbarProps) {
   const isTableMode = viewMode === 'table';
@@ -157,6 +159,15 @@ function GridToolbarInner({
         title="列フィルタを表示/非表示"
       >
         ≡
+      </button>
+      <button
+        type="button"
+        onClick={onAutoSizeColumns}
+        className={styles.iconButton}
+        disabled={!isTableMode}
+        title="列幅をオートアジャスト (Ctrl+Shift+A)"
+      >
+        ↔
       </button>
       <button
         type="button"
