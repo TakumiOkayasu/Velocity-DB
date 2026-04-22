@@ -1,5 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { useColumnAutoSize } from '../../components/grid/hooks/useColumnAutoSize';
 import type { ResultSet } from '../../types';
@@ -223,5 +223,146 @@ describe('useColumnAutoSize', () => {
     // b は再計算で広がっている、a は不変
     expect(result.current.columnSizing.b).toBeGreaterThan(initialB);
     expect(result.current.columnSizing.a).toBe(initialA);
+  });
+
+  // Issue #387 Phase 2: measureText 全行同期ループがメインスレッドを数十秒ブロック
+  // する問題 (PROBE 計測で 25-52 秒ブロック確認) を解消するため、行数が閾値を超えた
+  // 場合は chunk+yield で非同期計測する。計測中に rerender / 再 trigger が起きた
+  // 場合、古い計測結果で上書きされないことを cancellation token で保証する。
+  describe('async chunk measurement (大規模データ)', () => {
+    const ASYNC_ROW_COUNT = 1200; // 閾値 (500) を超えて async path を踏ませる
+
+    function makeLargeRowData(longestAt: number, longestText: string) {
+      const rows: string[][] = [];
+      for (let i = 0; i < ASYNC_ROW_COUNT; i++) {
+        rows.push([i === longestAt ? longestText : 'x']);
+      }
+      return rows;
+    }
+
+    it('大量行の初回計測は非同期に反映される (同期では未計算、await 後に値)', async () => {
+      const cols = [{ name: 'a', type: 'varchar' }];
+      const columns = makeColumns(['a']);
+      const rows = makeLargeRowData(ASYNC_ROW_COUNT - 1, 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
+      const resultSet = makeResultSet(cols, rows);
+      const rowData = makeRowData(['a'], rows);
+
+      const { result } = renderHook(() => useColumnAutoSize({ resultSet, columns, rowData }));
+
+      // 同期直後は未反映 (初期値 {})。await 後に値が入ることを確認。
+      expect(result.current.columnSizing.a).toBeUndefined();
+
+      await waitFor(() => {
+        expect(result.current.columnSizing.a).toBeGreaterThan(0);
+      });
+
+      // 末尾行の長いテキストが全行計測で拾われていること (sampling へのリグレッション防止)
+      // 32 文字 × 13 × 0.6 + padding 8 = 257.6 → varchar maxWidth 300 には届かず 258
+      expect(result.current.columnSizing.a).toBeGreaterThan(200);
+    });
+
+    // 旧テスト (columnsKey を a→b に差替) は cancellation token 削除ミュータントでも
+    // PASS する偽陽性だったため、同一 columnsKey + rowData 差替 + 連続 trigger の構成に
+    // 書き換えた。short の計測が後追いで long の結果を上書きしないことを値域で検証する。
+    it('同一 columnsKey で連続 trigger した場合、古い計測結果が最新結果を上書きしない', async () => {
+      const cols = [{ name: 'a', type: 'varchar' }];
+      const columns = makeColumns(['a']);
+      const shortRows = makeLargeRowData(-1, ''); // 全て 'x' → minWidth 50
+      const longRows = makeLargeRowData(ASYNC_ROW_COUNT - 1, 'L'.repeat(30)); // 242px
+
+      const { result, rerender } = renderHook((props) => useColumnAutoSize(props), {
+        initialProps: {
+          resultSet: makeResultSet(cols, shortRows),
+          columns,
+          rowData: makeRowData(['a'], shortRows),
+        },
+      });
+
+      // 初回 async 計測 (short) の完了を待たずに rowData を long に差替 + 明示 trigger
+      rerender({
+        resultSet: makeResultSet(cols, longRows),
+        columns,
+        rowData: makeRowData(['a'], longRows),
+      });
+      act(() => {
+        result.current.triggerAutoSize();
+      });
+
+      // 最終値は long 計測 (>200)。cancellation 無しだと short の計測完了が
+      // 後追いで setColumnSizing({ a: 50 }) を呼び、最終値が 50 に落ちて FAIL する。
+      await waitFor(() => {
+        expect(result.current.columnSizing.a).toBeGreaterThan(200);
+      });
+      // 以降も short の結果に上書きされず、long 値で stable であること
+      await act(() => new Promise<void>((r) => queueMicrotask(() => r())));
+      expect(result.current.columnSizing.a).toBeGreaterThan(200);
+    });
+
+    // 旧テストは 2 回目も同じ long rowData での trigger だったため、cancellation が
+    // 無効でも最終値が同じになり偽陽性だった。1 回目 (short) と 2 回目 (long) で
+    // 計測対象を区別し、最終値が最新 trigger 由来の値域に収束することを検証する。
+    it('連続 triggerAutoSize: 1 回目と異なる 2 回目の計測値が最終結果に反映される', async () => {
+      const cols = [{ name: 'a', type: 'varchar' }];
+      const columns = makeColumns(['a']);
+      const shortRows = makeLargeRowData(-1, ''); // 全て 'x' → minWidth 50
+      const longRows = makeLargeRowData(ASYNC_ROW_COUNT - 1, 'L'.repeat(30)); // 242px
+
+      const { result, rerender } = renderHook((props) => useColumnAutoSize(props), {
+        initialProps: {
+          resultSet: makeResultSet(cols, shortRows),
+          columns,
+          rowData: makeRowData(['a'], shortRows),
+        },
+      });
+
+      // 初回 (short) の async 計測を待たずに、1 回目の triggerAutoSize を発火
+      // その直後に rowData を long に差替、2 回目の triggerAutoSize を発火
+      act(() => {
+        result.current.triggerAutoSize();
+      });
+      rerender({
+        resultSet: makeResultSet(cols, longRows),
+        columns,
+        rowData: makeRowData(['a'], longRows),
+      });
+      act(() => {
+        result.current.triggerAutoSize();
+      });
+
+      // 最終値は 2 回目 (long) の結果 > 200
+      await waitFor(() => {
+        expect(result.current.columnSizing.a).toBeGreaterThan(200);
+      });
+      // 追加マイクロタスクを流しても値が stable (short の結果で上書きされない)
+      await act(() => new Promise<void>((r) => queueMicrotask(() => r())));
+      expect(result.current.columnSizing.a).toBeGreaterThan(200);
+    });
+
+    // Issue #387: 超大規模データで SYNC_FULL_LIMIT (20000 行) 超過分は計測対象外とする。
+    // この上限が撤廃されるとメインスレッドが長時間ブロックされる回帰となるため
+    // 先頭 20000 行で clamping される既存動作を特性テストとして固定する。
+    it('SYNC_FULL_LIMIT 超過: 20000 行目以降の長テキストは計測対象外', async () => {
+      const SYNC_FULL_LIMIT = 20000;
+      const cols = [{ name: 'a', type: 'varchar' }];
+      const columns = makeColumns(['a']);
+      const rows: string[][] = [];
+      for (let i = 0; i < SYNC_FULL_LIMIT; i++) rows.push(['x']);
+      rows.push(['A'.repeat(40)]); // 20001 行目: limit 外なので拾われない
+      const resultSet = makeResultSet(cols, rows);
+      const rowData = makeRowData(['a'], rows);
+
+      const { result } = renderHook(() => useColumnAutoSize({ resultSet, columns, rowData }));
+
+      await waitFor(
+        () => {
+          expect(result.current.columnSizing.a).toBeGreaterThan(0);
+        },
+        { timeout: 10000 }
+      );
+
+      // limit 超過行が拾われる実装に退行すると maxWidth 300 にクランプされる。
+      // 現仕様では 'x' だけが対象 = padding 込 15.8 → minWidth 50 にクランプ。
+      expect(result.current.columnSizing.a).toBe(50);
+    });
   });
 });
