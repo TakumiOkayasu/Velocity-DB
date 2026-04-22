@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <expected>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <shared_mutex>
@@ -67,6 +68,10 @@ public:
 
     /// Remove and close all connections
     void clear();
+
+    /// Invoke callback for each active query driver (under read lock).
+    /// Used to propagate settings changes (e.g. query timeout) to all live connections.
+    void forEachQueryDriver(const std::function<void(IDatabaseDriver&)>& fn) const;
 
 private:
     struct ConnectionEntry {

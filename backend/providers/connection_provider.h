@@ -1,7 +1,9 @@
 #pragma once
 
 #include "../interfaces/providers/connection_provider.h"
+#include "../utils/settings_manager.h"
 
+#include <atomic>
 #include <memory>
 #include <optional>
 #include <string>
@@ -36,9 +38,12 @@ public:
     [[nodiscard]] DriverType getDriverType(std::string_view connectionId) const override;
     [[nodiscard]] std::optional<DatabaseConnectionParams> getConnectionParams(std::string_view connectionId) const override;
 
+    void setDefaultQueryTimeoutSeconds(int seconds) override;
+
 private:
     std::unique_ptr<ConnectionRegistry> m_registry;
     std::unique_ptr<AsyncConnectionExecutor> m_asyncExecutor;
+    std::atomic<int> m_queryTimeoutSeconds{kQueryTimeoutDefaultSec};
 };
 
 }  // namespace velocitydb

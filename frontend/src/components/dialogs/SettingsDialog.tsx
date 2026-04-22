@@ -2,7 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { bridge } from '../../api/bridge';
 import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
 import styles from './SettingsDialog.module.css';
-import { type AppSettings, defaultSettings } from './settingsUtils';
+import {
+  type AppSettings,
+  defaultSettings,
+  QUERY_TIMEOUT_DEFAULT_SEC,
+  QUERY_TIMEOUT_MAX_SEC,
+  QUERY_TIMEOUT_MIN_SEC,
+} from './settingsUtils';
 
 interface SettingsDialogProps {
   isOpen: boolean;
@@ -176,20 +182,19 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                   </label>
                 </div>
                 <div className={styles.setting}>
-                  <label>クエリタイムアウト (ms)</label>
+                  <label htmlFor="setting-query-timeout-sec">クエリタイムアウト (秒)</label>
                   <input
+                    id="setting-query-timeout-sec"
                     type="number"
-                    value={settings.query.timeout}
-                    onChange={(e) =>
-                      updateSetting(
-                        'query',
-                        'timeout',
-                        Number.parseInt(e.target.value, 10) || 30000
-                      )
-                    }
-                    min={1000}
-                    max={600000}
-                    step={1000}
+                    value={Math.round(settings.query.timeout / 1000)}
+                    onChange={(e) => {
+                      const parsed = Number.parseInt(e.target.value, 10);
+                      const sec = Number.isFinite(parsed) ? parsed : QUERY_TIMEOUT_DEFAULT_SEC;
+                      updateSetting('query', 'timeout', sec * 1000);
+                    }}
+                    min={QUERY_TIMEOUT_MIN_SEC}
+                    max={QUERY_TIMEOUT_MAX_SEC}
+                    step={60}
                   />
                 </div>
                 <div className={styles.setting}>

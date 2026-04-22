@@ -1,5 +1,11 @@
 // Settings utility functions - separated from component for Fast Refresh compatibility
 
+// Query timeout bounds (seconds). Keep in sync with backend kQueryTimeoutMin/Max/DefaultSec
+// in settings_manager.h. Frontend stores ms internally for backward compat with saved localStorage.
+export const QUERY_TIMEOUT_MIN_SEC = 1;
+export const QUERY_TIMEOUT_MAX_SEC = 3600;
+export const QUERY_TIMEOUT_DEFAULT_SEC = 300;
+
 export interface AppSettings {
   editor: {
     fontSize: number;
@@ -32,7 +38,7 @@ export const defaultSettings: AppSettings = {
   },
   query: {
     autoCommit: true,
-    timeout: 30000,
+    timeout: QUERY_TIMEOUT_DEFAULT_SEC * 1000,
     maxRows: 10000,
   },
   appearance: {

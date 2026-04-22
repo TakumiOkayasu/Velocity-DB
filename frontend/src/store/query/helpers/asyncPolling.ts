@@ -1,4 +1,5 @@
 import type { AsyncColumn, AsyncPollResult, Column, QueryResult } from '../../../types';
+import { defaultSettings } from '../../../utils/settingsUtils';
 import type { QueryBridgeable } from '../interfaces/QueryBridgeable';
 
 function mapAsyncColumn(c: AsyncColumn): Column {
@@ -12,7 +13,7 @@ function mapAsyncColumn(c: AsyncColumn): Column {
   };
 }
 
-export const DEFAULT_QUERY_TIMEOUT_MS = 5 * 60 * 1000;
+export const DEFAULT_QUERY_TIMEOUT_MS = defaultSettings.query.timeout;
 const POLL_INTERVAL_MS = 100;
 
 interface AbortHandle {

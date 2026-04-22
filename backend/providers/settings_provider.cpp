@@ -1,5 +1,6 @@
 #include "settings_provider.h"
 
+#include "../interfaces/providers/connection_provider.h"
 #include "../utils/glaze_meta.h"
 #include "../utils/json_utils.h"
 #include "../utils/session_manager.h"
@@ -151,9 +152,17 @@ namespace {
 
 }  // namespace
 
-SettingsProvider::SettingsProvider() : m_settingsManager(std::make_unique<SettingsManager>()), m_sessionManager(std::make_unique<SessionManager>()) {
+SettingsProvider::SettingsProvider(IConnectionProvider* connections)
+    : m_settingsManager(std::make_unique<SettingsManager>()), m_sessionManager(std::make_unique<SessionManager>()), m_connections(connections) {
     (void)m_settingsManager->load();
     (void)m_sessionManager->load();
+    applyQueryTimeoutToConnections(m_settingsManager->getSettings().query.timeoutSeconds);
+}
+
+void SettingsProvider::applyQueryTimeoutToConnections(int seconds) {
+    if (m_connections) {
+        m_connections->setDefaultQueryTimeoutSeconds(seconds);
+    }
 }
 
 SettingsProvider::~SettingsProvider() = default;
@@ -212,7 +221,7 @@ std::string SettingsProvider::updateSettings(std::string_view params) {
 
         if (auto query = doc["query"]; !query.error()) {
             if (auto val = query["timeoutSeconds"].get_int64(); !val.error())
-                settings.query.timeoutSeconds = std::clamp(narrowToInt(val.value()), 1, 600);
+                settings.query.timeoutSeconds = std::clamp(narrowToInt(val.value()), kQueryTimeoutMinSec, kQueryTimeoutMaxSec);
         }
 
         if (auto window = doc["window"]; !window.error()) {
@@ -230,6 +239,8 @@ std::string SettingsProvider::updateSettings(std::string_view params) {
 
         m_settingsManager->updateSettings(settings);
         (void)m_settingsManager->save();
+
+        applyQueryTimeoutToConnections(settings.query.timeoutSeconds);
 
         return JsonUtils::successResponse(R"({"saved":true})");
     } catch (const std::exception& e) {
