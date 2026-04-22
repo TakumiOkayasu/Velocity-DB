@@ -68,6 +68,14 @@ const ExportDialog = lazyWithRetry(() =>
 const ELAPSED_CAUTION_SECONDS = 10;
 const ELAPSED_WARNING_SECONDS = 30;
 
+// 'onEnd': drag 中は columnSizing state を更新せず、mouseup 時のみ反映。
+// 'onChange' だと drag 中毎frame 全テーブル re-render で応答性が著しく悪化する。
+// drag 中の視覚フィードバック (DataGrip風 overlay 縦線) は
+// Phase 2 で columnSizingInfo.deltaOffset 経由で追加予定。
+// export しているのは回帰防止テスト (ResultGrid.columnResizeMode.test.ts) で
+// 値を直接検証するため (ソース文字列 match は fragile なため)。
+export const COLUMN_RESIZE_MODE = 'onEnd' as const;
+
 interface ResultGridProps {
   queryId?: string;
   excludeDataView?: boolean;
@@ -270,6 +278,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   // 列幅オートアジャスト (Issue #387):
   // - 初回 (columnsKey 変化時) のみ自動で全行の MAX 幅に合わせる (#368 flash 回避)
   // - ユーザー drag resize は維持 (triggerAutoSize/ForColumn で明示再計算も可)
+  // - 500行超は measureText を chunk+yield で非同期化 (メインスレッドブロック回避)
   const { columnSizing, setColumnSizing, triggerAutoSize, triggerAutoSizeForColumn } =
     useColumnAutoSize({ resultSet, columns, rowData });
 
@@ -364,7 +373,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     enableSorting: true,
     enableColumnFilters: true,
     manualSorting: isPaginated,
-    columnResizeMode: 'onChange',
+    columnResizeMode: COLUMN_RESIZE_MODE,
     state: { columnSizing, sorting, columnFilters },
     onColumnSizingChange: setColumnSizing,
     onSortingChange: sortingChangeHandler,
