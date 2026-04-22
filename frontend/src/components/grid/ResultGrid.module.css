@@ -380,14 +380,22 @@
   position: relative;
 }
 
-.th::after {
-  content: "";
+/* .columnResizer が列境界の drag/double-click target を担う (#387) */
+.columnResizer {
   position: absolute;
   right: 0;
-  top: 25%;
-  height: 50%;
-  width: 3px;
+  top: 0;
+  height: 100%;
+  width: 5px;
   cursor: col-resize;
+  user-select: none;
+  touch-action: none;
+  z-index: 1;
+}
+
+.columnResizer:hover {
+  background-color: var(--accent-color, #3a6d8c);
+  opacity: 0.4;
 }
 
 .th:last-child {

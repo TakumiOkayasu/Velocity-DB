@@ -61,13 +61,23 @@ interface UseGridContextMenuOptions {
   ) => void;
   /** INSERT文に埋め込むテーブル名。未指定時は `table_name` プレースホルダ */
   tableName?: string;
+  /** 指定列のみ列幅オートアジャスト (Issue #387) */
+  onAutoSizeColumn?: (columnId: string) => void;
+  /** 全列を列幅オートアジャスト (Issue #387) */
+  onAutoSizeColumns?: () => void;
 }
 
 export function useGridContextMenu(
   columnsMeta: ColumnMeta[],
   rows: GridRow[],
   table: GridTable,
-  { isEditMode = false, updateCell, tableName }: UseGridContextMenuOptions = { isEditMode: false }
+  {
+    isEditMode = false,
+    updateCell,
+    tableName,
+    onAutoSizeColumn,
+    onAutoSizeColumns,
+  }: UseGridContextMenuOptions = { isEditMode: false }
 ) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const copyToClipboard = useCopyToClipboard();
@@ -144,6 +154,22 @@ export function useGridContextMenu(
         label: '降順でソート',
         action: () => column?.toggleSorting(true),
       });
+
+      if (onAutoSizeColumn || onAutoSizeColumns) {
+        items.push({ label: '', action: () => {}, separator: true });
+        if (onAutoSizeColumn) {
+          items.push({
+            label: 'この列をオートアジャスト',
+            action: () => onAutoSizeColumn(contextMenu.columnId),
+          });
+        }
+        if (onAutoSizeColumns) {
+          items.push({
+            label: '全列をオートアジャスト',
+            action: () => onAutoSizeColumns(),
+          });
+        }
+      }
       return items;
     }
 
@@ -206,7 +232,18 @@ export function useGridContextMenu(
     });
 
     return items;
-  }, [contextMenu, columnsMeta, rows, table, copyToClipboard, isEditMode, updateCell, tableName]);
+  }, [
+    contextMenu,
+    columnsMeta,
+    rows,
+    table,
+    copyToClipboard,
+    isEditMode,
+    updateCell,
+    tableName,
+    onAutoSizeColumn,
+    onAutoSizeColumns,
+  ]);
 
   return {
     contextMenu,

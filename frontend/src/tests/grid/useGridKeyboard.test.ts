@@ -239,6 +239,27 @@ describe('useGridKeyboard', () => {
     });
   });
 
+  describe('Ctrl+Shift+A (列幅オートアジャスト)', () => {
+    it('onAutoSizeColumns を呼び preventDefault する', () => {
+      const onAutoSizeColumns = vi.fn();
+      renderHook(() => useGridKeyboard({ ...baseOptions, onAutoSizeColumns }));
+
+      const event = new KeyboardEvent('keydown', { key: 'A', ctrlKey: true, shiftKey: true });
+      const preventDefault = vi.spyOn(event, 'preventDefault');
+      capturedKeydownHandler?.(event);
+
+      expect(onAutoSizeColumns).toHaveBeenCalledTimes(1);
+      expect(preventDefault).toHaveBeenCalled();
+    });
+
+    it('onAutoSizeColumns 未指定でも例外を投げない', () => {
+      renderHook(() => useGridKeyboard(baseOptions));
+
+      const event = new KeyboardEvent('keydown', { key: 'A', ctrlKey: true, shiftKey: true });
+      expect(() => capturedKeydownHandler?.(event)).not.toThrow();
+    });
+  });
+
   describe('startEdit', () => {
     it('__rowIndex 列では編集を開始しない', () => {
       const { result } = renderHook(() => useGridKeyboard({ ...baseOptions, isEditMode: true }));

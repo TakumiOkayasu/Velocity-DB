@@ -4,6 +4,7 @@ import { type MouseEvent, memo, type RefObject, type UIEvent, useCallback } from
 import { type ColumnMeta, isSystemColumn, type RowData } from '../../types/grid';
 import type { ValidationError } from '../../utils/validation';
 import { ContextMenu } from '../common/ContextMenu';
+import { ColumnResizer } from './ColumnResizer';
 import { useGridContextMenu } from './hooks/useGridContextMenu';
 import styles from './ResultGrid.module.css';
 
@@ -59,6 +60,10 @@ interface GridTableProps {
   tableName?: string;
   /** Scroll 位置保存のためのハンドラ (ResultGrid 側で store 更新) */
   onScroll?: (e: UIEvent<HTMLDivElement>) => void;
+  /** 指定列のみ列幅オートアジャスト (Issue #387) */
+  onAutoSizeColumn?: (columnId: string) => void;
+  /** 全列を列幅オートアジャスト (Issue #387) */
+  onAutoSizeColumns?: () => void;
 }
 
 /** Extract row/cell info from a bubbled event via data attributes */
@@ -88,6 +93,8 @@ function GridTableInner({
   callbacks,
   tableName,
   onScroll,
+  onAutoSizeColumn,
+  onAutoSizeColumns,
 }: GridTableProps) {
   const paddingTop = virtualRows.length > 0 ? (virtualRows[0]?.start ?? 0) : 0;
   const paddingBottom =
@@ -101,6 +108,8 @@ function GridTableInner({
       isEditMode: edit.isEditMode,
       updateCell: callbacks.onUpdateCell,
       tableName,
+      onAutoSizeColumn,
+      onAutoSizeColumns,
     }
   );
 
@@ -179,6 +188,13 @@ function GridTableInner({
                         </span>
                       )}
                     </div>
+                    {header.column.getCanResize() && (
+                      <ColumnResizer
+                        columnId={header.column.id}
+                        onResizeStart={header.getResizeHandler()}
+                        onAutoSizeColumn={onAutoSizeColumn}
+                      />
+                    )}
                   </th>
                 );
               })}

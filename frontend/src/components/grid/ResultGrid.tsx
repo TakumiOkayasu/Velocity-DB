@@ -43,6 +43,7 @@ import { GridStatusBar } from './GridStatusBar';
 import { GridTable } from './GridTable';
 import { GridToolbar } from './GridToolbar';
 import { useClampedActiveIndex } from './hooks/useClampedActiveIndex';
+import { useColumnAutoSize } from './hooks/useColumnAutoSize';
 import { useElapsedTimer } from './hooks/useElapsedTimer';
 import { useGridEdit } from './hooks/useGridEdit';
 import { useGridKeyboard } from './hooks/useGridKeyboard';
@@ -227,10 +228,6 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   }, [resultSetColumns]);
 
   // --- Hooks ---
-  // 列幅は columnDef.size=150 を初期値に固定。ユーザー drag resize 時のみ columnSizing に
-  // 値が入る。動的 auto-size は #368 の安定性問題のため廃止 (progress.md 参照)。
-  const [columnSizing, setColumnSizing] = useState<Record<string, number>>({});
-
   const {
     isEditMode,
     hasChanges,
@@ -269,6 +266,12 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     });
     return combined;
   }, [baseRowData, getInsertedRows]);
+
+  // 列幅オートアジャスト (Issue #387):
+  // - 初回 (columnsKey 変化時) のみ自動で全行の MAX 幅に合わせる (#368 flash 回避)
+  // - ユーザー drag resize は維持 (triggerAutoSize/ForColumn で明示再計算も可)
+  const { columnSizing, setColumnSizing, triggerAutoSize, triggerAutoSizeForColumn } =
+    useColumnAutoSize({ resultSet, columns, rowData });
 
   const openRelatedTable = useCallback(
     (tableName: string, fkWhereClause: string) => {
@@ -328,6 +331,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     onNavigateRelated: navigateRelated,
     onOpenValueEditor: openValueEditor,
     onSelectAll: selectAllRows,
+    onAutoSizeColumns: triggerAutoSize,
   });
 
   const isPaginated = !!pagination;
@@ -718,6 +722,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         onSetShowLogicalNames={setShowLogicalNamesInGrid}
         onToggleColumnFilters={toggleColumnFilters}
         onExport={openExportDialog}
+        onAutoSizeColumns={triggerAutoSize}
         onChangeViewMode={changeViewMode}
       />
 
@@ -747,6 +752,8 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
           callbacks={gridCallbacks}
           tableName={currentQuery?.sourceTable}
           onScroll={handleScroll}
+          onAutoSizeColumn={triggerAutoSizeForColumn}
+          onAutoSizeColumns={triggerAutoSize}
         />
       ) : (
         <TransposeView
