@@ -91,17 +91,6 @@ export function EditorTabs() {
   );
   const { addQuery, removeQuery, setActive, reorderQuery, openERDiagram } = useQueryActions();
 
-  // Ctrl+W: close active tab
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === 'w') {
-        e.preventDefault();
-        if (activeQueryId) removeQuery(activeQueryId);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [activeQueryId, removeQuery]);
   const activeQuery = queries.find((q) => q.id === activeQueryId);
   const activeQueryConnectionId = activeQuery?.connectionId ?? null;
 
