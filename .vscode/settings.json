@@ -1,20 +1,53 @@
 {
-	"cmake.useCMakePresets": "always",
-	"cmake.defaultBuildPreset": "release",
-	"cmake.defaultConfigurePreset": "release",
-	"cmake.defaultTestPreset": "release",
-	"cmake.generator": "Ninja",
-	"cmake.configureSettings": {
-		"CMAKE_BUILD_TYPE": "Release"
-	},
-	"cmake.buildDirectory": "${workspaceFolder}/build",
-	"cmake.preferredGenerators": ["Ninja", "Unix Makefiles"],
-	"cmake.configureOnOpen": false,
-	"terminal.integrated.fontFamily": "'MesloLGS Nerd Font', 'MesloLGS NF', 'Hack Nerd Font', monospace",
-	"terminal.integrated.fontWeight": "normal",
-	"[markdown]": {
-		"editor.codeActionsOnSave": {
-			"source.fixAll.markdownlint": "always"
-		}
-	}
+  "cmake.useCMakePresets": "always",
+  "cmake.defaultBuildPreset": "release",
+  "cmake.defaultConfigurePreset": "release",
+  "cmake.defaultTestPreset": "release",
+  "cmake.generator": "Ninja",
+  "cmake.configureSettings": {
+    "CMAKE_BUILD_TYPE": "Release"
+  },
+  "cmake.buildDirectory": "${workspaceFolder}/build",
+  "cmake.preferredGenerators": ["Ninja", "Unix Makefiles"],
+  "cmake.configureOnOpen": false,
+  "terminal.integrated.fontFamily": "'MesloLGS Nerd Font', 'MesloLGS NF', 'Hack Nerd Font', monospace",
+  "terminal.integrated.fontWeight": "normal",
+  "editor.formatOnSave": true,
+  "editor.insertSpaces": true,
+  "editor.tabSize": 2,
+  "editor.detectIndentation": false,
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "[typescript]": {
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports.biome": "explicit",
+      "quickfix.biome": "explicit"
+    }
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports.biome": "explicit",
+      "quickfix.biome": "explicit"
+    }
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[markdown]": {
+    "editor.codeActionsOnSave": {
+      "source.fixAll.markdownlint": "always"
+    }
+  }
 }

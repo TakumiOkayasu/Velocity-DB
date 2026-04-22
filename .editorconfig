@@ -1,0 +1,29 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+[*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,css,scss,html,md,yml,yaml}]
+indent_size = 2
+
+[*.py]
+indent_size = 4
+
+[*.{cpp,cc,cxx,c,h,hpp,hxx}]
+indent_size = 4
+
+[*.{cmake,cmake.in}]
+indent_size = 2
+
+[CMakeLists.txt]
+indent_size = 2
+
+[Makefile]
+indent_style = tab
+
+[*.md]
+trim_trailing_whitespace = false
