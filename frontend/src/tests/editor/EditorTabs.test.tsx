@@ -10,11 +10,12 @@ const mockSetActive = vi.fn();
 const mockReorderQuery = vi.fn();
 const mockOpenERDiagram = vi.fn().mockReturnValue('new-er-id');
 let mockQueries: Query[] = [];
+let mockActiveQueryId: string | null = null;
 
 vi.mock('../../store/queryStore', () => ({
   useQueries: () => mockQueries,
   useQueryStore: (selector: (s: { activeQueryId: string | null }) => string | null) =>
-    selector({ activeQueryId: null }),
+    selector({ activeQueryId: mockActiveQueryId }),
   useQueryActions: () => ({
     addQuery: mockAddQuery,
     removeQuery: mockRemoveQuery,
@@ -41,6 +42,7 @@ describe('EditorTabs', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockQueries = [];
+    mockActiveQueryId = null;
   });
 
   describe('新規タブメニュー', () => {
@@ -100,6 +102,30 @@ describe('EditorTabs', () => {
       fireEvent.click(screen.getByText('新規ER図'));
 
       expect(mockOpenERDiagram).toHaveBeenCalledWith('ER図 2');
+    });
+  });
+
+  describe('キーボードショートカット', () => {
+    // Ctrl+W のショートカットは MainLayout 側で一元管理する。
+    // EditorTabs が独自に window.keydown を購読すると二重発火で複数タブが閉じる (#391)。
+    it('Ctrl+W を EditorTabs 単体では購読せず removeQuery を呼ばない', () => {
+      mockActiveQueryId = 'q1';
+      mockQueries = [
+        {
+          id: 'q1',
+          name: 'Test',
+          content: '',
+          connectionId: null,
+          isDirty: false,
+          isERDiagram: false,
+        },
+      ];
+
+      render(<EditorTabs />);
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { ctrlKey: true, key: 'w' }));
+
+      expect(mockRemoveQuery).not.toHaveBeenCalled();
     });
   });
 });
