@@ -13,7 +13,10 @@ import type {
   GridRow,
   GridTable,
 } from '../../components/grid/hooks/useGridContextMenu';
-import { useGridContextMenu } from '../../components/grid/hooks/useGridContextMenu';
+import {
+  buildMarkdownTable,
+  useGridContextMenu,
+} from '../../components/grid/hooks/useGridContextMenu';
 
 const mockColumnsMeta: ColumnMeta[] = [
   { name: 'id', comment: 'ID番号', type: 'int' },
@@ -35,6 +38,32 @@ const mockTable: GridTable = {
 function createMockEvent(): GridMouseEvent {
   return { preventDefault: vi.fn(), stopPropagation: vi.fn(), clientX: 100, clientY: 200 };
 }
+
+describe('buildMarkdownTable', () => {
+  it('単一列・単一行のテーブルを生成', () => {
+    expect(buildMarkdownTable(['a'], [['1']])).toBe('| a |\n| --- |\n| 1 |');
+  });
+
+  it('複数列・複数行のテーブルを生成', () => {
+    expect(
+      buildMarkdownTable(
+        ['a', 'b'],
+        [
+          ['1', '2'],
+          ['3', '4'],
+        ]
+      )
+    ).toBe('| a | b |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |');
+  });
+
+  it('ヘッダーのパイプもエスケープする', () => {
+    expect(buildMarkdownTable(['a|b'], [['1']])).toBe('| a\\|b |\n| --- |\n| 1 |');
+  });
+
+  it('CRLF 改行を <br> にエスケープする', () => {
+    expect(buildMarkdownTable(['a'], [['x\r\ny']])).toBe('| a |\n| --- |\n| x<br>y |');
+  });
+});
 
 describe('useGridContextMenu', () => {
   describe('header context menu', () => {
@@ -138,6 +167,23 @@ describe('useGridContextMenu', () => {
       expect(labels).toContain('行をコピー（ヘッダー付き）');
       expect(labels).toContain('SQL INSERTとしてコピー');
       expect(labels).toContain('この値でフィルタ');
+    });
+
+    it('行をコピー（ヘッダー付き）が Markdown 形式でコピー', () => {
+      const { result } = renderHook(() => useGridContextMenu(mockColumnsMeta, mockRows, mockTable));
+
+      act(() => {
+        result.current.openCellMenu(createMockEvent(), 1, 'name');
+      });
+
+      const items = result.current.getMenuItems();
+      const rowItem = items.find((i) => i.label === '行をコピー（ヘッダー付き）');
+      rowItem?.action();
+
+      expect(mockCopyToClipboard).toHaveBeenCalledWith(
+        "| id | name | email |\n| --- | --- | --- |\n| 2 | Bob's | NULL |",
+        '行をコピーしました'
+      );
     });
 
     it('SQL INSERTコピーが正しいSQL文を生成', () => {
@@ -256,7 +302,7 @@ describe('useGridContextMenu', () => {
       expect(labels).not.toContain('NULLに設定');
     });
 
-    it('列値をコピー（ヘッダー付き）が正しいデータをコピー', () => {
+    it('列値をコピー（ヘッダー付き）が Markdown 形式でコピー', () => {
       const { result } = renderHook(() => useGridContextMenu(mockColumnsMeta, mockRows, mockTable));
 
       act(() => {
@@ -268,7 +314,47 @@ describe('useGridContextMenu', () => {
       copyItem?.action();
 
       expect(mockCopyToClipboard).toHaveBeenCalledWith(
-        "name\nAlice\nBob's",
+        "| name |\n| --- |\n| Alice |\n| Bob's |",
+        '列データをコピーしました'
+      );
+    });
+
+    it('列値をコピー（ヘッダー付き）がパイプ文字をエスケープする', () => {
+      const piped: GridRow[] = [
+        { original: { __rowIndex: '1', __originalIndex: '0', name: 'a|b' } },
+      ];
+      const pipedCols: ColumnMeta[] = [{ name: 'name', comment: '', type: 'varchar' }];
+      const { result } = renderHook(() => useGridContextMenu(pipedCols, piped, mockTable));
+
+      act(() => {
+        result.current.openHeaderMenu(createMockEvent(), 'name');
+      });
+
+      const items = result.current.getMenuItems();
+      items.find((i) => i.label === '列値をコピー（ヘッダー付き）')?.action();
+
+      expect(mockCopyToClipboard).toHaveBeenCalledWith(
+        '| name |\n| --- |\n| a\\|b |',
+        '列データをコピーしました'
+      );
+    });
+
+    it('列値をコピー（ヘッダー付き）が改行を <br> にエスケープする', () => {
+      const rowsWithNewline: GridRow[] = [
+        { original: { __rowIndex: '1', __originalIndex: '0', name: 'a\nb' } },
+      ];
+      const cols: ColumnMeta[] = [{ name: 'name', comment: '', type: 'varchar' }];
+      const { result } = renderHook(() => useGridContextMenu(cols, rowsWithNewline, mockTable));
+
+      act(() => {
+        result.current.openHeaderMenu(createMockEvent(), 'name');
+      });
+
+      const items = result.current.getMenuItems();
+      items.find((i) => i.label === '列値をコピー（ヘッダー付き）')?.action();
+
+      expect(mockCopyToClipboard).toHaveBeenCalledWith(
+        '| name |\n| --- |\n| a<br>b |',
         '列データをコピーしました'
       );
     });

@@ -47,6 +47,23 @@ export function buildInsertSql(
   return `INSERT INTO ${target} (${columnNames.join(', ')}) VALUES (${values.join(', ')});`;
 }
 
+const MARKDOWN_SEPARATOR_CELL = '---';
+
+function escapeMarkdownCell(value: string): string {
+  return value.replace(/\|/g, '\\|').replace(/\r?\n/g, '<br>');
+}
+
+/** Markdown テーブル生成 (純粋関数、単体テスト可能) */
+export function buildMarkdownTable(
+  headers: readonly string[],
+  rows: readonly (readonly string[])[]
+): string {
+  const headerLine = `| ${headers.map(escapeMarkdownCell).join(' | ')} |`;
+  const separatorLine = `| ${headers.map(() => MARKDOWN_SEPARATOR_CELL).join(' | ')} |`;
+  const dataLines = rows.map((r) => `| ${r.map(escapeMarkdownCell).join(' | ')} |`);
+  return [headerLine, separatorLine, ...dataLines].join('\n');
+}
+
 type ContextMenuState =
   | { x: number; y: number; type: 'header'; columnId: string }
   | { x: number; y: number; type: 'cell'; columnId: string; rowIndex: number };
@@ -139,7 +156,11 @@ export function useGridContextMenu(
             const v = r.original[contextMenu.columnId];
             return v === null || v === undefined ? 'NULL' : String(v);
           });
-          copyToClipboard([header, ...colData].join('\n'), '列データをコピーしました');
+          const md = buildMarkdownTable(
+            [header],
+            colData.map((v) => [v])
+          );
+          copyToClipboard(md, '列データをコピーしました');
         },
       });
 
@@ -192,10 +213,7 @@ export function useGridContextMenu(
             const v = row?.original[c.name];
             return v === null || v === undefined ? 'NULL' : String(v);
           });
-          copyToClipboard(
-            [headerRow.join('\t'), dataRow.join('\t')].join('\n'),
-            '行をコピーしました'
-          );
+          copyToClipboard(buildMarkdownTable(headerRow, [dataRow]), '行をコピーしました');
         },
       },
       { label: '', action: () => {}, separator: true },
