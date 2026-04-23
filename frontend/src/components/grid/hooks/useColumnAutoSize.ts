@@ -45,11 +45,27 @@ interface ColumnSizeConfig {
   padding: number;
 }
 
+// CSS .th / .td の左右 padding 合計 (ResultGrid.module.css: padding: Npx 12px → 12*2=24)
+// + sort indicator (▲▼) ぶん 8px の安全マージン
+const CELL_HORIZONTAL_PADDING = 32;
+
 function getColumnConfig(columnType: string | undefined): ColumnSizeConfig {
-  if (!columnType) return { minWidth: 50, maxWidth: 250, padding: 8 };
-  if (isNumericType(columnType)) return { minWidth: 36, maxWidth: 120, padding: 4 };
-  if (isDateType(columnType)) return { minWidth: 60, maxWidth: 180, padding: 4 };
-  return { minWidth: 50, maxWidth: 300, padding: 8 };
+  // numeric/date は文字数が爆発しないため上限撤廃 (実コンテンツ幅を尊重)。
+  // string/不明型は TEXT/JSON 等で異常に広くなり得るため上限維持。
+  if (!columnType) return { minWidth: 50, maxWidth: 300, padding: CELL_HORIZONTAL_PADDING };
+  if (isNumericType(columnType))
+    return {
+      minWidth: 36,
+      maxWidth: Number.POSITIVE_INFINITY,
+      padding: CELL_HORIZONTAL_PADDING,
+    };
+  if (isDateType(columnType))
+    return {
+      minWidth: 60,
+      maxWidth: Number.POSITIVE_INFINITY,
+      padding: CELL_HORIZONTAL_PADDING,
+    };
+  return { minWidth: 50, maxWidth: 300, padding: CELL_HORIZONTAL_PADDING };
 }
 
 function finalizeColumnWidth(
@@ -61,8 +77,13 @@ function finalizeColumnWidth(
   return Math.min(config.maxWidth, Math.max(config.minWidth, contentWidth));
 }
 
-const FONT = '13px monospace';
-const HEADER_FONT = '600 13px system-ui, sans-serif';
+// measureText font は実描画 CSS (`.table { font-size: 14px; font-family: var(--font-mono) }`) と
+// 一致させる必要がある。乖離すると monospace fallback (Courier New) で計算され Consolas 実描画と
+// 幅が合わず、DATE/NVARCHAR 列で文字切れが起きる (4/23 実機確認)。var() は Canvas では解釈
+// されないため --font-mono の stack を直接展開。
+const MONO_STACK = 'Consolas, Monaco, "Cascadia Code", "Source Code Pro", monospace';
+const FONT = `14px ${MONO_STACK}`;
+const HEADER_FONT = `600 14px ${MONO_STACK}`;
 const ROW_INDEX_CONFIG: ColumnSizeConfig = { minWidth: 32, maxWidth: 60, padding: 4 };
 
 // Issue #387: 原則は全行計測だが、超大規模データでメインスレッド長時間ブロックを避けるため
@@ -145,21 +166,47 @@ async function measureColumnWidthAsync(
   return finalizeColumnWidth(headerWidth, contentMaxWidth, config);
 }
 
+// 全列を行 chunk でまとめて計測する (列ごとに独立 chunk yield するより yield 回数が激減)。
+// WebView2 の background/throttled setTimeout 下で列数 N に比例する yield 数 (N × ceil(rows/CHUNK))
+// が完了不能になる事象を回避するため、列数に依存しない O(rows/CHUNK) に固定する。
 async function calculateColumnSizingAsync(
   columns: ColumnDef<RowData>[],
   rowData: RowData[],
   resultSet: ResultSet,
   shouldAbort: () => boolean
 ): Promise<Record<string, number> | null> {
-  const sizing: Record<string, number> = {};
+  const limit = Math.min(rowData.length, SYNC_FULL_LIMIT);
+
+  const columnIds: string[] = [];
+  const configs: ColumnSizeConfig[] = [];
+  const headerWidths: number[] = [];
+  const maxContentWidths: number[] = [];
   for (const col of columns) {
-    if (shouldAbort()) return null;
     const columnId = String(col.id);
-    const config = resolveColumnConfig(columnId, resultSet);
-    const headerText = String(col.header || '');
-    const width = await measureColumnWidthAsync(columnId, headerText, rowData, config, shouldAbort);
-    if (width === null) return null;
-    sizing[columnId] = width;
+    columnIds.push(columnId);
+    configs.push(resolveColumnConfig(columnId, resultSet));
+    headerWidths.push(measureTextWidth(String(col.header || ''), HEADER_FONT));
+    maxContentWidths.push(0);
+  }
+
+  for (let start = 0; start < limit; start += ASYNC_CHUNK_ROWS) {
+    const end = Math.min(start + ASYNC_CHUNK_ROWS, limit);
+    for (let i = start; i < end; i++) {
+      const row = rowData[i];
+      for (let c = 0; c < columnIds.length; c++) {
+        const value = row[columnIds[c]];
+        const text = value === null ? 'NULL' : String(value);
+        const width = measureTextWidth(text, FONT);
+        if (width > maxContentWidths[c]) maxContentWidths[c] = width;
+      }
+    }
+    await yieldToMain();
+    if (shouldAbort()) return null;
+  }
+
+  const sizing: Record<string, number> = {};
+  for (let c = 0; c < columnIds.length; c++) {
+    sizing[columnIds[c]] = finalizeColumnWidth(headerWidths[c], maxContentWidths[c], configs[c]);
   }
   return sizing;
 }
@@ -184,17 +231,30 @@ export function useColumnAutoSize({
   rowDataRef.current = rowData;
   resultSetRef.current = resultSet;
 
-  // cancellation token: 計測中に columnsKey 変化 / 再 trigger で古い結果を破棄する
-  const measurementIdRef = useRef(0);
-  const beginMeasurement = useCallback(() => {
-    const myId = ++measurementIdRef.current;
-    return () => measurementIdRef.current !== myId;
+  // cancellation token は「全列計測」「単列計測 (列ごと)」を独立 axis として分離する。
+  // 共用にすると実機で toolbar 全列 trigger と ContextMenu 単列 trigger が相互に abort し合い、
+  // 全列の setColumnSizing が永遠に呼ばれない事象が発生する (fix/drag-lag-probe 実機ログ)。
+  const fullMeasurementIdRef = useRef(0);
+  const perColMeasurementIdsRef = useRef<Record<string, number>>({});
+
+  const beginFullMeasurement = useCallback(() => {
+    const myId = ++fullMeasurementIdRef.current;
+    return () => fullMeasurementIdRef.current !== myId;
+  }, []);
+
+  const beginPerColMeasurement = useCallback((columnId: string) => {
+    const ids = perColMeasurementIdsRef.current;
+    const myId = (ids[columnId] ?? 0) + 1;
+    ids[columnId] = myId;
+    return () => perColMeasurementIdsRef.current[columnId] !== myId;
   }, []);
 
   // unmount 時に進行中の async 計測を無効化する (古い結果による setState を防ぐ)
   useEffect(() => {
     return () => {
-      measurementIdRef.current++;
+      fullMeasurementIdRef.current++;
+      const ids = perColMeasurementIdsRef.current;
+      for (const key of Object.keys(ids)) ids[key]++;
     };
   }, []);
 
@@ -206,7 +266,7 @@ export function useColumnAutoSize({
         setColumnSizing(newSizing);
         return;
       }
-      const shouldAbort = beginMeasurement();
+      const shouldAbort = beginFullMeasurement();
       calculateColumnSizingAsync(columnsRef.current, rows, rs, shouldAbort)
         .then((sizing) => {
           if (sizing && !shouldAbort()) setColumnSizing(sizing);
@@ -215,7 +275,7 @@ export function useColumnAutoSize({
           log.error(`[useColumnAutoSize] async measurement failed: ${String(err)}`);
         });
     },
-    [beginMeasurement]
+    [beginFullMeasurement]
   );
 
   // 初回適用 (columnsKey 変化時のみ): 小規模は paint 前に反映 (#368)、
@@ -236,7 +296,6 @@ export function useColumnAutoSize({
     // 手動トリガー結果が次の columnsKey 変化時に上書きされないよう記録
     appliedKeyRef.current = getColumnsKey(rs);
     runFullMeasurement(rs);
-    log.debug('[useColumnAutoSize] Manual trigger: all columns');
   }, [runFullMeasurement]);
 
   const triggerAutoSizeForColumn = useCallback(
@@ -253,21 +312,19 @@ export function useColumnAutoSize({
       if (rows.length <= SYNC_THRESHOLD) {
         const width = measureColumnWidth(columnId, headerText, rows, config);
         setColumnSizing((prev) => ({ ...prev, [columnId]: width }));
-        log.debug(`[useColumnAutoSize] Manual trigger: ${columnId} = ${width}px`);
         return;
       }
-      const shouldAbort = beginMeasurement();
+      const shouldAbort = beginPerColMeasurement(columnId);
       measureColumnWidthAsync(columnId, headerText, rows, config, shouldAbort)
         .then((width) => {
           if (width === null || shouldAbort()) return;
           setColumnSizing((prev) => ({ ...prev, [columnId]: width }));
-          log.debug(`[useColumnAutoSize] Manual trigger: ${columnId} = ${width}px`);
         })
         .catch((err: unknown) => {
           log.error(`[useColumnAutoSize] async measurement failed for ${columnId}: ${String(err)}`);
         });
     },
-    [beginMeasurement]
+    [beginPerColMeasurement]
   );
 
   return { columnSizing, setColumnSizing, triggerAutoSize, triggerAutoSizeForColumn };

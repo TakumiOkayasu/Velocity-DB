@@ -19,7 +19,7 @@ vi.mock('../../hooks/useKeyboardHandler', () => ({
 }));
 
 vi.mock('../../utils/logger', () => ({
-  log: { debug: vi.fn() },
+  log: { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn() },
 }));
 
 // --- Test data ---

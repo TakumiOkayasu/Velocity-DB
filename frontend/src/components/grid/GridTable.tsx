@@ -56,6 +56,11 @@ interface GridTableProps {
   edit: GridEditContext;
   selection: GridSelectionState;
   callbacks: GridTableCallbacks;
+  /**
+   * 列幅 state。`table` 参照は state 変化でも同一 (TanStack 仕様) のため、
+   * memo の浅い比較で列幅変化を検出するには明示的に props として受け取る必要がある。
+   */
+  columnSizing: Record<string, number>;
   /** Table name embedded in INSERT copy (sourceTable for data-view tabs, undefined for arbitrary SQL) */
   tableName?: string;
   /** Scroll 位置保存のためのハンドラ (ResultGrid 側で store 更新) */
@@ -95,6 +100,8 @@ function GridTableInner({
   onScroll,
   onAutoSizeColumn,
   onAutoSizeColumns,
+  // memo の浅い比較で列幅変化を検出するために受け取るだけ。値自体は table.getState() 経由で参照される。
+  columnSizing: _columnSizing,
 }: GridTableProps) {
   const paddingTop = virtualRows.length > 0 ? (virtualRows[0]?.start ?? 0) : 0;
   const paddingBottom =
@@ -191,7 +198,12 @@ function GridTableInner({
                     {header.column.getCanResize() && (
                       <ColumnResizer
                         columnId={header.column.id}
-                        onResizeStart={header.getResizeHandler()}
+                        currentWidth={header.getSize()}
+                        minWidth={header.column.columnDef.minSize}
+                        maxWidth={header.column.columnDef.maxSize}
+                        onResizeCommit={(id, w) =>
+                          table.setColumnSizing((prev) => ({ ...prev, [id]: w }))
+                        }
                         onAutoSizeColumn={onAutoSizeColumn}
                       />
                     )}
