@@ -369,6 +369,9 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     enableRowSelection: true,
+    // 自前 resize 実装 (ColumnResizer 内 overlay indicator) のため TanStack 内蔵 resize は無効化。
+    // `header.column.getCanResize()` 判定維持のため `enableColumnResizing: true`、
+    // ただし columnResizeMode は drag 中の TanStack 内 state 更新を抑止するため未指定 (default 'onEnd')。
     enableColumnResizing: true,
     enableSorting: true,
     enableColumnFilters: true,
@@ -763,6 +766,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
           onScroll={handleScroll}
           onAutoSizeColumn={triggerAutoSizeForColumn}
           onAutoSizeColumns={triggerAutoSize}
+          columnSizing={columnSizing}
         />
       ) : (
         <TransposeView

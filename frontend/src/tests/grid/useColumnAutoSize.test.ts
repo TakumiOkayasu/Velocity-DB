@@ -338,6 +338,45 @@ describe('useColumnAutoSize', () => {
       expect(result.current.columnSizing.a).toBeGreaterThan(200);
     });
 
+    // 実機 (fix/drag-lag-probe, 4/23 実機ログ) で発覚したリグレッション:
+    // toolbar ボタン経由の全列 triggerAutoSize が async 進行中、ContextMenu 単列 trigger
+    // (triggerAutoSizeForColumn) を呼ぶと、両者で共用する measurementIdRef が +1 され
+    // 全列 async が shouldAbort() で中断、全列の setColumnSizing が永遠に呼ばれなかった。
+    // 全列と単列は独立 axis のため互いに kill してはならない。
+    it('全列 triggerAutoSize 進行中に triggerAutoSizeForColumn を呼んでも全列結果が反映される', async () => {
+      const cols = [
+        { name: 'a', type: 'varchar' },
+        { name: 'b', type: 'varchar' },
+      ];
+      const columns = makeColumns(['a', 'b']);
+      const rows: string[][] = [];
+      for (let i = 0; i < ASYNC_ROW_COUNT; i++) {
+        // 最終行だけ長い値を持たせる (全列 async が最後まで走らないと拾われない)
+        rows.push(i === ASYNC_ROW_COUNT - 1 ? ['A'.repeat(30), 'B'.repeat(30)] : ['x', 'y']);
+      }
+      const resultSet = makeResultSet(cols, rows);
+      const rowData = makeRowData(['a', 'b'], rows);
+
+      const { result } = renderHook(() => useColumnAutoSize({ resultSet, columns, rowData }));
+
+      // 初回 useLayoutEffect の全列 async 計測が進行中の状態で、単列 trigger を割り込ませる。
+      // 不具合再現時: 単列 trigger が全列 token を +1 → 全列 async 中断 →
+      //   columnSizing.b は永遠に未設定のまま (abort された全列結果の setState が skip されるため)。
+      // 修正後: 全列 token と単列 token が分離 → 全列は自然に完走、単列は a だけ更新。
+      act(() => {
+        result.current.triggerAutoSizeForColumn('a');
+      });
+
+      // 全列計測の完走を待つ = b 列が長文 'B'.repeat(30) で計測され 200px 超になること
+      await waitFor(
+        () => {
+          expect(result.current.columnSizing.b).toBeGreaterThan(200);
+        },
+        { timeout: 3000 }
+      );
+      expect(result.current.columnSizing.a).toBeGreaterThan(200);
+    });
+
     // Issue #387: 超大規模データで SYNC_FULL_LIMIT (20000 行) 超過分は計測対象外とする。
     // この上限が撤廃されるとメインスレッドが長時間ブロックされる回帰となるため
     // 先頭 20000 行で clamping される既存動作を特性テストとして固定する。
@@ -363,6 +402,73 @@ describe('useColumnAutoSize', () => {
       // limit 超過行が拾われる実装に退行すると maxWidth 300 にクランプされる。
       // 現仕様では 'x' だけが対象 = padding 込 15.8 → minWidth 50 にクランプ。
       expect(result.current.columnSizing.a).toBe(50);
+    });
+  });
+
+  // CSS .th/.td の左右 padding (12*2=24) + sort indicator (▲▼) 分 8 の合計 32 を
+  // CELL_HORIZONTAL_PADDING として定数化した経緯 (ResultGrid.module.css 準拠)。
+  // また numeric は桁で幅爆発せず、date は ISO8601 系で概ね固定長のため実幅尊重
+  // (maxWidth=∞)、varchar/不明型は TEXT/JSON で暴発し得るため 300 の上限を維持する。
+  describe('getColumnConfig (型別 minWidth/maxWidth/padding)', () => {
+    it('varchar: width = max(header, content) + CELL_HORIZONTAL_PADDING(32)', () => {
+      // header/content とも 4 文字: 4 × 14 × 0.6 = 33.6px, + padding 32 = 65.6。
+      // FONT は `14px ${MONO_STACK}` (ResultGrid.module.css .table の font-size: 14px と一致)。
+      // setup.ts mock: width = text.length * fontSize * 0.6 で 14px 時 33.6 を返す。
+      // varchar [50, 300] の範囲内で clamp されないため padding 値が直接観測できる。
+      // padding を 8 等に戻すと 33.6+8=41.6 が minWidth 50 に clamp され値が 50 になり検出。
+      const cols = [{ name: 'abcd', type: 'varchar' }];
+      const columns = makeColumns(['abcd']);
+      const rows = [['abcd']];
+      const resultSet = makeResultSet(cols, rows);
+      const rowData = makeRowData(['abcd'], rows);
+
+      const { result } = renderHook(() => useColumnAutoSize({ resultSet, columns, rowData }));
+
+      expect(result.current.columnSizing.abcd).toBeCloseTo(33.6 + 32, 5);
+    });
+
+    it('numeric 列は maxWidth=Infinity で長い数値コンテンツがクランプされない', () => {
+      // 200 桁 → 200 × 7.8 + 32 = 1592px。maxWidth=120 等に退行すると 120 に clamp され検出。
+      const longNumber = '9'.repeat(200);
+      const cols = [{ name: 'n', type: 'bigint' }];
+      const columns = makeColumns(['n']);
+      const rows = [[longNumber]];
+      const resultSet = makeResultSet(cols, rows);
+      const rowData = makeRowData(['n'], rows);
+
+      const { result } = renderHook(() => useColumnAutoSize({ resultSet, columns, rowData }));
+
+      // maxWidth 退行検出: 明らかに旧 120 を超える値が通ることを確認。
+      expect(result.current.columnSizing.n).toBeGreaterThan(500);
+    });
+
+    it('date 列は maxWidth=Infinity で長いコンテンツがクランプされない', () => {
+      // 100 文字 → 100 × 7.8 + 32 = 812px。maxWidth=180 等に退行すると 180 に clamp され検出。
+      const longDate = 'A'.repeat(100);
+      const cols = [{ name: 'd', type: 'datetime' }];
+      const columns = makeColumns(['d']);
+      const rows = [[longDate]];
+      const resultSet = makeResultSet(cols, rows);
+      const rowData = makeRowData(['d'], rows);
+
+      const { result } = renderHook(() => useColumnAutoSize({ resultSet, columns, rowData }));
+
+      expect(result.current.columnSizing.d).toBeGreaterThan(500);
+    });
+
+    it('varchar/不明型は maxWidth=300 で上限 clamp を維持 (TEXT/JSON 暴発防止)', () => {
+      // 100 文字 → 812px だが varchar は上限 300 に clamp。
+      // maxWidth を ∞ に変更する退行が起きると 812 が通ってしまう。
+      const longText = 'A'.repeat(100);
+      const cols = [{ name: 's', type: 'varchar' }];
+      const columns = makeColumns(['s']);
+      const rows = [[longText]];
+      const resultSet = makeResultSet(cols, rows);
+      const rowData = makeRowData(['s'], rows);
+
+      const { result } = renderHook(() => useColumnAutoSize({ resultSet, columns, rowData }));
+
+      expect(result.current.columnSizing.s).toBe(300);
     });
   });
 });
