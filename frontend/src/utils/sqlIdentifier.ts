@@ -49,12 +49,28 @@ export function buildRenameColumnSql(
   }
 }
 
-/** SELECT * FROM schema.table SQL生成 */
-export function buildSelectSql(displayName: string, dbType?: DatabaseType): string {
+/** "schema.table" または "table" を DB別クォートして返す */
+function qualifyDisplayName(displayName: string, dbType?: DatabaseType): string {
   const q = (n: string) => quoteIdentifier(n, dbType);
   const parts = displayName.split('.');
-  const tableName = parts.length >= 2 ? `${q(parts[0])}.${q(parts[1])}` : q(parts[0]);
-  return `SELECT * FROM ${tableName}`;
+  return parts.length >= 2 ? `${q(parts[0])}.${q(parts[1])}` : q(parts[0]);
+}
+
+/** SELECT * FROM schema.table SQL生成 */
+export function buildSelectSql(displayName: string, dbType?: DatabaseType): string {
+  return `SELECT * FROM ${qualifyDisplayName(displayName, dbType)}`;
+}
+
+/** INSERT INTO schema.table (cols...) VALUES (?, ?, ...); テンプレート生成 */
+export function buildInsertTemplateSql(
+  displayName: string,
+  columnNames: readonly string[],
+  dbType?: DatabaseType
+): string {
+  const q = (n: string) => quoteIdentifier(n, dbType);
+  const cols = columnNames.map((c) => q(c)).join(', ');
+  const placeholders = columnNames.map(() => '?').join(', ');
+  return `INSERT INTO ${qualifyDisplayName(displayName, dbType)} (${cols}) VALUES (${placeholders});`;
 }
 
 /** ALTER TABLE ... DROP COLUMN SQL生成 */

@@ -41,3 +41,8 @@ export function shouldLoadColumns(
 ): node is DatabaseObject & { type: 'table' | 'view' } {
   return isExpandableType(node.type) && (!node.children || node.children.length === 0);
 }
+
+/** "schema.table" または "table" から裸のテーブル名部分を抽出 */
+export function extractBareTableName(displayName: string): string {
+  return displayName.includes('.') ? displayName.split('.')[1] : displayName;
+}
