@@ -50,7 +50,7 @@ export function buildInsertSql(
 const MARKDOWN_SEPARATOR_CELL = '---';
 
 function escapeMarkdownCell(value: string): string {
-  return value.replace(/\|/g, '\\|').replace(/\r?\n/g, '<br>');
+  return value.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r?\n/g, '<br>');
 }
 
 /** Markdown テーブル生成 (純粋関数、単体テスト可能) */
