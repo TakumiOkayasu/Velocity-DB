@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { bridge } from '../../api/bridge';
 import { useColumnActions } from '../../hooks/useColumnActions';
+import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
 import { useTableActions } from '../../hooks/useTableActions';
 import { useConnectionStore } from '../../store/connectionStore';
+import { useToastStore } from '../../store/toastStore';
 import type { Connection, DatabaseObject, MenuItem } from '../../types';
 import { connectionColor } from '../../utils/colorContrast';
 import { log } from '../../utils/logger';
-import { buildSelectSql } from '../../utils/sqlIdentifier';
+import { buildInsertTemplateSql, buildSelectSql } from '../../utils/sqlIdentifier';
 import {
   type ExpandableType,
+  extractBareTableName,
   isExpandableType,
   parseTableNodeId,
   shouldLoadColumns,
@@ -162,6 +165,8 @@ export function ConnectionTreeSection({
     setTreeData,
   });
 
+  const copyToClipboard = useCopyToClipboard();
+
   // Build tree when connection changes
   useEffect(() => {
     let isCancelled = false;
@@ -314,6 +319,30 @@ export function ConnectionTreeSection({
           },
         });
 
+        // INSERT文をコピー (table のみ、view 除外)
+        if (node.type === 'table') {
+          items.push({
+            label: 'INSERT文をコピー',
+            action: async () => {
+              try {
+                const columns = await bridge.getColumns(
+                  connection.id,
+                  extractBareTableName(node.name)
+                );
+                const sql = buildInsertTemplateSql(
+                  node.name,
+                  columns.map((c) => c.name),
+                  connection.dbType
+                );
+                await copyToClipboard(sql, 'INSERT文をコピーしました');
+              } catch (error) {
+                log.error(`Failed to build INSERT template: ${error}`);
+                useToastStore.getState().addToast('INSERT文の生成に失敗しました', 'error');
+              }
+            },
+          });
+        }
+
         // テーブルを開く
         items.push({
           label: 'データを開く',
@@ -330,9 +359,11 @@ export function ConnectionTreeSection({
         items.push({
           label: 'カラム一覧をコピー',
           action: async () => {
-            const tableName = node.name.includes('.') ? node.name.split('.')[1] : node.name;
             try {
-              const columns = await bridge.getColumns(connection.id, tableName);
+              const columns = await bridge.getColumns(
+                connection.id,
+                extractBareTableName(node.name)
+              );
               const columnList = columns.map((c) => c.name).join(', ');
               await navigator.clipboard.writeText(columnList);
             } catch (error) {
@@ -395,6 +426,7 @@ export function ConnectionTreeSection({
       loadTables,
       getColumnMenuItems,
       getTableMenuItems,
+      copyToClipboard,
     ]
   );
 
