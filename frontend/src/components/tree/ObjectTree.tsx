@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { bridge } from '../../api/bridge';
 import { applyConnectionMigration } from '../../store/connectionMigration';
@@ -10,8 +10,8 @@ import {
   type SavedConnectionProfile,
 } from '../../types';
 import type { ExpandableType } from '../../utils/treeNode';
-import { ConnectionTreeSection } from './ConnectionTreeSection';
 import styles from './ObjectTree.module.css';
+import { ProfileNode } from './ProfileNode';
 
 type RawProfile = Awaited<ReturnType<typeof bridge.getConnectionProfiles>>['profiles'][number];
 
@@ -77,13 +77,15 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
     fetchProfiles();
   }, [profileVersion]);
 
-  // Get active connections
-  const activeConnections = connections.filter((c) => c.isActive);
-
-  // Get disconnected profiles (not currently connected)
-  const disconnectedProfiles = profiles.filter(
-    (profile) => !connections.some((c) => c.name === profile.name)
-  );
+  // Lookup map: profile.name → active Connection. Profile order is the source of truth;
+  // connection state only changes how each row is rendered, never its position.
+  const connectionByName = useMemo(() => {
+    const map = new Map<string, (typeof connections)[number]>();
+    for (const c of connections) {
+      if (c.isActive) map.set(c.name, c);
+    }
+    return map;
+  }, [connections]);
 
   const handleProfileClick = useCallback((profile: SavedConnectionProfile) => {
     setConfirmingProfile(profile);
@@ -159,34 +161,18 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
 
   return (
     <div className={styles.container}>
-      {/* Connected databases */}
-      {activeConnections.map((connection) => (
-        <ConnectionTreeSection
-          key={connection.id}
-          connection={connection}
+      {profiles.map((profile) => (
+        <ProfileNode
+          key={profile.id}
+          profile={profile}
+          connection={connectionByName.get(profile.name)}
           filter={filter}
           onTableOpen={onTableOpen}
+          onProfileClick={handleProfileClick}
         />
       ))}
 
-      {/* Disconnected profiles */}
-      {disconnectedProfiles.map((profile) => (
-        <div
-          key={profile.id}
-          className={`${styles.profileItem} ${profile.isProduction ? styles.production : ''}`}
-          onClick={() => handleProfileClick(profile)}
-          title={`Click to connect to ${profile.name}`}
-        >
-          <span className={styles.profileIcon}>🗄</span>
-          <span className={styles.profileName}>{profile.name}</span>
-          <span className={styles.profileStatus}>未接続</span>
-        </div>
-      ))}
-
-      {/* No connections message */}
-      {activeConnections.length === 0 && disconnectedProfiles.length === 0 && (
-        <div className={styles.noConnection}>接続なし</div>
-      )}
+      {profiles.length === 0 && <div className={styles.noConnection}>接続なし</div>}
 
       {/* Connection confirmation dialog */}
       {confirmingProfile && (
