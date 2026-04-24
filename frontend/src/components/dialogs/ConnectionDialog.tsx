@@ -42,6 +42,7 @@ export interface ConnectionConfig {
   isReadOnly: boolean;
   environment: EnvironmentType;
   dbType: DatabaseType;
+  folderPath: string;
   ssh: SshConfig;
 }
 

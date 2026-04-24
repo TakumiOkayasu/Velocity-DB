@@ -35,6 +35,7 @@ const DEFAULT_CONFIG: ConnectionConfig = {
   isReadOnly: false,
   environment: 'development',
   dbType: 'sqlserver',
+  folderPath: '',
   ssh: { ...DEFAULT_SSH_CONFIG },
 };
 
@@ -110,6 +111,7 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
       isReadOnly: profile.isReadOnly,
       environment: inferEnvironment(profile),
       dbType: profile.dbType ?? 'sqlserver',
+      folderPath: profile.folderPath ?? '',
       ssh: profile.ssh
         ? {
             enabled: profile.ssh.enabled,
@@ -167,6 +169,7 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
               ? 'production'
               : 'development',
           dbType: isDatabaseType(p.dbType ?? '') ? p.dbType : 'sqlserver',
+          folderPath: p.folderPath ?? '',
           ssh: p.ssh
             ? {
                 enabled: p.ssh.enabled ?? false,
@@ -219,6 +222,7 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
               environment:
                 profile.environment ?? (profile.isProduction ? 'production' : 'development'),
               dbType: profile.dbType ?? 'sqlserver',
+              folderPath: profile.folderPath ?? '',
               ssh: profile.ssh
                 ? {
                     enabled: profile.ssh.enabled,
@@ -259,6 +263,7 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
   const handleSaveProfile = useCallback(async () => {
     const isNewProfile = mode === 'new';
     const currentEditingId = editingProfileId;
+    const folderPath = config.folderPath.trim();
 
     try {
       const result = await bridge.saveConnectionProfile({
@@ -275,6 +280,7 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
         isReadOnly: config.isReadOnly,
         environment: config.environment,
         dbType: config.dbType,
+        folderPath,
         ssh: config.ssh.enabled
           ? {
               enabled: true,
@@ -304,6 +310,7 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
         isReadOnly: config.isReadOnly,
         environment: config.environment,
         dbType: config.dbType,
+        folderPath,
         ssh: config.ssh.enabled
           ? {
               enabled: true,

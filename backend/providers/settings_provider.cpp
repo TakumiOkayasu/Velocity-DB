@@ -38,6 +38,9 @@ struct SshConfigResponse {
     bool savePassword = false;
 };
 
+// Non-owning view of a ConnectionProfile for JSON serialization.
+// All std::string_view members point into the source ConnectionProfile;
+// that source must outlive this response until JSON serialization completes.
 struct ConnectionProfileResponse {
     std::string_view id;
     std::string_view name;
@@ -51,6 +54,7 @@ struct ConnectionProfileResponse {
     bool isReadOnly = false;
     std::string_view environment;
     std::string_view dbType;
+    std::string_view folderPath;
     SshConfigResponse ssh;
 };
 
@@ -82,6 +86,7 @@ struct SessionStateResponse {
         .isReadOnly = p.isReadOnly,
         .environment = p.environment,
         .dbType = p.dbType,
+        .folderPath = p.folderPath,
         .ssh =
             {
                 .enabled = p.ssh.enabled,
@@ -129,9 +134,9 @@ struct glz::meta<velocitydb::dto::SshConfigResponse> {
 template <>
 struct glz::meta<velocitydb::dto::ConnectionProfileResponse> {
     using T = velocitydb::dto::ConnectionProfileResponse;
-    static constexpr auto value =
-        glz::object("id", &T::id, "name", &T::name, "server", &T::server, "port", &T::port, "database", &T::database, "username", &T::username, "useWindowsAuth", &T::useWindowsAuth, "savePassword",
-                    &T::savePassword, "isProduction", &T::isProduction, "isReadOnly", &T::isReadOnly, "environment", &T::environment, "dbType", &T::dbType, "ssh", &T::ssh);
+    static constexpr auto value = glz::object("id", &T::id, "name", &T::name, "server", &T::server, "port", &T::port, "database", &T::database, "username", &T::username, "useWindowsAuth",
+                                              &T::useWindowsAuth, "savePassword", &T::savePassword, "isProduction", &T::isProduction, "isReadOnly", &T::isReadOnly, "environment", &T::environment,
+                                              "dbType", &T::dbType, "folderPath", &T::folderPath, "ssh", &T::ssh);
 };
 
 template <>
@@ -288,6 +293,8 @@ std::string SettingsProvider::saveConnectionProfile(std::string_view params) {
             profile.environment = std::string(val.value());
         if (auto val = doc["dbType"].get_string(); !val.error())
             profile.dbType = std::string(val.value());
+        if (auto val = doc["folderPath"].get_string(); !val.error())
+            profile.folderPath = std::string(val.value());
 
         if (auto ssh = doc["ssh"]; !ssh.error()) {
             if (auto val = ssh["enabled"].get_bool(); !val.error())

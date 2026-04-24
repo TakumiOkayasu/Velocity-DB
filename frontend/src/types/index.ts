@@ -56,6 +56,7 @@ export interface SavedConnectionProfile {
   isReadOnly: boolean;
   environment?: EnvironmentType;
   dbType?: DatabaseType;
+  folderPath?: string;
   ssh?: SavedSshConfig;
 }
 
