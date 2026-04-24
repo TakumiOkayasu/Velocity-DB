@@ -61,8 +61,9 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
     setSettings(defaultSettings);
   }, []);
 
+  // version (primitive) は updateSetting 対象外。スプレッド不可のため型から除外。
   const updateSetting = useCallback(
-    <K extends keyof AppSettings>(
+    <K extends Exclude<keyof AppSettings, 'version'>>(
       category: K,
       key: keyof AppSettings[K],
       value: AppSettings[K][keyof AppSettings[K]]

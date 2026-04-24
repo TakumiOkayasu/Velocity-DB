@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 
 const mockSettings = {
+  version: 1,
   editor: { fontSize: 14, tabSize: 4, wordWrap: true, minimap: false },
   query: { autoCommit: true, timeout: 300000, maxRows: 10000 },
   appearance: { theme: 'dark' as const },
