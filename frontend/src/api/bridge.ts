@@ -655,6 +655,7 @@ class Bridge {
       isReadOnly?: boolean;
       environment?: 'development' | 'staging' | 'production';
       dbType?: 'sqlserver' | 'postgresql' | 'mysql';
+      folderPath?: string;
       ssh?: {
         enabled: boolean;
         host: string;
@@ -683,6 +684,7 @@ class Bridge {
     isReadOnly?: boolean;
     environment?: 'development' | 'staging' | 'production';
     dbType?: 'sqlserver' | 'postgresql' | 'mysql';
+    folderPath?: string;
     ssh?: {
       enabled: boolean;
       host: string;

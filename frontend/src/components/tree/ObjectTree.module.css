@@ -41,6 +41,58 @@
   font-size: 13px;
 }
 
+/* Folder node (groups profiles by folderPath) */
+.folderHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  color: var(--text-secondary, #bbbbbb);
+  font-size: 12px;
+  font-weight: 500;
+  background-color: var(--bg-secondary, #2b2b2b);
+  border-bottom: 1px solid var(--border-color, #3c3f41);
+  user-select: none;
+}
+
+.folderHeader:hover {
+  background: var(--bg-hover, #3c3f41);
+}
+
+.folderChevron {
+  font-size: 10px;
+  width: 12px;
+  flex-shrink: 0;
+  text-align: center;
+  transition: transform 0.15s ease;
+}
+
+.folderChevronExpanded {
+  transform: rotate(90deg);
+}
+
+.folderIcon {
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.folderName {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.folderCount {
+  font-size: 10px;
+  color: var(--text-disabled, #5a5d63);
+}
+
+.folderBody {
+  padding-left: 16px;
+}
+
 /* Profile items (disconnected) */
 .profileItem {
   display: flex;

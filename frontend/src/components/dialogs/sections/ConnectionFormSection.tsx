@@ -36,6 +36,16 @@ export function ConnectionFormSection({
         <input type="text" value={config.name} onChange={(e) => onChange('name', e.target.value)} />
       </div>
 
+      <div className={styles.formGroup}>
+        <label>フォルダ (任意)</label>
+        <input
+          type="text"
+          value={config.folderPath}
+          onChange={(e) => onChange('folderPath', e.target.value)}
+          placeholder="例: Work / Personal (空欄でルート)"
+        />
+      </div>
+
       <div className={styles.formRow}>
         <div className={styles.formGroup}>
           <label>サーバー</label>

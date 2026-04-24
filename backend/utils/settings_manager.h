@@ -40,6 +40,7 @@ struct ConnectionProfile {
     bool isReadOnly = false;                  // Read-only mode - prevents data modifications
     std::string environment = "development";  // development, staging, production
     std::string dbType = "sqlserver";         // sqlserver, postgresql, mysql
+    std::string folderPath;                   // Optional grouping folder. Empty = root. Flat (no nesting) in current UI.
     SshConfig ssh;                            // SSH tunnel configuration
 };
 

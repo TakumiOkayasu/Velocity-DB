@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { bridge } from '../../api/bridge';
 import { applyConnectionMigration } from '../../store/connectionMigration';
@@ -9,7 +9,10 @@ import {
   isSshAuthType,
   type SavedConnectionProfile,
 } from '../../types';
+import { groupProfilesByFolder, type ProfileGroup } from '../../utils/groupProfilesByFolder';
+import { pruneCollapsedFolders } from '../../utils/pruneCollapsedFolders';
 import type { ExpandableType } from '../../utils/treeNode';
+import { FolderNode } from './FolderNode';
 import styles from './ObjectTree.module.css';
 import { ProfileNode } from './ProfileNode';
 
@@ -33,6 +36,7 @@ function normalizeProfile(p: RawProfile): SavedConnectionProfile {
         ? 'production'
         : 'development',
     dbType: isDatabaseType(p.dbType ?? '') ? p.dbType : 'sqlserver',
+    folderPath: p.folderPath ?? '',
     ssh: p.ssh
       ? {
           enabled: p.ssh.enabled ?? false,
@@ -63,6 +67,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
   const [profiles, setProfiles] = useState<SavedConnectionProfile[]>([]);
   const [confirmingProfile, setConfirmingProfile] = useState<SavedConnectionProfile | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => new Set());
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: profileVersion is an intentional re-fetch trigger
   useEffect(() => {
@@ -87,9 +92,62 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
     return map;
   }, [connections]);
 
+  const profileGroups = useMemo(() => groupProfilesByFolder(profiles), [profiles]);
+
+  // Drop collapsed state for folders that no longer exist, so a recreated
+  // folder of the same name doesn't inherit a stale "closed" flag.
+  useEffect(() => {
+    const existing = new Set(profileGroups.map((g) => g.folderPath));
+    setCollapsedFolders((prev) => pruneCollapsedFolders(prev, existing) ?? prev);
+  }, [profileGroups]);
+
+  const toggleFolder = useCallback((folderPath: string) => {
+    setCollapsedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(folderPath)) {
+        next.delete(folderPath);
+      } else {
+        next.add(folderPath);
+      }
+      return next;
+    });
+  }, []);
+
   const handleProfileClick = useCallback((profile: SavedConnectionProfile) => {
     setConfirmingProfile(profile);
   }, []);
+
+  const renderGroup = useCallback(
+    (group: ProfileGroup) => {
+      const profileNodes = group.profiles.map((profile) => (
+        <ProfileNode
+          key={profile.id}
+          profile={profile}
+          connection={connectionByName.get(profile.name)}
+          filter={filter}
+          onTableOpen={onTableOpen}
+          onProfileClick={handleProfileClick}
+        />
+      ));
+
+      if (group.folderPath === '') {
+        return <Fragment key="root">{profileNodes}</Fragment>;
+      }
+
+      return (
+        <FolderNode
+          key={group.folderPath}
+          folderPath={group.folderPath}
+          expanded={!collapsedFolders.has(group.folderPath)}
+          profileCount={group.profiles.length}
+          onToggle={toggleFolder}
+        >
+          {profileNodes}
+        </FolderNode>
+      );
+    },
+    [connectionByName, filter, onTableOpen, handleProfileClick, collapsedFolders, toggleFolder]
+  );
 
   const handleConfirm = useCallback(async () => {
     if (!confirmingProfile) return;
@@ -161,16 +219,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
 
   return (
     <div className={styles.container}>
-      {profiles.map((profile) => (
-        <ProfileNode
-          key={profile.id}
-          profile={profile}
-          connection={connectionByName.get(profile.name)}
-          filter={filter}
-          onTableOpen={onTableOpen}
-          onProfileClick={handleProfileClick}
-        />
-      ))}
+      {profileGroups.map(renderGroup)}
 
       {profiles.length === 0 && <div className={styles.noConnection}>接続なし</div>}
 
