@@ -4,55 +4,16 @@ import { useQueries, useQueryActions, useQueryStore } from '../../store/querySto
 import type { Query } from '../../types';
 import { connectionColor } from '../../utils/colorContrast';
 import { stripBrackets } from '../../utils/stringUtils';
+import { TabIcons } from '../icons/SvgIcons';
 import { resolveNewQueryConnectionId } from '../layout/newQueryConnection';
 import styles from './EditorTabs.module.css';
 
-// SQL file icon
-const SqlIcon = (
-  <svg
-    className={styles.tabIcon}
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.2"
-    aria-hidden="true"
-  >
-    <path d="M9 1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V5L9 1z" />
-    <path d="M9 1v4h4" />
-  </svg>
-);
-
-// ER diagram icon
-const ERDiagramIcon = (
-  <svg
-    className={styles.tabIcon}
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.2"
-    aria-hidden="true"
-  >
-    <rect x="1" y="1" width="5" height="4" rx="0.5" />
-    <rect x="10" y="1" width="5" height="4" rx="0.5" />
-    <rect x="5.5" y="11" width="5" height="4" rx="0.5" />
-    <path d="M3.5 5v3.5h4.5V11" />
-    <path d="M12.5 5v3.5h-4.5V11" />
-  </svg>
-);
-
-// Plus icon for add button
-const PlusIcon = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-    <path d="M8 3v10M3 8h10" />
-  </svg>
-);
-
-// Close icon
-const CloseIcon = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-    <path d="M4 4l8 8M12 4l-8 8" />
-  </svg>
-);
+const TabFileIcon = ({ isERDiagram }: { isERDiagram: boolean }) =>
+  isERDiagram ? (
+    <TabIcons.ERDiagram className={styles.tabIcon} />
+  ) : (
+    <TabIcons.Sql className={styles.tabIcon} />
+  );
 
 type ConnectionColorMap = Record<string, { color: string; label: string }>;
 
@@ -256,7 +217,7 @@ export function EditorTabs() {
               onDrop={(e) => handleDrop(e, index)}
               onDragEnd={handleDragEnd}
             >
-              {query.isERDiagram ? ERDiagramIcon : SqlIcon}
+              <TabFileIcon isERDiagram={query.isERDiagram ?? false} />
               <span className={styles.tabName}>
                 {query.isDirty && <span className={styles.dirty}>●</span>}
                 {stripBrackets(query.name)}
@@ -270,7 +231,7 @@ export function EditorTabs() {
                 }}
                 title="タブを閉じる"
               >
-                {CloseIcon}
+                <TabIcons.Close />
               </button>
             </div>
           );
@@ -298,7 +259,7 @@ export function EditorTabs() {
                     setMenuOpen(false);
                   }}
                 >
-                  {query.isERDiagram ? ERDiagramIcon : SqlIcon}
+                  <TabFileIcon isERDiagram={query.isERDiagram ?? false} />
                   <span className={styles.overflowMenuItemName}>{stripBrackets(query.name)}</span>
                 </button>
               ))}
@@ -313,7 +274,7 @@ export function EditorTabs() {
           onClick={() => setAddMenuOpen((prev) => !prev)}
           title="新規タブ (Ctrl+N)"
         >
-          {PlusIcon}
+          <TabIcons.Plus />
         </button>
         {addMenuOpen && (
           <div className={styles.overflowMenu}>
@@ -326,11 +287,11 @@ export function EditorTabs() {
                 setAddMenuOpen(false);
               }}
             >
-              {SqlIcon}
+              <TabIcons.Sql className={styles.tabIcon} />
               <span>新規クエリ</span>
             </button>
             <button type="button" className={styles.overflowMenuItem} onClick={createERDiagram}>
-              {ERDiagramIcon}
+              <TabIcons.ERDiagram className={styles.tabIcon} />
               <span>新規ER図</span>
             </button>
           </div>
