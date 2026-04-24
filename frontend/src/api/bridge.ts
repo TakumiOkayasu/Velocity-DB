@@ -9,6 +9,7 @@ import type {
 import { DEFAULT_PAGE } from '../utils/erDiagramConstants';
 import type { ERDiagramModel } from '../utils/erDiagramParser';
 import { log } from '../utils/logger';
+import type { ConnectResultResponse } from './schemas';
 import * as S from './schemas';
 
 declare global {
@@ -235,11 +236,7 @@ class Bridge {
     return this.call('connectAsync', connectionInfo, S.connectAsync);
   }
 
-  async getConnectResult(requestId: string): Promise<{
-    status: 'pending' | 'connected' | 'failed' | 'cancelled';
-    connectionId?: string;
-    error?: string;
-  }> {
+  async getConnectResult(requestId: string): Promise<ConnectResultResponse> {
     return this.call('getConnectResult', { requestId }, S.connectResult);
   }
 

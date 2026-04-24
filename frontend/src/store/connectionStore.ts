@@ -2,8 +2,7 @@ import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { bridge } from '../api/bridge';
 import type { Connection } from '../types';
-
-const POLL_INTERVAL_MS = 500;
+import { pollConnection } from './connection/helpers/connectionPolling';
 
 interface ConnectionState {
   connections: Connection[];
@@ -71,42 +70,11 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 
       set({ connectRequestId: requestId });
 
-      const result = await new Promise<{ connectionId: string }>((resolve, reject) => {
-        let active = true;
-        const poll = async () => {
-          while (active) {
-            try {
-              if (get().connectRequestId !== requestId) {
-                active = false;
-                reject(new Error('Connection cancelled'));
-                return;
-              }
-
-              const status = await bridge.getConnectResult(requestId);
-
-              if (status.status === 'connected' && status.connectionId) {
-                active = false;
-                resolve({ connectionId: status.connectionId });
-                return;
-              } else if (status.status === 'failed') {
-                active = false;
-                reject(new Error(status.error ?? 'Connection failed'));
-                return;
-              } else if (status.status === 'cancelled') {
-                active = false;
-                reject(new Error('Connection cancelled'));
-                return;
-              }
-            } catch (e) {
-              active = false;
-              reject(e);
-              return;
-            }
-            await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-          }
-        };
-        poll();
-      });
+      const result = await pollConnection(
+        bridge,
+        requestId,
+        () => get().connectRequestId !== requestId
+      );
 
       const newConnection: Connection = {
         ...connection,
