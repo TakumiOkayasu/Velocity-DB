@@ -10,6 +10,7 @@ export const connectResult = z.object({
   connectionId: z.string().optional(),
   error: z.string().optional(),
 });
+export type ConnectResultResponse = z.infer<typeof connectResult>;
 export const cancelConnect = zVoid;
 export const disconnect = zVoid;
 export const testConnection = z.object({ success: z.boolean(), message: z.string() });
