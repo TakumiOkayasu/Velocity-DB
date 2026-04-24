@@ -7,11 +7,7 @@ import { useConnectionStore } from '../../store/connectionStore';
 import { useQueryStore } from '../../store/queryStore';
 import { useSessionStore } from '../../store/sessionStore';
 import { lazyWithRetry } from '../../utils/lazyWithRetry';
-import {
-  checkSqlSafety,
-  getQueryWarnings,
-  type UnsafeQueryWarning,
-} from '../../utils/sqlSafetyCheck';
+import { checkQueryExecutability } from '../../utils/queryExecutionCheck';
 import type { ConnectionConfig } from '../dialogs/ConnectionDialog';
 import { QueryConfirmDialog } from '../dialogs/QueryConfirmDialog';
 import { ToolbarIcons } from '../icons/SvgIcons';
@@ -152,44 +148,27 @@ export function MainLayout() {
   const handleExecute = useCallback(() => {
     if (!activeQueryId || !activeQueryConnectionId || !activeQuery) return;
 
-    const sql = activeQuery.content;
+    const result = checkQueryExecutability(activeQuery.content, { isReadOnly, isProduction });
 
-    // Check for read-only mode violations
-    if (isReadOnly) {
-      const safetyResult = checkSqlSafety(sql);
-      if (!safetyResult.isSafe) {
-        setQueryConfirmDialog({
-          isOpen: true,
-          title: 'Read-Only Mode',
-          message: safetyResult.message || 'This query is blocked in read-only mode.',
-          details: sql.slice(0, 200) + (sql.length > 200 ? '...' : ''),
-          isBlocked: true,
-        });
-        return;
-      }
+    if (result.action === 'execute') {
+      doExecuteQuery();
+      return;
     }
 
-    // Check for production mode warnings
-    if (isProduction && !isReadOnly) {
-      const warnings = getQueryWarnings(sql, true);
-      if (warnings.length > 0) {
-        pendingExecutionRef.current = {
-          queryId: activeQueryId,
-          connectionId: activeQueryConnectionId,
-        };
-        setQueryConfirmDialog({
-          isOpen: true,
-          title: 'Production Warning',
-          message: warnings.map((w: UnsafeQueryWarning) => w.message).join('\n'),
-          details: sql.slice(0, 200) + (sql.length > 200 ? '...' : ''),
-          isBlocked: false,
-        });
-        return;
-      }
+    if (result.action === 'warn') {
+      pendingExecutionRef.current = {
+        queryId: activeQueryId,
+        connectionId: activeQueryConnectionId,
+      };
     }
 
-    // Safe to execute
-    doExecuteQuery();
+    setQueryConfirmDialog({
+      isOpen: true,
+      title: result.title,
+      message: result.message,
+      details: result.details,
+      isBlocked: result.action === 'block',
+    });
   }, [
     activeQueryId,
     activeQueryConnectionId,
