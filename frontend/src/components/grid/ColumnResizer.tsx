@@ -50,16 +50,10 @@ function ColumnResizerInner({
       const resizerRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
 
       // Overlay 縦線 indicator (DOM 直挿入、React 経由しない最軽量パス)
+      // cssText 一括設定で layout 再計算を 1 回にまとめる
       const indicator = document.createElement('div');
-      indicator.style.position = 'fixed';
-      indicator.style.top = '0';
-      indicator.style.left = `${resizerRect.left + resizerRect.width / 2}px`;
-      indicator.style.width = '2px';
-      indicator.style.height = '100vh';
-      indicator.style.background = INDICATOR_COLOR;
-      indicator.style.pointerEvents = 'none';
-      indicator.style.zIndex = '9999';
-      indicator.style.willChange = 'transform';
+      const indicatorLeft = resizerRect.left + resizerRect.width / 2;
+      indicator.style.cssText = `position: fixed; top: 0; left: ${indicatorLeft}px; width: 2px; height: 100vh; background: ${INDICATOR_COLOR}; pointer-events: none; z-index: 9999; will-change: transform;`;
       document.body.appendChild(indicator);
 
       let pendingDx = 0;

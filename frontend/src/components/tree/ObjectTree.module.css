@@ -51,6 +51,9 @@
   border-bottom: 1px solid var(--border-color, #3c3f41);
   color: var(--text-secondary, #808080);
   font-size: 13px;
+  /* off-screen スキップで大量プロファイル時のスクロール負荷を削減 */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 30px;
 }
 
 .profileItem:hover {
