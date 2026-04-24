@@ -19,6 +19,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { useEphemeralOpen } from '../../hooks/useEphemeralOpen';
 import { useConnectionStore } from '../../store/connectionStore';
 import {
   useIsActiveDataView,
@@ -123,7 +124,12 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [showColumnFilters, setShowColumnFilters] = useState(false);
-  const [isErrorDialogOpen, setIsErrorDialogOpen] = useState(false);
+  // エラーダイアログの表示制御: error 到来で自動 open、ユーザーが閉じられる、再 open 可
+  const {
+    isOpen: isErrorDialogOpen,
+    dismiss: dismissErrorDialog,
+    reopen: reopenErrorDialog,
+  } = useEphemeralOpen(error);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const elapsedSeconds = useElapsedTimer(isExecuting);
 
@@ -155,10 +161,6 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     storedWhereClause: currentQuery?.whereClause ?? '',
     applyWhereFilter,
   });
-
-  useEffect(() => {
-    setIsErrorDialogOpen(!!error);
-  }, [error]);
 
   // --- Derived data ---
   const isMultiple =
@@ -667,14 +669,14 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     return (
       <div className={`${styles.message} ${styles.error}`}>
         <span>{parsed.summary}</span>
-        <button className={styles.errorDetailButton} onClick={() => setIsErrorDialogOpen(true)}>
+        <button className={styles.errorDetailButton} onClick={reopenErrorDialog}>
           詳細を表示
         </button>
         <Suspense fallback={null}>
           <ErrorDetailDialog
             isOpen={isErrorDialogOpen}
             errorMessage={error}
-            onClose={() => setIsErrorDialogOpen(false)}
+            onClose={dismissErrorDialog}
           />
         </Suspense>
       </div>

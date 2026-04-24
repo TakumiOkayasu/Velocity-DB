@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { bridge } from '../../../api/bridge';
 import type { ForeignKeyInfo } from '../../../types';
 import { log } from '../../../utils/logger';
@@ -47,18 +47,26 @@ export function useRelatedRows({
     fetchForeignKeys();
   }, [connectionId, tableName]);
 
+  // columnName -> FK の index map を一度だけ構築し、判定/取得を O(1) に
+  // 元 .find() と揃えて先勝ち (同一 column が複数 FK に含まれる場合は配列先頭を優先)
+  const fkByColumn = useMemo(() => {
+    const map = new Map<string, ForeignKeyInfo>();
+    for (const fk of foreignKeys) {
+      for (const col of fk.columns) {
+        if (!map.has(col)) map.set(col, fk);
+      }
+    }
+    return map;
+  }, [foreignKeys]);
+
   const isForeignKeyColumn = useCallback(
-    (columnName: string): boolean => {
-      return foreignKeys.some((fk) => fk.columns.includes(columnName));
-    },
-    [foreignKeys]
+    (columnName: string): boolean => fkByColumn.has(columnName),
+    [fkByColumn]
   );
 
   const getForeignKeyInfo = useCallback(
-    (columnName: string): ForeignKeyInfo | null => {
-      return foreignKeys.find((fk) => fk.columns.includes(columnName)) ?? null;
-    },
-    [foreignKeys]
+    (columnName: string): ForeignKeyInfo | null => fkByColumn.get(columnName) ?? null,
+    [fkByColumn]
   );
 
   const navigateToRelatedRow = useCallback(

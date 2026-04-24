@@ -34,8 +34,8 @@ export function ConnectionTreeSection({
   onTableOpen,
 }: ConnectionTreeSectionProps) {
   const [treeData, setTreeData] = useState<DatabaseObject[]>([]);
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
-  const [loadingNodes, setLoadingNodes] = useState<Set<string>>(new Set());
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => new Set());
+  const [loadingNodes, setLoadingNodes] = useState<Set<string>>(() => new Set());
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{
     x: number;

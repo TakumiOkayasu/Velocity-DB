@@ -2,6 +2,9 @@
   padding: 8px 12px;
   border-bottom: 1px solid var(--border-color);
   cursor: pointer;
+  /* off-screen アイテムを skip render (大量履歴時のスクロール FPS 改善) */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 60px;
 }
 
 .container:hover {
