@@ -1,6 +1,7 @@
 import { memo, useMemo } from 'react';
 import type { DatabaseObject, EnvironmentType } from '../../types';
 import { type ExpandableType, isExpandableType } from '../../utils/treeNode';
+import { TreeIcons } from '../icons/SvgIcons';
 import styles from './TreeNode.module.css';
 
 interface TreeNodeProps {
@@ -22,92 +23,25 @@ const ENV_NAME_CLASS: Record<EnvironmentType, string> = {
   production: styles.nameEnvProduction,
 };
 
-// SVG Icons for tree nodes
-const Icons = {
-  database: (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-      <ellipse cx="8" cy="4" rx="5" ry="2" />
-      <path d="M3 4v8c0 1.1 2.24 2 5 2s5-.9 5-2V4" />
-      <path d="M3 8c0 1.1 2.24 2 5 2s5-.9 5-2" />
-    </svg>
-  ),
-  folder: (
-    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <path d="M2 3.5A1.5 1.5 0 013.5 2h2.879a1.5 1.5 0 011.06.44l1.122 1.12A1.5 1.5 0 009.622 4H12.5A1.5 1.5 0 0114 5.5v7a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 12.5v-9z" />
-    </svg>
-  ),
-  folderOpen: (
-    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <path d="M1.5 13.25V3.5A1.5 1.5 0 013 2h3.379a1.5 1.5 0 011.06.44l.94.94a.5.5 0 00.354.147H13.5A1.5 1.5 0 0115 5v.5H2V3.5a.5.5 0 01.5-.5h3.379a.5.5 0 01.354.146l.94.94A1.5 1.5 0 008.233 4.5H13.5a.5.5 0 01.5.5v.5H2v7.75a.75.75 0 00.75.75h10.5a.75.75 0 00.75-.75V6h1v7.25a1.75 1.75 0 01-1.75 1.75H2.75a1.75 1.75 0 01-1.25-2z" />
-    </svg>
-  ),
-  table: (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
-      <rect x="2" y="2" width="12" height="12" rx="1" />
-      <path d="M2 5h12M2 8h12M2 11h12M6 5v9M10 5v9" />
-    </svg>
-  ),
-  view: (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-      <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" />
-      <circle cx="8" cy="8" r="2.5" />
-    </svg>
-  ),
-  column: (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-      <path d="M4 4v8M8 8h4" />
-    </svg>
-  ),
-  key: (
-    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <path d="M5.5 9a2.5 2.5 0 100-5 2.5 2.5 0 000 5zm0-1a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" />
-      <path d="M7.5 6.5h6v1h-6z" />
-      <path d="M11.5 6.5v3h-1v-3zM13.5 6.5v2h-1v-2z" />
-    </svg>
-  ),
-  loading: (
-    <svg
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      className={styles.loadingSpinner}
-      aria-hidden="true"
-    >
-      <path d="M8 2v2M8 12v2M2 8h2M12 8h2" />
-    </svg>
-  ),
-  chevronRight: (
-    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <path d="M6 4l4 4-4 4" />
-    </svg>
-  ),
-  chevronDown: (
-    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <path d="M4 6l4 4 4-4" />
-    </svg>
-  ),
-};
-
 const getIcon = (
   type: DatabaseObject['type'] | 'folder',
   isExpanded?: boolean
 ): React.ReactElement => {
   switch (type) {
     case 'database':
-      return Icons.database;
+      return <TreeIcons.Database />;
     case 'folder':
-      return isExpanded ? Icons.folderOpen : Icons.folder;
+      return isExpanded ? <TreeIcons.FolderOpen /> : <TreeIcons.Folder />;
     case 'table':
-      return Icons.table;
+      return <TreeIcons.Table />;
     case 'view':
-      return Icons.view;
+      return <TreeIcons.View />;
     case 'column':
-      return Icons.column;
+      return <TreeIcons.Column />;
     case 'index':
-      return Icons.key;
+      return <TreeIcons.Key />;
     default:
-      return Icons.column;
+      return <TreeIcons.Column />;
   }
 };
 
@@ -197,7 +131,13 @@ export const TreeNode = memo(function TreeNode({
           tabIndex={-1}
           style={canExpand ? EXPANDER_VISIBLE : EXPANDER_HIDDEN}
         >
-          {isLoading ? Icons.loading : isExpanded ? Icons.chevronDown : Icons.chevronRight}
+          {isLoading ? (
+            <TreeIcons.Loading className={styles.loadingSpinner} />
+          ) : isExpanded ? (
+            <TreeIcons.ChevronDown />
+          ) : (
+            <TreeIcons.ChevronRight />
+          )}
         </span>
         <span className={`${styles.icon} ${getIconClass(node.type)}`}>
           {getIcon(node.type, isExpanded)}
