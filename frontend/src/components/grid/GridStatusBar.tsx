@@ -2,6 +2,7 @@ import { memo } from 'react';
 import type { PaginationState } from '../../store/query/types';
 import type { ResultSet } from '../../types';
 import type { GridViewMode } from '../../types/grid';
+import type { StatementType } from '../../utils/sqlIdentifier';
 import styles from './ResultGrid.module.css';
 
 interface GridStatusBarProps {
@@ -13,6 +14,33 @@ interface GridStatusBarProps {
   viewMode?: GridViewMode;
   transposeRowIndex?: number;
   pagination?: PaginationState | null;
+  /** 現在表示中の結果セットを生んだ SQL 種別。DML/DDL の表示文言切替に使う */
+  statementType?: StatementType;
+}
+
+function affectedRowsLabel(
+  statementType: StatementType | undefined,
+  affectedRows: number
+): string | null {
+  switch (statementType) {
+    case 'INSERT':
+      return `${affectedRows} 件追加`;
+    case 'UPDATE':
+      return `${affectedRows} 件更新`;
+    case 'DELETE':
+      return `${affectedRows} 件削除`;
+    case 'TRUNCATE':
+      return 'テーブルを切り詰めました';
+    case 'DROP':
+    case 'CREATE':
+    case 'ALTER':
+      return `${statementType} を実行しました`;
+    case 'SELECT':
+      return null;
+    case 'OTHER':
+    case undefined:
+      return affectedRows > 0 ? `${affectedRows} 件更新` : null;
+  }
 }
 
 function GridStatusBarInner({
@@ -24,9 +52,11 @@ function GridStatusBarInner({
   viewMode,
   transposeRowIndex,
   pagination,
+  statementType,
 }: GridStatusBarProps) {
   const isTranspose = viewMode === 'transpose';
   const totalRows = resultSet.rows.length;
+  const affectedLabel = affectedRowsLabel(statementType, resultSet.affectedRows);
 
   function renderRowInfo() {
     if (isTranspose) {
@@ -88,10 +118,10 @@ function GridStatusBarInner({
       {renderRowInfo()}
       <span className={styles.statusSeparator} />
       <span>{resultSet.executionTimeMs.toFixed(2)} ms</span>
-      {resultSet.affectedRows > 0 && (
+      {affectedLabel && (
         <>
           <span className={styles.statusSeparator} />
-          <span>{resultSet.affectedRows} 件更新</span>
+          <span>{affectedLabel}</span>
         </>
       )}
       {isReadOnly && <span className={styles.readOnlyIndicator}>読取専用</span>}
