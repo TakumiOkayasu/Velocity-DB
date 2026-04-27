@@ -141,4 +141,65 @@ describe('GridStatusBar', () => {
       expect(screen.getByText(/5,000 \/ 50,000 件 \(フィルタ中\)/)).toBeInTheDocument();
     });
   });
+
+  describe('statementType による DML/DDL 結果表示 (#415)', () => {
+    function withAffected(affectedRows: number): ResultSet {
+      return { ...baseProps.resultSet, affectedRows };
+    }
+
+    it('INSERT: affectedRows=3 で「3 件追加」を表示', () => {
+      render(<GridStatusBar {...baseProps} resultSet={withAffected(3)} statementType="INSERT" />);
+      expect(screen.getByText('3 件追加')).toBeInTheDocument();
+    });
+
+    it('UPDATE: affectedRows=5 で「5 件更新」を表示', () => {
+      render(<GridStatusBar {...baseProps} resultSet={withAffected(5)} statementType="UPDATE" />);
+      expect(screen.getByText('5 件更新')).toBeInTheDocument();
+    });
+
+    it('DELETE: affectedRows=2 で「2 件削除」を表示', () => {
+      render(<GridStatusBar {...baseProps} resultSet={withAffected(2)} statementType="DELETE" />);
+      expect(screen.getByText('2 件削除')).toBeInTheDocument();
+    });
+
+    it('TRUNCATE: affectedRows=0 でも「テーブルを切り詰めました」を表示', () => {
+      render(<GridStatusBar {...baseProps} resultSet={withAffected(0)} statementType="TRUNCATE" />);
+      expect(screen.getByText('テーブルを切り詰めました')).toBeInTheDocument();
+    });
+
+    it('DROP: affectedRows=0 でも「DROP を実行しました」を表示', () => {
+      render(<GridStatusBar {...baseProps} resultSet={withAffected(0)} statementType="DROP" />);
+      expect(screen.getByText('DROP を実行しました')).toBeInTheDocument();
+    });
+
+    it('CREATE: affectedRows=0 でも「CREATE を実行しました」を表示', () => {
+      render(<GridStatusBar {...baseProps} resultSet={withAffected(0)} statementType="CREATE" />);
+      expect(screen.getByText('CREATE を実行しました')).toBeInTheDocument();
+    });
+
+    it('ALTER: affectedRows=0 でも「ALTER を実行しました」を表示', () => {
+      render(<GridStatusBar {...baseProps} resultSet={withAffected(0)} statementType="ALTER" />);
+      expect(screen.getByText('ALTER を実行しました')).toBeInTheDocument();
+    });
+
+    it('DELETE: affectedRows=0 でも「0 件削除」を表示 (該当行なしを明示)', () => {
+      render(<GridStatusBar {...baseProps} resultSet={withAffected(0)} statementType="DELETE" />);
+      expect(screen.getByText('0 件削除')).toBeInTheDocument();
+    });
+
+    it('UPDATE: affectedRows=0 でも「0 件更新」を表示 (WHERE で 0 件マッチを明示)', () => {
+      render(<GridStatusBar {...baseProps} resultSet={withAffected(0)} statementType="UPDATE" />);
+      expect(screen.getByText('0 件更新')).toBeInTheDocument();
+    });
+
+    it('SELECT: statementType を渡しても「件更新」等は表示しない (現状維持)', () => {
+      render(<GridStatusBar {...baseProps} resultSet={withAffected(0)} statementType="SELECT" />);
+      expect(screen.queryByText(/件更新|件追加|件削除|切り詰め/)).not.toBeInTheDocument();
+    });
+
+    it('statementType 未指定時は従来挙動 (affectedRows>0 のみ「N 件更新」)', () => {
+      render(<GridStatusBar {...baseProps} resultSet={withAffected(7)} />);
+      expect(screen.getByText('7 件更新')).toBeInTheDocument();
+    });
+  });
 });
