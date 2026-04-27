@@ -9,6 +9,7 @@
 set(PERF_TEST_SOURCES
     test_main.cpp
     test_smoke_bench.cpp
+    test_query_history_search_bench.cpp
 )
 
 add_executable(VelocityDBPerfTests ${PERF_TEST_SOURCES})

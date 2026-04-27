@@ -2,6 +2,8 @@
 #include "database/query_history.h"
 
 #include <chrono>
+#include <filesystem>
+#include <fstream>
 
 namespace velocitydb {
 namespace test {
@@ -278,6 +280,203 @@ TEST_F(QueryHistoryTest, SetMaxItemsLargerThanCurrentKeepsAll) {
 
     h.setMaxItems(100);
     EXPECT_EQ(h.getAll().size(), 5);
+}
+
+TEST_F(QueryHistoryTest, SearchUtf8JapaneseKeyword) {
+    HistoryItem item;
+    item.id = generateHistoryId();
+    item.sql = "SELECT * FROM ユーザー WHERE id = 1";
+    item.success = true;
+    history.add(item);
+
+    auto results = history.search("ユーザー");
+    EXPECT_EQ(results.size(), 1);
+}
+
+TEST_F(QueryHistoryTest, SearchUtf8PartialMultibyte) {
+    HistoryItem item;
+    item.id = generateHistoryId();
+    item.sql = "SELECT * FROM ユーザー";
+    item.success = true;
+    history.add(item);
+
+    // "ユー" = 6 byte (3 byte * 2)。trigram 4 個生成される。
+    auto results = history.search("ユー");
+    EXPECT_EQ(results.size(), 1);
+}
+
+TEST_F(QueryHistoryTest, SearchShortKeywordFallbackOneByte) {
+    HistoryItem item;
+    item.id = generateHistoryId();
+    item.sql = "SELECT a FROM tbl";
+    item.success = true;
+    history.add(item);
+
+    // 1 byte: trigram 化不可 → 線形 fallback
+    auto results = history.search("a");
+    EXPECT_EQ(results.size(), 1);
+}
+
+TEST_F(QueryHistoryTest, SearchShortKeywordFallbackTwoByte) {
+    HistoryItem item;
+    item.id = generateHistoryId();
+    item.sql = "SELECT ab FROM tbl";
+    item.success = true;
+    history.add(item);
+
+    // 2 byte: trigram 化不可 → 線形 fallback
+    auto results = history.search("ab");
+    EXPECT_EQ(results.size(), 1);
+}
+
+TEST_F(QueryHistoryTest, SearchTrigramFalsePositiveExcluded) {
+    HistoryItem item;
+    item.id = generateHistoryId();
+    // "abc" "bcd" は両方 sql に含まれるが、"abcdef" は substring として存在しない
+    item.sql = "abcXdef";
+    item.success = true;
+    history.add(item);
+
+    auto results = history.search("abcdef");
+    EXPECT_EQ(results.size(), 0) << "trigram 候補だが substring 不一致 → 0 件であるべき";
+}
+
+TEST_F(QueryHistoryTest, SearchAfterRemoveSyncsIndex) {
+    HistoryItem item1;
+    item1.id = "id-A";
+    item1.sql = "SELECT alpha_unique_token FROM tbl";
+    item1.success = true;
+    HistoryItem item2;
+    item2.id = "id-B";
+    item2.sql = "SELECT beta FROM tbl";
+    item2.success = true;
+    history.add(item1);
+    history.add(item2);
+
+    history.remove("id-A");
+
+    // A 固有の trigram で検索しても 0 件であるべき
+    auto results = history.search("alpha_unique_token");
+    EXPECT_EQ(results.size(), 0);
+    // B はまだ残る
+    EXPECT_EQ(history.search("beta").size(), 1);
+}
+
+TEST_F(QueryHistoryTest, SearchAfterEvictionSyncsIndex) {
+    QueryHistory smallHistory{2};
+    HistoryItem itemA;
+    itemA.id = generateHistoryId();
+    itemA.sql = "alpha_evicted_token";
+    itemA.success = true;
+    smallHistory.add(itemA);
+
+    HistoryItem itemB;
+    itemB.id = generateHistoryId();
+    itemB.sql = "beta_token";
+    itemB.success = true;
+    smallHistory.add(itemB);
+
+    HistoryItem itemC;
+    itemC.id = generateHistoryId();
+    itemC.sql = "gamma_token";
+    itemC.success = true;
+    smallHistory.add(itemC);
+
+    // A は eviction された
+    EXPECT_EQ(smallHistory.getAll().size(), 2);
+    auto results = smallHistory.search("alpha_evicted_token");
+    EXPECT_EQ(results.size(), 0) << "eviction された A の trigram は index から消えているべき";
+}
+
+TEST_F(QueryHistoryTest, SearchAfterClearSyncsIndex) {
+    HistoryItem item;
+    item.id = generateHistoryId();
+    item.sql = "SELECT cleared_token FROM tbl";
+    item.success = true;
+    item.isFavorite = false;
+    history.add(item);
+
+    history.clear();
+
+    auto results = history.search("cleared_token");
+    EXPECT_EQ(results.size(), 0);
+}
+
+TEST_F(QueryHistoryTest, SearchAfterSetMaxItemsShrinkSyncsIndex) {
+    QueryHistory h{5};
+    for (int i = 0; i < 5; ++i) {
+        HistoryItem item;
+        item.id = generateHistoryId();
+        item.sql = "shrink_token_" + std::to_string(i);
+        item.success = true;
+        item.isFavorite = false;
+        h.add(item);
+    }
+    ASSERT_EQ(h.getAll().size(), 5);
+
+    // 最古 (push_front の back 側) から eviction される: token_0, token_1, token_2
+    h.setMaxItems(2);
+    EXPECT_EQ(h.getAll().size(), 2);
+
+    auto results = h.search("shrink_token_0");
+    EXPECT_EQ(results.size(), 0) << "eviction された 0 の trigram が残っていない";
+}
+
+TEST_F(QueryHistoryTest, SearchAfterLoadRebuildsIndex) {
+    auto path = std::filesystem::temp_directory_path() / "qh_load_test.json";
+    {
+        QueryHistory writer{100};
+        HistoryItem item;
+        item.id = "loaded-id";
+        item.sql = "SELECT loaded_token FROM tbl";
+        item.success = true;
+        writer.add(item);
+        ASSERT_TRUE(writer.save(path.string()).has_value());
+    }
+
+    QueryHistory reader{100};
+    ASSERT_TRUE(reader.load(path.string()).has_value());
+
+    auto results = reader.search("loaded_token");
+    EXPECT_EQ(results.size(), 1);
+
+    std::filesystem::remove(path);
+}
+
+TEST_F(QueryHistoryTest, SearchUpdatesIndexOnReAdd) {
+    HistoryItem item;
+    item.id = "fixed";
+    item.sql = "SELECT old_token FROM tbl";
+    item.success = true;
+    history.add(item);
+
+    item.sql = "SELECT new_token FROM tbl";
+    history.add(item);
+
+    // 旧 trigram は消えている
+    EXPECT_EQ(history.search("old_token").size(), 0);
+    // 新 trigram でヒット
+    EXPECT_EQ(history.search("new_token").size(), 1);
+}
+
+TEST_F(QueryHistoryTest, SearchPreservesLruOrder) {
+    HistoryItem item1;
+    item1.id = generateHistoryId();
+    item1.sql = "SELECT order_token FROM a";
+    item1.success = true;
+    history.add(item1);
+
+    HistoryItem item2;
+    item2.id = generateHistoryId();
+    item2.sql = "SELECT order_token FROM b";
+    item2.success = true;
+    history.add(item2);
+
+    // 後に add した item2 が先頭 (newest first)
+    auto results = history.search("order_token");
+    ASSERT_EQ(results.size(), 2);
+    EXPECT_EQ(results[0].sql, "SELECT order_token FROM b");
+    EXPECT_EQ(results[1].sql, "SELECT order_token FROM a");
 }
 
 }  // namespace test

@@ -10,6 +10,14 @@ namespace {
 
 class SettingsProviderTest : public ::testing::Test {
 protected:
+    // settings.json は %LOCALAPPDATA%\Velocity-DB\ に永続化されるため、
+    // 過去のテスト実行で書き込まれた maxQueryHistory が次回テストに残留する。
+    // SetUp で大きいデフォルトに戻し、各テストを永続化状態から独立させる。
+    void SetUp() override {
+        auto resetResult = provider.updateSettings(R"({"general":{"maxQueryHistory":1000}})");
+        ASSERT_NE(resetResult.find("\"saved\""), std::string::npos);
+    }
+
     SettingsProvider provider;
 };
 

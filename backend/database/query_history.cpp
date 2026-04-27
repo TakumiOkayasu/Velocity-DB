@@ -3,13 +3,86 @@
 #include "simdjson.h"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
+#include <cctype>
 #include <format>
 #include <fstream>
 #include <ranges>
 #include <sstream>
+#include <unordered_set>
 
 namespace velocitydb {
+
+namespace {
+
+/// ASCII のみ lowercase 折りたたみ。UTF-8 multi-byte (>= 0x80) は std::tolower の定義域外だが
+/// unsigned char 経由で UB を回避し、戻り値を変えないことで non-ASCII の identity を保つ。
+inline char normalizeByte(unsigned char c) noexcept {
+    return static_cast<char>(std::tolower(c));
+}
+
+/// sql の byte 単位 sliding window で trigram を yield する。size<3 なら no-op。
+/// UTF-8 lead byte に開始位置を限定しない: index と検索の trigram 集合の対称性を優先し、
+/// 偽陽性は最終 substring 検証で除外する。
+template <typename F>
+void forEachTrigram(std::string_view sql, F&& fn) {
+    if (sql.size() < 3)
+        return;
+    for (size_t i = 0; i + 3 <= sql.size(); ++i) {
+        std::array<char, 3> t{
+            normalizeByte(static_cast<unsigned char>(sql[i])),
+            normalizeByte(static_cast<unsigned char>(sql[i + 1])),
+            normalizeByte(static_cast<unsigned char>(sql[i + 2])),
+        };
+        fn(t);
+    }
+}
+
+bool caseInsensitiveFind(std::string_view haystack, std::string_view needle) {
+    if (needle.size() > haystack.size()) {
+        return false;
+    }
+    auto it = std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(), [](unsigned char a, unsigned char b) { return std::tolower(a) == std::tolower(b); });
+    return it != haystack.end();
+}
+
+}  // namespace
+
+void QueryHistory::addToTrigramIndex(HistoryIter it) {
+    // 同一 sql 内で出現する重複 trigram を排除して posting を膨らませない。
+    std::vector<Trigram> trigrams;
+    trigrams.reserve(it->sql.size());
+    forEachTrigram(it->sql, [&trigrams](const std::array<char, 3>& t) { trigrams.push_back(t); });
+    std::ranges::sort(trigrams);
+    const auto dup = std::ranges::unique(trigrams);
+    trigrams.erase(dup.begin(), dup.end());
+
+    const HistoryItem* ptr = &*it;
+    for (const auto& t : trigrams) {
+        m_trigramIndex[t].insert(ptr);
+    }
+}
+
+void QueryHistory::removeFromTrigramIndex(HistoryIter it) {
+    std::vector<Trigram> trigrams;
+    trigrams.reserve(it->sql.size());
+    forEachTrigram(it->sql, [&trigrams](const std::array<char, 3>& t) { trigrams.push_back(t); });
+    std::ranges::sort(trigrams);
+    const auto dup = std::ranges::unique(trigrams);
+    trigrams.erase(dup.begin(), dup.end());
+
+    const HistoryItem* ptr = &*it;
+    for (const auto& t : trigrams) {
+        auto mit = m_trigramIndex.find(t);
+        if (mit == m_trigramIndex.end())
+            continue;
+        mit->second.erase(ptr);
+        if (mit->second.empty()) {
+            m_trigramIndex.erase(mit);
+        }
+    }
+}
 
 void QueryHistory::add(const HistoryItem& item) {
     // 事前条件: 呼び出し側 (provider 等) が generateHistoryId() で id を埋める。
@@ -22,6 +95,7 @@ void QueryHistory::add(const HistoryItem& item) {
         if (!existing->second->isFavorite) {
             --m_nonFavoriteCount;
         }
+        removeFromTrigramIndex(existing->second);
         m_history.erase(existing->second);
         m_indexById.erase(existing);
     }
@@ -29,6 +103,7 @@ void QueryHistory::add(const HistoryItem& item) {
     m_history.push_front(item);
     auto inserted = m_history.begin();
     m_indexById.emplace(inserted->id, inserted);
+    addToTrigramIndex(inserted);
     if (!inserted->isFavorite) {
         ++m_nonFavoriteCount;
     }
@@ -53,6 +128,7 @@ void QueryHistory::evictOverLimitLocked() {
 
         auto victim = std::next(rit).base();
         m_indexById.erase(victim->id);
+        removeFromTrigramIndex(victim);
         m_history.erase(victim);
         --m_nonFavoriteCount;
     }
@@ -76,23 +152,58 @@ std::vector<HistoryItem> QueryHistory::search(std::string_view keyword) const {
         return {m_history.begin(), m_history.end()};
     }
 
-    auto caseInsensitiveFind = [](std::string_view haystack, std::string_view needle) -> bool {
-        if (needle.size() > haystack.size()) {
-            return false;
+    // 短語 (< 3 byte) は trigram 化不能 → 既存と同じ線形 substring search にフォールバック。
+    if (keyword.size() < 3) {
+        std::vector<HistoryItem> results;
+        results.reserve(m_history.size() / 4);
+        for (const auto& item : m_history) {
+            if (caseInsensitiveFind(item.sql, keyword)) {
+                results.push_back(item);
+            }
         }
-        auto it = std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(), [](unsigned char a, unsigned char b) { return std::tolower(a) == std::tolower(b); });
-        return it != haystack.end();
-    };
+        return results;
+    }
 
+    // 1. keyword の trigram 集合 (重複排除)
+    std::vector<Trigram> queryTrigrams;
+    queryTrigrams.reserve(keyword.size());
+    forEachTrigram(keyword, [&queryTrigrams](const std::array<char, 3>& t) { queryTrigrams.push_back(t); });
+    std::ranges::sort(queryTrigrams);
+    const auto qDup = std::ranges::unique(queryTrigrams);
+    queryTrigrams.erase(qDup.begin(), qDup.end());
+
+    // 2. 各 trigram の posting set を取得。1 個でも欠ければ確定でゼロ件。
+    std::vector<const std::unordered_set<const HistoryItem*>*> postings;
+    postings.reserve(queryTrigrams.size());
+    for (const auto& t : queryTrigrams) {
+        auto mit = m_trigramIndex.find(t);
+        if (mit == m_trigramIndex.end()) {
+            return {};
+        }
+        postings.push_back(&mit->second);
+    }
+
+    // 3. 最短 posting を起点に、各候補が他全 posting に含まれるかチェック (AND 交差)。
+    //    unordered_set::contains は O(1) なので候補 K 個 × posting M 個で O(K*M)。
+    auto shortest = std::ranges::min_element(postings, {}, [](const auto* p) { return p->size(); });
+    std::unordered_set<const HistoryItem*> candidates;
+    for (const auto* cand : **shortest) {
+        const bool inAll = std::ranges::all_of(postings, [cand](const auto* p) { return p->contains(cand); });
+        if (inAll) {
+            candidates.insert(cand);
+        }
+    }
+
+    // 4. m_history を順走査して final substring 検証。LRU 順 (newest first) を保持する。
     std::vector<HistoryItem> results;
-    results.reserve(m_history.size() / 4);
-
+    results.reserve(candidates.size());
     for (const auto& item : m_history) {
+        if (!candidates.contains(&item))
+            continue;
         if (caseInsensitiveFind(item.sql, keyword)) {
             results.push_back(item);
         }
     }
-
     return results;
 }
 
@@ -137,6 +248,7 @@ void QueryHistory::remove(std::string_view id) {
     if (!it->second->isFavorite) {
         --m_nonFavoriteCount;
     }
+    removeFromTrigramIndex(it->second);
     m_history.erase(it->second);
     m_indexById.erase(it);
 }
@@ -149,6 +261,7 @@ void QueryHistory::clear() {
             ++it;
         } else {
             m_indexById.erase(it->id);
+            removeFromTrigramIndex(it);
             it = m_history.erase(it);
         }
     }
@@ -229,6 +342,7 @@ std::expected<void, std::string> QueryHistory::load(std::string_view filepath) {
 
         m_history.clear();
         m_indexById.clear();
+        m_trigramIndex.clear();
         m_nonFavoriteCount = 0;
 
         for (auto item : doc.get_array()) {
@@ -272,8 +386,11 @@ std::expected<void, std::string> QueryHistory::load(std::string_view filepath) {
             if (auto [_, inserted] = m_indexById.emplace(last->id, last); !inserted) {
                 // 重複 id を検出。新エントリを破棄して map との整合を維持する。
                 m_history.pop_back();
-            } else if (!last->isFavorite) {
-                ++m_nonFavoriteCount;
+            } else {
+                addToTrigramIndex(last);
+                if (!last->isFavorite) {
+                    ++m_nonFavoriteCount;
+                }
             }
         }
 
