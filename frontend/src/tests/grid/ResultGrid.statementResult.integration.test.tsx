@@ -51,12 +51,9 @@ vi.mock('../../store/connectionStore', () => ({
 }));
 
 vi.mock('../../store/scrollPositionStore', () => ({
-  useScrollPositionStore: Object.assign(
-    (selector: (s: unknown) => unknown) => selector({}),
-    {
-      getState: () => ({ savePosition: vi.fn(), getPosition: () => null }),
-    }
-  ),
+  useScrollPositionStore: Object.assign((selector: (s: unknown) => unknown) => selector({}), {
+    getState: () => ({ savePosition: vi.fn(), getPosition: () => null }),
+  }),
 }));
 
 vi.mock('../../store/sessionStore', () => ({
@@ -331,6 +328,8 @@ describe('ResultGrid → GridStatusBar: SQL 種別ごとの結果文言 (#415)',
   it('未知 verb (EXPLAIN) は OTHER fallback で affectedRows=0 だと文言を出さない', () => {
     setup({ sql: 'EXPLAIN SELECT * FROM t', affectedRows: 0 });
     render(<ResultGrid />);
-    expect(screen.queryByText(/件追加|件更新|件削除|切り詰め|を実行しました/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/件追加|件更新|件削除|切り詰め|を実行しました/)
+    ).not.toBeInTheDocument();
   });
 });
