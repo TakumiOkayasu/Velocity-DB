@@ -1,0 +1,72 @@
+name: Benchmarks
+
+# Manual trigger only — performance benchmarks consume Windows runner minutes
+# and need a clean machine for stable measurements. Run via:
+#   gh workflow run bench.yml [-f build_type=Release]
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'CMake build type'
+        required: false
+        default: 'Release'
+        type: choice
+        options:
+          - Release
+          - Debug
+
+permissions:
+  contents: read
+
+jobs:
+  backend-bench:
+    name: Backend Benchmarks
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Ninja and ccache
+        run: choco install ninja ccache -y
+
+      - name: Setup ccache
+        run: |
+          echo "CC=cl.exe" >> $env:GITHUB_ENV
+          echo "CXX=cl.exe" >> $env:GITHUB_ENV
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache" >> $env:GITHUB_ENV
+          echo "CMAKE_C_COMPILER_LAUNCHER=ccache" >> $env:GITHUB_ENV
+
+      - name: Cache ccache
+        uses: actions/cache@v5
+        with:
+          path: ~\.ccache
+          key: ccache-bench-${{ runner.os }}-${{ inputs.build_type }}-${{ hashFiles('**/*.cpp', '**/*.h') }}
+          restore-keys: |
+            ccache-bench-${{ runner.os }}-${{ inputs.build_type }}-
+
+      - name: Cache CMake build
+        uses: actions/cache@v5
+        with:
+          path: |
+            build/_deps
+            build/third_party
+          key: cmake-bench-${{ runner.os }}-${{ inputs.build_type }}-${{ hashFiles('CMakeLists.txt', 'backend/CMakeLists.txt', 'third_party/CMakeLists.txt') }}
+          restore-keys: |
+            cmake-bench-${{ runner.os }}-${{ inputs.build_type }}-
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -G Ninja `
+            -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} `
+            -DBUILD_TESTS=ON `
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache
+
+      - name: Build (parallel)
+        run: cmake --build build --parallel
+
+      - name: Run Backend Benchmarks
+        # -L perf selects only the perf-labeled tests (tests/perf/)
+        run: ctest --test-dir build --output-on-failure -L perf
