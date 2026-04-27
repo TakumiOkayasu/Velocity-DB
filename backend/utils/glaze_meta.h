@@ -27,7 +27,7 @@ struct glz::meta<velocitydb::ConnectionProfile> {
     using T = velocitydb::ConnectionProfile;
     static constexpr auto value = object("id", &T::id, "name", &T::name, "server", &T::server, "port", &T::port, "database", &T::database, "username", &T::username, "useWindowsAuth",
                                          &T::useWindowsAuth, "savePassword", &T::savePassword, "encryptedPassword", &T::encryptedPassword, "isProduction", &T::isProduction, "isReadOnly",
-                                         &T::isReadOnly, "environment", &T::environment, "dbType", &T::dbType, "ssh", &T::ssh);
+                                         &T::isReadOnly, "environment", &T::environment, "dbType", &T::dbType, "folderPath", &T::folderPath, "ssh", &T::ssh);
 };
 
 template <>
