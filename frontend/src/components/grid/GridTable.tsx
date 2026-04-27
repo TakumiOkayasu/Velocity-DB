@@ -1,6 +1,6 @@
 import { flexRender, type Row, type Table } from '@tanstack/react-table';
 import type { VirtualItem } from '@tanstack/react-virtual';
-import { type MouseEvent, memo, type RefObject, type UIEvent, useCallback } from 'react';
+import { type MouseEvent, memo, type RefObject, type UIEvent, useCallback, useMemo } from 'react';
 import { type ColumnMeta, isSystemColumn, type RowData } from '../../types/grid';
 import type { ValidationError } from '../../utils/validation';
 import { ContextMenu } from '../common/ContextMenu';
@@ -71,6 +71,45 @@ interface GridTableProps {
   onAutoSizeColumns?: () => void;
 }
 
+// Issue #417: TanStack Virtual が `outerSize=0` (= 容器の offsetHeight=0) で
+// `virtualRows=[]` を返した状態 (= "broken state") から復旧不能になる事象への
+// フォールバック上限。WebView2 想定 (1080p / 行高 32px) で可視 ~33 行、
+// overscan 10 を含めた約 1.5 倍を確保し、初回描画コストとのバランスを取った値。
+// virtualizer が ResizeObserver 経由で復旧し次第、通常経路に戻る (本フォールバックは無効化)。
+const FALLBACK_RENDER_LIMIT = 50;
+// 仮想行 fallback で使う既定行高 (= ResultGrid の estimateSize と一致させる)。
+const FALLBACK_ROW_HEIGHT = 32;
+
+/** broken-state 用に合成 VirtualItem 配列を生成する (純粋関数) */
+function createFallbackVirtualItems(rowCount: number): VirtualItem[] {
+  const limit = Math.min(rowCount, FALLBACK_RENDER_LIMIT);
+  const items: VirtualItem[] = new Array(limit);
+  for (let i = 0; i < limit; i++) {
+    items[i] = {
+      key: i,
+      index: i,
+      start: i * FALLBACK_ROW_HEIGHT,
+      end: (i + 1) * FALLBACK_ROW_HEIGHT,
+      size: FALLBACK_ROW_HEIGHT,
+      lane: 0,
+    };
+  }
+  return items;
+}
+
+/** virtualRows 配列から paddingTop / paddingBottom を計算する (純粋関数) */
+function computeRowPaddings(
+  items: VirtualItem[],
+  totalSize: number
+): { paddingTop: number; paddingBottom: number } {
+  if (items.length === 0) return { paddingTop: 0, paddingBottom: 0 };
+  const paddingTop = items[0]?.start ?? 0;
+  const lastEnd = items[items.length - 1]?.end ?? 0;
+  // broken-state では totalSize も 0 になり得るため (totalSize - lastEnd) が負にならないようガード。
+  const paddingBottom = Math.max(0, totalSize - lastEnd);
+  return { paddingTop, paddingBottom };
+}
+
 /** Extract row/cell info from a bubbled event via data attributes */
 function findCellFromEvent(e: MouseEvent) {
   const td = (e.target as HTMLElement).closest('td[data-field]') as HTMLElement | null;
@@ -103,9 +142,17 @@ function GridTableInner({
   // memo の浅い比較で列幅変化を検出するために受け取るだけ。値自体は table.getState() 経由で参照される。
   columnSizing: _columnSizing,
 }: GridTableProps) {
-  const paddingTop = virtualRows.length > 0 ? (virtualRows[0]?.start ?? 0) : 0;
-  const paddingBottom =
-    virtualRows.length > 0 ? totalSize - (virtualRows[virtualRows.length - 1]?.end ?? 0) : 0;
+  // Issue #417: virtualizer broken-state (rows>0 だが virtualRows=[]) を検出して
+  // 先頭 N 行を非仮想で描画する。これにより WebView2 layout race で空表示になる
+  // 事象を回避する。virtualizer が復旧した瞬間 (virtualRows が満たされた瞬間)
+  // 通常経路に切り替わるため、復旧後の二重描画は起こらない。
+  const isVirtualizerBroken = virtualRows.length === 0 && rows.length > 0;
+  const renderItems = useMemo<VirtualItem[]>(
+    () => (isVirtualizerBroken ? createFallbackVirtualItems(rows.length) : virtualRows),
+    [isVirtualizerBroken, virtualRows, rows.length]
+  );
+
+  const { paddingTop, paddingBottom } = computeRowPaddings(renderItems, totalSize);
 
   const { contextMenu, openHeaderMenu, openCellMenu, closeMenu, getMenuItems } = useGridContextMenu(
     columnsMeta,
@@ -264,8 +311,9 @@ function GridTableInner({
               <td style={{ height: `${paddingTop}px` }} />
             </tr>
           )}
-          {virtualRows.map((virtualRow) => {
+          {renderItems.map((virtualRow) => {
             const row = rows[virtualRow.index];
+            if (!row) return null;
             const rowIndex = virtualRow.index;
             const originalIndex = Number(row.original.__originalIndex);
             const isSelected = selection.selectedRows.has(rowIndex);
