@@ -38,6 +38,7 @@ import { type ColumnMeta, type GridViewMode, isNumericType, type RowData } from 
 import { parseErrorMessage } from '../../utils/errorParser';
 import { lazyWithRetry } from '../../utils/lazyWithRetry';
 import { log } from '../../utils/logger';
+import { getStatementType } from '../../utils/sqlIdentifier';
 import { QueryConfirmDialog } from '../dialogs/QueryConfirmDialog';
 import { GridFilterBar } from './GridFilterBar';
 import { GridStatusBar } from './GridStatusBar';
@@ -177,6 +178,16 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   const resultSet: ResultSet | null = hasFilteredResults
     ? (filteredResults[activeResultIndex]?.data ?? null)
     : singleResult;
+
+  // DML/DDL の結果文言切替用 (#415): multipleResults はタブ毎の statement、
+  // single は実行された SQL (currentQuery.content) から先頭動詞を抽出。
+  const statementType = useMemo(() => {
+    if (hasFilteredResults) {
+      const stmt = filteredResults[activeResultIndex]?.statement;
+      return stmt ? getStatementType(stmt) : undefined;
+    }
+    return currentQuery?.content ? getStatementType(currentQuery.content) : undefined;
+  }, [hasFilteredResults, filteredResults, activeResultIndex, currentQuery?.content]);
 
   // --- Row / Column data ---
   const baseRowData = useMemo<RowData[]>(() => {
@@ -789,6 +800,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         viewMode={viewMode}
         transposeRowIndex={transposeRowIndex}
         pagination={pagination}
+        statementType={statementType}
       />
 
       <Suspense fallback={null}>
