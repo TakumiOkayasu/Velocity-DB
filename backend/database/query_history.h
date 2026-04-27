@@ -49,7 +49,9 @@ struct HistoryItem {
 
 class QueryHistory {
 public:
-    explicit QueryHistory(size_t maxItems = 10000) : m_maxItems(maxItems) {}
+    /// デフォルト値は GeneralSettings::maxQueryHistory (settings_manager.h) と一致させる。
+    /// 不一致は Issue #426 を参照。
+    explicit QueryHistory(size_t maxItems = 1000) : m_maxItems(maxItems) {}
     ~QueryHistory() = default;
 
     QueryHistory(const QueryHistory&) = delete;
@@ -66,10 +68,17 @@ public:
     void remove(std::string_view id);
     void clear();
 
+    /// 上限件数を変更し、超過分の非 favorite を即時 eviction する。
+    /// settings.general.maxQueryHistory のランタイム反映に使う (Issue #426)。
+    void setMaxItems(size_t maxItems);
+
     [[nodiscard]] std::expected<void, std::string> save(std::string_view filepath) const;
     [[nodiscard]] std::expected<void, std::string> load(std::string_view filepath);
 
 private:
+    /// 呼び出し側で m_mutex を取得済みであることを前提とした eviction 共通ロジック。
+    void evictOverLimitLocked();
+
     size_t m_maxItems;
     mutable std::mutex m_mutex;
     // list を選定: erase 以外で iterator が無効化されないため、unordered_map に iterator を保持して

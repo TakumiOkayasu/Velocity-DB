@@ -33,6 +33,10 @@ void QueryHistory::add(const HistoryItem& item) {
         ++m_nonFavoriteCount;
     }
 
+    evictOverLimitLocked();
+}
+
+void QueryHistory::evictOverLimitLocked() {
     // eviction: 平均 O(1) (通常は末尾が非 favorite)。
     // 全 favorite 状態は m_nonFavoriteCount で先に判定して O(1) で skip する。
     while (m_history.size() > m_maxItems) {
@@ -52,6 +56,12 @@ void QueryHistory::add(const HistoryItem& item) {
         m_history.erase(victim);
         --m_nonFavoriteCount;
     }
+}
+
+void QueryHistory::setMaxItems(size_t maxItems) {
+    std::lock_guard lock(m_mutex);
+    m_maxItems = maxItems;
+    evictOverLimitLocked();
 }
 
 std::vector<HistoryItem> QueryHistory::getAll() const {
