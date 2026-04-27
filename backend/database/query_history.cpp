@@ -3,6 +3,7 @@
 #include "simdjson.h"
 
 #include <algorithm>
+#include <cassert>
 #include <format>
 #include <fstream>
 #include <ranges>
@@ -11,34 +12,60 @@
 namespace velocitydb {
 
 void QueryHistory::add(const HistoryItem& item) {
+    // 事前条件: 呼び出し側 (provider 等) が generateHistoryId() で id を埋める。
+    // 空 id を許すと map キーが衝突して履歴が破損するため、契約として弾く。
+    assert(!item.id.empty() && "QueryHistory::add requires non-empty id; caller must use generateHistoryId()");
+
     std::lock_guard lock(m_mutex);
 
-    m_history.insert(m_history.begin(), item);
+    if (auto existing = m_indexById.find(item.id); existing != m_indexById.end()) {
+        if (!existing->second->isFavorite) {
+            --m_nonFavoriteCount;
+        }
+        m_history.erase(existing->second);
+        m_indexById.erase(existing);
+    }
 
+    m_history.push_front(item);
+    auto inserted = m_history.begin();
+    m_indexById.emplace(inserted->id, inserted);
+    if (!inserted->isFavorite) {
+        ++m_nonFavoriteCount;
+    }
+
+    // eviction: 平均 O(1) (通常は末尾が非 favorite)。
+    // 全 favorite 状態は m_nonFavoriteCount で先に判定して O(1) で skip する。
     while (m_history.size() > m_maxItems) {
-        auto it = std::ranges::find_if(m_history | std::views::reverse, [](const HistoryItem& h) { return !h.isFavorite; });
+        if (m_nonFavoriteCount == 0) {
+            break;  // 全要素 favorite — eviction 対象なし
+        }
 
-        if (it != (m_history | std::views::reverse).end()) {
-            m_history.erase(std::next(it).base());
-        } else {
+        auto rit = std::ranges::find_if(m_history | std::views::reverse, [](const HistoryItem& h) { return !h.isFavorite; });
+        if (rit == (m_history | std::views::reverse).end()) {
+            // counter と list が一致していれば到達不能。防御的 break。
+            assert(false && "m_nonFavoriteCount out of sync with m_history");
             break;
         }
+
+        auto victim = std::next(rit).base();
+        m_indexById.erase(victim->id);
+        m_history.erase(victim);
+        --m_nonFavoriteCount;
     }
 }
 
 std::vector<HistoryItem> QueryHistory::getAll() const {
     std::lock_guard lock(m_mutex);
-    return m_history;
+    return {m_history.begin(), m_history.end()};
 }
 
 std::vector<HistoryItem> QueryHistory::search(std::string_view keyword) const {
     std::lock_guard lock(m_mutex);
 
     if (keyword.empty()) {
-        return m_history;
+        return {m_history.begin(), m_history.end()};
     }
 
-    // Case-insensitive search without creating lowercase copies of entire strings
     auto caseInsensitiveFind = [](std::string_view haystack, std::string_view needle) -> bool {
         if (needle.size() > haystack.size()) {
             return false;
@@ -48,7 +75,7 @@ std::vector<HistoryItem> QueryHistory::search(std::string_view keyword) const {
     };
 
     std::vector<HistoryItem> results;
-    results.reserve(m_history.size() / 4);  // Estimate ~25% match rate
+    results.reserve(m_history.size() / 4);
 
     for (const auto& item : m_history) {
         if (caseInsensitiveFind(item.sql, keyword)) {
@@ -71,8 +98,13 @@ std::vector<HistoryItem> QueryHistory::getByDate(std::chrono::system_clock::time
 void QueryHistory::setFavorite(std::string_view id, bool favorite) {
     std::lock_guard lock(m_mutex);
 
-    if (auto it = std::ranges::find_if(m_history, [id](const HistoryItem& h) { return h.id == id; }); it != m_history.end()) {
-        it->isFavorite = favorite;
+    if (auto it = m_indexById.find(id); it != m_indexById.end()) {
+        if (it->second->isFavorite && !favorite) {
+            ++m_nonFavoriteCount;
+        } else if (!it->second->isFavorite && favorite) {
+            --m_nonFavoriteCount;
+        }
+        it->second->isFavorite = favorite;
     }
 }
 
@@ -88,13 +120,29 @@ std::vector<HistoryItem> QueryHistory::getFavorites() const {
 void QueryHistory::remove(std::string_view id) {
     std::lock_guard lock(m_mutex);
 
-    std::erase_if(m_history, [id](const HistoryItem& h) { return h.id == id; });
+    auto it = m_indexById.find(id);
+    if (it == m_indexById.end()) {
+        return;
+    }
+    if (!it->second->isFavorite) {
+        --m_nonFavoriteCount;
+    }
+    m_history.erase(it->second);
+    m_indexById.erase(it);
 }
 
 void QueryHistory::clear() {
     std::lock_guard lock(m_mutex);
 
-    std::erase_if(m_history, [](const HistoryItem& h) { return !h.isFavorite; });
+    for (auto it = m_history.begin(); it != m_history.end();) {
+        if (it->isFavorite) {
+            ++it;
+        } else {
+            m_indexById.erase(it->id);
+            it = m_history.erase(it);
+        }
+    }
+    m_nonFavoriteCount = 0;
 }
 
 std::expected<void, std::string> QueryHistory::save(std::string_view filepath) const {
@@ -107,9 +155,15 @@ std::expected<void, std::string> QueryHistory::save(std::string_view filepath) c
         return std::unexpected(std::format("Failed to open history file for writing: {}", filepath));
     }
 
-    outFile << "[\n";
-    for (size_t i = 0; i < m_history.size(); ++i) {
-        const auto& item = m_history[i];
+    outFile << "[";
+    bool first = true;
+    for (const auto& item : m_history) {
+        if (!first) {
+            outFile << ",";
+        }
+        outFile << "\n";
+        first = false;
+
         auto time = std::chrono::system_clock::to_time_t(item.timestamp);
 
         auto jsonEntry =
@@ -126,10 +180,8 @@ std::expected<void, std::string> QueryHistory::save(std::string_view filepath) c
   }})",
                         item.id, item.sql, item.connectionId, time, item.executionTimeMs, item.success ? "true" : "false", item.errorMessage, item.affectedRows, item.isFavorite ? "true" : "false");
         outFile << jsonEntry;
-
-        if (i < m_history.size() - 1) {
-            outFile << ",";
-        }
+    }
+    if (!m_history.empty()) {
         outFile << "\n";
     }
     outFile << "]\n";
@@ -154,7 +206,7 @@ std::expected<void, std::string> QueryHistory::load(std::string_view filepath) {
     std::string jsonContent = buffer.str();
 
     if (jsonContent.empty()) {
-        return {};  // Empty file is valid
+        return {};
     }
 
     try {
@@ -166,6 +218,8 @@ std::expected<void, std::string> QueryHistory::load(std::string_view filepath) {
         }
 
         m_history.clear();
+        m_indexById.clear();
+        m_nonFavoriteCount = 0;
 
         for (auto item : doc.get_array()) {
             HistoryItem historyItem;
@@ -198,7 +252,19 @@ std::expected<void, std::string> QueryHistory::load(std::string_view filepath) {
                 historyItem.isFavorite = favorite.value();
             }
 
+            if (historyItem.id.empty()) {
+                // 不正な入力 (id 欠落) はスキップ。読み込み全体を中断する代わりに防御的に無視する。
+                continue;
+            }
+
             m_history.push_back(std::move(historyItem));
+            auto last = std::prev(m_history.end());
+            if (auto [_, inserted] = m_indexById.emplace(last->id, last); !inserted) {
+                // 重複 id を検出。新エントリを破棄して map との整合を維持する。
+                m_history.pop_back();
+            } else if (!last->isFavorite) {
+                ++m_nonFavoriteCount;
+            }
         }
 
         return {};
