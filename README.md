@@ -347,6 +347,8 @@ bun run format       # フォーマット
 | 結果フィルタリング | 高速 | AVX2 SIMDベクトル化 |
 | 繰り返しクエリ | 高速 | LRU結果キャッシュ（100MB） |
 
+> 各項目の実装状況・計測手段・検証結果は [docs/PERFORMANCE_VALIDATION.md](./docs/PERFORMANCE_VALIDATION.md) を参照。
+
 ## 謝辞
 
 このプロジェクトは以下のオープンソースライブラリを使用しています：
