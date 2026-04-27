@@ -78,6 +78,7 @@ export interface Connection {
   tableListLoadTimeMs?: number; // Time taken to load table list
   tableOpenTimeMs?: number; // Time taken to open a table (click to display)
   ssh?: SshConfig;
+  profileId?: string; // Set when connection originates from a saved profile; absent for ad-hoc connections.
 }
 
 // Query types

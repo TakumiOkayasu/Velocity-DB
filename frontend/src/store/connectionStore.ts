@@ -87,17 +87,21 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         dbType: connection.dbType ?? 'sqlserver',
       };
 
-      const existing = get().connections.find((c) => c.name === connection.name);
+      // Profile 由来接続は profileId で同定 (#414): 同名でもフォルダ違いなら共存。
+      // 手動接続 (profileId なし) は従来どおり同名で置換し、profile 由来とは衝突させない。
+      const matchesExisting = (c: Connection) =>
+        connection.profileId
+          ? c.profileId === connection.profileId
+          : c.name === connection.name && !c.profileId;
+
+      const existing = get().connections.find(matchesExisting);
       const oldId = existing?.id;
       if (existing) {
         await bridge.disconnect(existing.id).catch(() => {});
       }
 
       set((state) => ({
-        connections: [
-          ...state.connections.filter((c) => c.name !== connection.name),
-          newConnection,
-        ],
+        connections: [...state.connections.filter((c) => !matchesExisting(c)), newConnection],
         activeConnectionId: result.connectionId,
         isConnecting: false,
         connectRequestId: null,

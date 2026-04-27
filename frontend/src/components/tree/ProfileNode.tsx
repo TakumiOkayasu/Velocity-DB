@@ -19,9 +19,15 @@ function ProfileNodeComponent({
   onTableOpen,
   onProfileClick,
 }: ProfileNodeProps) {
+  const identityProps = {
+    'data-testid': 'profile-node',
+    'data-profile-name': profile.name,
+    'data-profile-id': profile.id,
+  };
+
   if (connection) {
     return (
-      <div data-testid="profile-node" data-profile-name={profile.name}>
+      <div {...identityProps}>
         <ConnectionTreeSection connection={connection} filter={filter} onTableOpen={onTableOpen} />
       </div>
     );
@@ -29,8 +35,7 @@ function ProfileNodeComponent({
 
   return (
     <div
-      data-testid="profile-node"
-      data-profile-name={profile.name}
+      {...identityProps}
       className={`${styles.profileItem} ${profile.isProduction ? styles.production : ''}`}
       onClick={() => onProfileClick(profile)}
       title={`Click to connect to ${profile.name}`}
