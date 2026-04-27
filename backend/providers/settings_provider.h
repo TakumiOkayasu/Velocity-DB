@@ -11,6 +11,7 @@ namespace velocitydb {
 class SettingsManager;
 class SessionManager;
 class IConnectionProvider;
+class QueryHistory;
 
 /// Provider for application settings and session management
 class SettingsProvider : public ISettingsProvider {
@@ -19,6 +20,11 @@ public:
     ///                    May be nullptr for unit tests that don't exercise timeout propagation.
     explicit SettingsProvider(IConnectionProvider* connections = nullptr);
     ~SettingsProvider() override;
+
+    /// Wire the QueryHistory instance whose maxItems is updated when
+    /// general.maxQueryHistory changes via updateSettings().
+    /// May be called once after construction; pass nullptr to detach.
+    void setQueryHistory(QueryHistory* queryHistory);
 
     SettingsProvider(const SettingsProvider&) = delete;
     SettingsProvider& operator=(const SettingsProvider&) = delete;
@@ -43,10 +49,12 @@ public:
 
 private:
     void applyQueryTimeoutToConnections(int seconds);
+    void applyMaxQueryHistoryToInstance(int maxItems);
 
     std::unique_ptr<SettingsManager> m_settingsManager;
     std::unique_ptr<SessionManager> m_sessionManager;
-    IConnectionProvider* m_connections;  // Non-owning; may be null in tests
+    IConnectionProvider* m_connections;      // Non-owning; may be null in tests
+    QueryHistory* m_queryHistory = nullptr;  // Non-owning; wired post-construction by SystemContext
 };
 
 }  // namespace velocitydb

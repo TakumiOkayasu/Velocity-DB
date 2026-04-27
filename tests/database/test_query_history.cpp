@@ -240,5 +240,45 @@ TEST_F(QueryHistoryTest, AddRemoveScalesLinearly) {
     EXPECT_LT(ratio, 30.0) << "scaling ratio=" << ratio << " (tSmall=" << tSmall << "us, tLarge=" << tLarge << "us) — superlinear scaling detected";
 }
 
+TEST_F(QueryHistoryTest, SetMaxItemsShrinksHistoryEvictingNonFavorites) {
+    QueryHistory h{10};
+    for (int i = 0; i < 10; ++i) {
+        HistoryItem item;
+        item.id = generateHistoryId();
+        item.sql = "SELECT " + std::to_string(i);
+        item.timestamp = std::chrono::system_clock::now();
+        item.success = true;
+        // 偶数 index を favorite (5 件)
+        item.isFavorite = (i % 2 == 0);
+        h.add(item);
+    }
+    ASSERT_EQ(h.getAll().size(), 10);
+
+    // 上限を 5 に縮小: 非 favorite (5 件) が削除されて favorite だけが残る想定
+    h.setMaxItems(5);
+
+    auto remaining = h.getAll();
+    EXPECT_EQ(remaining.size(), 5);
+    for (const auto& item : remaining) {
+        EXPECT_TRUE(item.isFavorite) << "non-favorite survived after shrink: " << item.sql;
+    }
+}
+
+TEST_F(QueryHistoryTest, SetMaxItemsLargerThanCurrentKeepsAll) {
+    QueryHistory h{5};
+    for (int i = 0; i < 5; ++i) {
+        HistoryItem item;
+        item.id = generateHistoryId();
+        item.sql = "SELECT " + std::to_string(i);
+        item.timestamp = std::chrono::system_clock::now();
+        item.success = true;
+        h.add(item);
+    }
+    ASSERT_EQ(h.getAll().size(), 5);
+
+    h.setMaxItems(100);
+    EXPECT_EQ(h.getAll().size(), 5);
+}
+
 }  // namespace test
 }  // namespace velocitydb

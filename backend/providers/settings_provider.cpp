@@ -1,5 +1,6 @@
 #include "settings_provider.h"
 
+#include "../database/query_history.h"
 #include "../interfaces/providers/connection_provider.h"
 #include "../utils/glaze_meta.h"
 #include "../utils/json_utils.h"
@@ -170,6 +171,20 @@ void SettingsProvider::applyQueryTimeoutToConnections(int seconds) {
     }
 }
 
+void SettingsProvider::applyMaxQueryHistoryToInstance(int maxItems) {
+    if (m_queryHistory && maxItems > 0) {
+        m_queryHistory->setMaxItems(static_cast<size_t>(maxItems));
+    }
+}
+
+void SettingsProvider::setQueryHistory(QueryHistory* queryHistory) {
+    m_queryHistory = queryHistory;
+    // 初回 wiring 時に load 済み settings を即時反映する。
+    if (m_queryHistory) {
+        applyMaxQueryHistoryToInstance(m_settingsManager->getSettings().general.maxQueryHistory);
+    }
+}
+
 SettingsProvider::~SettingsProvider() = default;
 SettingsProvider::SettingsProvider(SettingsProvider&&) noexcept = default;
 SettingsProvider& SettingsProvider::operator=(SettingsProvider&&) noexcept = default;
@@ -246,6 +261,7 @@ std::string SettingsProvider::updateSettings(std::string_view params) {
         (void)m_settingsManager->save();
 
         applyQueryTimeoutToConnections(settings.query.timeoutSeconds);
+        applyMaxQueryHistoryToInstance(settings.general.maxQueryHistory);
 
         return JsonUtils::successResponse(R"({"saved":true})");
     } catch (const std::exception& e) {
