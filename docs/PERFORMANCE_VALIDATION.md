@@ -178,11 +178,14 @@ uv run scripts/pdg.py test backend
 本検証では「実装の存在確認」までを完了した。継続的な目標達成保証のためには以下が必要:
 
 1. **ベンチマークテスト群の追加** (別 issue / PR)
-   - バックエンド: `tests/perf/` ディレクトリ新設、Google Test での計測アサート
-   - フロントエンド: Vitest での `performance.now()` ベース計測 + Playwright での E2E 計測
-   - `scripts/pdg.py` に `bench` サブコマンド追加
+   - ✅ バックエンド基盤: `tests/perf/` 新設、`VelocityDBPerfTests` 実行ファイル、`perf` ctest ラベル (#425)
+   - ✅ `scripts/pdg.py` に `bench` サブコマンド (`pdg bench backend` で `ctest -L perf`)
+   - 🔍 個別目標 (#3 SELECT / #6 SQL フォーマット / #10 履歴検索 / #11 SIMD) の計測テスト追加は別 PR
+   - 🔍 フロントエンド: Vitest での `performance.now()` ベース計測 + Playwright での E2E 計測 (未着手)
 2. **CI への組み込み**
-   - リグレッション検出のため、PR 毎にベンチマーク値を記録・比較
+   - ✅ 通常テスト workflow (`ci.yml` / `test.yml`) は `ctest -LE perf` で perf を除外
+   - ✅ `bench.yml` を新設 (`workflow_dispatch` で手動実行)
+   - 🔍 PR 毎のリグレッション検出 (値の記録・比較) は未対応
 3. **README の目標表現の明確化**
    - 「高速」(#11) のように定量的でない記述を、具体値もしくは相対値 (例: 「非 SIMD 比 N 倍」) に置き換え
    - 計測条件 (CPU、メモリ、DB ロケーション) の前提を README に併記

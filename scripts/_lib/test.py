@@ -64,8 +64,19 @@ def test_e2e() -> bool:
     return success
 
 
-def test_backend(build_type: str = "Release") -> bool:
-    """Run backend tests."""
+def _run_ctest_preset(
+    build_type: str,
+    label_args: list[str],
+    *,
+    header: str,
+    cmd_label: str,
+    ok_msg: str,
+    fail_msg: str,
+) -> bool:
+    """Run ctest under a CMake preset with the given label filter.
+
+    label_args は ctest にそのまま渡す追加引数 (例: ["--parallel", "-LE", "perf"])。
+    """
     if build_type not in ("Debug", "Release"):
         print(f"ERROR: Invalid build type '{build_type}'")
         return False
@@ -73,25 +84,44 @@ def test_backend(build_type: str = "Release") -> bool:
     project_root = utils.get_project_root()
     build_dir = project_root / "build"
 
-    utils.print_header(f"Running Backend Tests ({build_type})")
+    utils.print_header(f"{header} ({build_type})")
 
     if not build_dir.exists():
         print("\nERROR: Build directory not found")
         print("Run 'uv run scripts/pdg.py build backend' first")
         return False
 
-    # Setup MSVC environment
     env = utils.get_msvc_env()
-
-    # Run CTest with Preset
     preset = build_type.lower()  # "debug" or "release"
-    test_cmd = ["ctest", "--preset", preset, "--output-on-failure", "--parallel"]
+    test_cmd = ["ctest", "--preset", preset, "--output-on-failure", *label_args]
 
-    success, _ = utils.run_command(test_cmd, "CTest", env=env)
+    success, _ = utils.run_command(test_cmd, cmd_label, env=env)
 
-    if success:
-        print("\n[OK] All tests passed!")
-    else:
-        print("\n[FAIL] Tests failed")
-
+    print(f"\n[{'OK' if success else 'FAIL'}] {ok_msg if success else fail_msg}")
     return success
+
+
+def test_backend(build_type: str = "Release") -> bool:
+    """Run backend unit tests (perf-labeled benchmarks excluded)."""
+    # -LE perf excludes performance benchmarks so the default test run stays
+    # fast; use `pdg bench backend` to run them.
+    return _run_ctest_preset(
+        build_type,
+        ["--parallel", "-LE", "perf"],
+        header="Running Backend Tests",
+        cmd_label="CTest",
+        ok_msg="All tests passed!",
+        fail_msg="Tests failed",
+    )
+
+
+def bench_backend(build_type: str = "Release") -> bool:
+    """Run backend performance benchmarks (perf-labeled tests only)."""
+    return _run_ctest_preset(
+        build_type,
+        ["-L", "perf"],
+        header="Running Backend Benchmarks",
+        cmd_label="CTest (perf)",
+        ok_msg="All benchmarks passed!",
+        fail_msg="Benchmarks failed",
+    )

@@ -45,7 +45,8 @@ jobs:
         run: cmake --build build --parallel
 
       - name: Run C++ Tests
-        run: ctest --test-dir build --output-on-failure --parallel
+        # -LE perf excludes performance benchmarks (run via Benchmarks workflow or `pdg bench backend`)
+        run: ctest --test-dir build --output-on-failure --parallel -LE perf
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2

@@ -65,3 +65,7 @@ target_set_output_directories(VelocityDBTests)
 
 include(GoogleTest)
 gtest_discover_tests(VelocityDBTests)
+
+# Performance benchmark tests are built as a separate executable and labeled
+# "perf" so unit-test runs can skip them via `ctest -LE perf`.
+add_subdirectory(perf)

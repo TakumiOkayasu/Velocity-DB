@@ -9,6 +9,7 @@ Usage:
     uv run scripts/pdg.py build [backend|frontend|all] [--clean]
     uv run scripts/pdg.py debug [--clean]              # Backend Debug build
     uv run scripts/pdg.py test [backend|frontend|e2e] [--watch]
+    uv run scripts/pdg.py bench [backend]              # Performance benchmarks
     uv run scripts/pdg.py lint [--fix] [--unsafe]
     uv run scripts/pdg.py dev
     uv run scripts/pdg.py package
@@ -21,6 +22,7 @@ Examples:
     uv run scripts/pdg.py build all
     uv run scripts/pdg.py debug                        # Quick debug build
     uv run scripts/pdg.py test frontend --watch
+    uv run scripts/pdg.py bench backend                # Run perf-labeled tests
     uv run scripts/pdg.py lint --fix
     uv run scripts/pdg.py lint --fix --unsafe
     uv run scripts/pdg.py clean logs
@@ -74,6 +76,18 @@ def cmd_test(args: argparse.Namespace) -> bool:
         return test.test_e2e()
     else:
         print(f"ERROR: Unknown test target: {target}")
+        return False
+
+
+def cmd_bench(args: argparse.Namespace) -> bool:
+    """Handle bench command - run performance benchmarks (perf-labeled tests)."""
+    target: str = args.target
+    build_type: str = args.type
+
+    if target == "backend":
+        return test.bench_backend(build_type=build_type)
+    else:
+        print(f"ERROR: Unknown bench target: {target}")
         return False
 
 
@@ -414,6 +428,23 @@ def main() -> None:
         help="Build type for backend tests (default: Release)",
     )
 
+    # Bench command (perf-labeled tests only; excluded from `test` by default)
+    bench_parser = subparsers.add_parser("bench", help="Run performance benchmarks")
+    bench_parser.add_argument(
+        "target",
+        choices=["backend"],
+        default="backend",
+        nargs="?",
+        help="Bench target (default: backend)",
+    )
+    bench_parser.add_argument(
+        "--type",
+        "-t",
+        choices=["Debug", "Release"],
+        default="Release",
+        help="Build type for benchmarks (default: Release)",
+    )
+
     # Lint command
     lint_parser = subparsers.add_parser("lint", aliases=["l"], help="Lint code")
     lint_parser.add_argument("--fix", "-f", action="store_true", help="Auto-fix issues")
@@ -478,6 +509,7 @@ def main() -> None:
         "debug": cmd_debug,
         "test": cmd_test,
         "t": cmd_test,
+        "bench": cmd_bench,
         "lint": cmd_lint,
         "l": cmd_lint,
         "dev": cmd_dev,
