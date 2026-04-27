@@ -53,7 +53,7 @@ private:
 
     std::unique_ptr<SettingsManager> m_settingsManager;
     std::unique_ptr<SessionManager> m_sessionManager;
-    IConnectionProvider* m_connections;     // Non-owning; may be null in tests
+    IConnectionProvider* m_connections;      // Non-owning; may be null in tests
     QueryHistory* m_queryHistory = nullptr;  // Non-owning; wired post-construction by SystemContext
 };
 
