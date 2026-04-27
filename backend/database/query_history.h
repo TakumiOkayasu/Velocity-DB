@@ -1,13 +1,17 @@
 #pragma once
 
+#include "../utils/transparent_hash.h"
+
 #include <atomic>
 #include <chrono>
 #include <expected>
 #include <format>
+#include <list>
 #include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 namespace velocitydb {
@@ -68,7 +72,12 @@ public:
 private:
     size_t m_maxItems;
     mutable std::mutex m_mutex;
-    std::vector<HistoryItem> m_history;
+    // list を選定: erase 以外で iterator が無効化されないため、unordered_map に iterator を保持して
+    // add/remove/setFavorite を平均 O(1) 化できる。vector では中央 erase で iterator が全無効化される。
+    std::list<HistoryItem> m_history;  // Front = newest.
+    std::unordered_map<std::string, std::list<HistoryItem>::iterator, TransparentStringHash, TransparentStringEqual> m_indexById;
+    // 非 favorite の件数。eviction loop が「全 favorite 状態」を O(1) で skip するためのキャッシュ。
+    size_t m_nonFavoriteCount = 0;
 };
 
 }  // namespace velocitydb
