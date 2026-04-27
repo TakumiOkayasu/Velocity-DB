@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <format>
+
 #include "database/query_history.h"
 #include "providers/settings_provider.h"
 #include "utils/session_manager.h"
@@ -10,15 +12,22 @@ namespace {
 
 class SettingsProviderTest : public ::testing::Test {
 protected:
-    // settings.json は %LOCALAPPDATA%\Velocity-DB\ に永続化されるため、
-    // 過去のテスト実行で書き込まれた maxQueryHistory が次回テストに残留する。
-    // SetUp で大きいデフォルトに戻し、各テストを永続化状態から独立させる。
+    // settings.json は %LOCALAPPDATA%\Velocity-DB\ に永続化されるため、テスト間および
+    // ユーザー設定との state リークを防ぐ。SetUp で元の maxQueryHistory を退避してから
+    // 1000 にリセット、TearDown で退避値に復元する (ユーザー設定を破壊しない)。
     void SetUp() override {
+        m_savedMaxQueryHistory = provider.settingsManager().getSettings().general.maxQueryHistory;
         auto resetResult = provider.updateSettings(R"({"general":{"maxQueryHistory":1000}})");
         ASSERT_NE(resetResult.find("\"saved\""), std::string::npos);
     }
 
+    void TearDown() override {
+        const auto restoreJson = std::format(R"({{"general":{{"maxQueryHistory":{}}}}})", m_savedMaxQueryHistory);
+        (void)provider.updateSettings(restoreJson);
+    }
+
     SettingsProvider provider;
+    int m_savedMaxQueryHistory = 1000;
 };
 
 TEST_F(SettingsProviderTest, AccessSettingsManager) {

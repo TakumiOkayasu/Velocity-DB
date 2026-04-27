@@ -106,6 +106,13 @@ private:
     void addToTrigramIndex(HistoryIter it);
     /// sql の全 trigram を index から削除する (posting が空なら entry も erase)。
     void removeFromTrigramIndex(HistoryIter it);
+    /// search() の posting 交差処理。keyword の trigram 集合から AND 交差で候補集合を返す。
+    /// 1 個でも posting が欠けていれば空集合を返す (ゼロ件確定)。要 m_mutex 保有。
+    [[nodiscard]] std::unordered_set<const HistoryItem*> findSearchCandidatesLocked(std::string_view keyword) const;
+    /// sql の全 trigram を抽出し重複排除した vector を返す。
+    /// `unordered_set` で重複検出するため per-trigram O(1)、全体 O(L) (L = sql.size())。
+    /// member 化している理由: `TrigramHash` が private nested 型のため anonymous namespace から不可視。
+    [[nodiscard]] static std::vector<Trigram> buildUniqueTrigrams(std::string_view sql);
 
     size_t m_maxItems;
     mutable std::mutex m_mutex;

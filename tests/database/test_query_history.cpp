@@ -423,7 +423,17 @@ TEST_F(QueryHistoryTest, SearchAfterSetMaxItemsShrinkSyncsIndex) {
 }
 
 TEST_F(QueryHistoryTest, SearchAfterLoadRebuildsIndex) {
-    auto path = std::filesystem::temp_directory_path() / "qh_load_test.json";
+    // gtest 提供のテスト一時ディレクトリ + テスト名で他テストと隔離する。
+    // RAII guard で ASSERT 失敗時もファイル削除を保証する。
+    const auto path = std::filesystem::path(testing::TempDir()) / "qh_load_SearchAfterLoadRebuildsIndex.json";
+    struct PathGuard {
+        std::filesystem::path p;
+        ~PathGuard() {
+            std::error_code ec;
+            std::filesystem::remove(p, ec);
+        }
+    } guard{path};
+
     {
         QueryHistory writer{100};
         HistoryItem item;
@@ -439,8 +449,6 @@ TEST_F(QueryHistoryTest, SearchAfterLoadRebuildsIndex) {
 
     auto results = reader.search("loaded_token");
     EXPECT_EQ(results.size(), 1);
-
-    std::filesystem::remove(path);
 }
 
 TEST_F(QueryHistoryTest, SearchUpdatesIndexOnReAdd) {

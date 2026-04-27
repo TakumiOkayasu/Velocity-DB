@@ -49,31 +49,31 @@ bool caseInsensitiveFind(std::string_view haystack, std::string_view needle) {
 
 }  // namespace
 
-void QueryHistory::addToTrigramIndex(HistoryIter it) {
-    // 同一 sql 内で出現する重複 trigram を排除して posting を膨らませない。
-    std::vector<Trigram> trigrams;
-    trigrams.reserve(it->sql.size());
-    forEachTrigram(it->sql, [&trigrams](const std::array<char, 3>& t) { trigrams.push_back(t); });
-    std::ranges::sort(trigrams);
-    const auto dup = std::ranges::unique(trigrams);
-    trigrams.erase(dup.begin(), dup.end());
+std::vector<QueryHistory::Trigram> QueryHistory::buildUniqueTrigrams(std::string_view sql) {
+    // unordered_set で per-trigram O(1) 重複検出。全体 O(L) (L = sql.size())。
+    // 戻り値の順序は非保証だが、呼び出し側は重複なし集合として扱うのみで順序非依存。
+    std::unordered_set<Trigram, TrigramHash> seen;
+    seen.reserve(sql.size());
+    std::vector<Trigram> result;
+    result.reserve(sql.size());
+    forEachTrigram(sql, [&seen, &result](const Trigram& t) {
+        if (seen.insert(t).second) {
+            result.push_back(t);
+        }
+    });
+    return result;
+}
 
+void QueryHistory::addToTrigramIndex(HistoryIter it) {
     const HistoryItem* ptr = &*it;
-    for (const auto& t : trigrams) {
+    for (const auto& t : buildUniqueTrigrams(it->sql)) {
         m_trigramIndex[t].insert(ptr);
     }
 }
 
 void QueryHistory::removeFromTrigramIndex(HistoryIter it) {
-    std::vector<Trigram> trigrams;
-    trigrams.reserve(it->sql.size());
-    forEachTrigram(it->sql, [&trigrams](const std::array<char, 3>& t) { trigrams.push_back(t); });
-    std::ranges::sort(trigrams);
-    const auto dup = std::ranges::unique(trigrams);
-    trigrams.erase(dup.begin(), dup.end());
-
     const HistoryItem* ptr = &*it;
-    for (const auto& t : trigrams) {
+    for (const auto& t : buildUniqueTrigrams(it->sql)) {
         auto mit = m_trigramIndex.find(t);
         if (mit == m_trigramIndex.end())
             continue;
@@ -145,34 +145,9 @@ std::vector<HistoryItem> QueryHistory::getAll() const {
     return {m_history.begin(), m_history.end()};
 }
 
-std::vector<HistoryItem> QueryHistory::search(std::string_view keyword) const {
-    std::lock_guard lock(m_mutex);
+std::unordered_set<const HistoryItem*> QueryHistory::findSearchCandidatesLocked(std::string_view keyword) const {
+    const auto queryTrigrams = buildUniqueTrigrams(keyword);
 
-    if (keyword.empty()) {
-        return {m_history.begin(), m_history.end()};
-    }
-
-    // 短語 (< 3 byte) は trigram 化不能 → 既存と同じ線形 substring search にフォールバック。
-    if (keyword.size() < 3) {
-        std::vector<HistoryItem> results;
-        results.reserve(m_history.size() / 4);
-        for (const auto& item : m_history) {
-            if (caseInsensitiveFind(item.sql, keyword)) {
-                results.push_back(item);
-            }
-        }
-        return results;
-    }
-
-    // 1. keyword の trigram 集合 (重複排除)
-    std::vector<Trigram> queryTrigrams;
-    queryTrigrams.reserve(keyword.size());
-    forEachTrigram(keyword, [&queryTrigrams](const std::array<char, 3>& t) { queryTrigrams.push_back(t); });
-    std::ranges::sort(queryTrigrams);
-    const auto qDup = std::ranges::unique(queryTrigrams);
-    queryTrigrams.erase(qDup.begin(), qDup.end());
-
-    // 2. 各 trigram の posting set を取得。1 個でも欠ければ確定でゼロ件。
     std::vector<const std::unordered_set<const HistoryItem*>*> postings;
     postings.reserve(queryTrigrams.size());
     for (const auto& t : queryTrigrams) {
@@ -183,8 +158,8 @@ std::vector<HistoryItem> QueryHistory::search(std::string_view keyword) const {
         postings.push_back(&mit->second);
     }
 
-    // 3. 最短 posting を起点に、各候補が他全 posting に含まれるかチェック (AND 交差)。
-    //    unordered_set::contains は O(1) なので候補 K 個 × posting M 個で O(K*M)。
+    // 最短 posting を起点に、各候補が他全 posting に含まれるかチェック (AND 交差)。
+    // unordered_set::contains は O(1) なので候補 K 個 × posting M 個で O(K*M)。
     auto shortest = std::ranges::min_element(postings, {}, [](const auto* p) { return p->size(); });
     std::unordered_set<const HistoryItem*> candidates;
     for (const auto* cand : **shortest) {
@@ -193,8 +168,30 @@ std::vector<HistoryItem> QueryHistory::search(std::string_view keyword) const {
             candidates.insert(cand);
         }
     }
+    return candidates;
+}
 
-    // 4. m_history を順走査して final substring 検証。LRU 順 (newest first) を保持する。
+std::vector<HistoryItem> QueryHistory::search(std::string_view keyword) const {
+    std::lock_guard lock(m_mutex);
+
+    if (keyword.empty()) {
+        return {m_history.begin(), m_history.end()};
+    }
+
+    // 短語 (< 3 byte) は trigram 化不能 → 既存と同じ線形 substring search にフォールバック。
+    if (keyword.size() < 3) {
+        std::vector<HistoryItem> results;
+        for (const auto& item : m_history) {
+            if (caseInsensitiveFind(item.sql, keyword)) {
+                results.push_back(item);
+            }
+        }
+        return results;
+    }
+
+    const auto candidates = findSearchCandidatesLocked(keyword);
+
+    // m_history を順走査して final substring 検証。LRU 順 (newest first) を保持する。
     std::vector<HistoryItem> results;
     results.reserve(candidates.size());
     for (const auto& item : m_history) {
