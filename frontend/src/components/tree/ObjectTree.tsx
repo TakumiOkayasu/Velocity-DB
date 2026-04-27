@@ -82,12 +82,13 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
     fetchProfiles();
   }, [profileVersion]);
 
-  // Lookup map: profile.name → active Connection. Profile order is the source of truth;
-  // connection state only changes how each row is rendered, never its position.
-  const connectionByName = useMemo(() => {
+  // Lookup map: profile.id → active Connection. Profile-derived connections carry profileId
+  // (set in handleConfirm below); ad-hoc connections lack it and are not shown on profile rows.
+  // Required to avoid same-name collision across folders (#414).
+  const connectionByProfileId = useMemo(() => {
     const map = new Map<string, (typeof connections)[number]>();
     for (const c of connections) {
-      if (c.isActive) map.set(c.name, c);
+      if (c.isActive && c.profileId) map.set(c.profileId, c);
     }
     return map;
   }, [connections]);
@@ -123,7 +124,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
         <ProfileNode
           key={profile.id}
           profile={profile}
-          connection={connectionByName.get(profile.name)}
+          connection={connectionByProfileId.get(profile.id)}
           filter={filter}
           onTableOpen={onTableOpen}
           onProfileClick={handleProfileClick}
@@ -146,7 +147,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
         </FolderNode>
       );
     },
-    [connectionByName, filter, onTableOpen, handleProfileClick, collapsedFolders, toggleFolder]
+    [connectionByProfileId, filter, onTableOpen, handleProfileClick, collapsedFolders, toggleFolder]
   );
 
   const handleConfirm = useCallback(async () => {
@@ -174,6 +175,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
       }
 
       const result = await addConnection({
+        profileId: confirmingProfile.id,
         name: confirmingProfile.name,
         server: confirmingProfile.server,
         port: confirmingProfile.port,
