@@ -19,7 +19,9 @@ export function isDatabaseType(value: string): value is DatabaseType {
   return value === 'sqlserver' || value === 'postgresql' || value === 'mysql';
 }
 
-// SSH configuration types (runtime, includes secrets)
+// SSH configuration types (runtime representation, all secret fields are optional).
+// NOTE: types/connectionForm.ts にも同名 SshConfig がある (UI form 用、フィールド必須)。
+// 両者の責務差については types/connectionForm.ts の JSDoc 参照。統合は別 issue で扱う。
 export interface SshConfig {
   enabled: boolean;
   host: string;

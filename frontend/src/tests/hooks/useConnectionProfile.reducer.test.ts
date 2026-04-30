@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { ConnectionConfig } from '../../components/dialogs/ConnectionDialog';
 import {
   initialProfileFormState,
   type ProfileFormState,
   profileFormReducer,
 } from '../../components/dialogs/hooks/useConnectionProfile.reducer';
 import type { SavedConnectionProfile } from '../../types';
+import type { ConnectionConfig } from '../../types/connectionForm';
 
 function makeProfile(overrides: Partial<SavedConnectionProfile> = {}): SavedConnectionProfile {
   return {

@@ -7,7 +7,7 @@ import {
   isSshAuthType,
   type SavedConnectionProfile,
 } from '../../../types';
-import type { ConnectionConfig } from '../ConnectionDialog';
+import type { ConnectionConfig } from '../../../types/connectionForm';
 import {
   initialProfileFormState,
   type ProfileMode,
