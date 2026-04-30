@@ -3,7 +3,7 @@
 #include "../database/driver_interface.h"
 #include "../interfaces/object_searchable.h"
 #include "../interfaces/providers/connection_provider.h"
-#include "../utils/global_search.h"
+#include "../search/global_search.h"
 #include "../utils/json_utils.h"
 #include "simdjson.h"
 
