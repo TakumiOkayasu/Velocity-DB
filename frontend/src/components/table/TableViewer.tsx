@@ -1,17 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { bridge } from '../../api/bridge';
 import { useConnectionStore } from '../../store/connectionStore';
-import type {
-  Column,
-  ConstraintInfo,
-  ForeignKeyInfo,
-  IndexInfo,
-  ReferencingForeignKeyInfo,
-  ResultSet,
-  TableMetadata,
-  TriggerInfo,
-} from '../../types';
+import type { ResultSet } from '../../types';
 import { stripBrackets } from '../../utils/stringUtils';
+import { useTableSchemaState } from './hooks/useTableSchemaState';
 import styles from './TableViewer.module.css';
 import { ColumnsTab } from './tabs/ColumnsTab';
 import { ConstraintsTab } from './tabs/ConstraintsTab';
@@ -50,17 +42,25 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
   const [resultSet, setResultSet] = useState<ResultSet | null>(null);
   const [whereClause, setWhereClause] = useState('');
 
-  // Schema state
-  const [columns, setColumns] = useState<Column[]>([]);
-  const [indexes, setIndexes] = useState<IndexInfo[]>([]);
-  const [constraints, setConstraints] = useState<ConstraintInfo[]>([]);
-  const [foreignKeys, setForeignKeys] = useState<ForeignKeyInfo[]>([]);
-  const [referencingForeignKeys, setReferencingForeignKeys] = useState<ReferencingForeignKeyInfo[]>(
-    []
-  );
-  const [triggers, setTriggers] = useState<TriggerInfo[]>([]);
-  const [metadata, setMetadata] = useState<TableMetadata | null>(null);
-  const [ddl, setDdl] = useState<string>('');
+  // Schema state (関心事別に hook 化)
+  const {
+    columns,
+    setColumns,
+    indexes,
+    setIndexes,
+    constraints,
+    setConstraints,
+    foreignKeys,
+    setForeignKeys,
+    referencingForeignKeys,
+    setReferencingForeignKeys,
+    triggers,
+    setTriggers,
+    metadata,
+    setMetadata,
+    ddl,
+    setDdl,
+  } = useTableSchemaState();
 
   const fullTableName = schemaName ? `[${schemaName}].[${tableName}]` : `[${tableName}]`;
 
@@ -106,7 +106,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
     } catch (err) {
       console.error('Failed to load columns:', err);
     }
-  }, [activeConnectionId, fullTableName]);
+  }, [activeConnectionId, fullTableName, setColumns]);
 
   const loadIndexes = useCallback(async () => {
     if (!activeConnectionId) return;
@@ -116,7 +116,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
     } catch (err) {
       console.error('Failed to load indexes:', err);
     }
-  }, [activeConnectionId, fullTableName]);
+  }, [activeConnectionId, fullTableName, setIndexes]);
 
   const loadConstraints = useCallback(async () => {
     if (!activeConnectionId) return;
@@ -126,7 +126,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
     } catch (err) {
       console.error('Failed to load constraints:', err);
     }
-  }, [activeConnectionId, fullTableName]);
+  }, [activeConnectionId, fullTableName, setConstraints]);
 
   const loadForeignKeys = useCallback(async () => {
     if (!activeConnectionId) return;
@@ -136,7 +136,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
     } catch (err) {
       console.error('Failed to load foreign keys:', err);
     }
-  }, [activeConnectionId, fullTableName]);
+  }, [activeConnectionId, fullTableName, setForeignKeys]);
 
   const loadReferencingForeignKeys = useCallback(async () => {
     if (!activeConnectionId) return;
@@ -146,7 +146,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
     } catch (err) {
       console.error('Failed to load referencing foreign keys:', err);
     }
-  }, [activeConnectionId, fullTableName]);
+  }, [activeConnectionId, fullTableName, setReferencingForeignKeys]);
 
   const loadTriggers = useCallback(async () => {
     if (!activeConnectionId) return;
@@ -156,7 +156,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
     } catch (err) {
       console.error('Failed to load triggers:', err);
     }
-  }, [activeConnectionId, fullTableName]);
+  }, [activeConnectionId, fullTableName, setTriggers]);
 
   const loadMetadata = useCallback(async () => {
     if (!activeConnectionId) return;
@@ -166,7 +166,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
     } catch (err) {
       console.error('Failed to load metadata:', err);
     }
-  }, [activeConnectionId, fullTableName]);
+  }, [activeConnectionId, fullTableName, setMetadata]);
 
   const loadDdl = useCallback(async () => {
     if (!activeConnectionId) return;
@@ -176,7 +176,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
     } catch (err) {
       console.error('Failed to load DDL:', err);
     }
-  }, [activeConnectionId, fullTableName]);
+  }, [activeConnectionId, fullTableName, setDdl]);
 
   // Load data when tab changes
   useEffect(() => {
