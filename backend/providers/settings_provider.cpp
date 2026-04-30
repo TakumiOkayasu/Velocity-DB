@@ -1,11 +1,11 @@
 #include "settings_provider.h"
 
+#include "../accessors/glaze_meta.h"
+#include "../accessors/session_accessor.h"
+#include "../accessors/settings_accessor.h"
 #include "../database/query_history.h"
 #include "../interfaces/providers/connection_provider.h"
-#include "../utils/glaze_meta.h"
 #include "../utils/json_utils.h"
-#include "../utils/session_manager.h"
-#include "../utils/settings_manager.h"
 #include "simdjson.h"
 
 #include <algorithm>
@@ -159,10 +159,10 @@ namespace {
 }  // namespace
 
 SettingsProvider::SettingsProvider(IConnectionProvider* connections)
-    : m_settingsManager(std::make_unique<SettingsManager>()), m_sessionManager(std::make_unique<SessionManager>()), m_connections(connections) {
-    (void)m_settingsManager->load();
-    (void)m_sessionManager->load();
-    applyQueryTimeoutToConnections(m_settingsManager->getSettings().query.timeoutSeconds);
+    : m_settingsAccessor(std::make_unique<SettingsAccessor>()), m_sessionAccessor(std::make_unique<SessionAccessor>()), m_connections(connections) {
+    (void)m_settingsAccessor->load();
+    (void)m_sessionAccessor->load();
+    applyQueryTimeoutToConnections(m_settingsAccessor->getSettings().query.timeoutSeconds);
 }
 
 void SettingsProvider::applyQueryTimeoutToConnections(int seconds) {
@@ -181,7 +181,7 @@ void SettingsProvider::setQueryHistory(QueryHistory* queryHistory) {
     m_queryHistory = queryHistory;
     // 初回 wiring 時に load 済み settings を即時反映する。
     if (m_queryHistory) {
-        applyMaxQueryHistoryToInstance(m_settingsManager->getSettings().general.maxQueryHistory);
+        applyMaxQueryHistoryToInstance(m_settingsAccessor->getSettings().general.maxQueryHistory);
     }
 }
 
@@ -190,7 +190,7 @@ SettingsProvider::SettingsProvider(SettingsProvider&&) noexcept = default;
 SettingsProvider& SettingsProvider::operator=(SettingsProvider&&) noexcept = default;
 
 std::string SettingsProvider::getSettings() {
-    const auto& s = m_settingsManager->getSettings();
+    const auto& s = m_settingsAccessor->getSettings();
     dto::SettingsResponse resp{s.general, s.editor, s.grid, s.query};
     std::string json;
     if (auto ec = glz::write_json(resp, json); bool(ec)) {
@@ -204,7 +204,7 @@ std::string SettingsProvider::updateSettings(std::string_view params) {
         thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
-        AppSettings settings = m_settingsManager->getSettings();
+        AppSettings settings = m_settingsAccessor->getSettings();
 
         if (auto general = doc["general"]; !general.error()) {
             if (auto val = general["autoConnect"].get_bool(); !val.error())
@@ -257,8 +257,8 @@ std::string SettingsProvider::updateSettings(std::string_view params) {
                 settings.window.isMaximized = val.value();
         }
 
-        m_settingsManager->updateSettings(settings);
-        (void)m_settingsManager->save();
+        m_settingsAccessor->updateSettings(settings);
+        (void)m_settingsAccessor->save();
 
         applyQueryTimeoutToConnections(settings.query.timeoutSeconds);
         applyMaxQueryHistoryToInstance(settings.general.maxQueryHistory);
@@ -270,7 +270,7 @@ std::string SettingsProvider::updateSettings(std::string_view params) {
 }
 
 std::string SettingsProvider::getConnectionProfiles() {
-    const auto& profiles = m_settingsManager->getConnectionProfiles();
+    const auto& profiles = m_settingsAccessor->getConnectionProfiles();
     auto responses = profiles | std::views::transform(dto::toProfileResponse) | std::ranges::to<std::vector>();
     std::string profilesJson;
     if (auto ec = glz::write_json(responses, profilesJson); bool(ec)) {
@@ -331,21 +331,21 @@ std::string SettingsProvider::saveConnectionProfile(std::string_view params) {
             profile.id = std::format("profile_{}", std::chrono::system_clock::now().time_since_epoch().count());
         }
 
-        if (m_settingsManager->getConnectionProfile(profile.id).has_value()) {
-            m_settingsManager->updateConnectionProfile(profile);
+        if (m_settingsAccessor->getConnectionProfile(profile.id).has_value()) {
+            m_settingsAccessor->updateConnectionProfile(profile);
         } else {
-            m_settingsManager->addConnectionProfile(profile);
+            m_settingsAccessor->addConnectionProfile(profile);
         }
 
         if (profile.savePassword) {
             if (auto val = doc["password"].get_string(); !val.error()) {
                 auto password = std::string(val.value());
                 if (!password.empty()) {
-                    (void)m_settingsManager->setProfilePassword(profile.id, password);
+                    (void)m_settingsAccessor->setProfilePassword(profile.id, password);
                 }
             }
         } else {
-            (void)m_settingsManager->setProfilePassword(profile.id, "");
+            (void)m_settingsAccessor->setProfilePassword(profile.id, "");
         }
 
         if (auto ssh = doc["ssh"]; !ssh.error()) {
@@ -353,22 +353,22 @@ std::string SettingsProvider::saveConnectionProfile(std::string_view params) {
                 if (auto val = ssh["password"].get_string(); !val.error()) {
                     auto sshPassword = std::string(val.value());
                     if (!sshPassword.empty()) {
-                        (void)m_settingsManager->setSshPassword(profile.id, sshPassword);
+                        (void)m_settingsAccessor->setSshPassword(profile.id, sshPassword);
                     }
                 }
                 if (auto val = ssh["keyPassphrase"].get_string(); !val.error()) {
                     auto keyPassphrase = std::string(val.value());
                     if (!keyPassphrase.empty()) {
-                        (void)m_settingsManager->setSshKeyPassphrase(profile.id, keyPassphrase);
+                        (void)m_settingsAccessor->setSshKeyPassphrase(profile.id, keyPassphrase);
                     }
                 }
             } else {
-                (void)m_settingsManager->setSshPassword(profile.id, "");
-                (void)m_settingsManager->setSshKeyPassphrase(profile.id, "");
+                (void)m_settingsAccessor->setSshPassword(profile.id, "");
+                (void)m_settingsAccessor->setSshKeyPassphrase(profile.id, "");
             }
         }
 
-        (void)m_settingsManager->save();
+        (void)m_settingsAccessor->save();
 
         return JsonUtils::successResponse(std::format(R"({{"id":"{}"}})", JsonUtils::escapeString(profile.id)));
     } catch (const std::exception& e) {
@@ -386,8 +386,8 @@ std::string SettingsProvider::deleteConnectionProfile(std::string_view params) {
             return JsonUtils::errorResponse("Missing required field: id");
         }
         auto profileId = std::string(profileIdResult.value());
-        m_settingsManager->removeConnectionProfile(profileId);
-        (void)m_settingsManager->save();
+        m_settingsAccessor->removeConnectionProfile(profileId);
+        (void)m_settingsAccessor->save();
 
         return JsonUtils::successResponse(R"({"deleted":true})");
     } catch (const std::exception& e) {
@@ -406,7 +406,7 @@ std::string SettingsProvider::getProfilePassword(std::string_view params) {
         }
         auto profileId = std::string(idResult.value());
 
-        auto passwordResult = m_settingsManager->getProfilePassword(profileId);
+        auto passwordResult = m_settingsAccessor->getProfilePassword(profileId);
         if (!passwordResult) {
             return JsonUtils::errorResponse(passwordResult.error());
         }
@@ -428,7 +428,7 @@ std::string SettingsProvider::getSshPassword(std::string_view params) {
         }
         auto profileId = std::string(idResult.value());
 
-        auto passwordResult = m_settingsManager->getSshPassword(profileId);
+        auto passwordResult = m_settingsAccessor->getSshPassword(profileId);
         if (!passwordResult) {
             return JsonUtils::errorResponse(passwordResult.error());
         }
@@ -450,7 +450,7 @@ std::string SettingsProvider::getSshKeyPassphrase(std::string_view params) {
         }
         auto profileId = std::string(idResult.value());
 
-        auto passphraseResult = m_settingsManager->getSshKeyPassphrase(profileId);
+        auto passphraseResult = m_settingsAccessor->getSshKeyPassphrase(profileId);
         if (!passphraseResult) {
             return JsonUtils::errorResponse(passphraseResult.error());
         }
@@ -462,7 +462,7 @@ std::string SettingsProvider::getSshKeyPassphrase(std::string_view params) {
 }
 
 std::string SettingsProvider::getSessionState() {
-    const auto& state = m_sessionManager->getState();
+    const auto& state = m_sessionAccessor->getState();
     auto resp = dto::toSessionResponse(state);
     std::string json;
     if (auto ec = glz::write_json(resp, json); bool(ec)) {
@@ -476,7 +476,7 @@ std::string SettingsProvider::saveSessionState(std::string_view params) {
         thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
 
-        SessionState state = m_sessionManager->getState();
+        SessionState state = m_sessionAccessor->getState();
 
         if (auto val = doc["activeConnectionId"].get_string(); !val.error())
             state.activeConnectionId = std::string(val.value());
@@ -528,8 +528,8 @@ std::string SettingsProvider::saveSessionState(std::string_view params) {
             }
         }
 
-        m_sessionManager->updateState(state);
-        (void)m_sessionManager->save();
+        m_sessionAccessor->updateState(state);
+        (void)m_sessionAccessor->save();
 
         return JsonUtils::successResponse(R"({"saved":true})");
     } catch (const std::exception& e) {

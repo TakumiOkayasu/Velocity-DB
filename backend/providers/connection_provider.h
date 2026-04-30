@@ -1,7 +1,7 @@
 #pragma once
 
+#include "../accessors/settings_accessor.h"
 #include "../interfaces/providers/connection_provider.h"
-#include "../utils/settings_manager.h"
 
 #include <atomic>
 #include <memory>

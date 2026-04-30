@@ -1,7 +1,7 @@
-#include "session_manager.h"
+#include "accessors/session_accessor.h"
 
-#include "glaze_meta.h"
-#include "logger.h"
+#include "accessors/glaze_meta.h"
+#include "utils/logger.h"
 
 #include <Windows.h>
 
@@ -14,7 +14,7 @@
 
 namespace velocitydb {
 
-SessionManager::SessionManager() {
+SessionAccessor::SessionAccessor() {
     // Get AppData\Local path
     wchar_t* localAppData = nullptr;
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &localAppData))) {
@@ -28,7 +28,7 @@ SessionManager::SessionManager() {
     m_sessionPath /= "session.json";
 }
 
-std::expected<void, std::string> SessionManager::load() {
+std::expected<void, std::string> SessionAccessor::load() {
     std::lock_guard lock(m_mutex);
 
     if (!std::filesystem::exists(m_sessionPath)) {
@@ -48,7 +48,7 @@ std::expected<void, std::string> SessionManager::load() {
     return {};
 }
 
-std::expected<void, std::string> SessionManager::save() {
+std::expected<void, std::string> SessionAccessor::save() {
     std::lock_guard lock(m_mutex);
 
     m_state.lastSaved = std::chrono::system_clock::now();
@@ -70,34 +70,34 @@ std::expected<void, std::string> SessionManager::save() {
     return {};
 }
 
-void SessionManager::updateState(const SessionState& state) {
+void SessionAccessor::updateState(const SessionState& state) {
     std::lock_guard lock(m_mutex);
     m_state = state;
 }
 
-void SessionManager::addTab(const EditorTab& tab) {
+void SessionAccessor::addTab(const EditorTab& tab) {
     std::lock_guard lock(m_mutex);
     m_state.openTabs.push_back(tab);
 }
 
-void SessionManager::updateTab(const EditorTab& tab) {
+void SessionAccessor::updateTab(const EditorTab& tab) {
     std::lock_guard lock(m_mutex);
     if (auto it = std::ranges::find(m_state.openTabs, tab.id, &EditorTab::id); it != m_state.openTabs.end()) {
         *it = tab;
     }
 }
 
-void SessionManager::removeTab(const std::string& tabId) {
+void SessionAccessor::removeTab(const std::string& tabId) {
     std::lock_guard lock(m_mutex);
     std::erase_if(m_state.openTabs, [&tabId](const EditorTab& t) { return t.id == tabId; });
 }
 
-void SessionManager::setActiveTab(const std::string& tabId) {
+void SessionAccessor::setActiveTab(const std::string& tabId) {
     std::lock_guard lock(m_mutex);
     m_state.activeTabId = tabId;
 }
 
-void SessionManager::updateWindowState(int x, int y, int width, int height, bool maximized) {
+void SessionAccessor::updateWindowState(int x, int y, int width, int height, bool maximized) {
     std::lock_guard lock(m_mutex);
     m_state.windowX = x;
     m_state.windowY = y;
@@ -106,36 +106,36 @@ void SessionManager::updateWindowState(int x, int y, int width, int height, bool
     m_state.isMaximized = maximized;
 }
 
-void SessionManager::updatePanelSizes(int leftWidth, int bottomHeight) {
+void SessionAccessor::updatePanelSizes(int leftWidth, int bottomHeight) {
     std::lock_guard lock(m_mutex);
     m_state.leftPanelWidth = leftWidth;
     m_state.bottomPanelHeight = bottomHeight;
 }
 
-void SessionManager::setActiveConnection(const std::string& connectionId) {
+void SessionAccessor::setActiveConnection(const std::string& connectionId) {
     std::lock_guard lock(m_mutex);
     m_state.activeConnectionId = connectionId;
 }
 
-void SessionManager::setExpandedNodes(const std::vector<std::string>& nodeIds) {
+void SessionAccessor::setExpandedNodes(const std::vector<std::string>& nodeIds) {
     std::lock_guard lock(m_mutex);
     m_state.expandedTreeNodes = nodeIds;
 }
 
-void SessionManager::enableAutoSave(int intervalSeconds) {
+void SessionAccessor::enableAutoSave(int intervalSeconds) {
     m_autoSaveEnabled = true;
     m_autoSaveInterval = intervalSeconds;
 }
 
-void SessionManager::disableAutoSave() {
+void SessionAccessor::disableAutoSave() {
     m_autoSaveEnabled = false;
 }
 
-std::filesystem::path SessionManager::getSessionPath() const {
+std::filesystem::path SessionAccessor::getSessionPath() const {
     return m_sessionPath;
 }
 
-std::string SessionManager::serializeSession() const {
+std::string SessionAccessor::serializeSession() const {
     std::string buffer;
     if (auto ec = glz::write<glz::opts{.prettify = true}>(m_state, buffer); bool(ec)) {
         log<LogLevel::WARNING>("Failed to serialize session state");
@@ -144,7 +144,7 @@ std::string SessionManager::serializeSession() const {
     return buffer;
 }
 
-bool SessionManager::deserializeSession(std::string_view json) {
+bool SessionAccessor::deserializeSession(std::string_view json) {
     auto ec = glz::read_json(m_state, json);
     if (bool(ec)) {
         log<LogLevel::WARNING>(std::format("Failed to parse session.json: {}", glz::format_error(ec, json)));

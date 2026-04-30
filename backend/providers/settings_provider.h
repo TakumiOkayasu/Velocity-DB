@@ -8,8 +8,8 @@
 
 namespace velocitydb {
 
-class SettingsManager;
-class SessionManager;
+class SettingsAccessor;
+class SessionAccessor;
 class IConnectionProvider;
 class QueryHistory;
 
@@ -42,17 +42,17 @@ public:
     [[nodiscard]] std::string getSessionState() override;
     [[nodiscard]] std::string saveSessionState(std::string_view params) override;
 
-    [[nodiscard]] SettingsManager& settingsManager() { return *m_settingsManager; }
-    [[nodiscard]] const SettingsManager& settingsManager() const { return *m_settingsManager; }
-    [[nodiscard]] SessionManager& sessionManager() { return *m_sessionManager; }
-    [[nodiscard]] const SessionManager& sessionManager() const { return *m_sessionManager; }
+    [[nodiscard]] SettingsAccessor& settingsAccessor() { return *m_settingsAccessor; }
+    [[nodiscard]] const SettingsAccessor& settingsAccessor() const { return *m_settingsAccessor; }
+    [[nodiscard]] SessionAccessor& sessionAccessor() { return *m_sessionAccessor; }
+    [[nodiscard]] const SessionAccessor& sessionAccessor() const { return *m_sessionAccessor; }
 
 private:
     void applyQueryTimeoutToConnections(int seconds);
     void applyMaxQueryHistoryToInstance(int maxItems);
 
-    std::unique_ptr<SettingsManager> m_settingsManager;
-    std::unique_ptr<SessionManager> m_sessionManager;
+    std::unique_ptr<SettingsAccessor> m_settingsAccessor;
+    std::unique_ptr<SessionAccessor> m_sessionAccessor;
     IConnectionProvider* m_connections;      // Non-owning; may be null in tests
     QueryHistory* m_queryHistory = nullptr;  // Non-owning; wired post-construction by SystemContext
 };

@@ -4,8 +4,8 @@
 
 #include "database/query_history.h"
 #include "providers/settings_provider.h"
-#include "utils/session_manager.h"
-#include "utils/settings_manager.h"
+#include "accessors/session_accessor.h"
+#include "accessors/settings_accessor.h"
 
 namespace velocitydb {
 namespace {
@@ -16,7 +16,7 @@ protected:
     // ユーザー設定との state リークを防ぐ。SetUp で元の maxQueryHistory を退避してから
     // 1000 にリセット、TearDown で退避値に復元する (ユーザー設定を破壊しない)。
     void SetUp() override {
-        m_savedMaxQueryHistory = provider.settingsManager().getSettings().general.maxQueryHistory;
+        m_savedMaxQueryHistory = provider.settingsAccessor().getSettings().general.maxQueryHistory;
         auto resetResult = provider.updateSettings(R"({"general":{"maxQueryHistory":1000}})");
         ASSERT_NE(resetResult.find("\"saved\""), std::string::npos);
     }
@@ -30,20 +30,20 @@ protected:
     int m_savedMaxQueryHistory = 1000;
 };
 
-TEST_F(SettingsProviderTest, AccessSettingsManager) {
-    // Verify direct access to SettingsManager works
-    auto& manager = provider.settingsManager();
-    const auto& settings = manager.getSettings();
+TEST_F(SettingsProviderTest, AccessSettingsAccessor) {
+    // Verify direct access to SettingsAccessor works
+    auto& accessor = provider.settingsAccessor();
+    const auto& settings = accessor.getSettings();
 
     // Default settings should have reasonable values
     EXPECT_GT(settings.editor.fontSize, 0);
     EXPECT_FALSE(settings.editor.fontFamily.empty());
 }
 
-TEST_F(SettingsProviderTest, AccessSessionManager) {
-    // Verify direct access to SessionManager works
-    auto& manager = provider.sessionManager();
-    const auto& state = manager.getState();
+TEST_F(SettingsProviderTest, AccessSessionAccessor) {
+    // Verify direct access to SessionAccessor works
+    auto& accessor = provider.sessionAccessor();
+    const auto& state = accessor.getState();
 
     // Default session state should have reasonable values
     EXPECT_GE(state.windowWidth, 0);

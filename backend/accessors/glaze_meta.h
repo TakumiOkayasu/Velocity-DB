@@ -1,7 +1,7 @@
 #pragma once
 
-#include "session_manager.h"
-#include "settings_manager.h"
+#include "session_accessor.h"
+#include "settings_accessor.h"
 
 #include <glaze/glaze.hpp>
 

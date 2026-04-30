@@ -22,7 +22,7 @@ SystemContext::SystemContext()
     , m_settings(std::make_unique<SettingsProvider>(m_connections.get()))
     // 設定ファイル破損時の防御: maxQueryHistory が 0 や負値だった場合は最低 1 件にクランプして
     // QueryHistory が常に有効状態で動作するようにする。
-    , m_queryHistory(std::make_unique<QueryHistory>(static_cast<size_t>(std::max(1, m_settings->settingsManager().getSettings().general.maxQueryHistory))))
+    , m_queryHistory(std::make_unique<QueryHistory>(static_cast<size_t>(std::max(1, m_settings->settingsAccessor().getSettings().general.maxQueryHistory))))
     , m_queries(std::make_unique<QueryProvider>(*m_connections, *m_queryHistory))
     , m_asyncQueries(std::make_unique<AsyncQueryProvider>(*m_connections, *m_queryHistory))
     , m_schema(std::make_unique<SchemaProvider>(*m_connections))

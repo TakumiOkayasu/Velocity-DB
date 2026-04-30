@@ -61,13 +61,14 @@ set(LIB_SOURCES
     exporters/csv_exporter.cpp
     exporters/json_exporter.cpp
     exporters/excel_exporter.cpp
+    # Accessors (Layer #4 — direct resource access)
+    accessors/settings_accessor.cpp
+    accessors/session_accessor.cpp
     # Utils
     utils/json_utils.cpp
     utils/simd_filter.cpp
     utils/file_utils.cpp
     utils/file_dialog.cpp
-    utils/settings_manager.cpp
-    utils/session_manager.cpp
     utils/global_search.cpp
     utils/credential_protector.cpp
     utils/logger.cpp
@@ -156,14 +157,15 @@ set(HEADERS
     exporters/json_exporter.h
     exporters/excel_exporter.h
     exporters/data_exporter.h
+    # Accessors (Layer #4 — direct resource access)
+    accessors/settings_accessor.h
+    accessors/session_accessor.h
+    accessors/glaze_meta.h
     # Utils
     utils/json_utils.h
     utils/simd_filter.h
     utils/file_utils.h
     utils/file_dialog.h
-    utils/settings_manager.h
-    utils/session_manager.h
-    utils/glaze_meta.h
     utils/sql_escape.h
     utils/global_search.h
     utils/credential_protector.h
