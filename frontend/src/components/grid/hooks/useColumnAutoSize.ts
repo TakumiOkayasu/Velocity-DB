@@ -1,5 +1,13 @@
 import type { ColumnDef } from '@tanstack/react-table';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import type { ResultSet } from '../../../types';
 import { isDateType, isNumericType, type RowData } from '../../../types/grid';
 import { log } from '../../../utils/logger';
@@ -12,7 +20,7 @@ interface UseColumnAutoSizeOptions {
 
 interface UseColumnAutoSizeResult {
   columnSizing: Record<string, number>;
-  setColumnSizing: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+  setColumnSizing: Dispatch<SetStateAction<Record<string, number>>>;
   /** 全列を強制的に再計算する */
   triggerAutoSize: () => void;
   /** 指定列のみ再計算する (他列の現在幅は保持) */
