@@ -57,9 +57,11 @@ jobs:
             cmake-bench-${{ runner.os }}-${{ inputs.build_type }}-
 
       - name: Configure CMake
+        env:
+          BUILD_TYPE: ${{ inputs.build_type }}
         run: |
           cmake -B build -G Ninja `
-            -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} `
+            -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE `
             -DBUILD_TESTS=ON `
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
             -DCMAKE_C_COMPILER_LAUNCHER=ccache
