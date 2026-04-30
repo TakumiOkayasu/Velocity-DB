@@ -1,6 +1,6 @@
 // Barrel exports for dialog components
 
-export { type ConnectionConfig, ConnectionDialog } from './ConnectionDialog';
+export { ConnectionDialog } from './ConnectionDialog';
 export { DmlPreviewDialog } from './DmlPreviewDialog';
 export { ERImportDialog } from './ERImportDialog';
 export { ExecutionPlanDialog } from './ExecutionPlanDialog';

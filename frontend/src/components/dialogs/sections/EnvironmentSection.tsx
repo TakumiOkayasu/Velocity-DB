@@ -1,5 +1,5 @@
 import { type EnvironmentType, isEnvironmentType } from '../../../types';
-import type { ConnectionConfig } from '../ConnectionDialog';
+import type { ConnectionConfig } from '../../../types/connectionForm';
 import styles from '../ConnectionDialog.module.css';
 
 interface EnvironmentSectionProps {

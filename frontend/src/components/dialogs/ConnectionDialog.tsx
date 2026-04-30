@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { bridge } from '../../api/bridge';
 import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
-import type { DatabaseType, EnvironmentType, SshAuthType } from '../../types';
+import type { ConnectionConfig, SshConfig } from '../../types/connectionForm';
 import { connectionColor } from '../../utils/colorContrast';
 import styles from './ConnectionDialog.module.css';
 import { useConnectionProfile } from './hooks/useConnectionProfile';
@@ -17,33 +17,6 @@ interface ConnectionDialogProps {
   onConnect: (config: ConnectionConfig) => void;
   isConnecting?: boolean;
   onCancelConnect?: () => void;
-}
-
-export interface SshConfig {
-  enabled: boolean;
-  host: string;
-  port: number;
-  username: string;
-  authType: SshAuthType;
-  password: string;
-  privateKeyPath: string;
-  keyPassphrase: string;
-}
-
-export interface ConnectionConfig {
-  name: string;
-  server: string;
-  port: number;
-  database: string;
-  username: string;
-  password: string;
-  useWindowsAuth: boolean;
-  isProduction: boolean;
-  isReadOnly: boolean;
-  environment: EnvironmentType;
-  dbType: DatabaseType;
-  folderPath: string;
-  ssh: SshConfig;
 }
 
 export function ConnectionDialog({

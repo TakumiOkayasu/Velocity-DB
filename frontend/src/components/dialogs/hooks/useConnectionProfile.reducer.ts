@@ -1,5 +1,5 @@
 import type { EnvironmentType, SavedConnectionProfile } from '../../../types';
-import type { ConnectionConfig, SshConfig } from '../ConnectionDialog';
+import type { ConnectionConfig, SshConfig } from '../../../types/connectionForm';
 
 export type ProfileMode = 'new' | 'edit';
 

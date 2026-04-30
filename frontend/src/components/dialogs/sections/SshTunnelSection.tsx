@@ -1,6 +1,6 @@
 import { bridge } from '../../../api/bridge';
 import { isSshAuthType } from '../../../types';
-import type { SshConfig } from '../ConnectionDialog';
+import type { SshConfig } from '../../../types/connectionForm';
 import styles from '../ConnectionDialog.module.css';
 
 interface SshTunnelSectionProps {
