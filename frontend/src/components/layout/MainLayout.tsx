@@ -1,7 +1,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { bridge } from '../../api/bridge';
 import { useFileDrop } from '../../hooks/useFileDrop';
-import { useKeyboardHandler } from '../../hooks/useKeyboardHandler';
+import { useKeyboardShortcutHandler } from '../../hooks/useKeyboardShortcutHandler';
 import { applyConnectionMigration } from '../../store/connectionMigration';
 import { useConnectionStore } from '../../store/connectionStore';
 import { useQueryStore } from '../../store/queryStore';
@@ -247,37 +247,16 @@ export function MainLayout() {
 
   const hasOpenDialog = isConnectionDialogOpen || isSearchDialogOpen || isSettingsDialogOpen;
 
-  // Keyboard shortcuts
-  useKeyboardHandler((e: KeyboardEvent) => {
-    // Prevent F5 page reload
-    if (e.key === 'F5') {
-      e.preventDefault();
-      return;
-    }
-
-    if (e.ctrlKey && e.key === 'n') {
-      e.preventDefault();
-      handleNewQuery();
-    } else if (e.ctrlKey && e.key === 'w') {
-      e.preventDefault();
-      handleCloseTab();
-    } else if (e.key === 'F9' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
-      // F9 単独のみ実行トリガ。Ctrl/Shift/Alt+F9 は将来の拡張用に予約
-      e.preventDefault();
-      handleExecute();
-    } else if (e.ctrlKey && e.shiftKey && e.key === 'F') {
-      e.preventDefault();
-      handleFormat();
-    } else if (e.ctrlKey && e.shiftKey && e.key === 'P') {
-      e.preventDefault();
-      handleOpenSearch();
-    } else if (e.ctrlKey && e.key === ',') {
-      e.preventDefault();
-      handleOpenSettings();
-    } else if (e.key === 'Escape' && isExecuting && !hasOpenDialog) {
-      e.preventDefault();
-      handleCancel();
-    }
+  useKeyboardShortcutHandler({
+    onNewQuery: handleNewQuery,
+    onCloseTab: handleCloseTab,
+    onExecute: handleExecute,
+    onFormat: handleFormat,
+    onOpenSearch: handleOpenSearch,
+    onOpenSettings: handleOpenSettings,
+    onCancel: handleCancel,
+    isExecuting,
+    hasOpenDialog,
   });
 
   // Track and save window size/position
