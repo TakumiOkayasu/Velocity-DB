@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type Dispatch, type SetStateAction, useState } from 'react';
 import type {
   Column,
   ConstraintInfo,
@@ -11,21 +11,21 @@ import type {
 
 export interface UseTableSchemaStateReturn {
   columns: Column[];
-  setColumns: (v: Column[]) => void;
+  setColumns: Dispatch<SetStateAction<Column[]>>;
   indexes: IndexInfo[];
-  setIndexes: (v: IndexInfo[]) => void;
+  setIndexes: Dispatch<SetStateAction<IndexInfo[]>>;
   constraints: ConstraintInfo[];
-  setConstraints: (v: ConstraintInfo[]) => void;
+  setConstraints: Dispatch<SetStateAction<ConstraintInfo[]>>;
   foreignKeys: ForeignKeyInfo[];
-  setForeignKeys: (v: ForeignKeyInfo[]) => void;
+  setForeignKeys: Dispatch<SetStateAction<ForeignKeyInfo[]>>;
   referencingForeignKeys: ReferencingForeignKeyInfo[];
-  setReferencingForeignKeys: (v: ReferencingForeignKeyInfo[]) => void;
+  setReferencingForeignKeys: Dispatch<SetStateAction<ReferencingForeignKeyInfo[]>>;
   triggers: TriggerInfo[];
-  setTriggers: (v: TriggerInfo[]) => void;
+  setTriggers: Dispatch<SetStateAction<TriggerInfo[]>>;
   metadata: TableMetadata | null;
-  setMetadata: (v: TableMetadata | null) => void;
+  setMetadata: Dispatch<SetStateAction<TableMetadata | null>>;
   ddl: string;
-  setDdl: (v: string) => void;
+  setDdl: Dispatch<SetStateAction<string>>;
 }
 
 export function useTableSchemaState(): UseTableSchemaStateReturn {
