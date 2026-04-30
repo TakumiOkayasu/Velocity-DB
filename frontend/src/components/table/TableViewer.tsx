@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { bridge } from '../../api/bridge';
 import { useConnectionStore } from '../../store/connectionStore';
-import type { ResultSet } from '../../types';
 import { stripBrackets } from '../../utils/stringUtils';
+import { useTableDataState } from './hooks/useTableDataState';
 import { useTableSchemaState } from './hooks/useTableSchemaState';
 import styles from './TableViewer.module.css';
 import { ColumnsTab } from './tabs/ColumnsTab';
@@ -38,9 +38,8 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Data state
-  const [resultSet, setResultSet] = useState<ResultSet | null>(null);
-  const [whereClause, setWhereClause] = useState('');
+  // Data state (関心事別に hook 化)
+  const { resultSet, setResultSet, whereClause, setWhereClause } = useTableDataState();
 
   // Schema state (関心事別に hook 化)
   const {
@@ -96,7 +95,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
     } finally {
       setIsLoading(false);
     }
-  }, [activeConnectionId, fullTableName, whereClause]);
+  }, [activeConnectionId, fullTableName, whereClause, setResultSet]);
 
   const loadColumns = useCallback(async () => {
     if (!activeConnectionId) return;
