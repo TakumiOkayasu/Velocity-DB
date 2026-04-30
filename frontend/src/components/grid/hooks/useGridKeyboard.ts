@@ -1,5 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table';
-import { useCallback, useState } from 'react';
+import { type Dispatch, type SetStateAction, useCallback, useState } from 'react';
 import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard';
 import { useKeyboardHandler } from '../../../hooks/useKeyboardHandler';
 import { isSystemColumn, type RowData } from '../../../types/grid';
@@ -37,7 +37,7 @@ interface UseGridKeyboardOptions {
 interface UseGridKeyboardResult {
   editingCell: EditingCell | null;
   editValue: string;
-  setEditValue: React.Dispatch<React.SetStateAction<string>>;
+  setEditValue: Dispatch<SetStateAction<string>>;
   copySelection: () => Promise<void>;
   pasteFromClipboard: () => Promise<void>;
   startEdit: (rowIndex: number, columnId: string, currentValue: string | null) => void;

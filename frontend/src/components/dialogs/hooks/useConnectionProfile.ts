@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useReducer,
+  useRef,
+} from 'react';
 import { bridge } from '../../../api/bridge';
 import { useConnectionStore } from '../../../store/connectionStore';
 import {
@@ -57,9 +64,9 @@ interface UseConnectionProfileResult {
   savePassword: boolean;
   testResult: { success: boolean; message: string } | null;
   deleteConfirmOpen: boolean;
-  setConfig: React.Dispatch<React.SetStateAction<ConnectionConfig>>;
-  setSavePassword: React.Dispatch<React.SetStateAction<boolean>>;
-  setTestResult: React.Dispatch<React.SetStateAction<{ success: boolean; message: string } | null>>;
+  setConfig: Dispatch<SetStateAction<ConnectionConfig>>;
+  setSavePassword: Dispatch<SetStateAction<boolean>>;
+  setTestResult: Dispatch<SetStateAction<{ success: boolean; message: string } | null>>;
   handleProfileSelect: (profileId: string) => void;
   handleNewProfile: () => void;
   handleSaveProfile: () => Promise<void>;
@@ -81,16 +88,16 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
   modeRef.current = mode;
   editingProfileIdRef.current = editingProfileId;
 
-  const setConfig = useCallback<React.Dispatch<React.SetStateAction<ConnectionConfig>>>((value) => {
+  const setConfig = useCallback<Dispatch<SetStateAction<ConnectionConfig>>>((value) => {
     dispatch({ type: 'SET_CONFIG', payload: value });
   }, []);
 
-  const setSavePassword = useCallback<React.Dispatch<React.SetStateAction<boolean>>>((value) => {
+  const setSavePassword = useCallback<Dispatch<SetStateAction<boolean>>>((value) => {
     dispatch({ type: 'SET_SAVE_PASSWORD', payload: value });
   }, []);
 
   const setTestResult = useCallback<
-    React.Dispatch<React.SetStateAction<{ success: boolean; message: string } | null>>
+    Dispatch<SetStateAction<{ success: boolean; message: string } | null>>
   >((value) => {
     dispatch({ type: 'SET_TEST_RESULT', payload: value });
   }, []);

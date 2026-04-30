@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { type Dispatch, type SetStateAction, useCallback, useState } from 'react';
 import { bridge } from '../api/bridge';
 import type { DatabaseObject, DatabaseType, MenuItem } from '../types';
 import { log } from '../utils/logger';
@@ -30,7 +30,7 @@ interface UseTableActionsParams {
   connectionId: string;
   dbType?: DatabaseType;
   loadTables: () => Promise<DatabaseObject[]>;
-  setTreeData: React.Dispatch<React.SetStateAction<DatabaseObject[]>>;
+  setTreeData: Dispatch<SetStateAction<DatabaseObject[]>>;
   onDdlError?: (error: unknown) => void;
 }
 
