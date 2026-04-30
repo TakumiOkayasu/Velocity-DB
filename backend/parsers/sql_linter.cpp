@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <format>
 #include <memory>
+#include <optional>
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -69,6 +70,41 @@ using UniqueHandle = std::unique_ptr<void, HandleCloser>;
     return std::filesystem::path(buf).parent_path();
 }
 
+/// Convert one sqruff JSON diagnostic entry into LintDiagnostic, filtering to parse errors only.
+/// Returns std::nullopt for non-parse-error diagnostics (lint warnings).
+[[nodiscard]] std::optional<LintDiagnostic> parseDiagnosticEntry(simdjson::dom::element entry) {
+    constexpr std::string_view UNPARSABLE_MESSAGE = "Unparsable section";
+
+    auto codeRes = entry["code"].get_string();
+    std::string code = codeRes.error() ? std::string{} : std::string(codeRes.value());
+
+    const bool isPrsCode = code.starts_with("PRS");
+    // 採用候補は (a) PRS prefix code または (b) 空 code (Unparsable 候補)。
+    // 非 PRS の通常 lint code (LT02/CP01 等) はここで早期破棄し message 取得を省く。
+    if (!isPrsCode && !code.empty())
+        return std::nullopt;
+
+    std::string message;
+    if (auto msg = entry["message"].get_string(); !msg.error())
+        message.assign(msg.value().data(), msg.value().size());
+
+    const bool isUnparsable = code.empty() && message == UNPARSABLE_MESSAGE;
+    if (!isPrsCode && !isUnparsable)
+        return std::nullopt;
+
+    LintDiagnostic d;
+    d.code = std::move(code);
+    d.message = std::move(message);
+
+    auto rangeObj = entry["range"]["start"];
+    if (auto ln = rangeObj["line"].get_int64(); !ln.error())
+        d.line = std::max<int>(1, static_cast<int>(ln.value()));
+    if (auto col = rangeObj["character"].get_int64(); !col.error())
+        d.column = std::max<int>(1, static_cast<int>(col.value()));
+
+    return d;
+}
+
 }  // namespace
 
 std::string mapDialectToSqruff(std::string_view dbType) {
@@ -111,30 +147,15 @@ std::expected<std::vector<LintDiagnostic>, std::string> parseSqruffJson(std::str
     if (obj.error())
         return std::unexpected("sqruff JSON top-level is not an object");
 
+    // sqruff 0.38 では parse error に rule code を付けず "Unparsable section" message + code:null で出力する。
+    // 一方で sqlfluff 互換の PRS* code が将来採用される可能性に備え両形式を受理する (parseDiagnosticEntry 参照)。
     for (auto [_, value] : obj.value()) {
         auto arr = value.get_array();
         if (arr.error())
             continue;
         for (auto entry : arr.value()) {
-            auto codeRes = entry["code"].get_string();
-            std::string code = codeRes.error() ? std::string{} : std::string(codeRes.value());
-            // Filter: only parse-error rule codes (PRS*) are actionable blockers.
-            if (code.size() < 3 || code.substr(0, 3) != "PRS")
-                continue;
-
-            LintDiagnostic d;
-            d.code = std::move(code);
-
-            if (auto msg = entry["message"].get_string(); !msg.error())
-                d.message.assign(msg.value().data(), msg.value().size());
-
-            auto rangeObj = entry["range"]["start"];
-            if (auto ln = rangeObj["line"].get_int64(); !ln.error())
-                d.line = std::max<int>(1, static_cast<int>(ln.value()));
-            if (auto col = rangeObj["character"].get_int64(); !col.error())
-                d.column = std::max<int>(1, static_cast<int>(col.value()));
-
-            diagnostics.push_back(std::move(d));
+            if (auto d = parseDiagnosticEntry(entry))
+                diagnostics.push_back(std::move(*d));
         }
     }
     return diagnostics;

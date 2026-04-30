@@ -107,10 +107,13 @@ export function createExecuteSlice(
         log.warning(`[queryExecuteSlice] lint unavailable: ${result.reason ?? 'unknown'}`);
         return null;
       }
-      // backend側で既にPRSのみに絞り込み済み。diagnostics破損時の保険として再確認
-      const prs = result.diagnostics.filter((d) => d.code.startsWith('PRS'));
-      if (prs.length === 0) return null;
-      const markers: SqlMarkerInput[] = prs.map((d) => ({
+      // backend 側で parse error のみに絞り込み済み (PRS prefix or "Unparsable section")。
+      // diagnostics 破損時の保険として、採用条件 (PRS prefix or 空 code) を frontend でも再確認。
+      const parseErrors = result.diagnostics.filter(
+        (d) => d.code.startsWith('PRS') || d.code === ''
+      );
+      if (parseErrors.length === 0) return null;
+      const markers: SqlMarkerInput[] = parseErrors.map((d) => ({
         line: d.line,
         column: d.column,
         code: d.code,
