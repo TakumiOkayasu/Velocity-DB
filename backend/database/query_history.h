@@ -52,7 +52,7 @@ struct HistoryItem {
 
 class QueryHistory {
 public:
-    /// デフォルト値は GeneralSettings::maxQueryHistory (settings_manager.h) と一致させる。
+    /// デフォルト値は GeneralSettings::maxQueryHistory (accessors/settings_accessor.h) と一致させる。
     /// 不一致は Issue #426 を参照。
     explicit QueryHistory(size_t maxItems = 1000) : m_maxItems(maxItems) {}
     ~QueryHistory() = default;

@@ -97,13 +97,13 @@ struct AppSettings {
     std::vector<ConnectionProfile> connectionProfiles;
 };
 
-class SettingsManager {
+class SettingsAccessor {
 public:
-    SettingsManager();
-    ~SettingsManager() = default;
+    SettingsAccessor();
+    ~SettingsAccessor() = default;
 
-    SettingsManager(const SettingsManager&) = delete;
-    SettingsManager& operator=(const SettingsManager&) = delete;
+    SettingsAccessor(const SettingsAccessor&) = delete;
+    SettingsAccessor& operator=(const SettingsAccessor&) = delete;
 
     /// Load settings from disk
     [[nodiscard]] std::expected<void, std::string> load();

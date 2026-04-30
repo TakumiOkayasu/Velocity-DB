@@ -15,7 +15,7 @@ namespace velocitydb {
 
 class IPCHandler;
 class SystemContext;
-class SettingsManager;
+class SettingsAccessor;
 
 class WebViewApp {
 public:
@@ -48,7 +48,7 @@ private:
     std::unique_ptr<SystemContext> m_systemContext;
     std::unique_ptr<IPCHandler> m_ipcHandler;
     std::unique_ptr<webview::webview> m_webview;
-    std::unique_ptr<SettingsManager> m_settingsManager;
+    std::unique_ptr<SettingsAccessor> m_settingsAccessor;
 };
 
 }  // namespace velocitydb

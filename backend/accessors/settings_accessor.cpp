@@ -1,8 +1,8 @@
-#include "settings_manager.h"
+#include "accessors/settings_accessor.h"
 
-#include "credential_protector.h"
-#include "glaze_meta.h"
-#include "logger.h"
+#include "accessors/glaze_meta.h"
+#include "utils/credential_protector.h"
+#include "utils/logger.h"
 
 #include <Windows.h>
 
@@ -15,7 +15,7 @@
 
 namespace velocitydb {
 
-SettingsManager::SettingsManager() {
+SettingsAccessor::SettingsAccessor() {
     // Get AppData\Local path
     wchar_t* localAppData = nullptr;
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &localAppData))) {
@@ -31,7 +31,7 @@ SettingsManager::SettingsManager() {
     m_settingsPath /= "settings.json";
 }
 
-std::expected<void, std::string> SettingsManager::load() {
+std::expected<void, std::string> SettingsAccessor::load() {
     std::lock_guard lock(m_mutex);
 
     if (!std::filesystem::exists(m_settingsPath)) {
@@ -59,7 +59,7 @@ std::expected<void, std::string> SettingsManager::load() {
     return {};
 }
 
-std::expected<void, std::string> SettingsManager::save() {
+std::expected<void, std::string> SettingsAccessor::save() {
     std::lock_guard lock(m_mutex);
 
     auto json = serializeSettings();
@@ -79,29 +79,29 @@ std::expected<void, std::string> SettingsManager::save() {
     return {};
 }
 
-void SettingsManager::updateSettings(const AppSettings& settings) {
+void SettingsAccessor::updateSettings(const AppSettings& settings) {
     std::lock_guard lock(m_mutex);
     m_settings = settings;
 }
 
-void SettingsManager::addConnectionProfile(const ConnectionProfile& profile) {
+void SettingsAccessor::addConnectionProfile(const ConnectionProfile& profile) {
     std::lock_guard lock(m_mutex);
     m_settings.connectionProfiles.push_back(profile);
 }
 
-void SettingsManager::updateConnectionProfile(const ConnectionProfile& profile) {
+void SettingsAccessor::updateConnectionProfile(const ConnectionProfile& profile) {
     std::lock_guard lock(m_mutex);
     if (auto it = std::ranges::find(m_settings.connectionProfiles, profile.id, &ConnectionProfile::id); it != m_settings.connectionProfiles.end()) {
         *it = profile;
     }
 }
 
-void SettingsManager::removeConnectionProfile(const std::string& id) {
+void SettingsAccessor::removeConnectionProfile(const std::string& id) {
     std::lock_guard lock(m_mutex);
     std::erase_if(m_settings.connectionProfiles, [&id](const ConnectionProfile& p) { return p.id == id; });
 }
 
-std::optional<ConnectionProfile> SettingsManager::getConnectionProfile(const std::string& id) const {
+std::optional<ConnectionProfile> SettingsAccessor::getConnectionProfile(const std::string& id) const {
     std::lock_guard lock(m_mutex);
     if (auto it = std::ranges::find(m_settings.connectionProfiles, id, &ConnectionProfile::id); it != m_settings.connectionProfiles.end()) {
         return *it;
@@ -109,11 +109,11 @@ std::optional<ConnectionProfile> SettingsManager::getConnectionProfile(const std
     return std::nullopt;
 }
 
-const std::vector<ConnectionProfile>& SettingsManager::getConnectionProfiles() const {
+const std::vector<ConnectionProfile>& SettingsAccessor::getConnectionProfiles() const {
     return m_settings.connectionProfiles;
 }
 
-std::expected<void, std::string> SettingsManager::setProfilePassword(const std::string& profileId, std::string_view plainPassword) {
+std::expected<void, std::string> SettingsAccessor::setProfilePassword(const std::string& profileId, std::string_view plainPassword) {
     std::lock_guard lock(m_mutex);
 
     auto it = std::ranges::find(m_settings.connectionProfiles, profileId, &ConnectionProfile::id);
@@ -137,7 +137,7 @@ std::expected<void, std::string> SettingsManager::setProfilePassword(const std::
     return {};
 }
 
-std::expected<std::string, std::string> SettingsManager::getProfilePassword(const std::string& profileId) const {
+std::expected<std::string, std::string> SettingsAccessor::getProfilePassword(const std::string& profileId) const {
     std::lock_guard lock(m_mutex);
 
     auto it = std::ranges::find(m_settings.connectionProfiles, profileId, &ConnectionProfile::id);
@@ -151,11 +151,11 @@ std::expected<std::string, std::string> SettingsManager::getProfilePassword(cons
     return CredentialProtector::decrypt(it->encryptedPassword);
 }
 
-std::filesystem::path SettingsManager::getSettingsPath() const {
+std::filesystem::path SettingsAccessor::getSettingsPath() const {
     return m_settingsPath;
 }
 
-std::expected<void, std::string> SettingsManager::setSshPassword(const std::string& profileId, std::string_view plainPassword) {
+std::expected<void, std::string> SettingsAccessor::setSshPassword(const std::string& profileId, std::string_view plainPassword) {
     std::lock_guard lock(m_mutex);
 
     auto it = std::ranges::find(m_settings.connectionProfiles, profileId, &ConnectionProfile::id);
@@ -177,7 +177,7 @@ std::expected<void, std::string> SettingsManager::setSshPassword(const std::stri
     return {};
 }
 
-std::expected<std::string, std::string> SettingsManager::getSshPassword(const std::string& profileId) const {
+std::expected<std::string, std::string> SettingsAccessor::getSshPassword(const std::string& profileId) const {
     std::lock_guard lock(m_mutex);
 
     auto it = std::ranges::find(m_settings.connectionProfiles, profileId, &ConnectionProfile::id);
@@ -191,7 +191,7 @@ std::expected<std::string, std::string> SettingsManager::getSshPassword(const st
     return CredentialProtector::decrypt(it->ssh.encryptedPassword);
 }
 
-std::expected<void, std::string> SettingsManager::setSshKeyPassphrase(const std::string& profileId, std::string_view passphrase) {
+std::expected<void, std::string> SettingsAccessor::setSshKeyPassphrase(const std::string& profileId, std::string_view passphrase) {
     std::lock_guard lock(m_mutex);
 
     auto it = std::ranges::find(m_settings.connectionProfiles, profileId, &ConnectionProfile::id);
@@ -213,7 +213,7 @@ std::expected<void, std::string> SettingsManager::setSshKeyPassphrase(const std:
     return {};
 }
 
-std::expected<std::string, std::string> SettingsManager::getSshKeyPassphrase(const std::string& profileId) const {
+std::expected<std::string, std::string> SettingsAccessor::getSshKeyPassphrase(const std::string& profileId) const {
     std::lock_guard lock(m_mutex);
 
     auto it = std::ranges::find(m_settings.connectionProfiles, profileId, &ConnectionProfile::id);
@@ -227,7 +227,7 @@ std::expected<std::string, std::string> SettingsManager::getSshKeyPassphrase(con
     return CredentialProtector::decrypt(it->ssh.encryptedKeyPassphrase);
 }
 
-std::string SettingsManager::serializeSettings() const {
+std::string SettingsAccessor::serializeSettings() const {
     std::string buffer;
     if (auto ec = glz::write<glz::opts{.prettify = true}>(m_settings, buffer); bool(ec)) {
         log<LogLevel::WARNING>("Failed to serialize settings");
@@ -236,7 +236,7 @@ std::string SettingsManager::serializeSettings() const {
     return buffer;
 }
 
-bool SettingsManager::deserializeSettings(std::string_view json) {
+bool SettingsAccessor::deserializeSettings(std::string_view json) {
     auto ec = glz::read_json(m_settings, json);
     if (bool(ec)) {
         log<LogLevel::WARNING>(std::format("Failed to parse settings.json: {}", glz::format_error(ec, json)));

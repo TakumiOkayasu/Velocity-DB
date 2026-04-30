@@ -1,10 +1,10 @@
 #include "webview_app.h"
 
+#include "accessors/settings_accessor.h"
 #include "contexts/system_context.h"
 #include "ipc_handler.h"
 #include "simdjson.h"
 #include "utils/logger.h"
-#include "utils/settings_manager.h"
 #include "version_config.h"
 #include "webview.h"
 
@@ -47,9 +47,9 @@ WebViewApp::WebViewApp(HINSTANCE hInstance)
     , m_systemContext(std::make_unique<SystemContext>())
     , m_ipcHandler(std::make_unique<IPCHandler>(*m_systemContext))
     , m_webview(nullptr)
-    , m_settingsManager(std::make_unique<SettingsManager>()) {
+    , m_settingsAccessor(std::make_unique<SettingsAccessor>()) {
     // Load settings (best-effort — defaults used on failure)
-    (void)m_settingsManager->load();
+    (void)m_settingsAccessor->load();
 }
 
 WebViewApp::~WebViewApp() = default;
@@ -86,7 +86,7 @@ std::expected<std::filesystem::path, std::string> WebViewApp::locateFrontendDire
 }
 
 WebViewApp::WindowSize WebViewApp::calculateWindowSize() const {
-    const auto& windowSettings = m_settingsManager->getSettings().window;
+    const auto& windowSettings = m_settingsAccessor->getSettings().window;
 
     // If we have saved settings and they are valid, use them
     if (windowSettings.width > 0 && windowSettings.height > 0) {

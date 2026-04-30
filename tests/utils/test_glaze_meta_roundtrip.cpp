@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "utils/glaze_meta.h"
-#include "utils/settings_manager.h"
+#include "accessors/glaze_meta.h"
+#include "accessors/settings_accessor.h"
 
 #include <glaze/glaze.hpp>
 
@@ -35,7 +35,7 @@ TEST(GlazeMetaConnectionProfile, PreservesFolderPathAcrossRoundTrip) {
 }
 
 TEST(GlazeMetaConnectionProfile, PreservesFolderPathThroughAppSettingsRoundTrip) {
-    // 本番フロー (SettingsManager::serializeSettings/deserializeSettings) と同じ
+    // 本番フロー (SettingsAccessor::serializeSettings/deserializeSettings) と同じ
     // AppSettings → connectionProfiles 経由で folderPath が保持されることを確認する。
     AppSettings original;
     ConnectionProfile a;

@@ -38,13 +38,13 @@ struct SessionState {
     [[nodiscard]] int64_t writeLastSavedEpoch() const { return std::chrono::duration_cast<std::chrono::seconds>(lastSaved.time_since_epoch()).count(); }
 };
 
-class SessionManager {
+class SessionAccessor {
 public:
-    SessionManager();
-    ~SessionManager() = default;
+    SessionAccessor();
+    ~SessionAccessor() = default;
 
-    SessionManager(const SessionManager&) = delete;
-    SessionManager& operator=(const SessionManager&) = delete;
+    SessionAccessor(const SessionAccessor&) = delete;
+    SessionAccessor& operator=(const SessionAccessor&) = delete;
 
     /// Load session state from disk
     [[nodiscard]] std::expected<void, std::string> load();
