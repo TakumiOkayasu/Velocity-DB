@@ -1,43 +1,53 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { bridge } from '../../../api/bridge';
 import { useConnectionStore } from '../../../store/connectionStore';
 import {
-  type EnvironmentType,
   isDatabaseType,
   isEnvironmentType,
   isSshAuthType,
   type SavedConnectionProfile,
 } from '../../../types';
-import type { ConnectionConfig, SshConfig } from '../ConnectionDialog';
+import type { ConnectionConfig } from '../ConnectionDialog';
+import {
+  initialProfileFormState,
+  type ProfileMode,
+  profileFormReducer,
+} from './useConnectionProfile.reducer';
 
-export type ProfileMode = 'new' | 'edit';
+type BridgeProfile = Awaited<ReturnType<typeof bridge.getConnectionProfiles>>['profiles'][number];
 
-const DEFAULT_SSH_CONFIG: SshConfig = {
-  enabled: false,
-  host: '',
-  port: 22,
-  username: '',
-  authType: 'password',
-  password: '',
-  privateKeyPath: '',
-  keyPassphrase: '',
-};
-
-const DEFAULT_CONFIG: ConnectionConfig = {
-  name: 'New Connection',
-  server: 'localhost',
-  port: 1433,
-  database: 'master',
-  username: '',
-  password: '',
-  useWindowsAuth: true,
-  isProduction: false,
-  isReadOnly: false,
-  environment: 'development',
-  dbType: 'sqlserver',
-  folderPath: '',
-  ssh: { ...DEFAULT_SSH_CONFIG },
-};
+function normalizeProfile(p: BridgeProfile): SavedConnectionProfile {
+  return {
+    id: p.id,
+    name: p.name,
+    server: p.server,
+    port: p.port ?? 1433,
+    database: p.database,
+    username: p.username,
+    useWindowsAuth: p.useWindowsAuth,
+    savePassword: p.savePassword ?? false,
+    isProduction: p.isProduction ?? false,
+    isReadOnly: p.isReadOnly ?? false,
+    environment: isEnvironmentType(p.environment ?? '')
+      ? p.environment
+      : p.isProduction
+        ? 'production'
+        : 'development',
+    dbType: isDatabaseType(p.dbType ?? '') ? p.dbType : 'sqlserver',
+    folderPath: p.folderPath ?? '',
+    ssh: p.ssh
+      ? {
+          enabled: p.ssh.enabled ?? false,
+          host: p.ssh.host ?? '',
+          port: p.ssh.port ?? 22,
+          username: p.ssh.username ?? '',
+          authType: isSshAuthType(p.ssh.authType ?? '') ? p.ssh.authType : 'password',
+          privateKeyPath: p.ssh.privateKeyPath ?? '',
+          savePassword: p.ssh.savePassword ?? false,
+        }
+      : undefined,
+  };
+}
 
 interface UseConnectionProfileResult {
   profiles: SavedConnectionProfile[];
@@ -60,13 +70,9 @@ interface UseConnectionProfileResult {
 }
 
 export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResult {
-  const [profiles, setProfiles] = useState<SavedConnectionProfile[]>([]);
-  const [mode, setMode] = useState<ProfileMode>('new');
-  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
-  const [savePassword, setSavePassword] = useState(false);
-  const [config, setConfig] = useState<ConnectionConfig>({ ...DEFAULT_CONFIG });
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [state, dispatch] = useReducer(profileFormReducer, initialProfileFormState);
+  const { profiles, mode, editingProfileId, savePassword, config, testResult, deleteConfirmOpen } =
+    state;
 
   const loadingProfileIdRef = useRef<string | null>(null);
   const operationCounterRef = useRef(0);
@@ -74,6 +80,20 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
   const editingProfileIdRef = useRef(editingProfileId);
   modeRef.current = mode;
   editingProfileIdRef.current = editingProfileId;
+
+  const setConfig = useCallback<React.Dispatch<React.SetStateAction<ConnectionConfig>>>((value) => {
+    dispatch({ type: 'SET_CONFIG', payload: value });
+  }, []);
+
+  const setSavePassword = useCallback<React.Dispatch<React.SetStateAction<boolean>>>((value) => {
+    dispatch({ type: 'SET_SAVE_PASSWORD', payload: value });
+  }, []);
+
+  const setTestResult = useCallback<
+    React.Dispatch<React.SetStateAction<{ success: boolean; message: string } | null>>
+  >((value) => {
+    dispatch({ type: 'SET_TEST_RESULT', payload: value });
+  }, []);
 
   const loadProfile = useCallback(async (profile: SavedConnectionProfile, operationId: number) => {
     loadingProfileIdRef.current = profile.id;
@@ -93,52 +113,13 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
 
     if (operationCounterRef.current !== operationId) return;
 
-    // isProductionからenvironmentを推定（後方互換性）
-    const inferEnvironment = (p: SavedConnectionProfile): EnvironmentType => {
-      if (p.environment) return p.environment;
-      return p.isProduction ? 'production' : 'development';
-    };
-
-    setConfig({
-      name: profile.name,
-      server: profile.server,
-      port: profile.port,
-      database: profile.database,
-      username: profile.username,
-      password,
-      useWindowsAuth: profile.useWindowsAuth,
-      isProduction: profile.isProduction,
-      isReadOnly: profile.isReadOnly,
-      environment: inferEnvironment(profile),
-      dbType: profile.dbType ?? 'sqlserver',
-      folderPath: profile.folderPath ?? '',
-      ssh: profile.ssh
-        ? {
-            enabled: profile.ssh.enabled,
-            host: profile.ssh.host,
-            port: profile.ssh.port,
-            username: profile.ssh.username,
-            authType: profile.ssh.authType,
-            password: '',
-            privateKeyPath: profile.ssh.privateKeyPath,
-            keyPassphrase: '',
-          }
-        : { ...DEFAULT_SSH_CONFIG },
-    });
-    setSavePassword(profile.savePassword);
-    setTestResult(null);
-    setMode('edit');
-    setEditingProfileId(profile.id);
+    dispatch({ type: 'SELECT_PROFILE', payload: { profile, password } });
   }, []);
 
   const handleNewProfile = useCallback(() => {
     operationCounterRef.current += 1;
     loadingProfileIdRef.current = null;
-    setMode('new');
-    setEditingProfileId(null);
-    setConfig({ ...DEFAULT_CONFIG });
-    setSavePassword(false);
-    setTestResult(null);
+    dispatch({ type: 'NEW_PROFILE' });
   }, []);
 
   // Load profiles from backend when dialog opens
@@ -152,37 +133,8 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
       .then((result) => {
         if (operationCounterRef.current !== currentOperationId) return;
 
-        const loaded: SavedConnectionProfile[] = result.profiles.map((p) => ({
-          id: p.id,
-          name: p.name,
-          server: p.server,
-          port: p.port ?? 1433,
-          database: p.database,
-          username: p.username,
-          useWindowsAuth: p.useWindowsAuth,
-          savePassword: p.savePassword ?? false,
-          isProduction: p.isProduction ?? false,
-          isReadOnly: p.isReadOnly ?? false,
-          environment: isEnvironmentType(p.environment ?? '')
-            ? p.environment
-            : p.isProduction
-              ? 'production'
-              : 'development',
-          dbType: isDatabaseType(p.dbType ?? '') ? p.dbType : 'sqlserver',
-          folderPath: p.folderPath ?? '',
-          ssh: p.ssh
-            ? {
-                enabled: p.ssh.enabled ?? false,
-                host: p.ssh.host ?? '',
-                port: p.ssh.port ?? 22,
-                username: p.ssh.username ?? '',
-                authType: isSshAuthType(p.ssh.authType ?? '') ? p.ssh.authType : 'password',
-                privateKeyPath: p.ssh.privateKeyPath ?? '',
-                savePassword: p.ssh.savePassword ?? false,
-              }
-            : undefined,
-        }));
-        setProfiles(loaded);
+        const loaded = result.profiles.map(normalizeProfile);
+        dispatch({ type: 'SET_PROFILES', payload: loaded });
 
         // Auto-select first profile if in new mode
         if (
@@ -191,63 +143,13 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
           editingProfileIdRef.current === null
         ) {
           const newOperationId = ++operationCounterRef.current;
-          const profile = loaded[0];
-          loadingProfileIdRef.current = profile.id;
-
-          const loadPasswordAndSetConfig = async () => {
-            let password = '';
-            if (profile.savePassword) {
-              try {
-                const passwordResult = await bridge.getProfilePassword(profile.id);
-                if (operationCounterRef.current !== newOperationId) return;
-                if (passwordResult.password) {
-                  password = passwordResult.password;
-                }
-              } catch (e) {
-                console.error('Failed to load password:', e);
-              }
-            }
-            if (operationCounterRef.current !== newOperationId) return;
-
-            setConfig({
-              name: profile.name,
-              server: profile.server,
-              port: profile.port,
-              database: profile.database,
-              username: profile.username,
-              password,
-              useWindowsAuth: profile.useWindowsAuth,
-              isProduction: profile.isProduction,
-              isReadOnly: profile.isReadOnly,
-              environment:
-                profile.environment ?? (profile.isProduction ? 'production' : 'development'),
-              dbType: profile.dbType ?? 'sqlserver',
-              folderPath: profile.folderPath ?? '',
-              ssh: profile.ssh
-                ? {
-                    enabled: profile.ssh.enabled,
-                    host: profile.ssh.host,
-                    port: profile.ssh.port,
-                    username: profile.ssh.username,
-                    authType: profile.ssh.authType,
-                    password: '',
-                    privateKeyPath: profile.ssh.privateKeyPath,
-                    keyPassphrase: '',
-                  }
-                : { ...DEFAULT_SSH_CONFIG },
-            });
-            setSavePassword(profile.savePassword);
-            setTestResult(null);
-            setMode('edit');
-            setEditingProfileId(profile.id);
-          };
-          loadPasswordAndSetConfig();
+          loadProfile(loaded[0], newOperationId);
         }
       })
       .catch((e) => {
         console.error('Failed to load profiles:', e);
       });
-  }, [isOpen]);
+  }, [isOpen, loadProfile]);
 
   const handleProfileSelect = useCallback(
     (profileId: string) => {
@@ -324,36 +226,42 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
           : undefined,
       };
 
-      if (isNewProfile) {
-        setProfiles((prev) => [...prev, savedProfile]);
-      } else {
-        setProfiles((prev) => prev.map((p) => (p.id === currentEditingId ? savedProfile : p)));
-      }
-
-      setMode('edit');
-      setEditingProfileId(result.id);
-      setTestResult({ success: true, message: 'Profile saved' });
+      dispatch({
+        type: 'PROFILE_SAVED',
+        payload: isNewProfile
+          ? { profile: savedProfile, isNew: true, message: 'Profile saved' }
+          : {
+              profile: savedProfile,
+              isNew: false,
+              previousId: currentEditingId ?? savedProfile.id,
+              message: 'Profile saved',
+            },
+      });
       useConnectionStore.getState().incrementProfileVersion();
     } catch (e) {
       console.error('Failed to save profile:', e);
-      setTestResult({ success: false, message: 'Failed to save profile' });
+      dispatch({
+        type: 'SET_TEST_RESULT',
+        payload: { success: false, message: 'Failed to save profile' },
+      });
     }
   }, [config, mode, editingProfileId, savePassword]);
 
   const handleDeleteProfile = useCallback(() => {
     if (mode !== 'edit' || !editingProfileId) return;
-    setDeleteConfirmOpen(true);
+    dispatch({ type: 'OPEN_DELETE_CONFIRM' });
   }, [mode, editingProfileId]);
 
   const confirmDeleteProfile = useCallback(async () => {
-    setDeleteConfirmOpen(false);
+    dispatch({ type: 'CLOSE_DELETE_CONFIRM' });
     if (!editingProfileId) return;
 
     try {
       await bridge.deleteConnectionProfile(editingProfileId);
 
-      const updatedProfiles = profiles.filter((p) => p.id !== editingProfileId);
-      setProfiles(updatedProfiles);
+      const targetId = editingProfileId;
+      const updatedProfiles = profiles.filter((p) => p.id !== targetId);
+      dispatch({ type: 'REMOVE_PROFILE', payload: targetId });
       useConnectionStore.getState().incrementProfileVersion();
 
       if (updatedProfiles.length > 0) {
@@ -364,12 +272,15 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
       }
     } catch (e) {
       console.error('Failed to delete profile:', e);
-      setTestResult({ success: false, message: 'Failed to delete profile' });
+      dispatch({
+        type: 'SET_TEST_RESULT',
+        payload: { success: false, message: 'Failed to delete profile' },
+      });
     }
   }, [editingProfileId, profiles, handleNewProfile, loadProfile]);
 
   const cancelDeleteProfile = useCallback(() => {
-    setDeleteConfirmOpen(false);
+    dispatch({ type: 'CLOSE_DELETE_CONFIRM' });
   }, []);
 
   const handleCopyProfile = useCallback(() => {
@@ -377,10 +288,7 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
 
     operationCounterRef.current += 1;
     loadingProfileIdRef.current = null;
-    setMode('new');
-    setEditingProfileId(null);
-    setConfig((prev) => ({ ...prev, name: `${prev.name} (Copy)` }));
-    setTestResult(null);
+    dispatch({ type: 'COPY_PROFILE' });
   }, [mode, editingProfileId]);
 
   return {
