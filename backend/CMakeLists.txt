@@ -64,12 +64,13 @@ set(LIB_SOURCES
     # Accessors (Layer #4 — direct resource access)
     accessors/settings_accessor.cpp
     accessors/session_accessor.cpp
+    # Search (Layer #4 — service layer; DB driver / dialect 依存)
+    search/global_search.cpp
+    search/simd_filter.cpp
     # Utils
     utils/json_utils.cpp
-    utils/simd_filter.cpp
     utils/file_utils.cpp
     utils/file_dialog.cpp
-    utils/global_search.cpp
     utils/credential_protector.cpp
     utils/logger.cpp
 )
@@ -161,13 +162,14 @@ set(HEADERS
     accessors/settings_accessor.h
     accessors/session_accessor.h
     accessors/glaze_meta.h
+    # Search (Layer #4 — service layer; DB driver / dialect 依存)
+    search/global_search.h
+    search/simd_filter.h
     # Utils
     utils/json_utils.h
-    utils/simd_filter.h
     utils/file_utils.h
     utils/file_dialog.h
     utils/sql_escape.h
-    utils/global_search.h
     utils/credential_protector.h
     utils/logger.h
     utils/string_utils.h
