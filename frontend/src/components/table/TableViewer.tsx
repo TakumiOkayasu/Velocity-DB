@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { bridge } from '../../api/bridge';
 import { useConnectionStore } from '../../store/connectionStore';
 import { stripBrackets } from '../../utils/stringUtils';
 import { useTableDataState } from './hooks/useTableDataState';
 import { useTableSchemaState } from './hooks/useTableSchemaState';
+import { type TabType, useTableUIState } from './hooks/useTableUIState';
 import styles from './TableViewer.module.css';
 import { ColumnsTab } from './tabs/ColumnsTab';
 import { ConstraintsTab } from './tabs/ConstraintsTab';
@@ -15,17 +16,6 @@ import { ReferencingForeignKeysTab } from './tabs/ReferencingForeignKeysTab';
 import { SourceTab } from './tabs/SourceTab';
 import { TriggersTab } from './tabs/TriggersTab';
 
-type TabType =
-  | 'data'
-  | 'columns'
-  | 'indexes'
-  | 'constraints'
-  | 'foreignKeys'
-  | 'referencingForeignKeys'
-  | 'triggers'
-  | 'rdbmsInfo'
-  | 'source';
-
 interface TableViewerProps {
   tableName: string;
   schemaName?: string;
@@ -33,10 +23,18 @@ interface TableViewerProps {
 
 export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps) {
   const activeConnectionId = useConnectionStore((state) => state.activeConnectionId);
-  const [activeTab, setActiveTab] = useState<TabType>('data');
-  const [showLogicalNames, setShowLogicalNames] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  // UI state (関心事別に hook 化)
+  const {
+    activeTab,
+    setActiveTab,
+    showLogicalNames,
+    setShowLogicalNames,
+    isLoading,
+    setIsLoading,
+    error,
+    setError,
+  } = useTableUIState();
 
   // Data state (関心事別に hook 化)
   const { resultSet, setResultSet, whereClause, setWhereClause } = useTableDataState();
@@ -95,7 +93,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
     } finally {
       setIsLoading(false);
     }
-  }, [activeConnectionId, fullTableName, whereClause, setResultSet]);
+  }, [activeConnectionId, fullTableName, whereClause, setResultSet, setIsLoading, setError]);
 
   const loadColumns = useCallback(async () => {
     if (!activeConnectionId) return;
