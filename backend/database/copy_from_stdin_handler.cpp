@@ -8,10 +8,11 @@
 #include <cstring>
 #include <format>
 #include <stdexcept>
+#include <string>
 
 namespace velocitydb {
 
-CopyFromStdinHandler::CopyFromStdinHandler(std::atomic<PGconn*>& conn, std::string& lastError) : m_conn(conn), m_lastError(lastError) {}
+CopyFromStdinHandler::CopyFromStdinHandler(std::atomic<PGconn*>& conn) : m_conn(conn) {}
 
 bool CopyFromStdinHandler::canHandle(std::string_view sql) const {
     return m_detector.startsBlock(sql);
@@ -26,10 +27,10 @@ ResultSet CopyFromStdinHandler::execute(std::string_view sql) {
     // 1. Execute COPY command -> transition to PGRES_COPY_IN state
     PGresultPtr initResult(PQexec(conn, copyCmd.c_str()));
     if (PQresultStatus(initResult.get()) != PGRES_COPY_IN) {
-        m_lastError = PQresultErrorMessage(initResult.get());
-        if (m_lastError.empty())
-            m_lastError = std::format("Expected COPY_IN state, got: {}", PQresStatus(PQresultStatus(initResult.get())));
-        throw std::runtime_error(m_lastError);
+        std::string err = PQresultErrorMessage(initResult.get());
+        if (err.empty())
+            err = std::format("Expected COPY_IN state, got: {}", PQresStatus(PQresultStatus(initResult.get())));
+        throw std::runtime_error(std::move(err));
     }
 
     // 2. Send data in chunks (avoid INT_MAX overflow for large payloads)
@@ -38,28 +39,27 @@ ResultSet CopyFromStdinHandler::execute(std::string_view sql) {
         for (size_t offset = 0; offset < data.size(); offset += kChunkSize) {
             auto chunkLen = std::min(kChunkSize, data.size() - offset);
             if (PQputCopyData(conn, data.c_str() + offset, static_cast<int>(chunkLen)) != 1) {
-                m_lastError = PQerrorMessage(conn);
+                std::string err = PQerrorMessage(conn);
                 PQputCopyEnd(conn, "client error");
                 PGresultPtr drain(PQgetResult(conn));
-                throw std::runtime_error(m_lastError);
+                throw std::runtime_error(std::move(err));
             }
         }
     }
 
     // 3. Signal COPY completion
     if (PQputCopyEnd(conn, nullptr) != 1) {
-        m_lastError = PQerrorMessage(conn);
-        throw std::runtime_error(m_lastError);
+        throw std::runtime_error(PQerrorMessage(conn));
     }
 
     // 4. Get final result
     PGresultPtr finalResult(PQgetResult(conn));
     auto status = PQresultStatus(finalResult.get());
     if (status != PGRES_COMMAND_OK) {
-        m_lastError = PQresultErrorMessage(finalResult.get());
-        if (m_lastError.empty())
-            m_lastError = std::format("COPY failed with status: {}", PQresStatus(status));
-        throw std::runtime_error(m_lastError);
+        std::string err = PQresultErrorMessage(finalResult.get());
+        if (err.empty())
+            err = std::format("COPY failed with status: {}", PQresStatus(status));
+        throw std::runtime_error(std::move(err));
     }
 
     // 5. Build ResultSet

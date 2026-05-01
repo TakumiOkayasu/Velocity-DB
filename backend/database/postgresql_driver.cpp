@@ -81,7 +81,7 @@ std::string oidToTypeName(Oid oid) {
 }  // namespace
 
 PostgreSqlDriver::PostgreSqlDriver() {
-    m_handlers.push_back(std::make_unique<CopyFromStdinHandler>(m_conn, m_lastError));
+    m_handlers.push_back(std::make_unique<CopyFromStdinHandler>(m_conn));
 }
 
 PostgreSqlDriver::~PostgreSqlDriver() {
@@ -131,10 +131,24 @@ ResultSet PostgreSqlDriver::execute(std::string_view sql) {
         throw std::runtime_error("Not connected to database");
     }
 
-    // OCP: handler chain — new protocols require only handler registration
+    // OCP: handler chain — new protocols require only handler registration.
+    // Handlers don't touch m_lastError (no implicit lock contract); the driver
+    // catches their exceptions here (including from canHandle) and propagates
+    // the message into the mutex-guarded last-error cache before re-throwing.
+    // The catch-all branch defends against handlers that throw non-std types
+    // so getLastError() never silently retains a stale message.
     for (auto& handler : m_handlers) {
-        if (handler->canHandle(sql))
+        try {
+            if (!handler->canHandle(sql))
+                continue;
             return handler->execute(sql);
+        } catch (const std::exception& e) {
+            m_lastError = e.what();
+            throw;
+        } catch (...) {
+            m_lastError = "Unknown handler error (non-std::exception)";
+            throw;
+        }
     }
 
     // Default: standard PQexec() path
