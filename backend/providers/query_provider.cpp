@@ -1,6 +1,6 @@
 #include "query_provider.h"
 
-#include "../database/connection_utils.h"
+#include "../database/connection_params_parser.h"
 #include "../database/driver_interface.h"
 #include "../database/psql_subprocess.h"
 #include "../database/query_history.h"

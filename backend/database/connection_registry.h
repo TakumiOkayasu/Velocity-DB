@@ -2,7 +2,7 @@
 
 #include "../network/ssh_tunnel.h"
 #include "../utils/transparent_hash.h"
-#include "connection_utils.h"
+#include "connection_types.h"
 #include "driver_interface.h"
 
 #include <atomic>

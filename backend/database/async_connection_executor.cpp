@@ -2,6 +2,7 @@
 
 #include "../network/ssh_tunnel.h"
 #include "../utils/logger.h"
+#include "connection_preparer.h"
 
 #include <format>
 

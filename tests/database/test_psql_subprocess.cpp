@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "database/connection_utils.h"
+#include "database/connection_types.h"
 #include "database/psql_subprocess.h"
 
 namespace velocitydb {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "connection_utils.h"
+#include "connection_types.h"
 #include "driver_interface.h"
 
 #include <Windows.h>
