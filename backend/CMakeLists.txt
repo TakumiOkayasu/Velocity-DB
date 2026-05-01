@@ -33,7 +33,9 @@ set(LIB_SOURCES
     database/query_history.cpp
     database/transaction_manager.cpp
     database/odbc_driver_detector.cpp
-    database/connection_utils.cpp
+    database/connection_string_builder.cpp
+    database/connection_params_parser.cpp
+    database/connection_preparer.cpp
     database/sql_builder.cpp
     # Contexts
     contexts/system_context.cpp
@@ -101,7 +103,10 @@ set(HEADERS
     database/query_history.h
     database/transaction_manager.h
     database/odbc_driver_detector.h
-    database/connection_utils.h
+    database/connection_types.h
+    database/connection_string_builder.h
+    database/connection_params_parser.h
+    database/connection_preparer.h
     database/sql_builder.h
     # Interfaces (Driver ISP)
     interfaces/connectable.h

@@ -1,8 +1,9 @@
 #include "connection_provider.h"
 
 #include "../database/async_connection_executor.h"
+#include "../database/connection_params_parser.h"
+#include "../database/connection_preparer.h"
 #include "../database/connection_registry.h"
-#include "../database/connection_utils.h"
 #include "../database/driver_interface.h"
 #include "../utils/json_utils.h"
 #include "simdjson.h"
