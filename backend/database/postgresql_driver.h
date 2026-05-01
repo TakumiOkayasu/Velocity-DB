@@ -8,6 +8,7 @@
 #include <atomic>
 #include <chrono>
 #include <memory>
+#include <mutex>
 #include <string_view>
 #include <vector>
 
@@ -38,6 +39,12 @@ public:
 
 private:
     std::atomic<PGconn*> m_conn{nullptr};
+
+    /// Serializes m_conn lifetime against cancel(). cancel() must NOT take
+    /// m_executeMutex (per IQueryExecutable::cancel contract: "execute() が
+    /// ブロック中でもロックなしで呼び出し可能"), so a separate lightweight
+    /// mutex protects PQgetCancel against concurrent PQfinish in disconnect().
+    mutable std::mutex m_connLifecycleMutex;
 
     /// OCP: special statement protocol handlers
     std::vector<std::unique_ptr<IStatementHandler>> m_handlers;
