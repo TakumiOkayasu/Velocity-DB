@@ -118,6 +118,12 @@ set(HEADERS
     interfaces/system_context.h
     interfaces/providers/connection_provider.h
     interfaces/providers/query_provider.h
+    # ISP-split sub-IFs of IQueryProvider (#449); 集約 IF は Phase 4 (#456) で解体予定
+    interfaces/providers/query_executor.h
+    interfaces/providers/result_filter.h
+    interfaces/providers/result_cache_control.h
+    interfaces/providers/query_history_accessor.h
+    interfaces/providers/dialect_sql_builder.h
     interfaces/providers/async_query_provider.h
     interfaces/providers/schema_provider.h
     interfaces/providers/transaction_provider.h
@@ -125,6 +131,10 @@ set(HEADERS
     interfaces/providers/search_provider.h
     interfaces/providers/utility_provider.h
     interfaces/providers/settings_provider.h
+    # ISP-split sub-IFs of ISettingsProvider (#450); 集約 IF は Phase 4 (#456) で解体予定
+    interfaces/providers/app_settings_accessor.h
+    interfaces/providers/connection_profile_accessor.h
+    interfaces/providers/session_state_accessor.h
     interfaces/providers/io_provider.h
     interfaces/providers/lint_provider.h
     # Contexts

@@ -1,31 +1,24 @@
 #pragma once
 
-#include <string>
-#include <string_view>
+#include "interfaces/providers/dialect_sql_builder.h"
+#include "interfaces/providers/query_executor.h"
+#include "interfaces/providers/query_history_accessor.h"
+#include "interfaces/providers/result_cache_control.h"
+#include "interfaces/providers/result_filter.h"
 
 namespace velocitydb {
 
-/// Interface for query execution, cache, history, and filtering
-class IQueryProvider {
+/// Aggregate interface for query-related responsibilities (ISP-split into 5 sub-interfaces).
+/// Retained for SystemContext / ipc_handler return-type compatibility; scheduled to be
+/// dissolved in #456 (Phase 4) once SystemContext exposes the sub-interfaces directly.
+class IQueryProvider
+    : public IQueryExecutor
+    , public IResultFilter
+    , public IResultCacheControl
+    , public IQueryHistoryAccessor
+    , public IDialectSqlBuilder {
 public:
-    virtual ~IQueryProvider() = default;
-
-    [[nodiscard]] virtual std::string executeQuery(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string executeQueryPaginated(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string getRowCount(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string cancelQuery(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string filterResultSet(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string getCacheStats(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string clearCache(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string getQueryHistory(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string removeQueryHistory(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string clearQueryHistory(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string setQueryHistoryFavorite(std::string_view params) = 0;
-
-    // SQL builder (dialect-aware)
-    [[nodiscard]] virtual std::string buildDataViewSql(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string buildWhereClause(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string buildDmlStatements(std::string_view params) = 0;
+    ~IQueryProvider() override = default;
 };
 
 }  // namespace velocitydb
