@@ -1,21 +1,19 @@
 #pragma once
 
 #include "../interfaces/statement_handler.h"
-#include "driver_interface.h"
+#include "base_driver.h"
 
 #include <libpq-fe.h>
 
 #include <atomic>
 #include <chrono>
 #include <memory>
-#include <mutex>
-#include <string>
 #include <string_view>
 #include <vector>
 
 namespace velocitydb {
 
-class PostgreSqlDriver : public IDatabaseDriver {
+class PostgreSqlDriver : public BaseDriver {
 public:
     PostgreSqlDriver();
     ~PostgreSqlDriver() override;
@@ -28,22 +26,18 @@ public:
     // IDatabaseDriver interface
     [[nodiscard]] bool connect(std::string_view connectionString) override;
     void disconnect() override;
-    [[nodiscard]] bool isConnected() const noexcept override { return m_connected.load(std::memory_order_acquire); }
 
     [[nodiscard]] ResultSet execute(std::string_view sql) override;
     void cancel() override;
-    void setQueryTimeout(std::chrono::seconds timeout) override;
-    [[nodiscard]] std::chrono::seconds queryTimeout() const noexcept override;
 
-    [[nodiscard]] std::string getLastError() const override;
+    /// PostgreSQL needs to push the new timeout to the live connection in
+    /// addition to updating the cached value, so it overrides the base impl.
+    void setQueryTimeout(std::chrono::seconds timeout) override;
+
     [[nodiscard]] DriverType getType() const noexcept override { return DriverType::PostgreSQL; }
 
 private:
     std::atomic<PGconn*> m_conn{nullptr};
-    std::atomic<bool> m_connected{false};
-    std::string m_lastError;
-    std::chrono::seconds m_queryTimeout{kDefaultQueryTimeout};
-    mutable std::mutex m_executeMutex;
 
     /// OCP: special statement protocol handlers
     std::vector<std::unique_ptr<IStatementHandler>> m_handlers;

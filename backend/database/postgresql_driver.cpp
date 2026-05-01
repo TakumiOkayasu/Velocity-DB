@@ -212,16 +212,12 @@ ResultSet PostgreSqlDriver::execute(std::string_view sql) {
 
 void PostgreSqlDriver::setQueryTimeout(std::chrono::seconds timeout) {
     std::lock_guard lock(m_executeMutex);
-    m_queryTimeout = timeout;
+    setQueryTimeoutLocked(timeout);
     auto* conn = m_conn.load(std::memory_order_acquire);
     if (conn) {
         auto cmd = std::format("SET statement_timeout = '{}s'", timeout.count());
         PQclear(PQexec(conn, cmd.c_str()));
     }
-}
-
-std::chrono::seconds PostgreSqlDriver::queryTimeout() const noexcept {
-    return m_queryTimeout;
 }
 
 void PostgreSqlDriver::cancel() {
@@ -234,11 +230,6 @@ void PostgreSqlDriver::cancel() {
         PQcancel(cancelObj, errbuf, sizeof(errbuf));
         PQfreeCancel(cancelObj);
     }
-}
-
-std::string PostgreSqlDriver::getLastError() const {
-    std::lock_guard lock(m_executeMutex);
-    return m_lastError;
 }
 
 }  // namespace velocitydb

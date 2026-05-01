@@ -189,18 +189,4 @@ void SQLServerDriver::cancel() {
     odbc::cancelStatement(m_stmt.load(std::memory_order_acquire));
 }
 
-void SQLServerDriver::setQueryTimeout(std::chrono::seconds timeout) {
-    std::lock_guard lock(m_executeMutex);
-    m_queryTimeout = timeout;
-}
-
-std::chrono::seconds SQLServerDriver::queryTimeout() const noexcept {
-    return m_queryTimeout;
-}
-
-std::string SQLServerDriver::getLastError() const {
-    std::lock_guard lock(m_executeMutex);
-    return m_lastError;
-}
-
 }  // namespace velocitydb
