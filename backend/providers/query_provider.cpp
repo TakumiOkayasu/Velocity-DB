@@ -5,6 +5,7 @@
 #include "../database/psql_subprocess.h"
 #include "../database/query_history.h"
 #include "../database/result_cache.h"
+#include "../database/sql_builder.h"
 #include "../interfaces/providers/connection_provider.h"
 #include "../interfaces/sql_formattable.h"
 #include "../parsers/copy_block_detector.h"
@@ -20,12 +21,26 @@
 #include <algorithm>
 #include <chrono>
 #include <format>
+#include <optional>
 
 #undef max
 
 using namespace std::literals;
 
 namespace velocitydb {
+
+namespace {
+
+/// simdjson result → optional への小ヘルパ。
+/// IPC 境界で「省略可能なフィールド」を扱う際に頻出するため共通化。
+template <typename T>
+[[nodiscard]] std::optional<T> toOpt(simdjson::simdjson_result<T> r) {
+    if (r.error())
+        return std::nullopt;
+    return r.value();
+}
+
+}  // namespace
 
 QueryProvider::QueryProvider(IConnectionProvider& connections, QueryHistory& queryHistory) : m_connections(connections), m_resultCache(std::make_unique<ResultCache>()), m_queryHistory(queryHistory) {}
 
@@ -459,17 +474,13 @@ std::string QueryProvider::buildDataViewSql(std::string_view params) {
         std::string_view tableName = tableNameResult.value();
         auto limit = std::max(limitResult.value(), int64_t{0});
 
-        auto driverType = m_connections.getDriverType(connectionId);
-        auto formatter = DriverFactory::createSqlFormattable(driverType);
-        auto quotedTable = formatter->quoteIdentifier(tableName);
-
-        std::string sql;
-        if (auto whereResult = doc["whereClause"].get_string(); !whereResult.error() && !whereResult.value().empty()) {
-            sql = formatter->buildSelectAllWhere(quotedTable, whereResult.value(), limit);
-        } else {
-            sql = formatter->buildSelectAll(quotedTable, limit);
+        auto formatter = DriverFactory::createSqlFormattable(m_connections.getDriverType(connectionId));
+        std::string_view whereClause;
+        if (auto whereResult = doc["whereClause"].get_string(); !whereResult.error()) {
+            whereClause = whereResult.value();
         }
 
+        auto sql = SqlBuilder(*formatter).buildDataView(tableName, whereClause, limit);
         return JsonUtils::successResponse(std::format(R"({{"sql":"{}"}})", JsonUtils::escapeString(sql)));
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
@@ -486,38 +497,9 @@ std::string QueryProvider::buildWhereClause(std::string_view params) {
         if (connectionIdResult.error() || conditionsResult.error()) [[unlikely]] {
             return JsonUtils::errorResponse("Missing required fields: connectionId or conditions");
         }
-        std::string_view connectionId = connectionIdResult.value();
 
-        auto driverType = m_connections.getDriverType(connectionId);
-        auto formatter = DriverFactory::createSqlFormattable(driverType);
-
-        std::string whereClause;
-        for (auto condition : conditionsResult.value()) {
-            auto columnResult = condition["column"].get_string();
-            if (columnResult.error())
-                continue;
-
-            if (!whereClause.empty()) {
-                whereClause += " AND ";
-            }
-
-            auto quotedCol = formatter->quoteIdentifier(columnResult.value());
-
-            // null → IS NULL, string → quoted literal, numeric → unquoted
-            auto valueEl = condition["value"];
-            if (valueEl.error() || valueEl.is_null()) {
-                whereClause += quotedCol + " IS NULL";
-            } else if (auto v = valueEl.get_string(); !v.error()) {
-                whereClause += quotedCol + " = " + formatter->quoteLiteral(v.value());
-            } else if (!valueEl.get_int64().error() || !valueEl.get_uint64().error() || !valueEl.get_double().error() || !valueEl.get_bool().error()) {
-                // Numeric/bool: embed directly without quoting (safe — no string content)
-                whereClause += quotedCol + " = " + simdjson::minify(valueEl.value());
-            } else {
-                // Unknown type: fall back to quoted literal for safety
-                whereClause += quotedCol + " = " + formatter->quoteLiteral(simdjson::minify(valueEl.value()));
-            }
-        }
-
+        auto formatter = DriverFactory::createSqlFormattable(m_connections.getDriverType(connectionIdResult.value()));
+        auto whereClause = SqlBuilder(*formatter).buildWhere(conditionsResult.value());
         return JsonUtils::successResponse(std::format(R"({{"whereClause":"{}"}})", JsonUtils::escapeString(whereClause)));
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
@@ -539,12 +521,6 @@ std::string QueryProvider::buildDmlStatements(std::string_view params) {
         std::string_view schema = schemaResult.error() ? std::string_view{} : schemaResult.value();
         std::string_view table = tableResult.value();
 
-        auto driverType = m_connections.getDriverType(connectionId);
-        auto formatter = DriverFactory::createSqlFormattable(driverType);
-
-        auto fullTableName = schema.empty() ? formatter->quoteIdentifier(table) : formatter->quoteIdentifier(schema) + "." + formatter->quoteIdentifier(table);
-
-        // Collect PK columns
         std::vector<std::string> pkColumns;
         if (auto pkResult = doc["pkColumns"].get_array(); !pkResult.error()) {
             for (auto pk : pkResult.value()) {
@@ -553,137 +529,21 @@ std::string QueryProvider::buildDmlStatements(std::string_view params) {
             }
         }
 
+        auto formatter = DriverFactory::createSqlFormattable(m_connections.getDriverType(connectionId));
+        auto statements = SqlBuilder(*formatter)
+                              .buildDml(DmlInput{.schema = schema,
+                                                 .table = table,
+                                                 .pkColumns = std::move(pkColumns),
+                                                 .updates = toOpt(doc["updates"].get_array()),
+                                                 .inserts = toOpt(doc["inserts"].get_array()),
+                                                 .deletes = toOpt(doc["deletes"].get_array())});
+
         std::string statementsJson = "[";
-        bool firstStmt = true;
-
-        auto appendStmt = [&](const std::string& sql) {
-            if (!firstStmt)
+        for (size_t i = 0; i < statements.size(); ++i) {
+            if (i > 0)
                 statementsJson += ",";
-            firstStmt = false;
-            statementsJson += "\"" + JsonUtils::escapeString(sql) + "\"";
-        };
-
-        // UPDATE statements
-        if (auto updatesResult = doc["updates"].get_array(); !updatesResult.error()) {
-            for (auto update : updatesResult.value()) {
-                auto changesObj = update["changes"].get_object();
-                auto originalObj = update["originalData"].get_object();
-                if (changesObj.error())
-                    continue;
-
-                // SET clause
-                std::string setClauses;
-                for (auto field : changesObj.value()) {
-                    if (!setClauses.empty())
-                        setClauses += ", ";
-                    auto col = formatter->quoteIdentifier(field.key);
-                    if (field.value.is_null()) {
-                        setClauses += col + " = NULL";
-                    } else if (auto v = field.value.get_string(); !v.error()) {
-                        setClauses += col + " = " + formatter->quoteLiteral(v.value());
-                    } else {
-                        setClauses += col + " = " + formatter->quoteLiteral(simdjson::minify(field.value));
-                    }
-                }
-
-                // WHERE clause from PK or all original columns
-                std::string whereClauses;
-                auto buildWhere = [&](std::string_view colName) {
-                    if (!whereClauses.empty())
-                        whereClauses += " AND ";
-                    auto col = formatter->quoteIdentifier(colName);
-                    // Use original value for the WHERE
-                    if (!originalObj.error()) {
-                        auto origVal = originalObj.value()[colName];
-                        if (origVal.is_null() || origVal.error()) {
-                            whereClauses += col + " IS NULL";
-                        } else if (auto v = origVal.get_string(); !v.error()) {
-                            whereClauses += col + " = " + formatter->quoteLiteral(v.value());
-                        } else {
-                            whereClauses += col + " = " + formatter->quoteLiteral(simdjson::minify(origVal.value()));
-                        }
-                    }
-                };
-
-                if (!pkColumns.empty()) {
-                    for (const auto& pk : pkColumns)
-                        buildWhere(pk);
-                } else if (!originalObj.error()) {
-                    for (auto field : originalObj.value())
-                        buildWhere(field.key);
-                }
-
-                if (!setClauses.empty() && !whereClauses.empty()) {
-                    appendStmt("UPDATE " + fullTableName + " SET " + setClauses + " WHERE " + whereClauses + ";");
-                }
-            }
+            statementsJson += "\"" + JsonUtils::escapeString(statements[i]) + "\"";
         }
-
-        // INSERT statements
-        if (auto insertsResult = doc["inserts"].get_array(); !insertsResult.error()) {
-            for (auto insert : insertsResult.value()) {
-                auto obj = insert.get_object();
-                if (obj.error())
-                    continue;
-
-                std::string columns, values;
-                for (auto field : obj.value()) {
-                    if (!columns.empty()) {
-                        columns += ", ";
-                        values += ", ";
-                    }
-                    columns += formatter->quoteIdentifier(field.key);
-                    if (field.value.is_null()) {
-                        values += "NULL";
-                    } else if (auto v = field.value.get_string(); !v.error()) {
-                        values += formatter->quoteLiteral(v.value());
-                    } else {
-                        values += formatter->quoteLiteral(simdjson::minify(field.value));
-                    }
-                }
-
-                if (!columns.empty()) {
-                    appendStmt("INSERT INTO " + fullTableName + " (" + columns + ") VALUES (" + values + ");");
-                }
-            }
-        }
-
-        // DELETE statements
-        if (auto deletesResult = doc["deletes"].get_array(); !deletesResult.error()) {
-            for (auto del : deletesResult.value()) {
-                auto obj = del.get_object();
-                if (obj.error())
-                    continue;
-
-                std::string whereClauses;
-                auto buildWhere = [&](std::string_view colName) {
-                    if (!whereClauses.empty())
-                        whereClauses += " AND ";
-                    auto col = formatter->quoteIdentifier(colName);
-                    auto val = obj.value()[colName];
-                    if (val.is_null() || val.error()) {
-                        whereClauses += col + " IS NULL";
-                    } else if (auto v = val.get_string(); !v.error()) {
-                        whereClauses += col + " = " + formatter->quoteLiteral(v.value());
-                    } else {
-                        whereClauses += col + " = " + formatter->quoteLiteral(simdjson::minify(val.value()));
-                    }
-                };
-
-                if (!pkColumns.empty()) {
-                    for (const auto& pk : pkColumns)
-                        buildWhere(pk);
-                } else {
-                    for (auto field : obj.value())
-                        buildWhere(field.key);
-                }
-
-                if (!whereClauses.empty()) {
-                    appendStmt("DELETE FROM " + fullTableName + " WHERE " + whereClauses + ";");
-                }
-            }
-        }
-
         statementsJson += "]";
         return JsonUtils::successResponse(std::format(R"({{"statements":{}}})", statementsJson));
     } catch (const std::exception& e) {
