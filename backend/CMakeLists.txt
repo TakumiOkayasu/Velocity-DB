@@ -35,6 +35,7 @@ set(LIB_SOURCES
     database/transaction_manager.cpp
     database/odbc_driver_detector.cpp
     database/connection_utils.cpp
+    database/sql_builder.cpp
     # Contexts
     contexts/system_context.cpp
     # Providers
@@ -102,6 +103,7 @@ set(HEADERS
     database/transaction_manager.h
     database/odbc_driver_detector.h
     database/connection_utils.h
+    database/sql_builder.h
     # Interfaces (Driver ISP)
     interfaces/connectable.h
     interfaces/query_executable.h
