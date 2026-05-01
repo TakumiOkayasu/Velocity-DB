@@ -35,6 +35,7 @@ set(TEST_SOURCES
     database/test_psql_subprocess.cpp
     exporters/test_csv_exporter.cpp
     providers/test_lint_provider.cpp
+    providers/test_query_result_formatter.cpp
     providers/test_settings_provider.cpp
     providers/test_utility_provider.cpp
     utils/test_sql_validation.cpp

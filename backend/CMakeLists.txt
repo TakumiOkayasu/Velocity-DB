@@ -41,6 +41,7 @@ set(LIB_SOURCES
     # Providers
     providers/connection_provider.cpp
     providers/query_provider.cpp
+    providers/query_result_formatter.cpp
     providers/async_query_provider.cpp
     providers/schema_provider.cpp
     providers/transaction_provider.cpp
@@ -144,6 +145,7 @@ set(HEADERS
     # Providers
     providers/connection_provider.h
     providers/query_provider.h
+    providers/query_result_formatter.h
     providers/async_query_provider.h
     providers/schema_provider.h
     providers/transaction_provider.h
