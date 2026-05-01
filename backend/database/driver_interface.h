@@ -13,13 +13,6 @@
 
 namespace velocitydb {
 
-// Forward declarations (schema types defined in schema_inspector.h)
-struct TableInfo;
-struct IndexInfo;
-struct ForeignKeyInfo;
-struct StoredProcedureInfo;
-struct FunctionInfo;
-
 // Forward declarations (Dialect ISP interfaces)
 class ISchemaQueryable;
 class IRelationQueryable;
@@ -111,40 +104,11 @@ protected:
     IDatabaseDriver() = default;
 };
 
-// ─── Schema inspector interface ───
-
-class ISchemaInspector {
-public:
-    virtual ~ISchemaInspector() = default;
-
-    ISchemaInspector(const ISchemaInspector&) = delete;
-    ISchemaInspector& operator=(const ISchemaInspector&) = delete;
-
-    [[nodiscard]] virtual std::vector<std::string> getDatabases() = 0;
-    [[nodiscard]] virtual std::vector<TableInfo> getTables(std::string_view database) = 0;
-    [[nodiscard]] virtual std::vector<ColumnInfo> getColumns(std::string_view table) = 0;
-    [[nodiscard]] virtual std::vector<IndexInfo> getIndexes(std::string_view table) = 0;
-    [[nodiscard]] virtual std::vector<ForeignKeyInfo> getForeignKeys(std::string_view table) = 0;
-    [[nodiscard]] virtual std::vector<StoredProcedureInfo> getStoredProcedures(std::string_view database) = 0;
-    [[nodiscard]] virtual std::vector<FunctionInfo> getFunctions(std::string_view database) = 0;
-
-    [[nodiscard]] virtual std::string generateDDL(std::string_view table) = 0;
-    [[nodiscard]] virtual std::string generateSelectStatement(std::string_view table) = 0;
-    [[nodiscard]] virtual std::string generateInsertStatement(std::string_view table) = 0;
-    [[nodiscard]] virtual std::string generateUpdateStatement(std::string_view table) = 0;
-    [[nodiscard]] virtual std::string generateDeleteStatement(std::string_view table) = 0;
-
-protected:
-    ISchemaInspector() = default;
-};
-
 // ─── Factory ───
 
 class DriverFactory {
 public:
     [[nodiscard]] static std::unique_ptr<IDatabaseDriver> createDriver(DriverType type);
-
-    [[nodiscard]] static std::unique_ptr<ISchemaInspector> createSchemaInspector(DriverType type, std::shared_ptr<IDatabaseDriver> driver);
 
     // Dialect factories
     [[nodiscard]] static std::unique_ptr<ISchemaQueryable> createSchemaQueryable(DriverType type);

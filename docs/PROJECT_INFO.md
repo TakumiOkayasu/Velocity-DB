@@ -86,9 +86,9 @@ Velocity-DB/
 ### Backend (C++)
 
 ```cpp
-// SchemaInspector
-std::vector<TableInfo> getTables(const std::string& database);
-std::vector<ColumnInfo> getColumns(const std::string& table);
+// SchemaProvider (IPC handler; SQL は dialect 経由で生成して driver で実行)
+std::string getTables(std::string_view params);
+std::string getColumns(std::string_view params);
 
 // TransactionManager
 void begin();
