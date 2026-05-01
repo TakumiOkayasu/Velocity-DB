@@ -19,6 +19,7 @@ set(LIB_SOURCES
     ipc_handler.cpp
     # Database
     database/odbc_helpers.cpp
+    database/base_driver.cpp
     database/sqlserver_driver.cpp
     database/sqlserver_dialect.cpp
     database/postgresql_driver.cpp
@@ -88,6 +89,7 @@ set(HEADERS
     ipc_handler.h
     # Database
     database/driver_interface.h
+    database/base_driver.h
     database/sqlserver_driver.h
     database/odbc_helpers.h
     database/sqlserver_dialect.h
