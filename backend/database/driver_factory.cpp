@@ -1,7 +1,6 @@
 #include "driver_interface.h"
 #include "postgresql_dialect.h"
 #include "postgresql_driver.h"
-#include "schema_inspector.h"
 #include "sqlserver_dialect.h"
 #include "sqlserver_driver.h"
 
@@ -37,20 +36,6 @@ std::unique_ptr<IDatabaseDriver> DriverFactory::createDriver(DriverType type) {
             return std::make_unique<PostgreSqlDriver>();
         case DriverType::MySQL:
             throw std::runtime_error("MySQL driver not yet implemented");
-    }
-    throw std::runtime_error("Unknown driver type");
-}
-
-std::unique_ptr<ISchemaInspector> DriverFactory::createSchemaInspector(DriverType type, std::shared_ptr<IDatabaseDriver> driver) {
-    switch (type) {
-        case DriverType::SQLServer:
-        case DriverType::PostgreSQL: {
-            auto inspector = std::make_unique<SchemaInspector>();
-            inspector->setDriver(std::move(driver));
-            return inspector;
-        }
-        case DriverType::MySQL:
-            throw std::runtime_error("MySQL schema inspector not yet implemented");
     }
     throw std::runtime_error("Unknown driver type");
 }

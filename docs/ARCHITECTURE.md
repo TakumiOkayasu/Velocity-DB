@@ -25,7 +25,7 @@
 | 責任 | Backend (C++) | Frontend (TS) |
 | ------ | --------------- | --------------- |
 | **接続管理** | `DatabaseContext` | `connectionStore` |
-| **スキーマ取得** | `SchemaInspector` | `schemaStore` |
+| **スキーマ取得** | `SchemaProvider` | `schemaStore` |
 | **クエリ実行** | `AsyncQueryExecutor` | `queryStore` |
 | **設定・セッション** | `SettingsContext` | `sessionStore` |
 | **クエリ履歴** | `QueryHistory` | `historyStore` |

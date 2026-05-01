@@ -30,7 +30,6 @@ set(LIB_SOURCES
     database/result_cache.cpp
     database/async_query_executor.cpp
     database/async_connection_executor.cpp
-    database/schema_inspector.cpp
     database/query_history.cpp
     database/transaction_manager.cpp
     database/odbc_driver_detector.cpp
@@ -99,7 +98,6 @@ set(HEADERS
     database/result_cache.h
     database/async_query_executor.h
     database/async_connection_executor.h
-    database/schema_inspector.h
     database/query_history.h
     database/transaction_manager.h
     database/odbc_driver_detector.h
