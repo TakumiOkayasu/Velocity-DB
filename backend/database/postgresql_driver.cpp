@@ -102,7 +102,8 @@ bool PostgreSqlDriver::connect(std::string_view connectionString) {
     }
 
     PQsetClientEncoding(conn, "UTF8");
-    auto timeoutCmd = std::format("SET statement_timeout = '{}s'", m_queryTimeout.count());
+    auto timeoutSec = m_queryTimeoutSeconds.load(std::memory_order_relaxed);
+    auto timeoutCmd = std::format("SET statement_timeout = '{}s'", timeoutSec);
     PQclear(PQexec(conn, timeoutCmd.c_str()));
 
     m_conn.store(conn, std::memory_order_release);
@@ -112,11 +113,15 @@ bool PostgreSqlDriver::connect(std::string_view connectionString) {
 
 void PostgreSqlDriver::disconnect() {
     std::lock_guard lock(m_executeMutex);
-    if (m_connected.exchange(false, std::memory_order_acq_rel)) {
-        auto* conn = m_conn.exchange(nullptr, std::memory_order_acq_rel);
-        if (conn)
-            PQfinish(conn);
-    }
+    if (!m_connected.exchange(false, std::memory_order_acq_rel))
+        return;
+    /// Hold m_connLifecycleMutex while nulling and PQfinish-ing so that a
+    /// concurrent cancel() (which only takes this lifecycle lock) cannot
+    /// observe a freed conn.
+    std::lock_guard lifecycleLock(m_connLifecycleMutex);
+    auto* conn = m_conn.exchange(nullptr, std::memory_order_acq_rel);
+    if (conn)
+        PQfinish(conn);
 }
 
 ResultSet PostgreSqlDriver::execute(std::string_view sql) {
@@ -211,25 +216,41 @@ ResultSet PostgreSqlDriver::execute(std::string_view sql) {
 }
 
 void PostgreSqlDriver::setQueryTimeout(std::chrono::seconds timeout) {
+    /// Lock encloses BOTH the atomic store and the SET statement_timeout side
+    /// effect. Without this pairing, two concurrent setQueryTimeout calls
+    /// could interleave such that the cached value reflects one writer while
+    /// the live PostgreSQL session reflects the other (last-PQexec wins,
+    /// last-store wins, but they need not agree).
+    /// The lock also defends against disconnect() racing with the conn load
+    /// (PQfinish would otherwise free conn from under us).
     std::lock_guard lock(m_executeMutex);
-    setQueryTimeoutLocked(timeout);
-    auto* conn = m_conn.load(std::memory_order_acquire);
-    if (conn) {
-        auto cmd = std::format("SET statement_timeout = '{}s'", timeout.count());
-        PQclear(PQexec(conn, cmd.c_str()));
-    }
-}
-
-void PostgreSqlDriver::cancel() {
+    BaseDriver::setQueryTimeout(timeout);
     auto* conn = m_conn.load(std::memory_order_acquire);
     if (!conn)
         return;
-    auto* cancelObj = PQgetCancel(conn);
-    if (cancelObj) {
-        char errbuf[256];
-        PQcancel(cancelObj, errbuf, sizeof(errbuf));
-        PQfreeCancel(cancelObj);
+    auto cmd = std::format("SET statement_timeout = '{}s'", timeout.count());
+    PQclear(PQexec(conn, cmd.c_str()));
+}
+
+void PostgreSqlDriver::cancel() {
+    /// Snapshot a PGcancel under the lifecycle lock so disconnect() cannot
+    /// PQfinish() the conn between our load and PQgetCancel(). PQgetCancel
+    /// allocates an independent cancel object; once acquired, PQcancel /
+    /// PQfreeCancel are safe to call without holding any lock (PQcancel is
+    /// documented signal-handler-safe by libpq).
+    PGcancel* cancelObj = nullptr;
+    {
+        std::lock_guard lifecycleLock(m_connLifecycleMutex);
+        auto* conn = m_conn.load(std::memory_order_acquire);
+        if (!conn)
+            return;
+        cancelObj = PQgetCancel(conn);
     }
+    if (!cancelObj)
+        return;
+    char errbuf[256];
+    PQcancel(cancelObj, errbuf, sizeof(errbuf));
+    PQfreeCancel(cancelObj);
 }
 
 }  // namespace velocitydb

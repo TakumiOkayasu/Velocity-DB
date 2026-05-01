@@ -49,9 +49,15 @@ bool SQLServerDriver::connect(std::string_view connectionString) {
 
 void SQLServerDriver::disconnect() {
     std::lock_guard lock(m_executeMutex);
-    auto stmt = m_stmt.exchange(SQL_NULL_HSTMT, std::memory_order_acq_rel);
-    if (stmt != SQL_NULL_HSTMT) {
-        SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+    {
+        /// Hold lifecycle lock while nulling and SQLFreeHandle-ing m_stmt so
+        /// a concurrent cancel() (which only takes this lock) cannot observe
+        /// a freed handle.
+        std::lock_guard lifecycleLock(m_stmtLifecycleMutex);
+        auto stmt = m_stmt.exchange(SQL_NULL_HSTMT, std::memory_order_acq_rel);
+        if (stmt != SQL_NULL_HSTMT) {
+            SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+        }
     }
     if (m_connected.exchange(false, std::memory_order_acq_rel)) {
         odbc::disconnect(m_dbc);
@@ -68,9 +74,12 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
 
     const auto startTime = std::chrono::high_resolution_clock::now();
 
-    auto oldStmt = m_stmt.exchange(SQL_NULL_HSTMT, std::memory_order_acq_rel);
-    if (oldStmt != SQL_NULL_HSTMT) {
-        SQLFreeHandle(SQL_HANDLE_STMT, oldStmt);
+    {
+        std::lock_guard lifecycleLock(m_stmtLifecycleMutex);
+        auto oldStmt = m_stmt.exchange(SQL_NULL_HSTMT, std::memory_order_acq_rel);
+        if (oldStmt != SQL_NULL_HSTMT) {
+            SQLFreeHandle(SQL_HANDLE_STMT, oldStmt);
+        }
     }
 
     SQLHSTMT stmt = SQL_NULL_HSTMT;
@@ -84,7 +93,7 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
     // Publish new stmt so cancel() can see it immediately
     m_stmt.store(stmt, std::memory_order_release);
 
-    auto queryTimeout = static_cast<SQLULEN>(m_queryTimeout.count());
+    auto queryTimeout = static_cast<SQLULEN>(m_queryTimeoutSeconds.load(std::memory_order_relaxed));
     SQLSetStmtAttr(stmt, SQL_ATTR_QUERY_TIMEOUT, toSqlPointer(queryTimeout), 0);
 
     auto wideSql = utf8ToWide(sql);
@@ -186,6 +195,11 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
 }
 
 void SQLServerDriver::cancel() {
+    /// Take lifecycle lock so disconnect()/execute() cannot SQLFreeHandle
+    /// the stmt between our load and SQLCancel call (lock-order:
+    /// m_executeMutex -> m_stmtLifecycleMutex in disconnect/execute, and
+    /// cancel only takes m_stmtLifecycleMutex; no deadlock possible).
+    std::lock_guard lifecycleLock(m_stmtLifecycleMutex);
     odbc::cancelStatement(m_stmt.load(std::memory_order_acquire));
 }
 

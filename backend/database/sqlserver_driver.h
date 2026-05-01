@@ -8,6 +8,7 @@
 #include <sqlext.h>
 
 #include <atomic>
+#include <mutex>
 #include <string_view>
 
 namespace velocitydb {
@@ -36,6 +37,11 @@ private:
     SQLHENV m_env = SQL_NULL_HENV;
     SQLHDBC m_dbc = SQL_NULL_HDBC;
     std::atomic<SQLHSTMT> m_stmt{SQL_NULL_HSTMT};
+    /// Serializes m_stmt lifetime against cancel(). cancel() must NOT take
+    /// m_executeMutex (per IQueryExecutable::cancel contract), so a separate
+    /// lightweight mutex protects SQLCancelHandle against concurrent
+    /// SQLFreeHandle in disconnect()/execute().
+    mutable std::mutex m_stmtLifecycleMutex;
     unsigned int m_connectionTimeout{kDefaultConnectionTimeoutSeconds};
 };
 
