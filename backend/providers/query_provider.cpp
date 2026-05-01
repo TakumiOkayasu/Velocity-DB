@@ -16,6 +16,7 @@
 #include "../utils/logger.h"
 #include "../utils/sql_validation.h"
 #include "../utils/string_utils.h"
+#include "query_result_formatter.h"
 #include "simdjson.h"
 
 #include <algorithm>
@@ -117,14 +118,8 @@ std::string QueryProvider::executeQuery(std::string_view params) {
                     auto stmtStart = std::chrono::high_resolution_clock::now();
                     ResultSet currentResult;
                     if (SQLParser::isUseStatement(stmt)) {
-                        std::string dbName = SQLParser::extractDatabaseName(stmt);
                         [[maybe_unused]] auto _ = driver->execute(stmt);
-                        currentResult.columns.push_back({.name = "Message", .type = "VARCHAR", .size = 255, .nullable = false, .isPrimaryKey = false});
-                        ResultRow messageRow;
-                        messageRow.values.push_back(std::format("Database changed to {}", dbName));
-                        messageRow.nullFlags.push_back(false);
-                        currentResult.rows.push_back(messageRow);
-                        currentResult.affectedRows = 0;
+                        currentResult = QueryResultFormatter::buildUseStatementResult(SQLParser::extractDatabaseName(stmt));
                     } else {
                         currentResult = driver->execute(stmt);
                     }
@@ -146,18 +141,11 @@ std::string QueryProvider::executeQuery(std::string_view params) {
                 }
                 recordHistory(sqlQuery, connectionId, totalExecMs, true, {}, totalAffected);
 
-                std::string jsonResponse = R"({"multipleResults":true,"results":[)";
-                for (size_t i = 0; i < allResults.size(); ++i) {
-                    if (i > 0)
-                        jsonResponse += ",";
-                    jsonResponse += R"({"statement":")";
-                    jsonResponse += JsonUtils::escapeString(allResults[i].statement);
-                    jsonResponse += R"(","data":)";
-                    jsonResponse += JsonUtils::serializeResultSet(allResults[i].result, false);
-                    jsonResponse += "}";
-                }
-                jsonResponse += "]}";
-                return JsonUtils::successResponse(jsonResponse);
+                std::vector<NamedResult> namedResults;
+                namedResults.reserve(allResults.size());
+                for (const auto& r : allResults)
+                    namedResults.push_back({.statement = r.statement, .result = std::cref(r.result)});
+                return JsonUtils::successResponse(QueryResultFormatter::buildMultipleResultsJson(namedResults));
             } catch (const std::exception& e) {
                 if (wrapTransaction)
                     try {
@@ -172,17 +160,9 @@ std::string QueryProvider::executeQuery(std::string_view params) {
 
         // Single USE statement
         if (SQLParser::isUseStatement(sqlQuery)) {
-            std::string dbName = SQLParser::extractDatabaseName(sqlQuery);
             try {
                 [[maybe_unused]] auto _ = driver->execute(sqlQuery);
-                ResultSet useResult;
-                useResult.columns.push_back({.name = "Message", .type = "VARCHAR", .size = 255, .nullable = false, .isPrimaryKey = false});
-                ResultRow messageRow;
-                messageRow.values.push_back(std::format("Database changed to {}", dbName));
-                messageRow.nullFlags.push_back(false);
-                useResult.rows.push_back(messageRow);
-                useResult.affectedRows = 0;
-                useResult.executionTimeMs = 0.0;
+                auto useResult = QueryResultFormatter::buildUseStatementResult(SQLParser::extractDatabaseName(sqlQuery));
                 recordHistory(sqlQuery, connectionId, 0.0, true);
                 return JsonUtils::successResponse(JsonUtils::serializeResultSet(useResult, false));
             } catch (const std::exception& e) {
@@ -376,24 +356,7 @@ std::string QueryProvider::filterResultSet(std::string_view params) {
             return JsonUtils::errorResponse(std::format("Unknown filter type: {}", filterType));
         }
 
-        std::string jsonResponse = "{";
-        JsonUtils::appendColumns(jsonResponse, queryResult.columns);
-        jsonResponse += R"(,"rows":[)";
-        for (size_t i = 0; i < matchingIndices.size(); ++i) {
-            if (i > 0)
-                jsonResponse += ',';
-            jsonResponse += '[';
-            const auto& row = queryResult.rows[matchingIndices[i]];
-            for (size_t colIndex = 0; colIndex < row.values.size(); ++colIndex) {
-                if (colIndex > 0)
-                    jsonResponse += ',';
-                JsonUtils::appendJsonValue(jsonResponse, row, colIndex);
-            }
-            jsonResponse += ']';
-        }
-        jsonResponse += "],";
-        jsonResponse += std::format(R"("totalRows":{},"filteredRows":{},"simdAvailable":{}}})", queryResult.rows.size(), matchingIndices.size(), SIMDFilter::isAVX2Available() ? "true" : "false");
-        return JsonUtils::successResponse(jsonResponse);
+        return JsonUtils::successResponse(QueryResultFormatter::buildFilteredResultJson(queryResult, matchingIndices));
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
     }
