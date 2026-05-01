@@ -1,25 +1,20 @@
 #pragma once
 
-#include <string>
-#include <string_view>
+#include "interfaces/providers/app_settings_accessor.h"
+#include "interfaces/providers/connection_profile_accessor.h"
+#include "interfaces/providers/session_state_accessor.h"
 
 namespace velocitydb {
 
-/// Interface for application settings and session management
-class ISettingsProvider {
+/// Aggregate interface for settings-related responsibilities (ISP-split into 3 sub-interfaces).
+/// Retained for SystemContext / ipc_handler return-type compatibility; scheduled to be
+/// dissolved in #456 (Phase 4) once SystemContext exposes the sub-interfaces directly.
+class ISettingsProvider
+    : public IAppSettingsAccessor
+    , public IConnectionProfileAccessor
+    , public ISessionStateAccessor {
 public:
-    virtual ~ISettingsProvider() = default;
-
-    [[nodiscard]] virtual std::string getSettings() = 0;
-    [[nodiscard]] virtual std::string updateSettings(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string getConnectionProfiles() = 0;
-    [[nodiscard]] virtual std::string saveConnectionProfile(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string deleteConnectionProfile(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string getProfilePassword(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string getSshPassword(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string getSshKeyPassphrase(std::string_view params) = 0;
-    [[nodiscard]] virtual std::string getSessionState() = 0;
-    [[nodiscard]] virtual std::string saveSessionState(std::string_view params) = 0;
+    ~ISettingsProvider() override = default;
 };
 
 }  // namespace velocitydb

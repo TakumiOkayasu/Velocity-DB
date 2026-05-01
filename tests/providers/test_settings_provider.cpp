@@ -3,6 +3,9 @@
 #include <format>
 
 #include "database/query_history.h"
+#include "interfaces/providers/app_settings_accessor.h"
+#include "interfaces/providers/connection_profile_accessor.h"
+#include "interfaces/providers/session_state_accessor.h"
 #include "providers/settings_provider.h"
 #include "accessors/session_accessor.h"
 #include "accessors/settings_accessor.h"
@@ -114,6 +117,21 @@ TEST_F(SettingsProviderTest, SetQueryHistoryAppliesLoadedMaxToInstance) {
     provider.setQueryHistory(&queryHistory);
 
     EXPECT_EQ(queryHistory.getAll().size(), 3u);
+}
+
+TEST_F(SettingsProviderTest, SubInterfacesAreUsableIndependently) {
+    // ISP 分割 (#450) の検証: SettingsProvider が各サブ IF として個別に受け取れ、
+    // それぞれの代表メソッドが集約 IF 経由と同じ結果を返すことを保証する。Phase 4
+    // (#456) で SystemContext がサブ IF を直接公開する際の前提を固める。
+    IAppSettingsAccessor& asAppSettings = provider;
+    IConnectionProfileAccessor& asProfile = provider;
+    ISessionStateAccessor& asSession = provider;
+
+    // 集約 IF 経由とサブ IF 経由で同一値が返ることを検証する。
+    // Phase 4 (#456) でサブ IF を直接公開した際の振る舞い等価性を保証する。
+    EXPECT_EQ(asAppSettings.getSettings(), provider.getSettings());
+    EXPECT_EQ(asProfile.getConnectionProfiles(), provider.getConnectionProfiles());
+    EXPECT_EQ(asSession.getSessionState(), provider.getSessionState());
 }
 
 }  // namespace
