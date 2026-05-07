@@ -28,3 +28,11 @@ export function quoteIdentifier(name: string, dbType?: DatabaseType): string {
       return `[${name.replace(/]/g, ']]')}]`;
   }
 }
+
+/** "schema.table" または "table" を分解しDB別にクォート (3 段以上のドットは無視し最初の 2 段のみ採用) */
+export function quoteDottedName(dotted: string, dbType?: DatabaseType): string {
+  const parts = dotted.split('.');
+  return parts.length >= 2
+    ? `${quoteIdentifier(parts[0], dbType)}.${quoteIdentifier(parts[1], dbType)}`
+    : quoteIdentifier(parts[0], dbType);
+}
