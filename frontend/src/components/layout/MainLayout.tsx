@@ -1,12 +1,12 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef } from 'react';
 import { bridge } from '../../api/bridge';
 import { useDialogState } from '../../hooks/useDialogState';
 import { useFileDrop } from '../../hooks/useFileDrop';
 import { useKeyboardShortcutHandler } from '../../hooks/useKeyboardShortcutHandler';
+import { usePanelLayoutState } from '../../hooks/usePanelLayoutState';
 import { applyConnectionMigration } from '../../store/connectionMigration';
 import { useConnectionStore } from '../../store/connectionStore';
 import { useQueryStore } from '../../store/queryStore';
-import { useSessionStore } from '../../store/sessionStore';
 import type { ConnectionConfig } from '../../types/connectionForm';
 import { lazyWithRetry } from '../../utils/lazyWithRetry';
 import { checkQueryExecutability } from '../../utils/queryExecutionCheck';
@@ -39,22 +39,6 @@ function LoadingFallback() {
 }
 
 export function MainLayout() {
-  // Session store for persisted layout state
-  const {
-    leftPanelWidth: savedLeftPanelWidth,
-    bottomPanelHeight: savedBottomPanelHeight,
-    isLeftPanelVisible: savedLeftPanelVisible,
-    setLeftPanelWidth: saveLeftPanelWidth,
-    setBottomPanelHeight: saveBottomPanelHeight,
-    setLeftPanelVisible: saveLeftPanelVisible,
-  } = useSessionStore();
-
-  const [leftPanelWidth, setLeftPanelWidth] = useState(savedLeftPanelWidth);
-  const [bottomPanelHeight, setBottomPanelHeight] = useState(savedBottomPanelHeight);
-  const [isLeftPanelVisible, setIsLeftPanelVisible] = useState(savedLeftPanelVisible);
-  // Bottom panel is hidden by default on startup, shown when query is executed
-  const [isBottomPanelVisible, setIsBottomPanelVisible] = useState(false);
-
   const {
     isConnectionDialogOpen,
     openConnectionDialog,
@@ -93,15 +77,21 @@ export function MainLayout() {
   const isReadOnly = activeQueryConnection?.isReadOnly ?? false;
   const isDataView = activeQuery?.isDataView === true;
 
-  // Hide bottom panel when in data view mode (table display)
-  const shouldShowBottomPanel = isBottomPanelVisible && !isDataView;
-
-  // Auto-show bottom panel when query results are available
-  useEffect(() => {
-    if (activeQueryId && results[activeQueryId] && !isDataView) {
-      setIsBottomPanelVisible(true);
-    }
-  }, [activeQueryId, results, isDataView]);
+  const {
+    leftPanelWidth,
+    setLeftPanelWidth,
+    bottomPanelHeight,
+    setBottomPanelHeight,
+    isLeftPanelVisible,
+    setIsLeftPanelVisible,
+    isBottomPanelVisible,
+    setIsBottomPanelVisible,
+    shouldShowBottomPanel,
+  } = usePanelLayoutState({
+    activeQueryId,
+    hasActiveResult: activeQueryId !== null && results[activeQueryId] !== undefined,
+    isDataView,
+  });
 
   const connectToDatabase = async (config: ConnectionConfig) => {
     try {
@@ -150,7 +140,7 @@ export function MainLayout() {
       executeQuery(activeQueryId, activeQueryConnectionId);
       setIsBottomPanelVisible(true);
     }
-  }, [activeQueryId, activeQueryConnectionId, executeQuery]);
+  }, [activeQueryId, activeQueryConnectionId, executeQuery, setIsBottomPanelVisible]);
 
   const handleExecute = useCallback(() => {
     if (!activeQueryId || !activeQueryConnectionId || !activeQuery) return;
@@ -193,7 +183,7 @@ export function MainLayout() {
       setIsBottomPanelVisible(true);
       pendingExecutionRef.current = null;
     }
-  }, [executeQuery, closeQueryConfirm]);
+  }, [executeQuery, closeQueryConfirm, setIsBottomPanelVisible]);
 
   const handleCancelExecute = useCallback(() => {
     closeQueryConfirm();
@@ -228,21 +218,6 @@ export function MainLayout() {
     },
     [activeQueryId]
   );
-
-  // Persist layout changes
-  useEffect(() => {
-    saveLeftPanelWidth(leftPanelWidth);
-  }, [leftPanelWidth, saveLeftPanelWidth]);
-
-  useEffect(() => {
-    saveBottomPanelHeight(bottomPanelHeight);
-  }, [bottomPanelHeight, saveBottomPanelHeight]);
-
-  useEffect(() => {
-    saveLeftPanelVisible(isLeftPanelVisible);
-  }, [isLeftPanelVisible, saveLeftPanelVisible]);
-
-  // Note: isBottomPanelVisible is NOT persisted - it's always hidden on startup
 
   useKeyboardShortcutHandler({
     onNewQuery: handleNewQuery,
