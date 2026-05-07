@@ -2,12 +2,12 @@ import { type Dispatch, type SetStateAction, useCallback, useState } from 'react
 import { bridge } from '../api/bridge';
 import type { DatabaseObject, DatabaseType, MenuItem } from '../types';
 import { log } from '../utils/logger';
+import { quoteIdentifier } from '../utils/sql/quoting';
 import {
   buildAlterViewSql,
   buildDropColumnSql,
   buildRenameColumnSql,
   fetchViewDefinition,
-  quoteIdentifier,
 } from '../utils/sqlIdentifier';
 import { updateNodeChildren } from '../utils/treeNode';
 

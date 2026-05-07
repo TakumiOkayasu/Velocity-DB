@@ -1,5 +1,5 @@
 import type { ResultSet } from '../../../types';
-import { quoteIdentifier, quoteLiteral } from '../../../utils/sqlIdentifier';
+import { quoteIdentifier, quoteLiteral } from '../../../utils/sql/quoting';
 import type { Exportable, ExportOptions } from './types';
 
 export const sqlExporter: Exportable = {
