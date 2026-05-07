@@ -2,7 +2,7 @@ import { memo } from 'react';
 import type { PaginationState } from '../../store/query/types';
 import type { ResultSet } from '../../types';
 import type { GridViewMode } from '../../types/grid';
-import type { StatementType } from '../../utils/sqlIdentifier';
+import type { StatementType } from '../../utils/sql/statement-type';
 import styles from './ResultGrid.module.css';
 
 interface GridStatusBarProps {
