@@ -1,5 +1,6 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { bridge } from '../../api/bridge';
+import { useDialogState } from '../../hooks/useDialogState';
 import { useFileDrop } from '../../hooks/useFileDrop';
 import { useKeyboardShortcutHandler } from '../../hooks/useKeyboardShortcutHandler';
 import { applyConnectionMigration } from '../../store/connectionMigration';
@@ -53,16 +54,22 @@ export function MainLayout() {
   const [isLeftPanelVisible, setIsLeftPanelVisible] = useState(savedLeftPanelVisible);
   // Bottom panel is hidden by default on startup, shown when query is executed
   const [isBottomPanelVisible, setIsBottomPanelVisible] = useState(false);
-  const [isConnectionDialogOpen, setIsConnectionDialogOpen] = useState(false);
-  const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
-  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
-  const [queryConfirmDialog, setQueryConfirmDialog] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    details?: string;
-    isBlocked?: boolean;
-  }>({ isOpen: false, title: '', message: '' });
+
+  const {
+    isConnectionDialogOpen,
+    openConnectionDialog,
+    closeConnectionDialog,
+    isSearchDialogOpen,
+    openSearchDialog,
+    closeSearchDialog,
+    isSettingsDialogOpen,
+    openSettingsDialog,
+    closeSettingsDialog,
+    queryConfirm,
+    openQueryConfirm,
+    closeQueryConfirm,
+    hasOpenDialog,
+  } = useDialogState();
 
   const { connections, addConnection, cancelConnection, isConnecting } = useConnectionStore();
   const {
@@ -124,7 +131,7 @@ export function MainLayout() {
           : undefined,
       });
       applyConnectionMigration(result.replaced);
-      setIsConnectionDialogOpen(false);
+      closeConnectionDialog();
     } catch {
       // Error is displayed in ConnectionDialog via connectionStore.error
     }
@@ -162,8 +169,7 @@ export function MainLayout() {
       };
     }
 
-    setQueryConfirmDialog({
-      isOpen: true,
+    openQueryConfirm({
       title: result.title,
       message: result.message,
       details: result.details,
@@ -176,22 +182,23 @@ export function MainLayout() {
     isProduction,
     isReadOnly,
     doExecuteQuery,
+    openQueryConfirm,
   ]);
 
   const handleConfirmExecute = useCallback(() => {
-    setQueryConfirmDialog({ isOpen: false, title: '', message: '' });
+    closeQueryConfirm();
     if (pendingExecutionRef.current) {
       const { queryId, connectionId } = pendingExecutionRef.current;
       executeQuery(queryId, connectionId);
       setIsBottomPanelVisible(true);
       pendingExecutionRef.current = null;
     }
-  }, [executeQuery]);
+  }, [executeQuery, closeQueryConfirm]);
 
   const handleCancelExecute = useCallback(() => {
-    setQueryConfirmDialog({ isOpen: false, title: '', message: '' });
+    closeQueryConfirm();
     pendingExecutionRef.current = null;
-  }, []);
+  }, [closeQueryConfirm]);
 
   const handleCancel = useCallback(() => {
     if (!activeQueryConnectionId) return;
@@ -203,14 +210,6 @@ export function MainLayout() {
       formatQuery(activeQueryId);
     }
   }, [activeQueryId, isDataView, formatQuery]);
-
-  const handleOpenSearch = useCallback(() => {
-    setIsSearchDialogOpen(true);
-  }, []);
-
-  const handleOpenSettings = useCallback(() => {
-    setIsSettingsDialogOpen(true);
-  }, []);
 
   const handleCloseTab = useCallback(() => {
     if (activeQueryId) {
@@ -245,15 +244,13 @@ export function MainLayout() {
 
   // Note: isBottomPanelVisible is NOT persisted - it's always hidden on startup
 
-  const hasOpenDialog = isConnectionDialogOpen || isSearchDialogOpen || isSettingsDialogOpen;
-
   useKeyboardShortcutHandler({
     onNewQuery: handleNewQuery,
     onCloseTab: handleCloseTab,
     onExecute: handleExecute,
     onFormat: handleFormat,
-    onOpenSearch: handleOpenSearch,
-    onOpenSettings: handleOpenSettings,
+    onOpenSearch: openSearchDialog,
+    onOpenSettings: openSettingsDialog,
     onCancel: handleCancel,
     isExecuting,
     hasOpenDialog,
@@ -322,7 +319,7 @@ export function MainLayout() {
       <header className={styles.toolbar}>
         {/* Connection */}
         <div className={styles.toolbarGroup}>
-          <button onClick={() => setIsConnectionDialogOpen(true)} title="新規接続">
+          <button onClick={openConnectionDialog} title="新規接続">
             <ToolbarIcons.Database />
             <span>接続</span>
           </button>
@@ -381,12 +378,12 @@ export function MainLayout() {
         <div className={styles.toolbarGroup}>
           <button
             className={styles.iconButton}
-            onClick={handleOpenSearch}
+            onClick={openSearchDialog}
             title="検索 (Ctrl+Shift+P)"
           >
             <ToolbarIcons.Search />
           </button>
-          <button className={styles.iconButton} onClick={handleOpenSettings} title="設定 (Ctrl+,)">
+          <button className={styles.iconButton} onClick={openSettingsDialog} title="設定 (Ctrl+,)">
             <ToolbarIcons.Settings />
           </button>
         </div>
@@ -508,7 +505,7 @@ export function MainLayout() {
             isOpen={isConnectionDialogOpen}
             onClose={() => {
               if (isConnecting) cancelConnection();
-              setIsConnectionDialogOpen(false);
+              closeConnectionDialog();
             }}
             onConnect={connectToDatabase}
             isConnecting={isConnecting}
@@ -521,7 +518,7 @@ export function MainLayout() {
         <Suspense fallback={<LoadingFallback />}>
           <SearchDialog
             isOpen={isSearchDialogOpen}
-            onClose={() => setIsSearchDialogOpen(false)}
+            onClose={closeSearchDialog}
             onResultSelect={handleSearchResultSelect}
           />
         </Suspense>
@@ -529,23 +526,20 @@ export function MainLayout() {
 
       {isSettingsDialogOpen && (
         <Suspense fallback={<LoadingFallback />}>
-          <SettingsDialog
-            isOpen={isSettingsDialogOpen}
-            onClose={() => setIsSettingsDialogOpen(false)}
-          />
+          <SettingsDialog isOpen={isSettingsDialogOpen} onClose={closeSettingsDialog} />
         </Suspense>
       )}
 
       {/* Query Confirm Dialog for Production/Read-Only Mode */}
       <QueryConfirmDialog
-        isOpen={queryConfirmDialog.isOpen}
-        title={queryConfirmDialog.title}
-        message={queryConfirmDialog.message}
-        details={queryConfirmDialog.details}
+        isOpen={queryConfirm.isOpen}
+        title={queryConfirm.title}
+        message={queryConfirm.message}
+        details={queryConfirm.details}
         isDestructive={true}
-        confirmLabel={queryConfirmDialog.isBlocked ? 'OK' : 'Execute Anyway'}
-        cancelLabel={queryConfirmDialog.isBlocked ? undefined : 'Cancel'}
-        onConfirm={queryConfirmDialog.isBlocked ? handleCancelExecute : handleConfirmExecute}
+        confirmLabel={queryConfirm.isBlocked ? 'OK' : 'Execute Anyway'}
+        cancelLabel={queryConfirm.isBlocked ? undefined : 'Cancel'}
+        onConfirm={queryConfirm.isBlocked ? handleCancelExecute : handleConfirmExecute}
         onCancel={handleCancelExecute}
       />
     </div>
