@@ -14,8 +14,8 @@ vi.mock('../../utils/logger', () => ({
 }));
 
 // Partial mock: fetchViewDefinition だけをモック (他は実装を維持)
-vi.mock('../../utils/sqlIdentifier', async (importOriginal) => {
-  const orig = await importOriginal<typeof import('../../utils/sqlIdentifier')>();
+vi.mock('../../utils/sql/ddl/view-ddl', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('../../utils/sql/ddl/view-ddl')>();
   return {
     ...orig,
     fetchViewDefinition: vi.fn().mockResolvedValue(''),
@@ -24,7 +24,7 @@ vi.mock('../../utils/sqlIdentifier', async (importOriginal) => {
 
 import { act, renderHook } from '@testing-library/react';
 import { useColumnActions } from '../../hooks/useColumnActions';
-import { fetchViewDefinition } from '../../utils/sqlIdentifier';
+import { fetchViewDefinition } from '../../utils/sql/ddl/view-ddl';
 
 function makeColumnNode(overrides: Partial<DatabaseObject> = {}): DatabaseObject {
   return {

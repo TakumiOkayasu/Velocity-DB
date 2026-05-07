@@ -2,13 +2,9 @@ import { type Dispatch, type SetStateAction, useCallback, useState } from 'react
 import { bridge } from '../api/bridge';
 import type { DatabaseObject, DatabaseType, MenuItem } from '../types';
 import { log } from '../utils/logger';
+import { buildDropColumnSql, buildRenameColumnSql } from '../utils/sql/ddl/table-ddl';
+import { buildAlterViewSql, fetchViewDefinition } from '../utils/sql/ddl/view-ddl';
 import { quoteIdentifier } from '../utils/sql/quoting';
-import {
-  buildAlterViewSql,
-  buildDropColumnSql,
-  buildRenameColumnSql,
-  fetchViewDefinition,
-} from '../utils/sqlIdentifier';
 import { updateNodeChildren } from '../utils/treeNode';
 
 // --- Discriminated union for dialog state ---

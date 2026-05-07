@@ -6,7 +6,7 @@ import {
   buildDropTableSql,
   buildTruncateTableSql,
   SQL_BEGIN_TRANSACTION,
-} from '../utils/sqlIdentifier';
+} from '../utils/sql/ddl/table-ddl';
 
 interface DropConfirm {
   type: 'drop-confirm';

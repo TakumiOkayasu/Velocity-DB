@@ -8,7 +8,7 @@ import {
   buildTruncateTableSql,
   parseDropOrTruncate,
   SQL_BEGIN_TRANSACTION,
-} from '../../../utils/sqlIdentifier';
+} from '../../../utils/sql/ddl/table-ddl';
 import { useConnectionStore } from '../../connectionStore';
 import { useToastStore } from '../../toastStore';
 import { executeAsyncWithPolling, toQueryResult } from '../helpers/asyncPolling';
