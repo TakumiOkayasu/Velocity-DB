@@ -10,7 +10,6 @@ import {
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useEphemeralOpen } from '../../hooks/useEphemeralOpen';
 import { useConnectionStore } from '../../store/connectionStore';
 import {
   useIsActiveDataView,
@@ -37,6 +36,7 @@ import { GridToolbar } from './GridToolbar';
 import { useClampedActiveIndex } from './hooks/useClampedActiveIndex';
 import { useColumnAutoSize } from './hooks/useColumnAutoSize';
 import { useElapsedTimer } from './hooks/useElapsedTimer';
+import { useGridDialogState } from './hooks/useGridDialogState';
 import { useGridEdit } from './hooks/useGridEdit';
 import { useGridKeyboard } from './hooks/useGridKeyboard';
 import { useGridSelection } from './hooks/useGridSelection';
@@ -101,27 +101,26 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   } = useQueryActions();
 
   // --- Local state ---
-  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const rowsLengthRef = useRef(0);
   const columnOrderRef = useRef<string[]>([]);
   const viewRowsRef = useRef<Row<RowData>[]>([]);
-  const [valueEditorState, setValueEditorState] = useState<{
-    isOpen: boolean;
-    rowIndex: number;
-    columnName: string;
-    value: string | null;
-  }>({ isOpen: false, rowIndex: 0, columnName: '', value: null });
   const [viewMode, setViewMode] = useState<GridViewMode>('table');
   const [transposeRowIndex, setTransposeRowIndex] = useState(0);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [showColumnFilters, setShowColumnFilters] = useState(false);
-  // エラーダイアログの表示制御: error 到来で自動 open、ユーザーが閉じられる、再 open 可
+  // Dialog state は管理層 hook に集約 (#463): error / export / value-editor の 3 系統
   const {
-    isOpen: isErrorDialogOpen,
-    dismiss: dismissErrorDialog,
-    reopen: reopenErrorDialog,
-  } = useEphemeralOpen(error);
+    isErrorDialogOpen,
+    dismissErrorDialog,
+    reopenErrorDialog,
+    isExportDialogOpen,
+    openExportDialog,
+    closeExportDialog,
+    valueEditor,
+    openValueEditor,
+    closeValueEditor,
+  } = useGridDialogState({ error });
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const elapsedSeconds = useElapsedTimer(isExecuting);
 
@@ -307,20 +306,13 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     [rowData, navigateToRelatedRow]
   );
 
-  const openValueEditor = useCallback(
-    (rowIndex: number, columnName: string, currentValue: string | null) => {
-      setValueEditorState({ isOpen: true, rowIndex, columnName, value: currentValue });
-    },
-    []
-  );
-
   const saveValueEditor = useCallback(
     (newValue: string | null) => {
-      const { rowIndex, columnName, value: oldValue } = valueEditorState;
+      const { rowIndex, columnName, value: oldValue } = valueEditor;
       if (oldValue !== newValue) updateCell(rowIndex, columnName, oldValue, newValue);
-      setValueEditorState((prev) => ({ ...prev, isOpen: false }));
+      closeValueEditor();
     },
-    [valueEditorState, updateCell]
+    [valueEditor, updateCell, closeValueEditor]
   );
 
   const getRowByViewIndex = useCallback(
@@ -517,8 +509,6 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     });
   }, []);
 
-  const openExportDialog = useCallback(() => setIsExportDialogOpen(true), []);
-
   const changeViewMode = useCallback(
     (mode: GridViewMode) => {
       if (mode === 'transpose' && selectedRows.size > 0) {
@@ -702,17 +692,17 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
       <Suspense fallback={null}>
         <ExportDialog
           isOpen={isExportDialogOpen}
-          onClose={() => setIsExportDialogOpen(false)}
+          onClose={closeExportDialog}
           resultSet={resultSet}
         />
       </Suspense>
 
       <ValueEditorDialog
-        isOpen={valueEditorState.isOpen}
-        columnName={valueEditorState.columnName}
-        initialValue={valueEditorState.value}
+        isOpen={valueEditor.isOpen}
+        columnName={valueEditor.columnName}
+        initialValue={valueEditor.value}
         onSave={saveValueEditor}
-        onCancel={() => setValueEditorState((prev) => ({ ...prev, isOpen: false }))}
+        onCancel={closeValueEditor}
       />
 
       <Suspense fallback={null}>
