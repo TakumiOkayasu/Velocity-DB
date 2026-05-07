@@ -1,33 +1,5 @@
 import type { DatabaseType } from '../types';
-
-/** sp_rename等のリテラル文字列用エスケープ (シングルクォート) */
-function escapeSqlLiteral(value: string): string {
-  return value.replace(/'/g, "''");
-}
-
-/** DB種別に応じたリテラルクォート */
-export function quoteLiteral(value: string, dbType?: DatabaseType): string {
-  const escaped = value.replace(/'/g, "''");
-  switch (dbType) {
-    case 'postgresql':
-    case 'mysql':
-      return `'${escaped}'`;
-    default:
-      return `N'${escaped}'`;
-  }
-}
-
-/** DB種別に応じた識別子クォート */
-export function quoteIdentifier(name: string, dbType?: DatabaseType): string {
-  switch (dbType) {
-    case 'postgresql':
-      return `"${name.replace(/"/g, '""')}"`;
-    case 'mysql':
-      return `\`${name.replace(/`/g, '``')}\``;
-    default:
-      return `[${name.replace(/]/g, ']]')}]`;
-  }
-}
+import { escapeSingleQuotes, quoteIdentifier } from './sql/quoting';
 
 /** ALTER TABLE ... RENAME COLUMN SQL生成 */
 export function buildRenameColumnSql(
@@ -45,7 +17,7 @@ export function buildRenameColumnSql(
     case 'mysql':
       return `ALTER TABLE ${q(table)} RENAME COLUMN ${q(oldName)} TO ${q(newName)}`;
     default:
-      return `EXEC sp_rename '${escapeSqlLiteral(schema)}.${escapeSqlLiteral(table)}.${escapeSqlLiteral(oldName)}', '${escapeSqlLiteral(newName)}', 'COLUMN'`;
+      return `EXEC sp_rename '${escapeSingleQuotes(schema)}.${escapeSingleQuotes(table)}.${escapeSingleQuotes(oldName)}', '${escapeSingleQuotes(newName)}', 'COLUMN'`;
   }
 }
 
@@ -359,8 +331,8 @@ export function buildGetViewDefinitionSql(
   viewName: string,
   dbType?: DatabaseType
 ): string {
-  const s = escapeSqlLiteral(schema);
-  const v = escapeSqlLiteral(viewName);
+  const s = escapeSingleQuotes(schema);
+  const v = escapeSingleQuotes(viewName);
 
   switch (dbType) {
     case 'postgresql':
