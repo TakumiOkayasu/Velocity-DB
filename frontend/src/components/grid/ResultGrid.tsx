@@ -9,16 +9,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import {
-  memo,
-  Suspense,
-  type UIEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useEphemeralOpen } from '../../hooks/useEphemeralOpen';
 import { useConnectionStore } from '../../store/connectionStore';
 import {
@@ -31,7 +22,6 @@ import {
   useQueryResult,
   useQueryStore,
 } from '../../store/queryStore';
-import { useScrollPositionStore } from '../../store/scrollPositionStore';
 import { useSessionStore } from '../../store/sessionStore';
 import type { ResultSet } from '../../types';
 import { type ColumnMeta, type GridViewMode, isNumericType, type RowData } from '../../types/grid';
@@ -51,6 +41,7 @@ import { useGridEdit } from './hooks/useGridEdit';
 import { useGridKeyboard } from './hooks/useGridKeyboard';
 import { useGridSelection } from './hooks/useGridSelection';
 import { useRelatedRows } from './hooks/useRelatedRows';
+import { useScrollRestoreHandler } from './hooks/useScrollRestoreHandler';
 import { useWhereFilter } from './hooks/useWhereFilter';
 import styles from './ResultGrid.module.css';
 import { ResultTabs } from './ResultTabs';
@@ -429,119 +420,24 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     return () => observer.disconnect();
   }, [rowVirtualizer]);
 
-  // --- Preserve scroll position per query when switching tabs ---
-  // UI state (sort/filter/selection) は per-tab 独立のためリセット維持。
-  // スクロール位置のみ前 queryId 単位で保存→復元 (Issue #366)。
-  const prevQueryIdRef = useRef<string | null>(null);
-  const scrollRestoredForQueryRef = useRef<string | null>(null);
-  // タブ切替の過渡期 (queryId 変化 → E2 復元完了まで) に発火する scroll event を
-  // ユーザー操作として扱わないための抑止フラグ。スクロール復元の programmatic scroll や
-  // DOM height 変化による clamp-scroll が store[newQueryId] に旧値を書き込むのを防ぐ。
-  const suppressScrollSaveRef = useRef(false);
-
-  // 1. タブ切替時: UI reset + scroll save 抑止 ON (scroll 保存は onScroll で常時実施)
+  // --- Reset per-tab UI state on queryId switch ---
+  // sort / filter / selection は per-tab 独立のためリセット。
+  // scroll 位置の保存/復元は useScrollRestoreHandler が担当 (Issue #366, #461)。
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally triggered by targetQueryId change
   useEffect(() => {
-    // 過渡期に発火する scroll event が新 queryId の store を汚染するのを防ぐ。
-    // E2 復元完了または rows 未到達で成立し得ない場合の timeout でクリア。
-    suppressScrollSaveRef.current = true;
     resetSelection();
     setSorting([]);
     setColumnFilters([]);
     setShowColumnFilters(false);
     setActiveResultIndex(0);
-    prevQueryIdRef.current = targetQueryId;
-    scrollRestoredForQueryRef.current = null;
   }, [targetQueryId]);
 
-  // Scroll 位置を onScroll で常時保存 (closure で現在の targetQueryId に紐付け)。
-  // useEffect での保存は ref=null or 誤 queryId 問題を起こすため廃止。
-  // 復元中の programmatic scroll は scrollRestoredForQueryRef で識別し保存を抑止する必要はない
-  // (同値を保存するだけで害なし)。
-  const handleScroll = useCallback(
-    (e: UIEvent<HTMLDivElement>) => {
-      if (!targetQueryId) return;
-      if (suppressScrollSaveRef.current) return;
-      const el = e.currentTarget;
-      useScrollPositionStore
-        .getState()
-        .savePosition(targetQueryId, { top: el.scrollTop, left: el.scrollLeft });
-    },
-    [targetQueryId]
-  );
-
-  // 2. スクロール位置復元: rows が描画可能になり container が実サイズを持った後に 1 回だけ実施。
-  // WebView2 の flex layout 解決遅延で clientHeight が 0 のままになる可能性があるため、
-  // rAF ループでリトライ。clamp を避けるため scrollToOffset は totalSize 確定後に実行する。
-  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll restore is a one-shot per queryId
-  useEffect(() => {
-    if (!targetQueryId) return;
-    if (scrollRestoredForQueryRef.current === targetQueryId) return;
-    if (rows.length === 0) return;
-
-    let cancelled = false;
-    let attempts = 0;
-    const MAX_ATTEMPTS = 30;
-
-    const tryRestore = () => {
-      if (cancelled) return;
-      if (scrollRestoredForQueryRef.current === targetQueryId) return;
-
-      const el = tableContainerRef.current;
-      if (!el || el.clientHeight === 0) {
-        if (attempts++ < MAX_ATTEMPTS) {
-          requestAnimationFrame(tryRestore);
-        } else {
-          // 限界超過 — 復元諦めて抑止解除 (user scroll 保存を許可)
-          suppressScrollSaveRef.current = false;
-        }
-        return;
-      }
-
-      rowVirtualizer.measure();
-      const totalSize = rowVirtualizer.getTotalSize();
-      if (totalSize === 0) {
-        if (attempts++ < MAX_ATTEMPTS) {
-          requestAnimationFrame(tryRestore);
-        } else {
-          suppressScrollSaveRef.current = false;
-        }
-        return;
-      }
-
-      const saved = useScrollPositionStore.getState().getPosition(targetQueryId);
-      if (saved) {
-        rowVirtualizer.scrollToOffset(saved.top);
-        el.scrollLeft = saved.left;
-      }
-      scrollRestoredForQueryRef.current = targetQueryId;
-      // 復元 programmatic scroll 完了後に抑止解除。scroll event は同期発火または
-      // 次 microtask で発火するため rAF 2 回待ち (1 回目: event 発火、2 回目: 解除)。
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          suppressScrollSaveRef.current = false;
-        });
-      });
-    };
-
-    requestAnimationFrame(tryRestore);
-    return () => {
-      cancelled = true;
-    };
-  }, [targetQueryId, rows.length]);
-
-  // --- Save scroll position on unmount (tab switched to non-grid view) ---
-  useEffect(() => {
-    return () => {
-      const el = tableContainerRef.current;
-      const qid = prevQueryIdRef.current;
-      if (qid && el) {
-        useScrollPositionStore
-          .getState()
-          .savePosition(qid, { top: el.scrollTop, left: el.scrollLeft });
-      }
-    };
-  }, []);
+  const { handleScroll } = useScrollRestoreHandler({
+    targetQueryId,
+    scrollerRef: tableContainerRef,
+    rowVirtualizer,
+    rowsLength: rows.length,
+  });
 
   // --- Infinite scroll: fetch more rows when nearing bottom ---
   useEffect(() => {
