@@ -27,7 +27,7 @@ import { type ColumnMeta, type GridViewMode, isNumericType, type RowData } from 
 import { parseErrorMessage } from '../../utils/errorParser';
 import { lazyWithRetry } from '../../utils/lazyWithRetry';
 import { log } from '../../utils/logger';
-import { getStatementType } from '../../utils/sqlIdentifier';
+import { getStatementType } from '../../utils/sql/statement-type';
 import { QueryConfirmDialog } from '../dialogs/QueryConfirmDialog';
 import { GridFilterBar } from './GridFilterBar';
 import { GridStatusBar } from './GridStatusBar';
