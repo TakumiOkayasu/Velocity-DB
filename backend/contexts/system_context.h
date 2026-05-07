@@ -7,7 +7,6 @@
 namespace velocitydb {
 
 class QueryHistory;
-class SettingsProvider;
 
 /// Concrete implementation of ISystemContext, owning all provider instances.
 class SystemContext : public ISystemContext {
@@ -33,11 +32,11 @@ public:
     [[nodiscard]] ILintProvider& lint() noexcept override;
 
 private:
-    // 宣言順 = 初期化順。m_settings は m_queryHistory の構築値を提供するため先に置く。
-    // m_settings は具象型: setQueryHistory() を SystemContext から呼ぶため (interface には公開しない)。
+    // 宣言順 = 初期化順 (および destruction 逆順)。
+    // m_queryHistory は m_settings の依存先、m_settings は m_queryHistory より後に構築される。
     std::unique_ptr<IConnectionProvider> m_connections;
-    std::unique_ptr<SettingsProvider> m_settings;
     std::unique_ptr<QueryHistory> m_queryHistory;
+    std::unique_ptr<ISettingsProvider> m_settings;
     std::unique_ptr<IQueryProvider> m_queries;
     std::unique_ptr<IAsyncQueryProvider> m_asyncQueries;
     std::unique_ptr<ISchemaProvider> m_schema;

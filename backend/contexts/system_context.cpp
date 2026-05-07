@@ -1,5 +1,7 @@
 #include "system_context.h"
 
+#include "../accessors/session_accessor.h"
+#include "../accessors/settings_accessor.h"
 #include "../database/query_history.h"
 #include "../providers/async_query_provider.h"
 #include "../providers/connection_provider.h"
@@ -17,23 +19,37 @@
 
 namespace velocitydb {
 
-SystemContext::SystemContext()
-    : m_connections(std::make_unique<ConnectionProvider>())
-    , m_settings(std::make_unique<SettingsProvider>(m_connections.get()))
+namespace {
+
+[[nodiscard]] std::unique_ptr<QueryHistory> makeQueryHistory(const SettingsAccessor& settingsAccessor) {
     // 設定ファイル破損時の防御: maxQueryHistory が 0 や負値だった場合は最低 1 件にクランプして
     // QueryHistory が常に有効状態で動作するようにする。
-    , m_queryHistory(std::make_unique<QueryHistory>(static_cast<size_t>(std::max(1, m_settings->settingsAccessor().getSettings().general.maxQueryHistory))))
-    , m_queries(std::make_unique<QueryProvider>(*m_connections, *m_queryHistory))
-    , m_asyncQueries(std::make_unique<AsyncQueryProvider>(*m_connections, *m_queryHistory))
-    , m_schema(std::make_unique<SchemaProvider>(*m_connections))
-    , m_transactions(std::make_unique<TransactionProvider>(*m_connections))
-    , m_exports(std::make_unique<ExportProvider>(*m_connections))
-    , m_search(std::make_unique<SearchProvider>(*m_connections))
-    , m_utility(std::make_unique<UtilityProvider>())
-    , m_io(std::make_unique<IOProvider>())
-    , m_lint(std::make_unique<LintProvider>()) {
-    // settings 経由の maxQueryHistory 変更をランタイムで反映できるよう wiring。
-    m_settings->setQueryHistory(m_queryHistory.get());
+    const auto maxItems = static_cast<size_t>(std::max(1, settingsAccessor.getSettings().general.maxQueryHistory));
+    return std::make_unique<QueryHistory>(maxItems);
+}
+
+}  // namespace
+
+SystemContext::SystemContext() {
+    // accessor の load は SystemContext で先行実施する: QueryHistory が settings.general.maxQueryHistory を
+    // 構築時に必要とし、その値は SettingsAccessor を load 済みでなければ取得できないため。
+    auto settingsAccessor = std::make_unique<SettingsAccessor>();
+    (void)settingsAccessor->load();
+    auto sessionAccessor = std::make_unique<SessionAccessor>();
+    (void)sessionAccessor->load();
+
+    m_connections = std::make_unique<ConnectionProvider>();
+    m_queryHistory = makeQueryHistory(*settingsAccessor);
+    m_settings = std::make_unique<SettingsProvider>(std::move(settingsAccessor), std::move(sessionAccessor), m_connections.get(), *m_queryHistory);
+    m_queries = std::make_unique<QueryProvider>(*m_connections, *m_queryHistory);
+    m_asyncQueries = std::make_unique<AsyncQueryProvider>(*m_connections, *m_queryHistory);
+    m_schema = std::make_unique<SchemaProvider>(*m_connections);
+    m_transactions = std::make_unique<TransactionProvider>(*m_connections);
+    m_exports = std::make_unique<ExportProvider>(*m_connections);
+    m_search = std::make_unique<SearchProvider>(*m_connections);
+    m_utility = std::make_unique<UtilityProvider>();
+    m_io = std::make_unique<IOProvider>();
+    m_lint = std::make_unique<LintProvider>();
 }
 
 SystemContext::~SystemContext() = default;

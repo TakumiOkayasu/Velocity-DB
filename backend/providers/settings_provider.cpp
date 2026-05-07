@@ -158,11 +158,11 @@ namespace {
 
 }  // namespace
 
-SettingsProvider::SettingsProvider(IConnectionProvider* connections)
-    : m_settingsAccessor(std::make_unique<SettingsAccessor>()), m_sessionAccessor(std::make_unique<SessionAccessor>()), m_connections(connections) {
-    (void)m_settingsAccessor->load();
-    (void)m_sessionAccessor->load();
-    applyQueryTimeoutToConnections(m_settingsAccessor->getSettings().query.timeoutSeconds);
+SettingsProvider::SettingsProvider(std::unique_ptr<SettingsAccessor> settingsAccessor, std::unique_ptr<SessionAccessor> sessionAccessor, IConnectionProvider* connections, QueryHistory& queryHistory)
+    : m_settingsAccessor(std::move(settingsAccessor)), m_sessionAccessor(std::move(sessionAccessor)), m_connections(connections), m_queryHistory(queryHistory) {
+    const auto& settings = m_settingsAccessor->getSettings();
+    applyQueryTimeoutToConnections(settings.query.timeoutSeconds);
+    applyMaxQueryHistoryToInstance(settings.general.maxQueryHistory);
 }
 
 void SettingsProvider::applyQueryTimeoutToConnections(int seconds) {
@@ -172,22 +172,12 @@ void SettingsProvider::applyQueryTimeoutToConnections(int seconds) {
 }
 
 void SettingsProvider::applyMaxQueryHistoryToInstance(int maxItems) {
-    if (m_queryHistory && maxItems > 0) {
-        m_queryHistory->setMaxItems(static_cast<size_t>(maxItems));
-    }
-}
-
-void SettingsProvider::setQueryHistory(QueryHistory* queryHistory) {
-    m_queryHistory = queryHistory;
-    // 初回 wiring 時に load 済み settings を即時反映する。
-    if (m_queryHistory) {
-        applyMaxQueryHistoryToInstance(m_settingsAccessor->getSettings().general.maxQueryHistory);
+    if (maxItems > 0) {
+        m_queryHistory.setMaxItems(static_cast<size_t>(maxItems));
     }
 }
 
 SettingsProvider::~SettingsProvider() = default;
-SettingsProvider::SettingsProvider(SettingsProvider&&) noexcept = default;
-SettingsProvider& SettingsProvider::operator=(SettingsProvider&&) noexcept = default;
 
 std::string SettingsProvider::getSettings() {
     const auto& s = m_settingsAccessor->getSettings();
