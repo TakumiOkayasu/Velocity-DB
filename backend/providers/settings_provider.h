@@ -16,20 +16,18 @@ class QueryHistory;
 /// Provider for application settings and session management
 class SettingsProvider : public ISettingsProvider {
 public:
+    /// @param settingsAccessor 既に load() 済みの SettingsAccessor を所有権ごと受け取る。
+    /// @param sessionAccessor  既に load() 済みの SessionAccessor を所有権ごと受け取る。
     /// @param connections Used to propagate query.timeoutSeconds changes to active drivers.
     ///                    May be nullptr for unit tests that don't exercise timeout propagation.
-    explicit SettingsProvider(IConnectionProvider* connections = nullptr);
+    /// @param queryHistory 非所有参照。general.maxQueryHistory 変更時に setMaxItems() が呼ばれる (Issue #426)。
+    SettingsProvider(std::unique_ptr<SettingsAccessor> settingsAccessor, std::unique_ptr<SessionAccessor> sessionAccessor, IConnectionProvider* connections, QueryHistory& queryHistory);
     ~SettingsProvider() override;
-
-    /// Wire the QueryHistory instance whose maxItems is updated when
-    /// general.maxQueryHistory changes via updateSettings().
-    /// May be called once after construction; pass nullptr to detach.
-    void setQueryHistory(QueryHistory* queryHistory);
 
     SettingsProvider(const SettingsProvider&) = delete;
     SettingsProvider& operator=(const SettingsProvider&) = delete;
-    SettingsProvider(SettingsProvider&&) noexcept;
-    SettingsProvider& operator=(SettingsProvider&&) noexcept;
+    SettingsProvider(SettingsProvider&&) = delete;
+    SettingsProvider& operator=(SettingsProvider&&) = delete;
 
     [[nodiscard]] std::string getSettings() override;
     [[nodiscard]] std::string updateSettings(std::string_view params) override;
@@ -53,8 +51,8 @@ private:
 
     std::unique_ptr<SettingsAccessor> m_settingsAccessor;
     std::unique_ptr<SessionAccessor> m_sessionAccessor;
-    IConnectionProvider* m_connections;      // Non-owning; may be null in tests
-    QueryHistory* m_queryHistory = nullptr;  // Non-owning; wired post-construction by SystemContext
+    IConnectionProvider* m_connections;  // Non-owning; may be null in tests
+    QueryHistory& m_queryHistory;        // Non-owning; wired at construction
 };
 
 }  // namespace velocitydb
