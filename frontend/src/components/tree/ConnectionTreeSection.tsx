@@ -1,18 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { bridge } from '../../api/bridge';
 import { useColumnActions } from '../../hooks/useColumnActions';
+import { useContextMenuItems } from '../../hooks/useContextMenuItems';
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
 import { useTableActions } from '../../hooks/useTableActions';
 import { useConnectionStore } from '../../store/connectionStore';
 import { useToastStore } from '../../store/toastStore';
-import type { Connection, DatabaseObject, MenuItem } from '../../types';
+import type { Connection, DatabaseObject } from '../../types';
 import { connectionColor } from '../../utils/colorContrast';
 import { log } from '../../utils/logger';
-import { buildInsertTemplateSql, buildSelectSql } from '../../utils/sqlIdentifier';
 import {
   type ExpandableType,
-  extractBareTableName,
-  isExpandableType,
   parseTableNodeId,
   shouldLoadColumns,
   updateNodeChildren,
@@ -306,129 +304,22 @@ export function ConnectionTreeSection({
     setContextMenu(null);
   }, []);
 
-  const getMenuItems = useCallback(
-    (node: DatabaseObject): MenuItem[] => {
-      const items: MenuItem[] = [];
+  const addToast = useToastStore((s) => s.addToast);
+  const removeConnection = useConnectionStore((s) => s.removeConnection);
 
-      if (node.type === 'table' || node.type === 'view') {
-        // SELECT文をコピー
-        items.push({
-          label: 'SELECT文をコピー',
-          action: async () => {
-            await navigator.clipboard.writeText(buildSelectSql(node.name, connection.dbType));
-          },
-        });
-
-        // INSERT文をコピー (table のみ、view 除外)
-        if (node.type === 'table') {
-          items.push({
-            label: 'INSERT文をコピー',
-            action: async () => {
-              try {
-                const columns = await bridge.getColumns(
-                  connection.id,
-                  extractBareTableName(node.name)
-                );
-                const sql = buildInsertTemplateSql(
-                  node.name,
-                  columns.map((c) => c.name),
-                  connection.dbType
-                );
-                await copyToClipboard(sql, 'INSERT文をコピーしました');
-              } catch (error) {
-                log.error(`Failed to build INSERT template: ${error}`);
-                useToastStore.getState().addToast('INSERT文の生成に失敗しました', 'error');
-              }
-            },
-          });
-        }
-
-        // テーブルを開く
-        items.push({
-          label: 'データを開く',
-          action: () => {
-            if (onTableOpen && isExpandableType(node.type)) {
-              onTableOpen(node.name, node.type, connection.id);
-            }
-          },
-        });
-
-        items.push({ label: '', action: () => {}, divider: true });
-
-        // カラム一覧をコピー
-        items.push({
-          label: 'カラム一覧をコピー',
-          action: async () => {
-            try {
-              const columns = await bridge.getColumns(
-                connection.id,
-                extractBareTableName(node.name)
-              );
-              const columnList = columns.map((c) => c.name).join(', ');
-              await navigator.clipboard.writeText(columnList);
-            } catch (error) {
-              log.error(`Failed to get columns: ${error}`);
-            }
-          },
-        });
-
-        // テーブル操作 (table のみ、view 除外)
-        const tableItems = getTableMenuItems(node);
-        if (tableItems.length > 0) {
-          items.push({ label: '', action: () => {}, divider: true });
-          items.push(...tableItems);
-        }
-      }
-
-      if (node.type === 'database') {
-        items.push({
-          label: 'リフレッシュ',
-          action: async () => {
-            // Re-load tables
-            setLoadingNodes((prev) => new Set(prev).add(connection.id));
-            const children = await loadTables();
-            setTreeData((prev) => {
-              return prev.map((n) => {
-                if (n.id === connection.id) {
-                  return { ...n, children };
-                }
-                return n;
-              });
-            });
-            setLoadingNodes((prev) => {
-              const next = new Set(prev);
-              next.delete(connection.id);
-              return next;
-            });
-          },
-        });
-
-        items.push({ label: '', action: () => {}, divider: true });
-
-        items.push({
-          label: '接続を閉じる',
-          action: async () => {
-            await useConnectionStore.getState().removeConnection(connection.id);
-          },
-        });
-      }
-
-      if (node.type === 'column') {
-        items.push(...getColumnMenuItems(node));
-      }
-
-      return items;
-    },
-    [
-      connection.id,
-      connection.dbType,
-      onTableOpen,
-      loadTables,
-      getColumnMenuItems,
-      getTableMenuItems,
-      copyToClipboard,
-    ]
-  );
+  const { getMenuItems } = useContextMenuItems({
+    connectionId: connection.id,
+    dbType: connection.dbType,
+    onTableOpen,
+    loadTables,
+    setTreeData,
+    setLoadingNodes,
+    getColumnMenuItems,
+    getTableMenuItems,
+    copyToClipboard,
+    addToast,
+    closeConnection: removeConnection,
+  });
 
   const connColor = useMemo(
     () => connectionColor(connection.server, connection.database),
