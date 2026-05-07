@@ -1,4 +1,4 @@
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useVirtualizer, type Virtualizer } from '@tanstack/react-virtual';
 import { fireEvent, render } from '@testing-library/react';
 import { type RefObject, useRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -23,7 +23,7 @@ interface HarnessProps {
   rowsLength: number;
   height?: number;
   totalSize?: number;
-  onVirtualizer?: (v: ReturnType<typeof useVirtualizer>) => void;
+  onVirtualizer?: (v: Virtualizer<HTMLDivElement, Element>) => void;
 }
 
 function Harness({
@@ -120,7 +120,7 @@ describe('useScrollRestoreHandler', () => {
 
   describe('復元', () => {
     it('rowsLength=0 では復元 scrollToOffset を呼ばない', () => {
-      let virt: ReturnType<typeof useVirtualizer> | undefined;
+      let virt: Virtualizer<HTMLDivElement, Element> | undefined;
       useScrollPositionStore.getState().savePosition('q1', { top: 500, left: 0 });
       render(
         <Harness
@@ -140,7 +140,7 @@ describe('useScrollRestoreHandler', () => {
 
     it('saved 値が container にセットされる', () => {
       useScrollPositionStore.getState().savePosition('q1', { top: 500, left: 30 });
-      let virt: ReturnType<typeof useVirtualizer> | undefined;
+      let virt: Virtualizer<HTMLDivElement, Element> | undefined;
       const { getByTestId } = render(
         <Harness
           queryId="q1"
@@ -159,7 +159,7 @@ describe('useScrollRestoreHandler', () => {
     });
 
     it('saved が無いときは scrollToOffset を呼ばない (1-shot フラグはセットされる)', () => {
-      let virt: ReturnType<typeof useVirtualizer> | undefined;
+      let virt: Virtualizer<HTMLDivElement, Element> | undefined;
       const { getByTestId } = render(
         <Harness
           queryId="q-no-save"

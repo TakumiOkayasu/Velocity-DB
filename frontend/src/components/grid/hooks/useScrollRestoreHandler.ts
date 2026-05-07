@@ -1,4 +1,4 @@
-import type { useVirtualizer } from '@tanstack/react-virtual';
+import type { Virtualizer } from '@tanstack/react-virtual';
 import { type RefObject, type UIEvent, useCallback, useEffect, useRef } from 'react';
 import { useScrollPositionStore } from '../../../store/scrollPositionStore';
 
@@ -19,7 +19,7 @@ const MAX_RESTORE_ATTEMPTS = 30;
 interface UseScrollRestoreHandlerArgs {
   targetQueryId: string | null;
   scrollerRef: RefObject<HTMLDivElement | null>;
-  rowVirtualizer: ReturnType<typeof useVirtualizer>;
+  rowVirtualizer: Virtualizer<HTMLDivElement, Element>;
   rowsLength: number;
 }
 
