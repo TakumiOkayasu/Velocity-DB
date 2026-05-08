@@ -254,10 +254,11 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
               </div>
             </div>
             <div className={styles.dialogActions}>
-              <button className={styles.cancelButton} onClick={handleCancel}>
+              <button type="button" className={styles.cancelButton} onClick={handleCancel}>
                 {isConnecting ? '接続中止' : 'キャンセル'}
               </button>
               <button
+                type="button"
                 className={`${styles.connectButton} ${confirmingProfile.isProduction ? styles.productionButton : ''}`}
                 onClick={handleConfirm}
                 disabled={isConnecting}

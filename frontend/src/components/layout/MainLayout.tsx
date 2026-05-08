@@ -294,7 +294,7 @@ export function MainLayout() {
       <header className={styles.toolbar}>
         {/* Connection */}
         <div className={styles.toolbarGroup}>
-          <button onClick={openConnectionDialog} title="新規接続">
+          <button type="button" onClick={openConnectionDialog} title="新規接続">
             <ToolbarIcons.Database />
             <span>接続</span>
           </button>
@@ -304,6 +304,7 @@ export function MainLayout() {
 
         <div className={styles.toolbarGroup}>
           <button
+            type="button"
             onClick={isExecuting ? handleCancel : handleExecute}
             disabled={isRunButtonDisabled(activeQuery, activeQueryConnectionId)}
             title={isExecuting ? '停止 (Escape)' : '実行 (F9)'}
@@ -316,6 +317,7 @@ export function MainLayout() {
 
         <div className={styles.toolbarGroup}>
           <button
+            type="button"
             className={styles.iconButton}
             onClick={handleFormat}
             disabled={!activeQuery?.content || isDataView}
@@ -331,6 +333,7 @@ export function MainLayout() {
         {/* View toggles */}
         <div className={styles.toolbarGroup}>
           <button
+            type="button"
             className={styles.iconButton}
             onClick={() => setIsLeftPanelVisible(!isLeftPanelVisible)}
             title="データベースエクスプローラーを切り替え"
@@ -338,6 +341,7 @@ export function MainLayout() {
             <ToolbarIcons.Sidebar />
           </button>
           <button
+            type="button"
             className={styles.iconButton}
             onClick={() => setIsBottomPanelVisible(!isBottomPanelVisible)}
             disabled={isDataView}
@@ -352,13 +356,19 @@ export function MainLayout() {
         {/* Search and Settings */}
         <div className={styles.toolbarGroup}>
           <button
+            type="button"
             className={styles.iconButton}
             onClick={openSearchDialog}
             title="検索 (Ctrl+Shift+P)"
           >
             <ToolbarIcons.Search />
           </button>
-          <button className={styles.iconButton} onClick={openSettingsDialog} title="設定 (Ctrl+,)">
+          <button
+            type="button"
+            className={styles.iconButton}
+            onClick={openSettingsDialog}
+            title="設定 (Ctrl+,)"
+          >
             <ToolbarIcons.Settings />
           </button>
         </div>

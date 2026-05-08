@@ -17,7 +17,7 @@ export function SourceTab({ ddl }: SourceTabProps) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div className={styles.filterBar}>
-        <button className={styles.filterButton} onClick={handleCopy}>
+        <button type="button" className={styles.filterButton} onClick={handleCopy}>
           Copy DDL
         </button>
       </div>

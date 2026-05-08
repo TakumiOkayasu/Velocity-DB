@@ -46,6 +46,7 @@ export function QueryHistory() {
           className={styles.searchInput}
         />
         <button
+          type="button"
           onClick={clearHistory}
           className={styles.clearButton}
           title="履歴をクリア（お気に入りは保持）"

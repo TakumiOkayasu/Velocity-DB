@@ -60,6 +60,7 @@ export const HistoryItem = memo(function HistoryItem({ item }: HistoryItemProps)
         <span className={styles.timestamp}>{formatTimestamp(item.timestamp)}</span>
         <span className={styles.duration}>{item.executionTimeMs.toFixed(0)}ms</span>
         <button
+          type="button"
           className={`${styles.favoriteButton} ${item.isFavorite ? styles.active : ''}`}
           onClick={(e) => {
             e.stopPropagation();
@@ -70,6 +71,7 @@ export const HistoryItem = memo(function HistoryItem({ item }: HistoryItemProps)
           {item.isFavorite ? '★' : '☆'}
         </button>
         <button
+          type="button"
           className={styles.deleteButton}
           onClick={(e) => {
             e.stopPropagation();
