@@ -1,11 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DatabaseObject } from '../../types';
 
-// Mock bridge
+// Mock bridge (Schema methods 用 — getReferencingForeignKeys は #520 で SchemaProvider に移管予定)
 vi.mock('../../api/bridge', () => ({
   bridge: {
-    executeQuery: vi.fn(),
     getReferencingForeignKeys: vi.fn(),
+  },
+}));
+
+// Mock providers (Query methods 用 — #519 で queryProvider に移管済み)
+vi.mock('../../api/providers', () => ({
+  queryProvider: {
+    executeQuery: vi.fn(),
   },
 }));
 
@@ -16,6 +22,7 @@ vi.mock('../../utils/logger', () => ({
 
 import { act, renderHook } from '@testing-library/react';
 import { bridge } from '../../api/bridge';
+import { queryProvider } from '../../api/providers';
 import { useTableActions } from '../../hooks/useTableActions';
 
 function makeTableNode(overrides: Partial<DatabaseObject> = {}): DatabaseObject {
@@ -153,7 +160,7 @@ describe('useTableActions', () => {
   // テスト19: confirmDrop → executeQuery実行 + コールバック
   it('confirmDrop: sqls を順にexecuteQuery実行 → 成功時loadTables+setTreeData呼び出し', async () => {
     vi.mocked(bridge.getReferencingForeignKeys).mockResolvedValueOnce([]);
-    vi.mocked(bridge.executeQuery).mockResolvedValue({
+    vi.mocked(queryProvider.executeQuery).mockResolvedValue({
       columns: [],
       rows: [],
       affectedRows: 0,
@@ -167,7 +174,11 @@ describe('useTableActions', () => {
     await act(() => result.current.requestDrop(makeTableNode()));
     await act(() => result.current.confirmDrop());
 
-    expect(bridge.executeQuery).toHaveBeenCalledWith('conn1', 'DROP TABLE [dbo].[Users]', false);
+    expect(queryProvider.executeQuery).toHaveBeenCalledWith(
+      'conn1',
+      'DROP TABLE [dbo].[Users]',
+      false
+    );
     expect(params.loadTables).toHaveBeenCalled();
     expect(params.setTreeData).toHaveBeenCalled();
     expect(result.current.tableAction).toBeNull();
@@ -176,7 +187,7 @@ describe('useTableActions', () => {
   // テスト20: confirmTruncate → executeQuery実行
   it('confirmTruncate: sqls を順にexecuteQuery実行', async () => {
     vi.mocked(bridge.getReferencingForeignKeys).mockResolvedValueOnce([]);
-    vi.mocked(bridge.executeQuery).mockResolvedValue({
+    vi.mocked(queryProvider.executeQuery).mockResolvedValue({
       columns: [],
       rows: [],
       affectedRows: 0,
@@ -188,7 +199,7 @@ describe('useTableActions', () => {
     await act(() => result.current.requestTruncate(makeTableNode()));
     await act(() => result.current.confirmTruncate());
 
-    expect(bridge.executeQuery).toHaveBeenCalledWith(
+    expect(queryProvider.executeQuery).toHaveBeenCalledWith(
       'conn1',
       'TRUNCATE TABLE [dbo].[Users]',
       false
@@ -200,7 +211,7 @@ describe('useTableActions', () => {
   it('confirmDrop: executeQuery失敗時 → onDdlErrorコールバック', async () => {
     const error = new Error('SQL error');
     vi.mocked(bridge.getReferencingForeignKeys).mockResolvedValueOnce([]);
-    vi.mocked(bridge.executeQuery).mockRejectedValueOnce(error);
+    vi.mocked(queryProvider.executeQuery).mockRejectedValueOnce(error);
     const onDdlError = vi.fn();
     const params = { ...createParams(), onDdlError };
     const { result } = renderHook(() => useTableActions(params));

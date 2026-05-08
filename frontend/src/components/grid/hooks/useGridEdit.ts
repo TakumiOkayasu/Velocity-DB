@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { bridge } from '../../../api/bridge';
+import { queryProvider } from '../../../api/providers';
 import { type CellChange, useEditStore } from '../../../store/editStore';
 import type { Query, ResultSet } from '../../../types';
 import { parseTableName, type RowData } from '../../../types/grid';
@@ -185,7 +186,7 @@ export function useGridEdit({
     setApplyError(null);
 
     try {
-      await bridge.executeQuery(activeConnectionId, previewStatements.join('\n'));
+      await queryProvider.executeQuery(activeConnectionId, previewStatements.join('\n'));
       revertAll();
       setPreviewStatements([]);
     } catch (err) {

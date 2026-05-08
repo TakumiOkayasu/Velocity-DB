@@ -1,5 +1,6 @@
 import { type Dispatch, type SetStateAction, useCallback, useState } from 'react';
 import { bridge } from '../api/bridge';
+import { queryProvider } from '../api/providers';
 import type { DatabaseObject, DatabaseType, MenuItem } from '../types';
 import { log } from '../utils/logger';
 import {
@@ -114,11 +115,11 @@ export function useTableActions({
       const hasTransaction = sqls[0] === SQL_BEGIN_TRANSACTION;
       try {
         for (const sql of sqls) {
-          await bridge.executeQuery(connectionId, sql, false);
+          await queryProvider.executeQuery(connectionId, sql, false);
         }
       } catch (error) {
         if (hasTransaction) {
-          await bridge.executeQuery(connectionId, 'ROLLBACK', false).catch(() => {});
+          await queryProvider.executeQuery(connectionId, 'ROLLBACK', false).catch(() => {});
         }
         throw error;
       }

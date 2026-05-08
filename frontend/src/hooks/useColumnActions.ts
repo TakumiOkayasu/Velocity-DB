@@ -1,5 +1,5 @@
 import { type Dispatch, type SetStateAction, useCallback, useState } from 'react';
-import { bridge } from '../api/bridge';
+import { queryProvider } from '../api/providers';
 import type { DatabaseObject, DatabaseType, MenuItem } from '../types';
 import { log } from '../utils/logger';
 import { buildDropColumnSql, buildRenameColumnSql } from '../utils/sql/ddl/table-ddl';
@@ -75,7 +75,7 @@ export function useColumnActions({
   const executeDdl = useCallback(
     async (sql: string, schema: string, tableName: string) => {
       try {
-        await bridge.executeQuery(connectionId, sql);
+        await queryProvider.executeQuery(connectionId, sql);
         await refreshTableColumns(schema, tableName);
       } catch (error) {
         log.error(`[useColumnActions] DDL execution failed: ${error}`);

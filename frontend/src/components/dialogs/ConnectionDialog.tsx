@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { bridge } from '../../api/bridge';
+import { connectionProvider } from '../../api/providers';
 import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
 import type { ConnectionConfig, SshConfig } from '../../types/connectionForm';
 import { connectionColor } from '../../utils/colorContrast';
@@ -72,7 +72,7 @@ export function ConnectionDialog({
     setTestResult(null);
 
     try {
-      const response = await bridge.testConnection({
+      const response = await connectionProvider.testConnection({
         server: config.server,
         port: config.port,
         database: config.database,

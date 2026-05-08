@@ -9,6 +9,8 @@ import type {
 import { DEFAULT_PAGE } from '../utils/erDiagramConstants';
 import type { ERDiagramModel } from '../utils/erDiagramParser';
 import { log } from '../utils/logger';
+import { connectionProvider, queryProvider } from './providers';
+import type { ConnectionInfo, TestConnectionInfo } from './providers/connection';
 import type { ConnectResultResponse } from './schemas';
 import * as S from './schemas';
 
@@ -140,6 +142,11 @@ function toCardinality(value: string): Cardinality {
   return '1:N';
 }
 
+// Bridge は個別 provider への委譲ラッパ (旧 import 互換用)。完全移行は #527 で本クラス削除予定。
+// - Connection methods (#518 で connectionProvider に移管)
+// - Query methods (#519 で queryProvider に移管: executeQuery / executeQueryPaginated / getRowCount /
+//   cancelQuery / lintSql / async query 5 件 / filterResultSet / getExecutionPlan)
+// - Schema / Transaction / Export / Settings / Search / IO / SQLBuilder: 未移管 (#520+)
 class Bridge {
   private async call<T>(
     method: string,
@@ -212,65 +219,30 @@ class Bridge {
     throw new Error('Backend not available');
   }
 
-  // Connection methods
-  async connectAsync(connectionInfo: {
-    server: string;
-    port?: number;
-    database: string;
-    username?: string;
-    password?: string;
-    useWindowsAuth: boolean;
-    connectionTimeout?: number;
-    dbType?: 'sqlserver' | 'postgresql' | 'mysql';
-    ssh?: {
-      enabled: boolean;
-      host: string;
-      port: number;
-      username: string;
-      authType: string;
-      password?: string;
-      privateKeyPath?: string;
-      keyPassphrase?: string;
-    };
-  }): Promise<{ requestId: string }> {
-    return this.call('connectAsync', connectionInfo, S.connectAsync);
+  // Connection methods (→ connectionProvider)
+  async connectAsync(connectionInfo: ConnectionInfo): Promise<{ requestId: string }> {
+    return connectionProvider.connectAsync(connectionInfo);
   }
 
   async getConnectResult(requestId: string): Promise<ConnectResultResponse> {
-    return this.call('getConnectResult', { requestId }, S.connectResult);
+    return connectionProvider.getConnectResult(requestId);
   }
 
   async cancelConnect(requestId: string): Promise<void> {
-    return this.call('cancelConnect', { requestId }, S.cancelConnect);
+    return connectionProvider.cancelConnect(requestId);
   }
 
   async disconnect(connectionId: string): Promise<void> {
-    return this.call('disconnect', { connectionId }, S.disconnect);
+    return connectionProvider.disconnect(connectionId);
   }
 
-  async testConnection(connectionInfo: {
-    server: string;
-    port?: number;
-    database: string;
-    username?: string;
-    password?: string;
-    useWindowsAuth: boolean;
-    dbType?: 'sqlserver' | 'postgresql' | 'mysql';
-    ssh?: {
-      enabled: boolean;
-      host: string;
-      port: number;
-      username: string;
-      authType: string;
-      password?: string;
-      privateKeyPath?: string;
-      keyPassphrase?: string;
-    };
-  }): Promise<{ success: boolean; message: string }> {
-    return this.call('testConnection', connectionInfo, S.testConnection);
+  async testConnection(
+    connectionInfo: TestConnectionInfo
+  ): Promise<{ success: boolean; message: string }> {
+    return connectionProvider.testConnection(connectionInfo);
   }
 
-  // Query methods
+  // Query methods (→ queryProvider)
   async executeQuery(
     connectionId: string,
     sql: string,
@@ -296,7 +268,7 @@ class Bridge {
         }[];
       }
   > {
-    return this.call('executeQuery', { connectionId, sql, useCache }, S.executeQuery);
+    return queryProvider.executeQuery(connectionId, sql, useCache);
   }
 
   async executeQueryPaginated(
@@ -311,25 +283,15 @@ class Bridge {
     affectedRows: number;
     executionTimeMs: number;
   }> {
-    return this.call(
-      'executeQueryPaginated',
-      {
-        connectionId,
-        sql,
-        startRow,
-        endRow,
-        sortModel,
-      },
-      S.executeQueryPaginated
-    );
+    return queryProvider.executeQueryPaginated(connectionId, sql, startRow, endRow, sortModel);
   }
 
   async getRowCount(connectionId: string, sql: string): Promise<{ rowCount: number }> {
-    return this.call('getRowCount', { connectionId, sql }, S.getRowCount);
+    return queryProvider.getRowCount(connectionId, sql);
   }
 
   async cancelQuery(connectionId: string): Promise<void> {
-    return this.call('cancelQuery', { connectionId }, S.cancelQuery);
+    return queryProvider.cancelQuery(connectionId);
   }
 
   async lintSql(
@@ -340,7 +302,7 @@ class Bridge {
     lintUnavailable?: boolean;
     reason?: string;
   }> {
-    return this.call('lintSql', { sql, dbType }, S.lintSql);
+    return queryProvider.lintSql(sql, dbType);
   }
 
   // Schema methods
@@ -497,13 +459,13 @@ class Bridge {
     return this.call('parseERDiagram', params, S.parseERDiagram);
   }
 
-  // Execution plan methods
+  // Execution plan methods (→ queryProvider)
   async getExecutionPlan(
     connectionId: string,
     sql: string,
     actual = false
   ): Promise<{ plan: string; actual: boolean }> {
-    return this.call('getExecutionPlan', { connectionId, sql, actual }, S.getExecutionPlan);
+    return queryProvider.getExecutionPlan(connectionId, sql, actual);
   }
 
   // Cache methods
@@ -523,28 +485,28 @@ class Bridge {
     return this.call('clearSchemaCache', {}, S.clearCache);
   }
 
-  // Async query methods
+  // Async query methods (→ queryProvider)
   async executeAsyncQuery(connectionId: string, sql: string): Promise<{ queryId: string }> {
-    return this.call('executeAsyncQuery', { connectionId, sql }, S.executeAsyncQuery);
+    return queryProvider.executeAsyncQuery(connectionId, sql);
   }
 
   async getAsyncQueryResult(queryId: string): Promise<AsyncQueryResultResponse> {
-    return this.call('getAsyncQueryResult', { queryId }, S.getAsyncQueryResult);
+    return queryProvider.getAsyncQueryResult(queryId);
   }
 
   async cancelAsyncQuery(queryId: string): Promise<{ cancelled: boolean }> {
-    return this.call('cancelAsyncQuery', { queryId }, S.cancelAsyncQuery);
+    return queryProvider.cancelAsyncQuery(queryId);
   }
 
   async removeAsyncQuery(queryId: string): Promise<{ removed: boolean }> {
-    return this.call('removeAsyncQuery', { queryId }, S.removeAsyncQuery);
+    return queryProvider.removeAsyncQuery(queryId);
   }
 
   async getActiveQueries(): Promise<string[]> {
-    return this.call('getActiveQueries', {}, S.getActiveQueries);
+    return queryProvider.getActiveQueries();
   }
 
-  // SIMD filter methods
+  // SIMD filter methods (→ queryProvider)
   async filterResultSet(
     connectionId: string,
     sql: string,
@@ -559,17 +521,13 @@ class Bridge {
     filteredRows: number;
     simdAvailable: boolean;
   }> {
-    return this.call(
-      'filterResultSet',
-      {
-        connectionId,
-        sql,
-        columnIndex,
-        filterType,
-        filterValue,
-        filterValueMax,
-      },
-      S.filterResultSet
+    return queryProvider.filterResultSet(
+      connectionId,
+      sql,
+      columnIndex,
+      filterType,
+      filterValue,
+      filterValueMax
     );
   }
 
