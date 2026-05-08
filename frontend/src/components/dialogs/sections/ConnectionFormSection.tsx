@@ -32,13 +32,19 @@ export function ConnectionFormSection({
   return (
     <>
       <div className={styles.formGroup}>
-        <label>接続名</label>
-        <input type="text" value={config.name} onChange={(e) => onChange('name', e.target.value)} />
+        <label htmlFor="conn-name">接続名</label>
+        <input
+          id="conn-name"
+          type="text"
+          value={config.name}
+          onChange={(e) => onChange('name', e.target.value)}
+        />
       </div>
 
       <div className={styles.formGroup}>
-        <label>フォルダ (任意)</label>
+        <label htmlFor="conn-folder">フォルダ (任意)</label>
         <input
+          id="conn-folder"
           type="text"
           value={config.folderPath}
           onChange={(e) => onChange('folderPath', e.target.value)}
@@ -48,8 +54,9 @@ export function ConnectionFormSection({
 
       <div className={styles.formRow}>
         <div className={styles.formGroup}>
-          <label>サーバー</label>
+          <label htmlFor="conn-server">サーバー</label>
           <input
+            id="conn-server"
             type="text"
             value={config.server}
             onChange={(e) => onChange('server', e.target.value)}
@@ -58,8 +65,9 @@ export function ConnectionFormSection({
         </div>
 
         <div className={styles.formGroupSmall}>
-          <label>ポート</label>
+          <label htmlFor="conn-port">ポート</label>
           <input
+            id="conn-port"
             type="number"
             value={config.port}
             onChange={(e) =>
@@ -70,8 +78,9 @@ export function ConnectionFormSection({
       </div>
 
       <div className={styles.formGroup}>
-        <label>データベース</label>
+        <label htmlFor="conn-database">データベース</label>
         <input
+          id="conn-database"
           type="text"
           value={config.database}
           onChange={(e) => onChange('database', e.target.value)}
@@ -95,8 +104,9 @@ export function ConnectionFormSection({
       {!(dbType === 'sqlserver' && config.useWindowsAuth) && (
         <>
           <div className={styles.formGroup}>
-            <label>ユーザー名</label>
+            <label htmlFor="conn-username">ユーザー名</label>
             <input
+              id="conn-username"
               type="text"
               value={config.username}
               onChange={(e) => onChange('username', e.target.value)}
@@ -104,8 +114,9 @@ export function ConnectionFormSection({
           </div>
 
           <div className={styles.formGroup}>
-            <label>パスワード</label>
+            <label htmlFor="conn-password">パスワード</label>
             <input
+              id="conn-password"
               type="password"
               value={config.password}
               onChange={(e) => onChange('password', e.target.value)}
