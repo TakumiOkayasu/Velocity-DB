@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { bridge } from '../../api/bridge';
 import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
 import { useConnectionStore } from '../../store/connectionStore';
+import { DialogOverlay } from '../common/DialogOverlay';
 import styles from './ExecutionPlanDialog.module.css';
 
 interface ExecutionPlanDialogProps {
@@ -59,61 +60,67 @@ export function ExecutionPlanDialog({ isOpen, onClose, sql }: ExecutionPlanDialo
   if (!isOpen) return null;
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.header}>
-          <h2>実行計画</h2>
-          <button className={styles.closeButton} onClick={onClose}>
-            {'\u2715'}
-          </button>
+    <DialogOverlay
+      onClose={onClose}
+      overlayClassName={styles.overlay}
+      dialogClassName={styles.dialog}
+    >
+      <div className={styles.header}>
+        <h2>実行計画</h2>
+        <button type="button" className={styles.closeButton} onClick={onClose}>
+          {'✕'}
+        </button>
+      </div>
+
+      <div className={styles.toolbar}>
+        <button
+          type="button"
+          onClick={handleGetPlan}
+          disabled={isLoading || !activeConnectionId}
+          className={!showActual ? styles.active : ''}
+        >
+          推定プラン
+        </button>
+        <button
+          type="button"
+          onClick={handleGetActualPlan}
+          disabled={isLoading || !activeConnectionId}
+          className={showActual ? styles.active : ''}
+        >
+          実際のプラン
+        </button>
+      </div>
+
+      <div className={styles.content}>
+        <div className={styles.sqlPreview}>
+          <span className={styles.fieldLabel}>クエリ:</span>
+          <pre>{sql}</pre>
         </div>
 
-        <div className={styles.toolbar}>
-          <button
-            onClick={handleGetPlan}
-            disabled={isLoading || !activeConnectionId}
-            className={!showActual ? styles.active : ''}
-          >
-            推定プラン
-          </button>
-          <button
-            onClick={handleGetActualPlan}
-            disabled={isLoading || !activeConnectionId}
-            className={showActual ? styles.active : ''}
-          >
-            実際のプラン
-          </button>
-        </div>
-
-        <div className={styles.content}>
-          <div className={styles.sqlPreview}>
-            <label>クエリ:</label>
-            <pre>{sql}</pre>
-          </div>
-
-          <div className={styles.planContainer}>
-            <label>実行計画:</label>
-            {isLoading ? (
-              <div className={styles.loading}>実行計画を読み込み中...</div>
-            ) : error ? (
-              <div className={styles.error}>{error}</div>
-            ) : planText ? (
-              <pre className={styles.planText}>{planText}</pre>
-            ) : (
-              <div className={styles.placeholder}>
-                「推定プラン」または「実際のプラン」をクリックして実行計画を生成
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className={styles.footer}>
-          <span className={styles.hint}>
-            ヒント: 実際のプランはクエリを実行します。推定プランは実行しません。
-          </span>
-          <button onClick={onClose}>閉じる</button>
+        <div className={styles.planContainer}>
+          <span className={styles.fieldLabel}>実行計画:</span>
+          {isLoading ? (
+            <div className={styles.loading}>実行計画を読み込み中...</div>
+          ) : error ? (
+            <div className={styles.error}>{error}</div>
+          ) : planText ? (
+            <pre className={styles.planText}>{planText}</pre>
+          ) : (
+            <div className={styles.placeholder}>
+              「推定プラン」または「実際のプラン」をクリックして実行計画を生成
+            </div>
+          )}
         </div>
       </div>
-    </div>
+
+      <div className={styles.footer}>
+        <span className={styles.hint}>
+          ヒント: 実際のプランはクエリを実行します。推定プランは実行しません。
+        </span>
+        <button type="button" onClick={onClose}>
+          閉じる
+        </button>
+      </div>
+    </DialogOverlay>
   );
 }

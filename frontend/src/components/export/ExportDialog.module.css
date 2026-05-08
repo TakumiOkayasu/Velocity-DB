@@ -103,7 +103,7 @@
   margin-top: 16px;
 }
 
-.preview label {
+.preview .previewLabel {
   display: block;
   margin-bottom: 8px;
   color: var(--text-secondary);
