@@ -38,10 +38,17 @@ export async function fetchViewDefinition(
   return result.rows[0]?.[0] ?? '';
 }
 
-/** 正規表現メタ文字のエスケープ */
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+/**
+ * SELECT 句に出現するカラム参照を検出する静的パターン。
+ * - グループ1: ブラケット識別子の中身 `[name]` → `name`
+ * - グループ2: 素の識別子 `name`
+ * - グループ3: 既存エイリアス節 ` AS xxx` (省略可)
+ * 末尾の lookahead でカラム境界 (カンマ / 空白 / AS) を保証する。
+ * 動的に oldCol を埋め込まず、識別子の等価比較で oldCol を判定することで
+ * ReDoS リスク (Semgrep detect-non-literal-regexp) を回避する。
+ */
+const COLUMN_REFERENCE_PATTERN =
+  /(?:\w+\.)?(?:\[([^\]]+)\]|(\w+))(?=\s*[,\s]|\s+AS\b)(\s+AS\s+(?:\[[^\]]*\]|"[^"]*"|`[^`]*`|\w+))?/gi;
 
 /**
  * SELECT句とFROM句を括弧深度を追跡して分割する。
@@ -98,20 +105,21 @@ export function buildAlterViewSql(
 
   const [selectPart, fromAndRest] = split;
   const selectFromStart = sql.slice(0, selectIdx);
-  const escapedCol = escapeRegex(oldCol);
+  const oldColLower = oldCol.toLowerCase();
 
-  // 名前付きパーツで正規表現を構築
-  const tablePrefix = '(?:\\w+\\.)?';
-  const quotedCol = `\\[?${escapedCol}\\]?`;
-  const colBoundary = '(?=\\s*[,\\s]|\\s+AS\\b)';
-  const aliasValue = '\\[[^\\]]*\\]|"[^"]*"|`[^`]*`|\\w+';
-  const existingAlias = `(\\s+AS\\s+(?:${aliasValue}))`;
+  for (const match of selectPart.matchAll(COLUMN_REFERENCE_PATTERN)) {
+    const matchedName = match[1] ?? match[2];
+    if (matchedName.toLowerCase() !== oldColLower) continue;
+    if (match.index === undefined) continue;
 
-  const colPattern = new RegExp(`(${tablePrefix}${quotedCol})${colBoundary}${existingAlias}?`, 'i');
-
-  if (colPattern.test(selectPart)) {
-    const newSelectPart = selectPart.replace(colPattern, `$1 AS ${q(newCol)}`);
+    const aliasClause = match[3] ?? '';
+    const identifierPart = aliasClause ? match[0].slice(0, -aliasClause.length) : match[0];
+    const newSelectPart =
+      selectPart.slice(0, match.index) +
+      `${identifierPart} AS ${q(newCol)}` +
+      selectPart.slice(match.index + match[0].length);
     sql = `${selectFromStart}SELECT ${selectPrefix}${newSelectPart}${fromAndRest}`;
+    break;
   }
 
   return sql;
