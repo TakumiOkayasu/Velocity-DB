@@ -191,4 +191,157 @@ describe('queryProvider', () => {
 
     await expect(queryProvider.getRowCount('conn1', 'SELECT 1')).rejects.toThrow();
   });
+
+  // --- History (#520) ---
+  it('getQueryHistory は履歴エントリ配列を返す', async () => {
+    mock.setResponse('getQueryHistory', [
+      {
+        id: 'h-1',
+        sql: 'SELECT 1',
+        connectionId: 'conn1',
+        timestamp: 1000,
+        executionTimeMs: 5,
+        success: true,
+        errorMessage: '',
+        affectedRows: 0,
+        isFavorite: false,
+      },
+    ]);
+
+    const result = await queryProvider.getQueryHistory();
+
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('h-1');
+    expect(mock.calls[0]).toEqual({ method: 'getQueryHistory', params: {} });
+  });
+
+  it('removeQueryHistory は id を渡し removed フラグを返す', async () => {
+    mock.setResponse('removeQueryHistory', { removed: true });
+
+    const result = await queryProvider.removeQueryHistory('h-1');
+
+    expect(result).toEqual({ removed: true });
+    expect(mock.calls[0]).toEqual({ method: 'removeQueryHistory', params: { id: 'h-1' } });
+  });
+
+  it('clearQueryHistory は cleared フラグを返す', async () => {
+    mock.setResponse('clearQueryHistory', { cleared: true });
+
+    const result = await queryProvider.clearQueryHistory();
+
+    expect(result).toEqual({ cleared: true });
+    expect(mock.calls[0]).toEqual({ method: 'clearQueryHistory', params: {} });
+  });
+
+  it('setQueryHistoryFavorite は id/isFavorite を渡し updated フラグを返す', async () => {
+    mock.setResponse('setQueryHistoryFavorite', { updated: true });
+
+    const result = await queryProvider.setQueryHistoryFavorite('h-1', true);
+
+    expect(result).toEqual({ updated: true });
+    expect(mock.calls[0]).toEqual({
+      method: 'setQueryHistoryFavorite',
+      params: { id: 'h-1', isFavorite: true },
+    });
+  });
+
+  it('setQueryHistoryFavorite は isFavorite=false でも正しく渡す', async () => {
+    mock.setResponse('setQueryHistoryFavorite', { updated: true });
+
+    await queryProvider.setQueryHistoryFavorite('h-1', false);
+
+    expect(mock.calls[0]?.params).toMatchObject({ isFavorite: false });
+  });
+
+  // --- Cache (#520) ---
+  it('getCacheStats は CacheStats を返す', async () => {
+    mock.setResponse('getCacheStats', {
+      currentSizeBytes: 100,
+      maxSizeBytes: 1000,
+      usagePercent: 10,
+    });
+
+    const result = await queryProvider.getCacheStats();
+
+    expect(result).toEqual({ currentSizeBytes: 100, maxSizeBytes: 1000, usagePercent: 10 });
+  });
+
+  it('clearCache は cleared フラグを返す', async () => {
+    mock.setResponse('clearCache', { cleared: true });
+
+    const result = await queryProvider.clearCache();
+
+    expect(result).toEqual({ cleared: true });
+    expect(mock.calls[0]).toEqual({ method: 'clearCache', params: {} });
+  });
+
+  // --- SQL builder (#520) ---
+  it('buildDataViewSql は whereClause を含む全パラメータを渡す', async () => {
+    mock.setResponse('buildDataViewSql', { sql: 'SELECT TOP 10 * FROM [t] WHERE id = 1' });
+
+    const result = await queryProvider.buildDataViewSql('conn1', 't', 10, 'id = 1');
+
+    expect(result).toEqual({ sql: 'SELECT TOP 10 * FROM [t] WHERE id = 1' });
+    expect(mock.calls[0]).toEqual({
+      method: 'buildDataViewSql',
+      params: { connectionId: 'conn1', tableName: 't', limit: 10, whereClause: 'id = 1' },
+    });
+  });
+
+  it('buildDataViewSql は whereClause 省略時に undefined を渡す', async () => {
+    mock.setResponse('buildDataViewSql', { sql: 'SELECT TOP 10 * FROM [t]' });
+
+    await queryProvider.buildDataViewSql('conn1', 't', 10);
+
+    expect(mock.calls[0]?.params).toMatchObject({ whereClause: undefined });
+  });
+
+  it('buildWhereClause は connectionId/conditions を渡し whereClause を返す', async () => {
+    mock.setResponse('buildWhereClause', { whereClause: "id = 1 AND name = 'a'" });
+
+    const result = await queryProvider.buildWhereClause('conn1', [
+      { column: 'id', value: '1' },
+      { column: 'name', value: 'a' },
+    ]);
+
+    expect(result.whereClause).toBe("id = 1 AND name = 'a'");
+    expect(mock.calls[0]?.params).toEqual({
+      connectionId: 'conn1',
+      conditions: [
+        { column: 'id', value: '1' },
+        { column: 'name', value: 'a' },
+      ],
+    });
+  });
+
+  it('buildDmlStatements は connectionId をフラットに展開して params を渡す', async () => {
+    mock.setResponse('buildDmlStatements', { statements: ["UPDATE t SET name='b' WHERE id=1"] });
+
+    const result = await queryProvider.buildDmlStatements('conn1', {
+      schema: 'dbo',
+      table: 't',
+      pkColumns: ['id'],
+      updates: [{ changes: { name: 'b' }, originalData: { id: '1', name: 'a' } }],
+    });
+
+    expect(result.statements).toHaveLength(1);
+    expect(mock.calls[0]?.params).toMatchObject({
+      connectionId: 'conn1',
+      schema: 'dbo',
+      table: 't',
+      pkColumns: ['id'],
+    });
+  });
+
+  it('uppercaseKeywords は sql を渡し変換後 sql を返す', async () => {
+    mock.setResponse('uppercaseKeywords', { sql: 'SELECT * FROM t' });
+
+    const result = await queryProvider.uppercaseKeywords('select * from t');
+
+    expect(result).toEqual({ sql: 'SELECT * FROM t' });
+    expect(mock.calls[0]).toEqual({
+      method: 'uppercaseKeywords',
+      params: { sql: 'select * from t' },
+    });
+  });
 });

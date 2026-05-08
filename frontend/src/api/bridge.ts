@@ -11,6 +11,7 @@ import type { ERDiagramModel } from '../utils/erDiagramParser';
 import { log } from '../utils/logger';
 import { connectionProvider, queryProvider } from './providers';
 import type { ConnectionInfo, TestConnectionInfo } from './providers/connection';
+import type { CacheStats, QueryHistoryEntry } from './providers/query';
 import type { ConnectResultResponse } from './schemas';
 import * as S from './schemas';
 
@@ -146,7 +147,10 @@ function toCardinality(value: string): Cardinality {
 // - Connection methods (#518 で connectionProvider に移管)
 // - Query methods (#519 で queryProvider に移管: executeQuery / executeQueryPaginated / getRowCount /
 //   cancelQuery / lintSql / async query 5 件 / filterResultSet / getExecutionPlan)
-// - Schema / Transaction / Export / Settings / Search / IO / SQLBuilder: 未移管 (#520+)
+// - Query history / cache / SQL builder (#520 で queryProvider に移管: getQueryHistory /
+//   removeQueryHistory / clearQueryHistory / setQueryHistoryFavorite / getCacheStats / clearCache /
+//   buildDataViewSql / buildWhereClause / buildDmlStatements / uppercaseKeywords)
+// - Schema / Transaction / Export / Settings / Search / IO: 未移管 (#521+)
 class Bridge {
   private async call<T>(
     method: string,
@@ -378,25 +382,21 @@ class Bridge {
     return this.call('exportExcel', { data, filepath }, S.exportExcel);
   }
 
-  // SQL builder methods (dialect-aware, delegated to backend)
+  // SQL builder methods (→ queryProvider)
   async buildDataViewSql(
     connectionId: string,
     tableName: string,
     limit: number,
     whereClause?: string
   ): Promise<{ sql: string }> {
-    return this.call(
-      'buildDataViewSql',
-      { connectionId, tableName, limit, whereClause },
-      S.buildDataViewSql
-    );
+    return queryProvider.buildDataViewSql(connectionId, tableName, limit, whereClause);
   }
 
   async buildWhereClause(
     connectionId: string,
     conditions: { column: string; value: string | null }[]
   ): Promise<{ whereClause: string }> {
-    return this.call('buildWhereClause', { connectionId, conditions }, S.buildWhereClause);
+    return queryProvider.buildWhereClause(connectionId, conditions);
   }
 
   async buildDmlStatements(
@@ -413,41 +413,29 @@ class Bridge {
       deletes?: Record<string, string | null>[];
     }
   ): Promise<{ statements: string[] }> {
-    return this.call('buildDmlStatements', { connectionId, ...params }, S.buildDmlStatements);
+    return queryProvider.buildDmlStatements(connectionId, params);
   }
 
-  // SQL methods
+  // SQL methods (→ queryProvider)
   async uppercaseKeywords(sql: string): Promise<{ sql: string }> {
-    return this.call('uppercaseKeywords', { sql }, S.uppercaseKeywords);
+    return queryProvider.uppercaseKeywords(sql);
   }
 
-  // History methods
-  async getQueryHistory(): Promise<
-    {
-      id: string;
-      sql: string;
-      connectionId: string;
-      timestamp: number;
-      executionTimeMs: number;
-      success: boolean;
-      errorMessage: string;
-      affectedRows: number;
-      isFavorite: boolean;
-    }[]
-  > {
-    return this.call('getQueryHistory', {}, S.getQueryHistory);
+  // History methods (→ queryProvider)
+  async getQueryHistory(): Promise<QueryHistoryEntry[]> {
+    return queryProvider.getQueryHistory();
   }
 
   async removeQueryHistory(id: string): Promise<{ removed: boolean }> {
-    return this.call('removeQueryHistory', { id }, S.removeQueryHistory);
+    return queryProvider.removeQueryHistory(id);
   }
 
   async clearQueryHistory(): Promise<{ cleared: boolean }> {
-    return this.call('clearQueryHistory', {}, S.clearQueryHistory);
+    return queryProvider.clearQueryHistory();
   }
 
   async setQueryHistoryFavorite(id: string, isFavorite: boolean): Promise<{ updated: boolean }> {
-    return this.call('setQueryHistoryFavorite', { id, isFavorite }, S.setQueryHistoryFavorite);
+    return queryProvider.setQueryHistoryFavorite(id, isFavorite);
   }
 
   // ER diagram methods
@@ -468,17 +456,13 @@ class Bridge {
     return queryProvider.getExecutionPlan(connectionId, sql, actual);
   }
 
-  // Cache methods
-  async getCacheStats(): Promise<{
-    currentSizeBytes: number;
-    maxSizeBytes: number;
-    usagePercent: number;
-  }> {
-    return this.call('getCacheStats', {}, S.getCacheStats);
+  // Cache methods (→ queryProvider)
+  async getCacheStats(): Promise<CacheStats> {
+    return queryProvider.getCacheStats();
   }
 
   async clearCache(): Promise<{ cleared: boolean }> {
-    return this.call('clearCache', {}, S.clearCache);
+    return queryProvider.clearCache();
   }
 
   async clearSchemaCache(): Promise<{ cleared: boolean }> {

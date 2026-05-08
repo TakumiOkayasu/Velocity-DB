@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import { bridge } from '../api/bridge';
+import { queryProvider } from '../api/providers';
 import type { HistoryItem } from '../types';
 
 export interface HistoryStats {
@@ -29,7 +29,7 @@ export const useHistoryStore = create<HistoryState>()((set, get) => ({
 
   fetchHistory: async () => {
     try {
-      const items = await bridge.getQueryHistory();
+      const items = await queryProvider.getQueryHistory();
       set({ history: items });
     } catch (error) {
       console.error('Failed to fetch query history:', error);
@@ -38,7 +38,7 @@ export const useHistoryStore = create<HistoryState>()((set, get) => ({
 
   removeHistory: async (id) => {
     try {
-      await bridge.removeQueryHistory(id);
+      await queryProvider.removeQueryHistory(id);
       await get().fetchHistory();
     } catch (error) {
       console.error('Failed to remove history:', error);
@@ -47,7 +47,7 @@ export const useHistoryStore = create<HistoryState>()((set, get) => ({
 
   clearHistory: async () => {
     try {
-      await bridge.clearQueryHistory();
+      await queryProvider.clearQueryHistory();
       await get().fetchHistory();
     } catch (error) {
       console.error('Failed to clear history:', error);
@@ -56,7 +56,7 @@ export const useHistoryStore = create<HistoryState>()((set, get) => ({
 
   setFavorite: async (id, isFavorite) => {
     try {
-      await bridge.setQueryHistoryFavorite(id, isFavorite);
+      await queryProvider.setQueryHistoryFavorite(id, isFavorite);
       await get().fetchHistory();
     } catch (error) {
       console.error('Failed to set favorite:', error);

@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+// bridge: getForeignKeys (Schema系) — #521 で SchemaProvider に移管予定
+// queryProvider: buildWhereClause (Query系) — #520 移管済
 import { bridge } from '../../../api/bridge';
+import { queryProvider } from '../../../api/providers';
 import type { ForeignKeyInfo } from '../../../types';
 import { log } from '../../../utils/logger';
 
@@ -94,7 +97,7 @@ export function useRelatedRows({
           value: rowData[fkCol],
         }));
 
-        const { whereClause } = await bridge.buildWhereClause(connectionId, conditions);
+        const { whereClause } = await queryProvider.buildWhereClause(connectionId, conditions);
         log.debug(`[useRelatedRows] Navigate to ${fkInfo.referencedTable} WHERE ${whereClause}`);
 
         await onOpenRelatedTable(fkInfo.referencedTable, whereClause);
