@@ -31,9 +31,9 @@ export async function fetchViewDefinition(
   viewName: string,
   dbType?: DatabaseType
 ): Promise<string> {
-  const { bridge } = await import('../../../api/bridge');
+  const { queryProvider } = await import('../../../api/providers');
   const defQuery = buildGetViewDefinitionSql(schema, viewName, dbType);
-  const result = await bridge.executeQuery(connectionId, defQuery);
+  const result = await queryProvider.executeQuery(connectionId, defQuery);
   if ('multipleResults' in result) return '';
   return result.rows[0]?.[0] ?? '';
 }

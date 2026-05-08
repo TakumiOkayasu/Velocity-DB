@@ -1,13 +1,48 @@
 import { log } from '../../utils/logger';
 import { type IpcInvoker, WindowIpcInvoker } from '../ipc/ipc-invoker';
+import { type ConnectionProvider, createConnectionProvider } from './connection';
+import { createQueryProvider, type QueryProvider } from './query';
+import type { BridgeLogger, ResponseValidator } from './types';
+import { createZodValidator } from './validator';
 
 let invokerInstance: IpcInvoker = new WindowIpcInvoker(log);
+const loggerInstance: BridgeLogger = log;
+const validatorInstance: ResponseValidator = createZodValidator();
 
-// loggerInstance / validatorInstance / 各 provider は #518-#526 で順次追加する。
+interface Providers {
+  connection: ConnectionProvider;
+  query: QueryProvider;
+}
+
+function buildProviders(): Providers {
+  return {
+    connection: createConnectionProvider(invokerInstance, loggerInstance, validatorInstance),
+    query: createQueryProvider(invokerInstance, loggerInstance, validatorInstance),
+  };
+}
+
+let providersRef = buildProviders();
+
+// 利用側は `xxxProvider.foo()` でメソッド参照を毎回最新の実体から引く。
+// テストで invoker を差し替えた際 (providersRef 再構築) も import 済みコードがそのまま動く。
+// メソッドを分割代入後に呼ぶケースでも this を失わないよう関数を実体に bind する。
+function makeProviderProxy<K extends keyof Providers>(key: K): Providers[K] {
+  return new Proxy({} as Providers[K], {
+    get: (_target, prop) => {
+      const target = providersRef[key];
+      const value = Reflect.get(target, prop);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
+}
+
+export const connectionProvider: ConnectionProvider = makeProviderProxy('connection');
+export const queryProvider: QueryProvider = makeProviderProxy('query');
 
 /** テスト専用: invoker を差し替えて全 provider を再構築する */
 export function __setIpcInvokerForTest(invoker: IpcInvoker): void {
   invokerInstance = invoker;
+  providersRef = buildProviders();
 }
 
 /** テスト専用: 現在の invoker を取得する (DI 検証用) */

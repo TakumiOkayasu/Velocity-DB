@@ -8,10 +8,15 @@ import { useConnectionStore } from '../../store/connectionStore';
 vi.mock('../../api/bridge', () => ({
   bridge: {
     getConnectionProfiles: vi.fn().mockResolvedValue({ profiles: [] }),
-    testConnection: vi.fn(),
     saveConnectionProfile: vi.fn(),
     deleteConnectionProfile: vi.fn(),
     getProfilePassword: vi.fn(),
+  },
+}));
+
+vi.mock('../../api/providers', () => ({
+  connectionProvider: {
+    testConnection: vi.fn(),
   },
 }));
 

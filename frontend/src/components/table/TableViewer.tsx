@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { bridge } from '../../api/bridge';
+import { queryProvider } from '../../api/providers';
 import { useConnectionStore } from '../../store/connectionStore';
 import { stripBrackets } from '../../utils/stringUtils';
 import { useTableDataState } from './hooks/useTableDataState';
@@ -72,7 +73,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
         sql += ` WHERE ${whereClause}`;
       }
 
-      const result = await bridge.executeQuery(activeConnectionId, sql, false);
+      const result = await queryProvider.executeQuery(activeConnectionId, sql, false);
       if ('multipleResults' in result) {
         setError('複数ステートメントの結果はテーブルビューアでは表示できません');
         return;

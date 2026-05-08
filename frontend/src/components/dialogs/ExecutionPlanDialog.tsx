@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { bridge } from '../../api/bridge';
+import { queryProvider } from '../../api/providers';
 import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
 import { useConnectionStore } from '../../store/connectionStore';
 import { DialogOverlay } from '../common/DialogOverlay';
@@ -32,7 +32,7 @@ export function ExecutionPlanDialog({ isOpen, onClose, sql }: ExecutionPlanDialo
           ? `SET STATISTICS XML ON;\n${sql}\nSET STATISTICS XML OFF;`
           : `SET SHOWPLAN_TEXT ON;\n${sql}\nSET SHOWPLAN_TEXT OFF;`;
 
-        const result = await bridge.executeQuery(activeConnectionId, planQuery);
+        const result = await queryProvider.executeQuery(activeConnectionId, planQuery);
 
         const allRows: (string | null)[][] =
           'multipleResults' in result ? result.results.flatMap((r) => r.data.rows) : result.rows;

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import { bridge } from '../api/bridge';
+import { connectionProvider } from '../api/providers';
 import type { Connection } from '../types';
 import { pollConnection } from './connection/helpers/connectionPolling';
 
@@ -39,7 +39,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     set({ isConnecting: true, error: null, connectRequestId: null, connectCancelled: false });
 
     try {
-      const { requestId } = await bridge.connectAsync({
+      const { requestId } = await connectionProvider.connectAsync({
         server: connection.server,
         port: connection.port,
         database: connection.database,
@@ -63,7 +63,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 
       // Check if cancelled while waiting for connectAsync IPC response
       if (get().connectCancelled) {
-        await bridge.cancelConnect(requestId).catch(() => {});
+        await connectionProvider.cancelConnect(requestId).catch(() => {});
         set({ isConnecting: false, connectRequestId: null, connectCancelled: false });
         return {};
       }
@@ -71,7 +71,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
       set({ connectRequestId: requestId });
 
       const result = await pollConnection(
-        bridge,
+        connectionProvider,
         requestId,
         () => get().connectRequestId !== requestId
       );
@@ -97,7 +97,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
       const existing = get().connections.find(matchesExisting);
       const oldId = existing?.id;
       if (existing) {
-        await bridge.disconnect(existing.id).catch(() => {});
+        await connectionProvider.disconnect(existing.id).catch(() => {});
       }
 
       set((state) => ({
@@ -129,7 +129,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     const { connectRequestId } = get();
     if (connectRequestId) {
       set({ connectRequestId: null, connectCancelled: false });
-      await bridge.cancelConnect(connectRequestId).catch(() => {});
+      await connectionProvider.cancelConnect(connectRequestId).catch(() => {});
     } else {
       // Pre-IPC cancel: flag for addConnection to detect
       set({ connectCancelled: true });
@@ -141,7 +141,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     const { activeConnectionId } = get();
 
     try {
-      await bridge.disconnect(id);
+      await connectionProvider.disconnect(id);
     } catch {
       // Ignore disconnect errors
     }
@@ -168,7 +168,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     set({ isConnecting: true, error: null });
 
     try {
-      const result = await bridge.testConnection({
+      const result = await connectionProvider.testConnection({
         server: connection.server,
         port: connection.port,
         database: connection.database,

@@ -7,8 +7,8 @@ const mockCancelConnect = vi.fn();
 const mockDisconnect = vi.fn();
 const mockTestConnection = vi.fn();
 
-vi.mock('../../api/bridge', () => ({
-  bridge: {
+vi.mock('../../api/providers', () => ({
+  connectionProvider: {
     connectAsync: (...args: unknown[]) => mockConnectAsync(...args),
     getConnectResult: (...args: unknown[]) => mockGetConnectResult(...args),
     cancelConnect: (...args: unknown[]) => mockCancelConnect(...args),
