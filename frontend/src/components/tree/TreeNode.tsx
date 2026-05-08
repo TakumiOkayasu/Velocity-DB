@@ -103,6 +103,13 @@ export const TreeNode = memo(function TreeNode({
     onContextMenu?.(e, node);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
+  };
+
   const nodeClasses = `${styles.node}${isLoading ? ` ${styles.loading}` : ''}${isSelected ? ` ${styles.selected}` : ''}`;
 
   const envClass = node.type === 'database' && environment ? ENV_NAME_CLASS[environment] : '';
@@ -123,6 +130,11 @@ export const TreeNode = memo(function TreeNode({
         style={nodeStyle}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
+        onKeyDown={handleKeyDown}
+        role="treeitem"
+        aria-expanded={canExpand ? isExpanded : undefined}
+        aria-selected={isSelected}
+        tabIndex={0}
       >
         <button
           type="button"

@@ -49,11 +49,28 @@ export const HistoryItem = memo(function HistoryItem({ item }: HistoryItemProps)
     }
   }, [handleClick, executeQuery, item.connectionId]);
 
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleDoubleClick();
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        handleClick();
+      }
+    },
+    [handleClick, handleDoubleClick]
+  );
+
   return (
+    // biome-ignore lint/a11y/useSemanticElements: contains nested favorite/delete buttons; cannot use a real <button>
     <div
       className={`${styles.container} ${item.success ? '' : styles.error}`}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
     >
       <div className={styles.header}>
         <span className={styles.status}>{item.success ? '✓' : '✗'}</span>

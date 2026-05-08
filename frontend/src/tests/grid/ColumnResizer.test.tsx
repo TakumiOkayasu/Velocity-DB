@@ -39,6 +39,7 @@ describe('ColumnResizer', () => {
   it('ダブルクリックイベントは親に伝播しない', () => {
     const parentDblClick = vi.fn();
     const { container } = render(
+      // biome-ignore lint/a11y/noStaticElementInteractions: test wrapper to capture event bubbling
       <div onDoubleClick={parentDblClick}>
         <ColumnResizer columnId="col_a" currentWidth={100} onResizeCommit={vi.fn()} />
       </div>
@@ -54,6 +55,8 @@ describe('ColumnResizer', () => {
   it('クリックイベントは親に伝播しない', () => {
     const parentClick = vi.fn();
     const { container } = render(
+      // biome-ignore lint/a11y/noStaticElementInteractions: test wrapper to capture event bubbling
+      // biome-ignore lint/a11y/useKeyWithClickEvents: test wrapper; only verifies click bubbling
       <div onClick={parentClick}>
         <ColumnResizer columnId="col_a" currentWidth={100} onResizeCommit={vi.fn()} />
       </div>

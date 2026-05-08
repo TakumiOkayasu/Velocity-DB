@@ -132,7 +132,8 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
           </div>
         ) : (
           results.map((result, index) => (
-            <div
+            <button
+              type="button"
               key={`${result.type}-${result.schema}-${result.name}`}
               className={`${styles.resultItem} ${index === selectedIndex ? styles.selected : ''}`}
               onClick={() => handleResultClick(result)}
@@ -148,7 +149,7 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
                   {result.schema}.{result.type}
                 </span>
               </div>
-            </div>
+            </button>
           ))
         )}
       </div>

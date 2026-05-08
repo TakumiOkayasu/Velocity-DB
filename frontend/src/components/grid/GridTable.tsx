@@ -181,6 +181,7 @@ function GridTableInner({
   );
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: scroll/focus container for the inner table; keyboard navigation is handled at table-cell level
     <div
       ref={tableContainerRef}
       className={styles.tableContainer}
@@ -275,6 +276,7 @@ function GridTableInner({
             </tr>
           )}
         </thead>
+        {/* biome-ignore lint/a11y/useKeyWithClickEvents: cell-level keyboard navigation is handled by useKeyboardHandler at the container level */}
         <tbody
           className={styles.tbody}
           onClick={(e) => {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DialogOverlay } from '../common/DialogOverlay';
 import styles from './ValueEditorDialog.module.css';
 
 // JSON解析結果の型
@@ -75,54 +76,56 @@ export function ValueEditorDialog({
   if (!isOpen) return null;
 
   return (
-    <div className={styles.overlay} onClick={onCancel}>
-      <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.header}>
-          <h2>{columnName}</h2>
-          <button type="button" className={styles.closeButton} onClick={onCancel}>
-            &times;
-          </button>
-        </div>
-        <div className={styles.content}>
-          <textarea
-            ref={textareaRef}
-            className={styles.textarea}
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="値を入力..."
-            spellCheck={false}
-          />
-          <div className={styles.info}>
-            <span>{value.length} 文字</span>
-            {isValidJson && <span className={styles.jsonBadge}>JSON</span>}
-          </div>
-        </div>
-        <div className={styles.footer}>
-          <div className={styles.footerLeft}>
-            <button type="button" className={styles.button} onClick={handleSetNull}>
-              NULL
-            </button>
-            {isValidJson && (
-              <button type="button" className={styles.button} onClick={formatAsJson}>
-                JSON整形
-              </button>
-            )}
-          </div>
-          <div className={styles.footerRight}>
-            <button type="button" className={styles.button} onClick={onCancel}>
-              キャンセル
-            </button>
-            <button
-              type="button"
-              className={`${styles.button} ${styles.buttonPrimary}`}
-              onClick={handleSave}
-            >
-              保存 (Ctrl+Enter)
-            </button>
-          </div>
+    <DialogOverlay
+      onClose={onCancel}
+      overlayClassName={styles.overlay}
+      dialogClassName={styles.dialog}
+    >
+      <div className={styles.header}>
+        <h2>{columnName}</h2>
+        <button type="button" className={styles.closeButton} onClick={onCancel}>
+          &times;
+        </button>
+      </div>
+      <div className={styles.content}>
+        <textarea
+          ref={textareaRef}
+          className={styles.textarea}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="値を入力..."
+          spellCheck={false}
+        />
+        <div className={styles.info}>
+          <span>{value.length} 文字</span>
+          {isValidJson && <span className={styles.jsonBadge}>JSON</span>}
         </div>
       </div>
-    </div>
+      <div className={styles.footer}>
+        <div className={styles.footerLeft}>
+          <button type="button" className={styles.button} onClick={handleSetNull}>
+            NULL
+          </button>
+          {isValidJson && (
+            <button type="button" className={styles.button} onClick={formatAsJson}>
+              JSON整形
+            </button>
+          )}
+        </div>
+        <div className={styles.footerRight}>
+          <button type="button" className={styles.button} onClick={onCancel}>
+            キャンセル
+          </button>
+          <button
+            type="button"
+            className={`${styles.button} ${styles.buttonPrimary}`}
+            onClick={handleSave}
+          >
+            保存 (Ctrl+Enter)
+          </button>
+        </div>
+      </div>
+    </DialogOverlay>
   );
 }
