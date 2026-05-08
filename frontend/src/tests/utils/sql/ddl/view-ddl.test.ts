@@ -108,4 +108,22 @@ describe('buildAlterViewSql', () => {
     const result = buildAlterViewSql(viewDef, 'col.with.dots', 'renamed', 'sqlserver');
     expect(result).toContain('[renamed]');
   });
+
+  it('ReDoS 耐性: oldCol が動的 regex に埋め込まれず正常終了する', () => {
+    const viewDef = 'CREATE VIEW [dbo].[vw_Test] AS\nSELECT id, name FROM [dbo].[Users]';
+    // 元実装で動的 RegExp に埋め込まれていた場合、入力サイズに対して指数的劣化する
+    // パターン (a+)+! 系を想定。oldCol は文字列リテラルとしてのみ扱われ、
+    // 識別子 'name' とは一致しないので非マッチで終了する。
+    const evilCol = `${'a+'.repeat(50)}!`;
+    const result = buildAlterViewSql(viewDef, evilCol, 'new_name', 'sqlserver');
+    expect(result).toMatch(/^ALTER VIEW/);
+    expect(result).not.toContain('new_name');
+  });
+
+  it('カラム名に部分一致するだけの識別子はリネーム対象外', () => {
+    const viewDef = 'CREATE VIEW [dbo].[vw_Test] AS\nSELECT username, name FROM [dbo].[Users]';
+    const result = buildAlterViewSql(viewDef, 'name', 'renamed', 'sqlserver');
+    expect(result).toContain('username,');
+    expect(result).toMatch(/\bname\s+AS\s+\[renamed\]/);
+  });
 });
