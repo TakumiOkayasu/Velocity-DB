@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useHistoryStore } from '../../store/historyStore';
 
-// Mock bridge
-vi.mock('../../api/bridge', () => ({
-  bridge: {
+// Mock providers (#520 で queryProvider に移管済み)
+vi.mock('../../api/providers', () => ({
+  queryProvider: {
     getQueryHistory: vi.fn().mockResolvedValue([]),
     removeQueryHistory: vi.fn().mockResolvedValue({ removed: true }),
     clearQueryHistory: vi.fn().mockResolvedValue({ cleared: true }),
@@ -12,7 +12,7 @@ vi.mock('../../api/bridge', () => ({
 }));
 
 // Import after mock
-const { bridge } = await import('../../api/bridge');
+const { queryProvider } = await import('../../api/providers');
 
 describe('historyStore', () => {
   beforeEach(() => {
@@ -26,7 +26,7 @@ describe('historyStore', () => {
 
   describe('fetchHistory', () => {
     it('should fetch history from backend and update store', async () => {
-      vi.mocked(bridge.getQueryHistory).mockResolvedValue([
+      vi.mocked(queryProvider.getQueryHistory).mockResolvedValue([
         {
           id: 'hist_1',
           sql: 'SELECT * FROM users',
@@ -106,7 +106,7 @@ describe('historyStore', () => {
 
   describe('setFavorite', () => {
     it('should call backend and refetch', async () => {
-      vi.mocked(bridge.getQueryHistory).mockResolvedValue([
+      vi.mocked(queryProvider.getQueryHistory).mockResolvedValue([
         {
           id: 'hist_1',
           sql: 'SELECT 1',
@@ -122,19 +122,19 @@ describe('historyStore', () => {
 
       await useHistoryStore.getState().setFavorite('hist_1', true);
 
-      expect(bridge.setQueryHistoryFavorite).toHaveBeenCalledWith('hist_1', true);
-      expect(bridge.getQueryHistory).toHaveBeenCalled();
+      expect(queryProvider.setQueryHistoryFavorite).toHaveBeenCalledWith('hist_1', true);
+      expect(queryProvider.getQueryHistory).toHaveBeenCalled();
     });
   });
 
   describe('clearHistory', () => {
     it('should call backend and refetch', async () => {
-      vi.mocked(bridge.getQueryHistory).mockResolvedValue([]);
+      vi.mocked(queryProvider.getQueryHistory).mockResolvedValue([]);
 
       await useHistoryStore.getState().clearHistory();
 
-      expect(bridge.clearQueryHistory).toHaveBeenCalled();
-      expect(bridge.getQueryHistory).toHaveBeenCalled();
+      expect(queryProvider.clearQueryHistory).toHaveBeenCalled();
+      expect(queryProvider.getQueryHistory).toHaveBeenCalled();
     });
   });
 
@@ -198,12 +198,12 @@ describe('historyStore', () => {
 
   describe('removeHistory', () => {
     it('should call backend and refetch', async () => {
-      vi.mocked(bridge.getQueryHistory).mockResolvedValue([]);
+      vi.mocked(queryProvider.getQueryHistory).mockResolvedValue([]);
 
       await useHistoryStore.getState().removeHistory('hist_1');
 
-      expect(bridge.removeQueryHistory).toHaveBeenCalledWith('hist_1');
-      expect(bridge.getQueryHistory).toHaveBeenCalled();
+      expect(queryProvider.removeQueryHistory).toHaveBeenCalledWith('hist_1');
+      expect(queryProvider.getQueryHistory).toHaveBeenCalled();
     });
   });
 });

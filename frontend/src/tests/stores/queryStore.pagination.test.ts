@@ -11,15 +11,23 @@ vi.mock('../../api/bridge', () => ({
     removeAsyncQuery: vi.fn().mockResolvedValue({ removed: true }),
     cancelQuery: vi.fn(),
     getColumns: vi.fn(),
-    buildDataViewSql: vi.fn(),
     executeQueryPaginated: vi.fn(),
     getRowCount: vi.fn(),
   },
 }));
 
+// #520 で queryProvider に移管: buildDataViewSql
+vi.mock('../../api/providers', () => ({
+  queryProvider: {
+    buildDataViewSql: vi.fn(),
+  },
+}));
+
 import { bridge } from '../../api/bridge';
+import { queryProvider } from '../../api/providers';
 
 const mockedBridge = vi.mocked(bridge);
+const mockedQueryProvider = vi.mocked(queryProvider);
 
 function mockTruncatedDataView(rowCount: number) {
   const rows = Array.from({ length: PAGE_SIZE }, (_, i) => [String(i)]);
@@ -34,7 +42,7 @@ function mockTruncatedDataView(rowCount: number) {
     executionTimeMs: 10,
     truncated: true,
   });
-  mockedBridge.buildDataViewSql.mockImplementation(
+  mockedQueryProvider.buildDataViewSql.mockImplementation(
     async (_connId: string, tableName: string, limit: number) => ({
       sql: `SELECT TOP ${limit} * FROM [${tableName}]`,
     })

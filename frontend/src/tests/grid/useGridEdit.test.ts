@@ -33,8 +33,8 @@ vi.mock('../../store/editStore', () => ({
   }),
 }));
 
-vi.mock('../../api/bridge', () => ({
-  bridge: {
+vi.mock('../../api/providers', () => ({
+  queryProvider: {
     buildDmlStatements: vi.fn(),
     executeQuery: vi.fn(),
   },

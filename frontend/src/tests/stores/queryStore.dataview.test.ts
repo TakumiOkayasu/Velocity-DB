@@ -12,13 +12,21 @@ vi.mock('../../api/bridge', () => ({
     getColumns: vi.fn(),
     saveQueryToFile: vi.fn(),
     loadQueryFromFile: vi.fn(),
+  },
+}));
+
+// #520 で queryProvider に移管: buildDataViewSql
+vi.mock('../../api/providers', () => ({
+  queryProvider: {
     buildDataViewSql: vi.fn(),
   },
 }));
 
 import { bridge } from '../../api/bridge';
+import { queryProvider } from '../../api/providers';
 
 const mockedBridge = vi.mocked(bridge);
+const mockedQueryProvider = vi.mocked(queryProvider);
 
 function mockDataViewQuery(columns: { name: string; type: string }[], rows: string[][]) {
   mockedBridge.getColumns.mockResolvedValue([]);
@@ -31,7 +39,7 @@ function mockDataViewQuery(columns: { name: string; type: string }[], rows: stri
     affectedRows: 0,
     executionTimeMs: 10,
   });
-  mockedBridge.buildDataViewSql.mockImplementation(
+  mockedQueryProvider.buildDataViewSql.mockImplementation(
     async (_connId: string, tableName: string, limit: number, whereClause?: string) => {
       const quoted = tableName
         .split('.')
@@ -47,7 +55,9 @@ function mockDataViewQuery(columns: { name: string; type: string }[], rows: stri
 
 function mockDataViewError(error: Error) {
   mockedBridge.getColumns.mockResolvedValue([]);
-  mockedBridge.buildDataViewSql.mockResolvedValue({ sql: 'SELECT TOP 10001 * FROM [test]' });
+  mockedQueryProvider.buildDataViewSql.mockResolvedValue({
+    sql: 'SELECT TOP 10001 * FROM [test]',
+  });
   mockedBridge.executeAsyncQuery.mockRejectedValue(error);
 }
 
@@ -82,7 +92,7 @@ describe('DataView operations', () => {
       expect(state.queries[0].content).toContain('SELECT');
       expect(state.queries[0].content).toContain('dbo');
       expect(state.activeQueryId).toBe(state.queries[0].id);
-      expect(mockedBridge.buildDataViewSql).toHaveBeenCalledWith(
+      expect(mockedQueryProvider.buildDataViewSql).toHaveBeenCalledWith(
         'conn_1',
         'dbo.Users',
         10001,
@@ -118,7 +128,7 @@ describe('DataView operations', () => {
       const state = useQueryStore.getState();
       expect(state.queries).toHaveLength(2);
       expect(state.queries[1].content).toContain('WHERE id = 1');
-      expect(mockedBridge.buildDataViewSql).toHaveBeenCalledWith(
+      expect(mockedQueryProvider.buildDataViewSql).toHaveBeenCalledWith(
         'conn_1',
         'dbo.Users',
         10001,

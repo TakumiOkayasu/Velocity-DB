@@ -50,6 +50,41 @@ export interface FilterResultSet {
 export type SortModel = Array<{ colId: string; sort: 'asc' | 'desc' }>;
 export type FilterType = 'equals' | 'contains' | 'range';
 
+export interface QueryHistoryEntry {
+  id: string;
+  sql: string;
+  connectionId: string;
+  timestamp: number;
+  executionTimeMs: number;
+  success: boolean;
+  errorMessage: string;
+  affectedRows: number;
+  isFavorite: boolean;
+}
+
+export interface CacheStats {
+  currentSizeBytes: number;
+  maxSizeBytes: number;
+  usagePercent: number;
+}
+
+export interface BuildWhereCondition {
+  column: string;
+  value: string | null;
+}
+
+export interface BuildDmlParams {
+  schema: string;
+  table: string;
+  pkColumns: string[];
+  updates?: {
+    changes: Record<string, string | null>;
+    originalData: Record<string, string | null>;
+  }[];
+  inserts?: Record<string, string | null>[];
+  deletes?: Record<string, string | null>[];
+}
+
 export interface QueryProvider {
   executeQuery(connectionId: string, sql: string, useCache?: boolean): Promise<ExecuteQueryResult>;
   executeQueryPaginated(
@@ -80,6 +115,27 @@ export interface QueryProvider {
     sql: string,
     actual?: boolean
   ): Promise<{ plan: string; actual: boolean }>;
+  getQueryHistory(): Promise<QueryHistoryEntry[]>;
+  removeQueryHistory(id: string): Promise<{ removed: boolean }>;
+  clearQueryHistory(): Promise<{ cleared: boolean }>;
+  setQueryHistoryFavorite(id: string, isFavorite: boolean): Promise<{ updated: boolean }>;
+  getCacheStats(): Promise<CacheStats>;
+  clearCache(): Promise<{ cleared: boolean }>;
+  buildDataViewSql(
+    connectionId: string,
+    tableName: string,
+    limit: number,
+    whereClause?: string
+  ): Promise<{ sql: string }>;
+  buildWhereClause(
+    connectionId: string,
+    conditions: BuildWhereCondition[]
+  ): Promise<{ whereClause: string }>;
+  buildDmlStatements(
+    connectionId: string,
+    params: BuildDmlParams
+  ): Promise<{ statements: string[] }>;
+  uppercaseKeywords(sql: string): Promise<{ sql: string }>;
 }
 
 class QueryProviderImpl implements QueryProvider {
@@ -184,6 +240,72 @@ class QueryProviderImpl implements QueryProvider {
   ): Promise<{ plan: string; actual: boolean }> {
     const raw = await this.invoker.invoke('getExecutionPlan', { connectionId, sql, actual });
     return this.validator.parse(S.getExecutionPlan, raw);
+  }
+
+  async getQueryHistory(): Promise<QueryHistoryEntry[]> {
+    const raw = await this.invoker.invoke('getQueryHistory', {});
+    return this.validator.parse(S.getQueryHistory, raw);
+  }
+
+  async removeQueryHistory(id: string): Promise<{ removed: boolean }> {
+    const raw = await this.invoker.invoke('removeQueryHistory', { id });
+    return this.validator.parse(S.removeQueryHistory, raw);
+  }
+
+  async clearQueryHistory(): Promise<{ cleared: boolean }> {
+    const raw = await this.invoker.invoke('clearQueryHistory', {});
+    return this.validator.parse(S.clearQueryHistory, raw);
+  }
+
+  async setQueryHistoryFavorite(id: string, isFavorite: boolean): Promise<{ updated: boolean }> {
+    const raw = await this.invoker.invoke('setQueryHistoryFavorite', { id, isFavorite });
+    return this.validator.parse(S.setQueryHistoryFavorite, raw);
+  }
+
+  async getCacheStats(): Promise<CacheStats> {
+    const raw = await this.invoker.invoke('getCacheStats', {});
+    return this.validator.parse(S.getCacheStats, raw);
+  }
+
+  async clearCache(): Promise<{ cleared: boolean }> {
+    const raw = await this.invoker.invoke('clearCache', {});
+    return this.validator.parse(S.clearCache, raw);
+  }
+
+  async buildDataViewSql(
+    connectionId: string,
+    tableName: string,
+    limit: number,
+    whereClause?: string
+  ): Promise<{ sql: string }> {
+    const raw = await this.invoker.invoke('buildDataViewSql', {
+      connectionId,
+      tableName,
+      limit,
+      whereClause,
+    });
+    return this.validator.parse(S.buildDataViewSql, raw);
+  }
+
+  async buildWhereClause(
+    connectionId: string,
+    conditions: BuildWhereCondition[]
+  ): Promise<{ whereClause: string }> {
+    const raw = await this.invoker.invoke('buildWhereClause', { connectionId, conditions });
+    return this.validator.parse(S.buildWhereClause, raw);
+  }
+
+  async buildDmlStatements(
+    connectionId: string,
+    params: BuildDmlParams
+  ): Promise<{ statements: string[] }> {
+    const raw = await this.invoker.invoke('buildDmlStatements', { connectionId, ...params });
+    return this.validator.parse(S.buildDmlStatements, raw);
+  }
+
+  async uppercaseKeywords(sql: string): Promise<{ sql: string }> {
+    const raw = await this.invoker.invoke('uppercaseKeywords', { sql });
+    return this.validator.parse(S.uppercaseKeywords, raw);
   }
 }
 

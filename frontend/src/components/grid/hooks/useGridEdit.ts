@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { bridge } from '../../../api/bridge';
 import { queryProvider } from '../../../api/providers';
 import { type CellChange, useEditStore } from '../../../store/editStore';
 import type { Query, ResultSet } from '../../../types';
@@ -170,7 +169,7 @@ export function useGridEdit({
     setApplyError(null);
 
     try {
-      const { statements } = await bridge.buildDmlStatements(activeConnectionId, dmlParams);
+      const { statements } = await queryProvider.buildDmlStatements(activeConnectionId, dmlParams);
       if (statements.length > 0) {
         setPreviewStatements(statements);
       }

@@ -1,4 +1,4 @@
-import { bridge as apiBridge } from '../../../api/bridge';
+import { queryProvider } from '../../../api/providers';
 import type { Query } from '../../../types';
 import { log } from '../../../utils/logger';
 import { getSettings } from '../../../utils/settingsUtils';
@@ -77,7 +77,7 @@ export function createDataViewSlice(
       abort.register(id, controller);
 
       try {
-        const { sql } = await apiBridge.buildDataViewSql(
+        const { sql } = await queryProvider.buildDataViewSql(
           connectionId,
           tableName,
           PAGE_SIZE + 1,
@@ -157,7 +157,7 @@ export function createDataViewSlice(
       abort.register(id, controller);
 
       try {
-        const { sql } = await apiBridge.buildDataViewSql(
+        const { sql } = await queryProvider.buildDataViewSql(
           connectionId,
           query.sourceTable,
           PAGE_SIZE + 1,
