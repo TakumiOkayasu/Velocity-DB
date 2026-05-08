@@ -380,12 +380,14 @@ function GridTableInner({
                     >
                       {isEditing ? (
                         <input
+                          ref={(el) => {
+                            el?.focus();
+                          }}
                           type="text"
                           className={styles.cellInput}
                           value={edit.editValue}
                           onChange={(e) => callbacks.onSetEditValue(e.target.value)}
                           onBlur={callbacks.onCommitEdit}
-                          autoFocus
                         />
                       ) : isNull ? (
                         'NULL'

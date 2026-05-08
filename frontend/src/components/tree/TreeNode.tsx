@@ -124,11 +124,12 @@ export const TreeNode = memo(function TreeNode({
         onClick={handleClick}
         onContextMenu={handleContextMenu}
       >
-        <span
+        <button
+          type="button"
           className={styles.expander}
           onClick={handleExpanderClick}
-          role="button"
           tabIndex={-1}
+          aria-label={isExpanded ? 'Collapse' : 'Expand'}
           style={canExpand ? EXPANDER_VISIBLE : EXPANDER_HIDDEN}
         >
           {isLoading ? (
@@ -138,7 +139,7 @@ export const TreeNode = memo(function TreeNode({
           ) : (
             <TreeIcons.ChevronRight />
           )}
-        </span>
+        </button>
         <span className={`${styles.icon} ${getIconClass(node.type)}`}>
           {getIcon(node.type, isExpanded)}
         </span>

@@ -17,7 +17,10 @@ const DatabaseIcon = (
     fill="none"
     stroke="currentColor"
     strokeWidth="1.5"
+    role="img"
+    aria-labelledby="left-panel-db-icon-title"
   >
+    <title id="left-panel-db-icon-title">データベース</title>
     <ellipse cx="8" cy="4" rx="6" ry="2.5" />
     <path d="M2 4v8c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5V4" />
     <path d="M2 8c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5" />

@@ -1,4 +1,4 @@
-import { type KeyboardEvent, memo, type ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import styles from './ObjectTree.module.css';
 
 interface FolderNodeProps {
@@ -17,21 +17,13 @@ function FolderNodeComponent({
   children,
 }: FolderNodeProps) {
   const toggle = () => onToggle(folderPath);
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      toggle();
-    }
-  };
 
   return (
     <div data-testid="folder-node" data-folder-path={folderPath}>
-      <div
+      <button
+        type="button"
         className={styles.folderHeader}
         onClick={toggle}
-        onKeyDown={onKeyDown}
-        role="button"
-        tabIndex={0}
         aria-expanded={expanded}
         title={folderPath}
       >
@@ -41,7 +33,7 @@ function FolderNodeComponent({
         <span className={styles.folderIcon}>📁</span>
         <span className={styles.folderName}>{folderPath}</span>
         <span className={styles.folderCount}>({profileCount})</span>
-      </div>
+      </button>
       {expanded && <div className={styles.folderBody}>{children}</div>}
     </div>
   );
