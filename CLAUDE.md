@@ -76,14 +76,14 @@ ruff check scripts/ && ruff format --check scripts/
 
 ### IPC通信フロー
 
-```
+```text
 Frontend → window.invoke(JSON) → Backend ipc_handler.cpp → providers/ → database/ → JSON応答
 Frontend ← api/bridge.ts (Promiseラップ) ←────────────────────────────────────────────────┘
 ```
 
 ### Backend 構造 (C++)
 
-```
+```text
 backend/
 ├── ipc_handler.cpp           # IPCルーティング (m_routes にルート登録)
 ├── interfaces/               # ISP準拠インターフェース (*able.h)
@@ -108,7 +108,7 @@ backend/
 
 ### Frontend 構造 (React)
 
-```
+```text
 frontend/
 ├── src/
 │   ├── api/bridge.ts         # IPC通信 (Backend全メソッドのPromiseラッパー)
@@ -155,7 +155,7 @@ frontend/
 ## ドキュメント参照
 
 | ファイル | 内容 |
-|----------|------|
+| ---------- | ------ |
 | `docs/ARCHITECTURE.md` | レイヤー構造、コンポーネント対応表 |
 | `docs/TROUBLESHOOTING.md` | トラブルシューティング |
 | `docs/VISUAL_STUDIO_SETUP.md` | VS2022 でのデバッグ手順 |

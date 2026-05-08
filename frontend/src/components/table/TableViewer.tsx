@@ -236,17 +236,33 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
       {/* Toolbar */}
       <div className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
-          <button className={styles.toolbarButton} title="行を追加" disabled={activeTab !== 'data'}>
+          <button
+            type="button"
+            className={styles.toolbarButton}
+            title="行を追加"
+            disabled={activeTab !== 'data'}
+          >
             <span className={styles.icon}>+</span>
           </button>
-          <button className={styles.toolbarButton} title="行を削除" disabled={activeTab !== 'data'}>
+          <button
+            type="button"
+            className={styles.toolbarButton}
+            title="行を削除"
+            disabled={activeTab !== 'data'}
+          >
             <span className={styles.icon}>−</span>
           </button>
-          <button className={styles.toolbarButton} title="行を複製" disabled={activeTab !== 'data'}>
+          <button
+            type="button"
+            className={styles.toolbarButton}
+            title="行を複製"
+            disabled={activeTab !== 'data'}
+          >
             <span className={styles.icon}>⎘</span>
           </button>
           <div className={styles.toolbarDivider} />
           <button
+            type="button"
             className={`${styles.toolbarButton} ${showLogicalNames ? styles.active : ''}`}
             title="論理名を表示"
             onClick={() => setShowLogicalNames(!showLogicalNames)}
@@ -254,14 +270,14 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
             <span className={styles.icon}>A/あ</span>
           </button>
           <div className={styles.toolbarDivider} />
-          <button className={styles.toolbarButton} title="フィルタ">
+          <button type="button" className={styles.toolbarButton} title="フィルタ">
             <span className={styles.icon}>🔍</span>
           </button>
-          <button className={styles.toolbarButton} title="条件">
+          <button type="button" className={styles.toolbarButton} title="条件">
             <span className={styles.icon}>⚡</span>
           </button>
           <div className={styles.toolbarDivider} />
-          <button className={styles.toolbarButton} title="マーカー">
+          <button type="button" className={styles.toolbarButton} title="マーカー">
             <span className={styles.icon}>🔖</span>
           </button>
         </div>
@@ -270,7 +286,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
           {resultSet && (
             <span className={styles.rowCount}>{resultSet.rows.length.toLocaleString()} 件</span>
           )}
-          <button className={styles.toolbarButton} title="更新" onClick={loadData}>
+          <button type="button" className={styles.toolbarButton} title="更新" onClick={loadData}>
             <span className={styles.icon}>↻</span>
           </button>
         </div>
@@ -280,6 +296,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
       <div className={styles.tabBar}>
         {tabs.map((tab) => (
           <button
+            type="button"
             key={tab.id}
             className={`${styles.tab} ${activeTab === tab.id ? styles.activeTab : ''}`}
             onClick={() => setActiveTab(tab.id)}

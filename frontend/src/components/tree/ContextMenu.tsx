@@ -81,6 +81,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
           <div key={`divider-${index}`} className={styles.divider} />
         ) : (
           <button
+            type="button"
             key={item.label}
             className={`${styles.item} ${item.disabled ? styles.disabled : ''}`}
             onClick={() => handleItemClick(item)}

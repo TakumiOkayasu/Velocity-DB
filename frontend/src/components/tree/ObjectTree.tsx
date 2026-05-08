@@ -12,6 +12,7 @@ import {
 import { groupProfilesByFolder, type ProfileGroup } from '../../utils/groupProfilesByFolder';
 import { pruneCollapsedFolders } from '../../utils/pruneCollapsedFolders';
 import type { ExpandableType } from '../../utils/treeNode';
+import { DialogOverlay } from '../common/DialogOverlay';
 import { FolderNode } from './FolderNode';
 import styles from './ObjectTree.module.css';
 import { ProfileNode } from './ProfileNode';
@@ -227,50 +228,46 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
 
       {/* Connection confirmation dialog */}
       {confirmingProfile && (
-        <div className={styles.overlay} onClick={handleCancel}>
-          <div
-            className={`${styles.dialog} ${confirmingProfile.isProduction ? styles.productionDialog : ''}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className={styles.dialogHeader}>
-              {confirmingProfile.isProduction && <span className={styles.warningIcon}>⚠</span>}
-              <span>データベースに接続</span>
-            </div>
-            <div className={styles.dialogBody}>
-              {confirmingProfile.isProduction ? (
-                <p className={styles.warningText}>
-                  <strong>本番</strong>データベースに接続しようとしています。
-                  <br />
-                  続行しますか？
-                </p>
-              ) : (
-                <p>
-                  <strong>{confirmingProfile.name}</strong>に接続しますか？
-                </p>
-              )}
-              <div className={styles.profileDetails}>
-                <div>サーバー: {confirmingProfile.server}</div>
-                <div>データベース: {confirmingProfile.database}</div>
-              </div>
-            </div>
-            <div className={styles.dialogActions}>
-              <button className={styles.cancelButton} onClick={handleCancel}>
-                {isConnecting ? '接続中止' : 'キャンセル'}
-              </button>
-              <button
-                className={`${styles.connectButton} ${confirmingProfile.isProduction ? styles.productionButton : ''}`}
-                onClick={handleConfirm}
-                disabled={isConnecting}
-              >
-                {isConnecting
-                  ? '接続中...'
-                  : confirmingProfile.isProduction
-                    ? '本番に接続'
-                    : '接続'}
-              </button>
+        <DialogOverlay
+          onClose={handleCancel}
+          overlayClassName={styles.overlay}
+          dialogClassName={`${styles.dialog} ${confirmingProfile.isProduction ? styles.productionDialog : ''}`}
+        >
+          <div className={styles.dialogHeader}>
+            {confirmingProfile.isProduction && <span className={styles.warningIcon}>⚠</span>}
+            <span>データベースに接続</span>
+          </div>
+          <div className={styles.dialogBody}>
+            {confirmingProfile.isProduction ? (
+              <p className={styles.warningText}>
+                <strong>本番</strong>データベースに接続しようとしています。
+                <br />
+                続行しますか？
+              </p>
+            ) : (
+              <p>
+                <strong>{confirmingProfile.name}</strong>に接続しますか？
+              </p>
+            )}
+            <div className={styles.profileDetails}>
+              <div>サーバー: {confirmingProfile.server}</div>
+              <div>データベース: {confirmingProfile.database}</div>
             </div>
           </div>
-        </div>
+          <div className={styles.dialogActions}>
+            <button type="button" className={styles.cancelButton} onClick={handleCancel}>
+              {isConnecting ? '接続中止' : 'キャンセル'}
+            </button>
+            <button
+              type="button"
+              className={`${styles.connectButton} ${confirmingProfile.isProduction ? styles.productionButton : ''}`}
+              onClick={handleConfirm}
+              disabled={isConnecting}
+            >
+              {isConnecting ? '接続中...' : confirmingProfile.isProduction ? '本番に接続' : '接続'}
+            </button>
+          </div>
+        </DialogOverlay>
       )}
     </div>
   );

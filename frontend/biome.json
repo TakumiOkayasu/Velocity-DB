@@ -25,7 +25,7 @@
         "noForEach": "off"
       },
       "a11y": {
-        "recommended": false
+        "recommended": true
       }
     }
   },
@@ -34,7 +34,8 @@
     "indentStyle": "space",
     "indentWidth": 2,
     "lineWidth": 100,
-    "lineEnding": "lf"
+    "lineEnding": "lf",
+    "useEditorconfig": true
   },
   "javascript": {
     "formatter": {

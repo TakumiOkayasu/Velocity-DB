@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { bridge, toERDiagramModel } from '../../api/bridge';
 import type { ERDiagramModel } from '../../utils/erDiagramParser';
+import { DialogOverlay } from '../common/DialogOverlay';
 import styles from './ERImportDialog.module.css';
 
 interface ERImportDialogProps {
@@ -55,113 +56,94 @@ export function ERImportDialog({ isOpen, onClose, onImport }: ERImportDialogProp
   if (!isOpen) return null;
 
   return (
-    <div
-      className={styles.overlay}
-      onClick={onClose}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          e.stopPropagation();
-          onClose();
-        }
-      }}
-      role="presentation"
+    <DialogOverlay
+      onClose={onClose}
+      overlayClassName={styles.overlay}
+      dialogClassName={styles.dialog}
+      ariaLabelledBy="er-import-dialog-title"
     >
-      <div
-        className={styles.dialog}
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') {
-            e.stopPropagation();
-            onClose();
-          }
-        }}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="er-import-dialog-title"
-      >
-        <div className={styles.header}>
-          <h2 id="er-import-dialog-title">ER図ファイルをインポート</h2>
-          <button type="button" className={styles.closeButton} onClick={onClose}>
-            {'\u2715'}
-          </button>
+      <div className={styles.header}>
+        <h2 id="er-import-dialog-title">ER図ファイルをインポート</h2>
+        <button type="button" className={styles.closeButton} onClick={onClose}>
+          {'\u2715'}
+        </button>
+      </div>
+
+      <div className={styles.content}>
+        <div className={styles.fileSection}>
+          <span className={styles.fileLabel}>ER図ファイルを選択</span>
+          <div className={styles.fileRow}>
+            <button
+              type="button"
+              className={styles.fileBrowseButton}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              ファイルを選択
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".a5er,.xml"
+              onChange={handleFileSelect}
+              className={styles.fileHidden}
+            />
+            {fileName && <span className={styles.fileName}>{fileName}</span>}
+          </div>
         </div>
 
-        <div className={styles.content}>
-          <div className={styles.fileSection}>
-            <span className={styles.fileLabel}>ER図ファイルを選択</span>
-            <div className={styles.fileRow}>
-              <button
-                type="button"
-                className={styles.fileBrowseButton}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                ファイルを選択
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".a5er,.xml"
-                onChange={handleFileSelect}
-                className={styles.fileHidden}
-              />
-              {fileName && <span className={styles.fileName}>{fileName}</span>}
+        {error && <div className={styles.error}>{error}</div>}
+
+        {parsedModel && parsedModel.tables.length > 0 && (
+          <div className={styles.summary}>
+            <h3>解析結果</h3>
+            <p>
+              {parsedModel.tables.length} テーブル, {parsedModel.relations.length} リレーション
+            </p>
+
+            <div className={styles.tableList}>
+              {parsedModel.tables.map((table) => (
+                <div key={table.name} className={styles.tableItem}>
+                  <span className={styles.tableName}>
+                    {table.logicalName ? `${table.name} (${table.logicalName})` : table.name}
+                  </span>
+                  <span className={styles.columnCount}>{table.columns.length} カラム</span>
+                </div>
+              ))}
             </div>
           </div>
+        )}
 
-          {error && <div className={styles.error}>{error}</div>}
-
-          {parsedModel && parsedModel.tables.length > 0 && (
-            <div className={styles.summary}>
-              <h3>解析結果</h3>
-              <p>
-                {parsedModel.tables.length} テーブル, {parsedModel.relations.length} リレーション
-              </p>
-
-              <div className={styles.tableList}>
-                {parsedModel.tables.map((table) => (
-                  <div key={table.name} className={styles.tableItem}>
-                    <span className={styles.tableName}>
-                      {table.logicalName ? `${table.name} (${table.logicalName})` : table.name}
-                    </span>
-                    <span className={styles.columnCount}>{table.columns.length} カラム</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {parsedModel && (
-            <div className={styles.ddlSection}>
-              <div className={styles.ddlHeader}>
-                <h3>生成されたDDL</h3>
-                <button type="button" onClick={() => setShowDDL(!showDDL)}>
-                  {showDDL ? '非表示' : '表示'}
+        {parsedModel && (
+          <div className={styles.ddlSection}>
+            <div className={styles.ddlHeader}>
+              <h3>生成されたDDL</h3>
+              <button type="button" onClick={() => setShowDDL(!showDDL)}>
+                {showDDL ? '非表示' : '表示'}
+              </button>
+              {generatedDDL && (
+                <button type="button" onClick={handleCopyDDL}>
+                  コピー
                 </button>
-                {generatedDDL && (
-                  <button type="button" onClick={handleCopyDDL}>
-                    コピー
-                  </button>
-                )}
-              </div>
-              {showDDL && generatedDDL && <pre className={styles.ddlContent}>{generatedDDL}</pre>}
+              )}
             </div>
-          )}
-        </div>
-
-        <div className={styles.footer}>
-          <button type="button" className={styles.cancelButton} onClick={onClose}>
-            キャンセル
-          </button>
-          <button
-            type="button"
-            onClick={handleImport}
-            disabled={!parsedModel || parsedModel.tables.length === 0}
-            className={styles.importButton}
-          >
-            ER図にインポート
-          </button>
-        </div>
+            {showDDL && generatedDDL && <pre className={styles.ddlContent}>{generatedDDL}</pre>}
+          </div>
+        )}
       </div>
-    </div>
+
+      <div className={styles.footer}>
+        <button type="button" className={styles.cancelButton} onClick={onClose}>
+          キャンセル
+        </button>
+        <button
+          type="button"
+          onClick={handleImport}
+          disabled={!parsedModel || parsedModel.tables.length === 0}
+          className={styles.importButton}
+        >
+          ER図にインポート
+        </button>
+      </div>
+    </DialogOverlay>
   );
 }

@@ -72,6 +72,12 @@
   gap: 12px;
   padding: 10px 16px;
   cursor: pointer;
+  width: 100%;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
 }
 
 .resultItem:hover,

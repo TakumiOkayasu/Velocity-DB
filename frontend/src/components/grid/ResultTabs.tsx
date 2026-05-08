@@ -22,6 +22,7 @@ function ResultTabsInner({ results, activeIndex, onSelect }: ResultTabsProps) {
         const key = `${index}-${result.statement}`;
         return (
           <button
+            type="button"
             key={key}
             className={`${styles.resultTab} ${activeIndex === index ? styles.activeResultTab : ''}`}
             onClick={() => onSelect(index)}

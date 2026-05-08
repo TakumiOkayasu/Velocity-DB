@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
 import { useConnectionStore } from '../../store/connectionStore';
 import type { ResultSet } from '../../types';
+import { DialogOverlay } from '../common/DialogOverlay';
 import styles from './ExportDialog.module.css';
 import { type ExportFormat, type ExportOptions, getExporter, isExportFormat } from './exporters';
 
@@ -88,108 +89,114 @@ export function ExportDialog({ isOpen, onClose, resultSet }: ExportDialogProps) 
   if (!isOpen) return null;
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.header}>
-          <h2>データエクスポート</h2>
-          <button className={styles.closeButton} onClick={onClose}>
-            {'\u2715'}
-          </button>
+    <DialogOverlay
+      onClose={onClose}
+      overlayClassName={styles.overlay}
+      dialogClassName={styles.dialog}
+    >
+      <div className={styles.header}>
+        <h2>データエクスポート</h2>
+        <button type="button" className={styles.closeButton} onClick={onClose}>
+          {'✕'}
+        </button>
+      </div>
+
+      <div className={styles.content}>
+        <div className={styles.field}>
+          <label htmlFor="export-format">形式</label>
+          <select
+            id="export-format"
+            value={options.format}
+            onChange={(e) => {
+              if (!isExportFormat(e.target.value)) return;
+              setOptions({ ...options, format: e.target.value });
+            }}
+          >
+            <option value="csv">CSV</option>
+            <option value="json">JSON</option>
+            <option value="sql">SQL INSERT</option>
+            <option value="html">HTMLテーブル</option>
+            <option value="markdown">Markdown</option>
+          </select>
         </div>
 
-        <div className={styles.content}>
+        {options.format === 'csv' && (
           <div className={styles.field}>
-            <label>形式</label>
+            <label htmlFor="export-delimiter">区切り文字</label>
             <select
-              value={options.format}
-              onChange={(e) => {
-                if (!isExportFormat(e.target.value)) return;
-                setOptions({ ...options, format: e.target.value });
-              }}
+              id="export-delimiter"
+              value={options.delimiter}
+              onChange={(e) => setOptions({ ...options, delimiter: e.target.value })}
             >
-              <option value="csv">CSV</option>
-              <option value="json">JSON</option>
-              <option value="sql">SQL INSERT</option>
-              <option value="html">HTMLテーブル</option>
-              <option value="markdown">Markdown</option>
+              <option value=",">カンマ (,)</option>
+              <option value="	">タブ</option>
+              <option value=";">セミコロン (;)</option>
+              <option value="|">パイプ (|)</option>
             </select>
           </div>
+        )}
 
-          {options.format === 'csv' && (
-            <div className={styles.field}>
-              <label>区切り文字</label>
-              <select
-                value={options.delimiter}
-                onChange={(e) => setOptions({ ...options, delimiter: e.target.value })}
-              >
-                <option value=",">カンマ (,)</option>
-                <option value="	">タブ</option>
-                <option value=";">セミコロン (;)</option>
-                <option value="|">パイプ (|)</option>
-              </select>
-            </div>
-          )}
-
-          {(options.format === 'csv' ||
-            options.format === 'html' ||
-            options.format === 'markdown') && (
-            <div className={styles.field}>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={options.includeHeaders}
-                  onChange={(e) => setOptions({ ...options, includeHeaders: e.target.checked })}
-                />
-                ヘッダーを含める
-              </label>
-            </div>
-          )}
-
-          {options.format === 'sql' && (
-            <div className={styles.field}>
-              <label>テーブル名</label>
-              <input
-                type="text"
-                value={options.tableName}
-                onChange={(e) => setOptions({ ...options, tableName: e.target.value })}
-              />
-            </div>
-          )}
-
+        {(options.format === 'csv' ||
+          options.format === 'html' ||
+          options.format === 'markdown') && (
           <div className={styles.field}>
-            <label>NULL値の表示</label>
+            <label>
+              <input
+                type="checkbox"
+                checked={options.includeHeaders}
+                onChange={(e) => setOptions({ ...options, includeHeaders: e.target.checked })}
+              />
+              ヘッダーを含める
+            </label>
+          </div>
+        )}
+
+        {options.format === 'sql' && (
+          <div className={styles.field}>
+            <label htmlFor="export-table-name">テーブル名</label>
             <input
+              id="export-table-name"
               type="text"
-              value={options.nullValue}
-              onChange={(e) => setOptions({ ...options, nullValue: e.target.value })}
+              value={options.tableName}
+              onChange={(e) => setOptions({ ...options, tableName: e.target.value })}
             />
           </div>
+        )}
 
-          <div className={styles.preview}>
-            <label>プレビュー</label>
-            <pre>
-              {(() => {
-                const text = generateExport();
-                return text.length > 1000 ? `${text.slice(0, 1000)}...` : text;
-              })()}
-            </pre>
-          </div>
+        <div className={styles.field}>
+          <label htmlFor="export-null-value">NULL値の表示</label>
+          <input
+            id="export-null-value"
+            type="text"
+            value={options.nullValue}
+            onChange={(e) => setOptions({ ...options, nullValue: e.target.value })}
+          />
         </div>
 
-        <div className={styles.footer}>
-          <span className={styles.rowCount}>
-            {resultSet ? `${resultSet.rows.length} 件` : 'データなし'}
-          </span>
-          <div className={styles.actions}>
-            <button onClick={handleCopy} className={styles.copyButton} title="Ctrl+C">
-              {copied ? 'コピーしました' : 'クリップボードにコピー'}
-            </button>
-            <button onClick={handleDownload} className={styles.downloadButton}>
-              ダウンロード
-            </button>
-          </div>
+        <div className={styles.preview}>
+          <span className={styles.previewLabel}>プレビュー</span>
+          <pre>
+            {(() => {
+              const text = generateExport();
+              return text.length > 1000 ? `${text.slice(0, 1000)}...` : text;
+            })()}
+          </pre>
         </div>
       </div>
-    </div>
+
+      <div className={styles.footer}>
+        <span className={styles.rowCount}>
+          {resultSet ? `${resultSet.rows.length} 件` : 'データなし'}
+        </span>
+        <div className={styles.actions}>
+          <button type="button" onClick={handleCopy} className={styles.copyButton} title="Ctrl+C">
+            {copied ? 'コピーしました' : 'クリップボードにコピー'}
+          </button>
+          <button type="button" onClick={handleDownload} className={styles.downloadButton}>
+            ダウンロード
+          </button>
+        </div>
+      </div>
+    </DialogOverlay>
   );
 }

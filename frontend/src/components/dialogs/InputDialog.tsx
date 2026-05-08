@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { DialogOverlay } from '../common/DialogOverlay';
 import styles from './InputDialog.module.css';
 
 interface InputDialogProps {
@@ -68,37 +69,44 @@ export function InputDialog({
   if (!isOpen) return null;
 
   return (
-    <div className={styles.overlay} onClick={onCancel}>
-      <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.header}>
-          <span className={styles.icon}>?</span>
-          <h3>{title}</h3>
-        </div>
-        <div className={styles.content}>
-          <p className={styles.message}>{message}</p>
-          <input
-            ref={inputRef}
-            className={styles.input}
-            type="text"
-            value={value}
-            placeholder={placeholder}
-            onChange={(e) => {
-              setValue(e.target.value);
-              setError(null);
-            }}
-            onKeyDown={handleKeyDown}
-          />
-          {error && <p className={styles.error}>{error}</p>}
-        </div>
-        <div className={styles.footer}>
-          <button className={styles.cancelButton} onClick={onCancel}>
-            {cancelLabel}
-          </button>
-          <button className={styles.confirmButton} onClick={tryConfirm} disabled={!value.trim()}>
-            {confirmLabel}
-          </button>
-        </div>
+    <DialogOverlay
+      onClose={onCancel}
+      overlayClassName={styles.overlay}
+      dialogClassName={styles.dialog}
+    >
+      <div className={styles.header}>
+        <span className={styles.icon}>?</span>
+        <h3>{title}</h3>
       </div>
-    </div>
+      <div className={styles.content}>
+        <p className={styles.message}>{message}</p>
+        <input
+          ref={inputRef}
+          className={styles.input}
+          type="text"
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => {
+            setValue(e.target.value);
+            setError(null);
+          }}
+          onKeyDown={handleKeyDown}
+        />
+        {error && <p className={styles.error}>{error}</p>}
+      </div>
+      <div className={styles.footer}>
+        <button type="button" className={styles.cancelButton} onClick={onCancel}>
+          {cancelLabel}
+        </button>
+        <button
+          type="button"
+          className={styles.confirmButton}
+          onClick={tryConfirm}
+          disabled={!value.trim()}
+        >
+          {confirmLabel}
+        </button>
+      </div>
+    </DialogOverlay>
   );
 }

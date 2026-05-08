@@ -552,7 +552,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         )}
         <div className={progressClass} />
         {queryConnectionId && (
-          <button onClick={cancelCurrentQuery} className={styles.cancelButton}>
+          <button type="button" onClick={cancelCurrentQuery} className={styles.cancelButton}>
             キャンセル
           </button>
         )}
@@ -566,7 +566,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     return (
       <div className={`${styles.message} ${styles.error}`}>
         <span>{parsed.summary}</span>
-        <button className={styles.errorDetailButton} onClick={reopenErrorDialog}>
+        <button type="button" className={styles.errorDetailButton} onClick={reopenErrorDialog}>
           詳細を表示
         </button>
         <Suspense fallback={null}>

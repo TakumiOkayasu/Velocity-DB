@@ -1,4 +1,5 @@
 import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
+import { DialogOverlay } from '../common/DialogOverlay';
 import styles from './QueryConfirmDialog.module.css';
 
 interface QueryConfirmDialogProps {
@@ -29,30 +30,33 @@ export function QueryConfirmDialog({
   if (!isOpen) return null;
 
   return (
-    <div className={styles.overlay} onClick={onCancel}>
-      <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.header}>
-          <span className={`${styles.icon} ${isDestructive ? styles.warning : ''}`}>
-            {isDestructive ? '!' : '?'}
-          </span>
-          <h3>{title}</h3>
-        </div>
-        <div className={styles.content}>
-          <p className={styles.message}>{message}</p>
-          {details && <pre className={styles.details}>{details}</pre>}
-        </div>
-        <div className={styles.footer}>
-          <button className={styles.cancelButton} onClick={onCancel}>
-            {cancelLabel}
-          </button>
-          <button
-            className={`${styles.confirmButton} ${isDestructive ? styles.destructive : ''}`}
-            onClick={onConfirm}
-          >
-            {confirmLabel}
-          </button>
-        </div>
+    <DialogOverlay
+      onClose={onCancel}
+      overlayClassName={styles.overlay}
+      dialogClassName={styles.dialog}
+    >
+      <div className={styles.header}>
+        <span className={`${styles.icon} ${isDestructive ? styles.warning : ''}`}>
+          {isDestructive ? '!' : '?'}
+        </span>
+        <h3>{title}</h3>
       </div>
-    </div>
+      <div className={styles.content}>
+        <p className={styles.message}>{message}</p>
+        {details && <pre className={styles.details}>{details}</pre>}
+      </div>
+      <div className={styles.footer}>
+        <button type="button" className={styles.cancelButton} onClick={onCancel}>
+          {cancelLabel}
+        </button>
+        <button
+          type="button"
+          className={`${styles.confirmButton} ${isDestructive ? styles.destructive : ''}`}
+          onClick={onConfirm}
+        >
+          {confirmLabel}
+        </button>
+      </div>
+    </DialogOverlay>
   );
 }

@@ -27,8 +27,9 @@ export function SshTunnelSection({ ssh, onChange }: SshTunnelSectionProps) {
         <>
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
-              <label>SSHホスト</label>
+              <label htmlFor="ssh-host">SSHホスト</label>
               <input
+                id="ssh-host"
                 type="text"
                 value={ssh.host}
                 onChange={(e) => onChange('host', e.target.value)}
@@ -36,8 +37,9 @@ export function SshTunnelSection({ ssh, onChange }: SshTunnelSectionProps) {
               />
             </div>
             <div className={styles.formGroupSmall}>
-              <label>SSHポート</label>
+              <label htmlFor="ssh-port">SSHポート</label>
               <input
+                id="ssh-port"
                 type="number"
                 value={ssh.port}
                 onChange={(e) => onChange('port', Number.parseInt(e.target.value, 10) || 22)}
@@ -45,16 +47,18 @@ export function SshTunnelSection({ ssh, onChange }: SshTunnelSectionProps) {
             </div>
           </div>
           <div className={styles.formGroup}>
-            <label>SSHユーザー名</label>
+            <label htmlFor="ssh-username">SSHユーザー名</label>
             <input
+              id="ssh-username"
               type="text"
               value={ssh.username}
               onChange={(e) => onChange('username', e.target.value)}
             />
           </div>
           <div className={styles.formGroup}>
-            <label>認証方式</label>
+            <label htmlFor="ssh-auth-type">認証方式</label>
             <select
+              id="ssh-auth-type"
               value={ssh.authType}
               onChange={(e) => {
                 if (isSshAuthType(e.target.value)) onChange('authType', e.target.value);
@@ -67,8 +71,9 @@ export function SshTunnelSection({ ssh, onChange }: SshTunnelSectionProps) {
           </div>
           {ssh.authType === 'password' && (
             <div className={styles.formGroup}>
-              <label>SSHパスワード</label>
+              <label htmlFor="ssh-password">SSHパスワード</label>
               <input
+                id="ssh-password"
                 type="password"
                 value={ssh.password}
                 onChange={(e) => onChange('password', e.target.value)}
@@ -78,9 +83,10 @@ export function SshTunnelSection({ ssh, onChange }: SshTunnelSectionProps) {
           {ssh.authType === 'privateKey' && (
             <>
               <div className={styles.formGroup}>
-                <label>秘密鍵のパス</label>
+                <label htmlFor="ssh-private-key-path">秘密鍵のパス</label>
                 <div className={styles.inputWithButton}>
                   <input
+                    id="ssh-private-key-path"
                     type="text"
                     value={ssh.privateKeyPath}
                     onChange={(e) => onChange('privateKeyPath', e.target.value)}
@@ -107,8 +113,9 @@ export function SshTunnelSection({ ssh, onChange }: SshTunnelSectionProps) {
                 </div>
               </div>
               <div className={styles.formGroup}>
-                <label>パスフレーズ（任意）</label>
+                <label htmlFor="ssh-key-passphrase">パスフレーズ（任意）</label>
                 <input
+                  id="ssh-key-passphrase"
                   type="password"
                   value={ssh.keyPassphrase}
                   onChange={(e) => onChange('keyPassphrase', e.target.value)}

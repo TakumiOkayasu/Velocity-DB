@@ -35,19 +35,26 @@ export function BottomPanel({ height, onClose }: BottomPanelProps) {
     <div className={styles.container} style={{ height }}>
       <div className={styles.tabs}>
         <button
+          type="button"
           className={`${styles.tab} ${activeTab === 'results' ? styles.active : ''}`}
           onClick={() => setActiveTab('results')}
         >
           結果
         </button>
         <button
+          type="button"
           className={`${styles.tab} ${activeTab === 'history' ? styles.active : ''}`}
           onClick={() => setActiveTab('history')}
         >
           履歴
         </button>
         <div className={styles.tabSpacer} />
-        <button className={styles.closeButton} onClick={onClose} title="パネルを閉じる">
+        <button
+          type="button"
+          className={styles.closeButton}
+          onClick={onClose}
+          title="パネルを閉じる"
+        >
           {'\u00D7'}
         </button>
       </div>

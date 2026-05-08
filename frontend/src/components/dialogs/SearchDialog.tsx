@@ -1,6 +1,7 @@
 import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
 import { bridge } from '../../api/bridge';
 import { useConnectionStore } from '../../store/connectionStore';
+import { DialogOverlay } from '../common/DialogOverlay';
 import styles from './SearchDialog.module.css';
 
 interface SearchDialogProps {
@@ -103,60 +104,63 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
   if (!isOpen) return null;
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.searchContainer}>
-          <span className={styles.searchIcon}>{'\uD83D\uDD0D'}</span>
-          <input
-            ref={inputRef}
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="テーブル、ビュー、プロシージャを検索..."
-            className={styles.searchInput}
-          />
-          {(isSearching || isStale) && <span className={styles.spinner}>{'\u23F3'}</span>}
-        </div>
-
-        <div className={styles.results}>
-          {!activeConnectionId ? (
-            <div className={styles.noConnection}>検索するにはデータベースに接続してください</div>
-          ) : results.length === 0 && searchQuery.trim() ? (
-            <div className={styles.noResults}>
-              {isSearching || isStale ? '検索中...' : '結果が見つかりません'}
-            </div>
-          ) : (
-            results.map((result, index) => (
-              <div
-                key={`${result.type}-${result.schema}-${result.name}`}
-                className={`${styles.resultItem} ${index === selectedIndex ? styles.selected : ''}`}
-                onClick={() => handleResultClick(result)}
-                onMouseEnter={() => setSelectedIndex(index)}
-              >
-                <span className={styles.resultIcon}>{getIcon(result.type)}</span>
-                <div className={styles.resultInfo}>
-                  <span className={styles.resultName}>
-                    {result.parentName ? `${result.parentName}.` : ''}
-                    {result.name}
-                  </span>
-                  <span className={styles.resultMeta}>
-                    {result.schema}.{result.type}
-                  </span>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className={styles.footer}>
-          <span className={styles.hint}>↑↓ 移動, Enter 選択, Esc 閉じる</span>
-          {activeConnection && (
-            <span className={styles.connectionInfo}>{activeConnection.database}</span>
-          )}
-        </div>
+    <DialogOverlay
+      onClose={onClose}
+      overlayClassName={styles.overlay}
+      dialogClassName={styles.dialog}
+    >
+      <div className={styles.searchContainer}>
+        <span className={styles.searchIcon}>{'\uD83D\uDD0D'}</span>
+        <input
+          ref={inputRef}
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="テーブル、ビュー、プロシージャを検索..."
+          className={styles.searchInput}
+        />
+        {(isSearching || isStale) && <span className={styles.spinner}>{'\u23F3'}</span>}
       </div>
-    </div>
+
+      <div className={styles.results}>
+        {!activeConnectionId ? (
+          <div className={styles.noConnection}>検索するにはデータベースに接続してください</div>
+        ) : results.length === 0 && searchQuery.trim() ? (
+          <div className={styles.noResults}>
+            {isSearching || isStale ? '検索中...' : '結果が見つかりません'}
+          </div>
+        ) : (
+          results.map((result, index) => (
+            <button
+              type="button"
+              key={`${result.type}-${result.schema}-${result.name}`}
+              className={`${styles.resultItem} ${index === selectedIndex ? styles.selected : ''}`}
+              onClick={() => handleResultClick(result)}
+              onMouseEnter={() => setSelectedIndex(index)}
+            >
+              <span className={styles.resultIcon}>{getIcon(result.type)}</span>
+              <div className={styles.resultInfo}>
+                <span className={styles.resultName}>
+                  {result.parentName ? `${result.parentName}.` : ''}
+                  {result.name}
+                </span>
+                <span className={styles.resultMeta}>
+                  {result.schema}.{result.type}
+                </span>
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+
+      <div className={styles.footer}>
+        <span className={styles.hint}>↑↓ 移動, Enter 選択, Esc 閉じる</span>
+        {activeConnection && (
+          <span className={styles.connectionInfo}>{activeConnection.database}</span>
+        )}
+      </div>
+    </DialogOverlay>
   );
 }
 

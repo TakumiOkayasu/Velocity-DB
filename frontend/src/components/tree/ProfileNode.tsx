@@ -34,7 +34,8 @@ function ProfileNodeComponent({
   }
 
   return (
-    <div
+    <button
+      type="button"
       {...identityProps}
       className={`${styles.profileItem} ${profile.isProduction ? styles.production : ''}`}
       onClick={() => onProfileClick(profile)}
@@ -43,7 +44,7 @@ function ProfileNodeComponent({
       <span className={styles.profileIcon}>🗄</span>
       <span className={styles.profileName}>{profile.name}</span>
       <span className={styles.profileStatus}>未接続</span>
-    </div>
+    </button>
   );
 }
 
