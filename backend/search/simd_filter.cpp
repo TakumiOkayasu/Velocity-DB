@@ -86,7 +86,7 @@ std::vector<size_t> SIMDFilter::filterEquals(const ResultSet& data, size_t colum
     for (size_t i = 0; i < data.rows.size(); ++i) {
         if (columnIndex < data.rows[i].values.size() && !data.rows[i].isNull(columnIndex)) {
             const auto& cellValue = data.rows[i].values[columnIndex];
-            if (cellValue == value) {
+            if (cellValue.size() == value.size() && simdStringEquals(cellValue.data(), value.data(), value.size())) {
                 result.push_back(i);
             }
         }
@@ -102,7 +102,7 @@ std::vector<size_t> SIMDFilter::filterContains(const ResultSet& data, size_t col
     for (size_t i = 0; i < data.rows.size(); ++i) {
         if (columnIndex < data.rows[i].values.size() && !data.rows[i].isNull(columnIndex)) {
             const auto& cellValue = data.rows[i].values[columnIndex];
-            if (cellValue.find(substring) != std::string::npos) {
+            if (simdStringContains(cellValue.data(), cellValue.size(), substring.data(), substring.size())) {
                 result.push_back(i);
             }
         }
