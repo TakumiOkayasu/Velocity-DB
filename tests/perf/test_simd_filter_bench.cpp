@@ -1,11 +1,11 @@
 // README #11: AVX2 SIMD filtering — qualitative target ("fast"; see issue #537
 // follow-up to make the goal quantitative).
 //
-// The public SIMDFilter::filter* methods do not currently route through the
-// SIMD primitives (they use std::string operators directly). To make the AVX2
-// vs fallback comparison meaningful, this bench targets the SIMD primitives
-// (simdStringEquals / simdStringContains) and pits them against the obvious
-// scalar equivalents (std::memcmp / std::string_view::find).
+// SIMDFilter::filter* routes through the SIMD primitives (simdStringEquals /
+// simdStringContains); this bench targets the primitives directly so the
+// per-call AVX2 wall time is isolated from the row-loop overhead in filter*.
+// They are pitted against the obvious scalar equivalents (std::memcmp /
+// std::string_view::find).
 //
 // The point is to detect regressions in the AVX2 path itself, not to assert
 // a fixed speedup ratio — modern std::memcmp is already vectorised, and CI

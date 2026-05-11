@@ -37,6 +37,7 @@ set(TEST_SOURCES
     providers/test_query_result_formatter.cpp
     providers/test_settings_provider.cpp
     providers/test_utility_provider.cpp
+    search/test_simd_filter.cpp
     utils/test_sql_validation.cpp
     database/test_thread_pool.cpp
     database/test_result_cache.cpp
