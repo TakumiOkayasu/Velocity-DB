@@ -26,8 +26,9 @@ public:
     // Check if AVX2 is available
     static bool isAVX2Available();
 
-private:
-    // SIMD-optimized string comparison (when available)
+    // SIMD-optimized string primitives. Public so perf benchmarks can compare
+    // the AVX2 path against std::memcmp / std::string_view::find directly —
+    // the public filter* methods above currently do not route through these.
     bool simdStringEquals(const char* a, const char* b, size_t len) const;
     bool simdStringContains(const char* haystack, size_t haystackLen, const char* needle, size_t needleLen) const;
 };
