@@ -29,17 +29,17 @@ constexpr size_t kEqualsIterations = 100'000;
 constexpr size_t kEqualsLen = 64;  // >=32 so AVX2 path is exercised
 
 // Targets are loose absolute upper bounds, not micro-benchmark precision —
-// CI runner variance can easily double real wall time. Local Release on a
-// 12th-gen Intel measured ~120ms for simdStringEquals, dominated by the per-
-// iteration isAVX2Available() cpuid call; std::memcmp benefits from compiler
-// auto-vectorisation and is measurably faster. Both observations are logged
-// (see ratio output) rather than asserted, so regressions in the SIMD path
-// itself are caught without the test going flaky on the comparison.
-constexpr auto EQUALS_TARGET = std::chrono::milliseconds(500);
+// CI runner variance can easily multiply real wall time. After #543 cached
+// the cpuid probe, local Release on a 12th-gen Intel measured <1ms for both
+// primitives; 50ms leaves ample headroom while still flagging order-of-
+// magnitude regressions (e.g. accidentally re-introducing per-call cpuid).
+// Ratios stay logged-not-asserted because std::memcmp benefits from compiler
+// auto-vectorisation and the comparison is noisy on small wall times.
+constexpr auto EQUALS_TARGET = std::chrono::milliseconds(50);
 
 constexpr size_t kHaystackLen = 64 * 1024;
 constexpr size_t kContainsIterations = 1'000;
-constexpr auto CONTAINS_TARGET = std::chrono::milliseconds(500);
+constexpr auto CONTAINS_TARGET = std::chrono::milliseconds(50);
 
 [[nodiscard]] std::string makeRepeated(char c, size_t n) {
     return std::string(n, c);
