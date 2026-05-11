@@ -57,11 +57,13 @@ jobs:
             cmake-bench-${{ runner.os }}-${{ inputs.build_type }}-
 
       - name: Configure CMake
-        env:
-          BUILD_TYPE: ${{ inputs.build_type }}
+        # Inline ${{ inputs.build_type }} (workflow-time expansion) instead of
+        # `$env:BUILD_TYPE` — PowerShell can leave `$env:VAR` unexpanded inside
+        # `-DKEY=$env:VAR` argument tokens, causing the literal string to flow
+        # into CMake and break generator expressions ($<CONFIG:$env:BUILD_TYPE>).
         run: |
           cmake -B build -G Ninja `
-            -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE `
+            -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} `
             -DBUILD_TESTS=ON `
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
             -DCMAKE_C_COMPILER_LAUNCHER=ccache
@@ -70,5 +72,76 @@ jobs:
         run: cmake --build build --parallel
 
       - name: Run Backend Benchmarks
-        # -L perf selects only the perf-labeled tests (tests/perf/)
+        # -L perf selects only the perf-labeled tests (tests/perf/).
+        # Integration benches under tests/perf/integration/ self-skip when
+        # the corresponding VELOCITYDB_PERF_*_CONNSTR env var is unset.
         run: ctest --test-dir build --output-on-failure -L perf
+
+  select-million-rows-bench:
+    # Integration bench (#546): SELECT 100万行 < 500ms against a real DB.
+    # PostgreSQL is provisioned natively on the Windows runner (`services:` is
+    # Linux-only and this project's C++ build is Windows-only). SQL Server is
+    # local-only for now — set VELOCITYDB_PERF_MSSQL_CONNSTR manually to run
+    # the SQLServer leg.
+    name: SELECT 100万行 Integration Bench
+    runs-on: windows-latest
+    needs: backend-bench
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Ninja and ccache
+        run: choco install ninja ccache -y
+
+      - name: Setup ccache
+        run: |
+          echo "CC=cl.exe" >> $env:GITHUB_ENV
+          echo "CXX=cl.exe" >> $env:GITHUB_ENV
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache" >> $env:GITHUB_ENV
+          echo "CMAKE_C_COMPILER_LAUNCHER=ccache" >> $env:GITHUB_ENV
+
+      - name: Cache ccache
+        uses: actions/cache@v5
+        with:
+          path: ~\.ccache
+          key: ccache-bench-${{ runner.os }}-${{ inputs.build_type }}-${{ hashFiles('**/*.cpp', '**/*.h') }}
+          restore-keys: |
+            ccache-bench-${{ runner.os }}-${{ inputs.build_type }}-
+
+      - name: Setup PostgreSQL
+        uses: ankane/setup-postgres@v1
+        with:
+          postgres-version: 17
+          database: postgres
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Load 100万行 fixture (PostgreSQL)
+        # Inline the connection string instead of routing through $env:PG_CONN
+        # for the same reason as Configure CMake below — PowerShell argument
+        # parsing leaves `$env:VAR` tokens un-expanded inside complex argv.
+        run: |
+          uv run scripts/perf/setup_million_row_fixture.py postgres --conn "postgresql://postgres@localhost:5432/postgres"
+
+      - name: Configure CMake
+        # Inline ${{ inputs.build_type }} (workflow-time expansion) instead of
+        # `$env:BUILD_TYPE` — PowerShell can leave `$env:VAR` unexpanded inside
+        # `-DKEY=$env:VAR` argument tokens, causing the literal string to flow
+        # into CMake and break generator expressions ($<CONFIG:$env:BUILD_TYPE>).
+        run: |
+          cmake -B build -G Ninja `
+            -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} `
+            -DBUILD_TESTS=ON `
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache
+
+      - name: Build (parallel)
+        run: cmake --build build --parallel
+
+      - name: Run SELECT 100万行 Bench
+        env:
+          VELOCITYDB_PERF_PG_CONNSTR: "host=localhost port=5432 dbname=postgres user=postgres"
+        run: ctest --test-dir build --output-on-failure -L perf -R SelectMillionRows
