@@ -4,7 +4,6 @@
   "private": true,
   "description": "High-performance RDBMS management tool for Windows",
   "scripts": {
-    "prepare": "husky",
     "lint": "uv run scripts/pdg.py lint",
     "lint:frontend": "cd frontend && bun run lint",
     "lint:fix": "cd frontend && bun run lint:fix",
@@ -13,15 +12,6 @@
     "package": "uv run scripts/pdg.py package"
   },
   "devDependencies": {
-    "husky": "^9.1.7",
-    "lint-staged": "^16.2.7"
-  },
-  "lint-staged": {
-    "frontend/src/**/*.{ts,tsx,js,jsx,json,css}": [
-      "bunx biome check --write --config-path=frontend"
-    ],
-    "backend/**/*.{cpp,h}": [
-      "clang-format -i --style=file"
-    ]
+    "lefthook": "^2.1.6"
   }
 }

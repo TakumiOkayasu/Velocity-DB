@@ -94,6 +94,9 @@ log/
 .env.local
 .env.*.local
 
+# GitHub App private key の偶発コミット防止
+*.pem
+
 # Temporary files
 *.tmp
 *.temp
