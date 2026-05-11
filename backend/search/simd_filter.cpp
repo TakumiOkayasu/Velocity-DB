@@ -61,17 +61,22 @@ namespace {
 }  // namespace
 
 bool SIMDFilter::isAVX2Available() {
+    // Cache the cpuid probe result. __cpuidex is a CPU-synchronising instruction;
+    // calling it on every primitive invocation dominated wall time in the SIMD
+    // bench (#543). C++11 guarantees thread-safe init of function-scope statics.
+    static const bool cached = []() {
 #ifdef _MSC_VER
-    int cpuInfo[4];
-    __cpuid(cpuInfo, 0);
-    int nIds = cpuInfo[0];
-
-    if (nIds >= 7) {
-        __cpuidex(cpuInfo, 7, 0);
-        return (cpuInfo[1] & (1 << 5)) != 0;  // AVX2 bit
-    }
+        int cpuInfo[4];
+        __cpuid(cpuInfo, 0);
+        const int nIds = cpuInfo[0];
+        if (nIds >= 7) {
+            __cpuidex(cpuInfo, 7, 0);
+            return (cpuInfo[1] & (1 << 5)) != 0;  // AVX2 bit
+        }
 #endif
-    return false;
+        return false;
+    }();
+    return cached;
 }
 
 std::vector<size_t> SIMDFilter::filterEquals(const ResultSet& data, size_t columnIndex, const std::string& value) const {
