@@ -149,8 +149,9 @@
 | 実装ファイル | `backend/database/result_cache.h:14-62`, `backend/database/result_cache.cpp` |
 | 実装手法 | `unordered_map` + `std::list` による O(1) アクセス・LRU 順序更新。デフォルト上限 100MB (`100 * 1024 * 1024`) |
 | 計測機構 | N/A (キャッシュは時間目標ではなくサイズ上限と LRU 動作が目標) |
-| 既存ベンチマーク | `tests/database/test_result_cache.cpp` で `put`/`get`/`evict`/サイズ追跡を検証済 |
-| 達成判定 | **✅ 達成**。実装・テスト共に存在 |
+| 既存ベンチマーク | `tests/database/test_result_cache.cpp` で `put`/`get`/`evict`/サイズ追跡を検証済 + `tests/perf/test_result_cache_bench.cpp` で hit / miss / eviction を伴う put のリグレッション検出 |
+| 計測手段 | `ctest --preset release -L perf` (perf bench), `ctest --preset release` (機能テスト) |
+| 達成判定 | **✅ 達成**。実装・機能テスト・perf bench 共に存在 |
 
 ## 計測手順
 

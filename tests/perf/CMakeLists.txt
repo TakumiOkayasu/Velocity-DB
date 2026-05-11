@@ -12,6 +12,7 @@ set(PERF_TEST_SOURCES
     test_query_history_search_bench.cpp
     test_simd_filter_bench.cpp
     test_csv_exporter_bench.cpp
+    test_result_cache_bench.cpp
 )
 
 add_executable(VelocityDBPerfTests ${PERF_TEST_SOURCES})
