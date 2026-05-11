@@ -95,7 +95,8 @@ def cmd_lint(args: argparse.Namespace) -> bool:
     """Handle lint command."""
     fix: bool = args.fix
     unsafe: bool = args.unsafe
-    return lint.lint_all(fix=fix, unsafe=unsafe)
+    parallel: bool = not args.no_async
+    return lint.lint_all(fix=fix, unsafe=unsafe, parallel=parallel)
 
 
 def cmd_dev(_args: argparse.Namespace) -> bool:
@@ -450,6 +451,11 @@ def main() -> None:
     lint_parser.add_argument("--fix", "-f", action="store_true", help="Auto-fix issues")
     lint_parser.add_argument(
         "--unsafe", "-u", action="store_true", help="Apply unsafe fixes (requires --fix)"
+    )
+    lint_parser.add_argument(
+        "--no-async",
+        action="store_true",
+        help="Disable parallel execution (run frontend and C++ lint sequentially)",
     )
 
     # Dev command

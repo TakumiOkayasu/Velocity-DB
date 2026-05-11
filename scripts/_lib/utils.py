@@ -5,26 +5,27 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import TextIO
 
 PackageManager = tuple[str, Path]
 
 _BANNER_WIDTH = 60
 
 
-def print_header(title: str, *subtitles: str) -> None:
+def print_header(title: str, *subtitles: str, file: TextIO | None = None) -> None:
     """Print a section header (e.g. '#  Building Backend (Debug)')."""
-    print(f"\n{'#' * _BANNER_WIDTH}")
-    print(f"#  {title}")
+    print(f"\n{'#' * _BANNER_WIDTH}", file=file)
+    print(f"#  {title}", file=file)
     for s in subtitles:
-        print(f"#  {s}")
-    print(f"{'#' * _BANNER_WIDTH}")
+        print(f"#  {s}", file=file)
+    print(f"{'#' * _BANNER_WIDTH}", file=file)
 
 
-def print_footer(message: str) -> None:
+def print_footer(message: str, *, file: TextIO | None = None) -> None:
     """Print a footer banner (e.g. 'BUILD SUCCESSFUL')."""
-    print(f"\n{'=' * _BANNER_WIDTH}")
-    print(f"  {message}")
-    print(f"{'=' * _BANNER_WIDTH}")
+    print(f"\n{'=' * _BANNER_WIDTH}", file=file)
+    print(f"  {message}", file=file)
+    print(f"{'=' * _BANNER_WIDTH}", file=file)
 
 
 def get_project_root() -> Path:
