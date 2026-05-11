@@ -20,6 +20,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 concurrency:
   group: tool-version-upgrade
@@ -43,7 +44,7 @@ jobs:
       clang_latest: ${{ steps.latest.outputs.clang }}
       clang_needs_update: ${{ steps.compare.outputs.clang }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Read current versions
         id: current
@@ -163,7 +164,7 @@ jobs:
     if: needs.detect-versions.outputs.bun_needs_update == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Check for existing PR
         id: check-pr
@@ -193,7 +194,7 @@ jobs:
 
       - name: Setup Bun (new version)
         if: steps.check-pr.outputs.skip == 'false'
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: ${{ needs.detect-versions.outputs.bun_latest }}
 
@@ -252,7 +253,7 @@ jobs:
     if: needs.detect-versions.outputs.vcpkg_needs_update == 'true'
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Check for existing PR
         id: check-pr
@@ -280,24 +281,62 @@ jobs:
 
       - name: Setup MSVC
         if: steps.check-pr.outputs.skip == 'false'
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
 
       - name: Install Ninja
         if: steps.check-pr.outputs.skip == 'false'
         run: choco install ninja -y
 
+      # validation 失敗は「自動アップグレード不能」シグナル (vcpkg 側でターゲット名変更等)
+      # workflow 全体を failure にするとノイズなので continue-on-error にして
+      # 失敗時は代わりに Issue を起票する
       - name: Validate backend build
+        id: validate
         if: steps.check-pr.outputs.skip == 'false'
+        continue-on-error: true
         run: |
           cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
           cmake --build build --config Release --parallel
 
       - name: Run tests
-        if: steps.check-pr.outputs.skip == 'false'
+        id: tests
+        if: steps.check-pr.outputs.skip == 'false' && steps.validate.outcome == 'success'
+        continue-on-error: true
         run: ctest --test-dir build --output-on-failure --parallel
 
+      # validate / tests いずれかが失敗したら Issue 起票して workflow は success 終了
+      # (毎週 schedule の failure 通知ノイズを抑える)
+      - name: Open issue on validation/test failure
+        if: |
+          steps.check-pr.outputs.skip == 'false' &&
+          (steps.validate.outcome == 'failure' || steps.tests.outcome == 'failure')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEW_SHA: ${{ needs.detect-versions.outputs.vcpkg_latest }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          FAILED_STAGE: ${{ steps.validate.outcome == 'failure' && 'build' || 'tests' }}
+        run: |
+          SHORT_NEW="${NEW_SHA:0:12}"
+          EXISTING=$(gh issue list \
+            --state open \
+            --search "vcpkg baseline auto-upgrade blocked in:title" \
+            --json number \
+            --jq '.[0].number // empty')
+          if [[ -n "$EXISTING" ]]; then
+            echo "Issue #${EXISTING} already open for vcpkg upgrade. Adding comment."
+            gh issue comment "$EXISTING" --body "Recurring ${FAILED_STAGE} failure at run: ${RUN_URL} (baseline ${SHORT_NEW})"
+          else
+            gh issue create \
+              --title "vcpkg baseline auto-upgrade blocked (${SHORT_NEW})" \
+              --body "Auto-upgrade of vcpkg baseline to \`${NEW_SHA}\` failed at \`${FAILED_STAGE}\` stage. Manual upgrade required. See run: ${RUN_URL}" \
+              --label "dependencies"
+          fi
+
       - name: Create PR
-        if: steps.check-pr.outputs.skip == 'false'
+        if: |
+          steps.check-pr.outputs.skip == 'false' &&
+          steps.validate.outcome == 'success' &&
+          steps.tests.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
           OLD_SHA: ${{ needs.detect-versions.outputs.vcpkg_current }}
@@ -347,12 +386,22 @@ jobs:
     if: needs.detect-versions.outputs.clang_needs_update == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      # `.github/workflows/*` の変更を含む push は GITHUB_TOKEN では拒否されるため
+      # GitHub App の installation token を使う (1時間で自動失効する短命トークン)
+      - uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        id: app-token
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Check for existing PR
         id: check-pr
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           EXISTING=$(gh pr list --search "head:chore/upgrade-clang-format- is:open" --json number --jq '.[0].number // empty')
           if [[ -n "$EXISTING" ]]; then
@@ -403,7 +452,7 @@ jobs:
       - name: Create PR
         if: steps.check-pr.outputs.skip == 'false'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           OLD_VERSION: ${{ needs.detect-versions.outputs.clang_current }}
           NEW_VERSION: ${{ needs.detect-versions.outputs.clang_latest }}
         run: |

@@ -1,0 +1,36 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: frontend-format
+      glob: "frontend/src/**/*.{ts,tsx,js,jsx,json,css}"
+      root: frontend
+      run: bunx biome check --write {staged_files}
+      stage_fixed: true
+    - name: cpp-format
+      glob: "backend/**/*.{cpp,h}"
+      run: clang-format -i --style=file {staged_files}
+      stage_fixed: true
+
+pre-push:
+  parallel: true
+  jobs:
+    - name: frontend-lint
+      root: frontend
+      glob: "frontend/**/*.{ts,tsx,js,jsx,json,css}"
+      run: bun run lint
+    - name: frontend-typecheck
+      root: frontend
+      glob: "frontend/**/*.{ts,tsx,json}"
+      run: bun run typecheck
+    - name: frontend-test
+      root: frontend
+      glob: "frontend/**/*.{ts,tsx,js,jsx,json}"
+      run: bunx vitest run
+    - name: cpp-format
+      glob: "backend/**/*.{cpp,h}"
+      run: clang-format --style=file --dry-run --Werror {push_files}
+
+commit-msg:
+  jobs:
+    - name: conventional-commits
+      run: bash scripts/check-commit-msg.sh {1}
