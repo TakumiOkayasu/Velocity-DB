@@ -44,13 +44,14 @@ def cmd_build(args: argparse.Namespace) -> bool:
     target: str = args.target
     clean: bool = args.clean
     build_type: str = args.type
+    parallel: bool = not args.no_async
 
     if target == "backend":
         return build.build_backend(build_type=build_type, clean=clean)
     elif target == "frontend":
         return build.build_frontend(clean=clean)
     elif target == "all":
-        return build.build_all(build_type=build_type, clean=clean)
+        return build.build_all(build_type=build_type, clean=clean, parallel=parallel)
     else:
         print(f"ERROR: Unknown build target: {target}")
         return False
@@ -67,6 +68,7 @@ def cmd_test(args: argparse.Namespace) -> bool:
     target: str = args.target
     watch: bool = args.watch
     build_type: str = args.type
+    parallel: bool = not args.no_async
 
     if target == "backend":
         return test.test_backend(build_type=build_type)
@@ -74,6 +76,8 @@ def cmd_test(args: argparse.Namespace) -> bool:
         return test.test_frontend(watch=watch)
     elif target == "e2e":
         return test.test_e2e()
+    elif target == "all":
+        return test.test_all(build_type=build_type, parallel=parallel)
     else:
         print(f"ERROR: Unknown test target: {target}")
         return False
@@ -402,6 +406,11 @@ def main() -> None:
         default="Release",
         help="Build type for backend (default: Release)",
     )
+    build_parser.add_argument(
+        "--no-async",
+        action="store_true",
+        help="Disable parallel execution for 'all' target (sequential build)",
+    )
 
     # Debug command (shortcut for build backend --type Debug)
     debug_parser = subparsers.add_parser("debug", help="Backend Debug build (shortcut)")
@@ -413,7 +422,7 @@ def main() -> None:
     test_parser = subparsers.add_parser("test", aliases=["t"], help="Run tests")
     test_parser.add_argument(
         "target",
-        choices=["backend", "frontend", "e2e"],
+        choices=["backend", "frontend", "e2e", "all"],
         default="frontend",
         nargs="?",
         help="Test target (default: frontend)",
@@ -427,6 +436,11 @@ def main() -> None:
         choices=["Debug", "Release"],
         default="Release",
         help="Build type for backend tests (default: Release)",
+    )
+    test_parser.add_argument(
+        "--no-async",
+        action="store_true",
+        help="Disable parallel execution for 'all' target (sequential test)",
     )
 
     # Bench command (perf-labeled tests only; excluded from `test` by default)

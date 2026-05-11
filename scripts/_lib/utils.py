@@ -40,33 +40,47 @@ def run_command(
     cwd: Path | None = None,
     env: dict[str, str] | None = None,
     capture_output: bool = False,
+    out: TextIO | None = None,
 ) -> tuple[bool, str]:
-    """Run a command and return success status and output."""
+    """Run a command and return success status and output.
+
+    When `out` is given, subprocess output is captured and written to `out`
+    (parallel-safe mode). When `out` is None and `capture_output` is False,
+    subprocess streams live to terminal.
+    """
     extras = [f"Command: {' '.join(cmd)}"]
     if cwd:
         extras.append(f"Working directory: {cwd}")
-    print_footer(description)
+    print_footer(description, file=out)
     for e in extras:
-        print(f"  {e}")
+        print(f"  {e}", file=out)
 
     merged_env = os.environ.copy()
     if env:
         merged_env.update(env)
 
+    # Force capture when `out` is set so subprocess output goes to `out`
+    do_capture = capture_output or out is not None
+
     try:
-        if capture_output:
+        if do_capture:
             result = subprocess.run(
                 cmd, cwd=cwd, env=merged_env, capture_output=True, encoding="utf-8"
             )
+            if out is not None:
+                if result.stdout:
+                    print(result.stdout, end="", file=out)
+                if result.stderr:
+                    print(result.stderr, end="", file=out)
             return result.returncode == 0, result.stderr or ""
         else:
             result = subprocess.run(cmd, cwd=cwd, env=merged_env)
             return result.returncode == 0, ""
     except FileNotFoundError:
-        print(f"ERROR: Command not found: {cmd[0]}")
+        print(f"ERROR: Command not found: {cmd[0]}", file=out)
         return False, f"Command not found: {cmd[0]}"
     except Exception as e:
-        print(f"ERROR: Failed to execute command: {e}")
+        print(f"ERROR: Failed to execute command: {e}", file=out)
         return False, str(e)
 
 
@@ -120,15 +134,15 @@ def find_vcvars() -> Path | None:
     return None
 
 
-def get_msvc_env() -> dict[str, str]:
+def get_msvc_env(out: TextIO | None = None) -> dict[str, str]:
     """Get environment variables from vcvars64.bat."""
     vcvars = find_vcvars()
     if not vcvars:
-        print("ERROR: Could not find vcvars64.bat")
-        print("Please install Visual Studio 2022 with C++ workload")
+        print("ERROR: Could not find vcvars64.bat", file=out)
+        print("Please install Visual Studio 2022 with C++ workload", file=out)
         sys.exit(1)
 
-    print(f"Using MSVC from: {vcvars}")
+    print(f"Using MSVC from: {vcvars}", file=out)
 
     # Run vcvars64.bat and capture environment
     # Security: Using shell=True here is intentional and safe because:
@@ -154,19 +168,19 @@ def get_msvc_env() -> dict[str, str]:
     return env
 
 
-def check_build_tools(env: dict[str, str]) -> bool:
+def check_build_tools(env: dict[str, str], out: TextIO | None = None) -> bool:
     """Check if required build tools are available."""
     # Check CMake
     try:
         result = subprocess.run(["cmake", "--version"], capture_output=True, text=True, env=env)
         if result.returncode == 0:
             version = result.stdout.split("\n")[0]
-            print(f"CMake: {version}")
+            print(f"CMake: {version}", file=out)
         else:
-            print("ERROR: CMake not found")
+            print("ERROR: CMake not found", file=out)
             return False
     except FileNotFoundError:
-        print("ERROR: CMake not found")
+        print("ERROR: CMake not found", file=out)
         return False
 
     # Check Ninja
@@ -174,16 +188,16 @@ def check_build_tools(env: dict[str, str]) -> bool:
         result = subprocess.run(["ninja", "--version"], capture_output=True, text=True, env=env)
         if result.returncode == 0:
             version = result.stdout.strip()
-            print(f"Ninja: {version}")
+            print(f"Ninja: {version}", file=out)
         else:
-            print("WARNING: Ninja not found, will use slower generator")
+            print("WARNING: Ninja not found, will use slower generator", file=out)
     except FileNotFoundError:
-        print("WARNING: Ninja not found, will use slower generator")
+        print("WARNING: Ninja not found, will use slower generator", file=out)
 
     return True
 
 
-def ensure_frontend_deps() -> PackageManager | None:
+def ensure_frontend_deps(out: TextIO | None = None) -> PackageManager | None:
     """Ensure frontend dependencies are up-to-date. Returns PackageManager on success."""
     project_root = get_project_root()
     frontend_dir = project_root / "frontend"
@@ -192,8 +206,8 @@ def ensure_frontend_deps() -> PackageManager | None:
 
     pkg_info = find_package_manager()
     if not pkg_info:
-        print("\nERROR: No package manager found")
-        print("  Install bun: https://bun.sh")
+        print("\nERROR: No package manager found", file=out)
+        print("  Install bun: https://bun.sh", file=out)
         return None
 
     pkg_manager, pkg_path = pkg_info
@@ -203,23 +217,23 @@ def ensure_frontend_deps() -> PackageManager | None:
         pkg_mtime = package_json.stat().st_mtime
         nm_mtime = node_modules.stat().st_mtime
         if pkg_mtime > nm_mtime:
-            print("[package.json updated since last install, reinstalling...]")
+            print("[package.json updated since last install, reinstalling...]", file=out)
             needs_install = True
 
     if needs_install:
-        print("\n[Dependencies outdated, installing...]")
+        print("\n[Dependencies outdated, installing...]", file=out)
         success, _ = run_command(
-            [str(pkg_path), "install"], f"{pkg_manager} install", cwd=frontend_dir
+            [str(pkg_path), "install"], f"{pkg_manager} install", cwd=frontend_dir, out=out
         )
         if not success:
-            print("\nERROR: Failed to install dependencies")
+            print("\nERROR: Failed to install dependencies", file=out)
             return None
     return pkg_info
 
 
-def clear_webview2_cache(project_root: Path) -> None:
+def clear_webview2_cache(project_root: Path, out: TextIO | None = None) -> None:
     """Clear WebView2 cache to ensure fresh frontend load."""
-    print("\n[Post-Build] Clearing WebView2 cache...")
+    print("\n[Post-Build] Clearing WebView2 cache...", file=out)
     webview2_caches = [
         project_root / "build" / "Debug" / "VelocityDB.exe.WebView2",
         project_root / "build" / "Release" / "VelocityDB.exe.WebView2",
@@ -230,12 +244,12 @@ def clear_webview2_cache(project_root: Path) -> None:
         if cache_path.exists():
             try:
                 shutil.rmtree(cache_path)
-                print(f"  [OK] Cleared: {cache_path.relative_to(project_root)}")
+                print(f"  [OK] Cleared: {cache_path.relative_to(project_root)}", file=out)
                 cleared = True
             except Exception as e:
-                print(f"  [FAIL] Failed to clear {cache_path}: {e}")
+                print(f"  [FAIL] Failed to clear {cache_path}: {e}", file=out)
 
     if cleared:
-        print("  WebView2 will load fresh frontend files on next startup")
+        print("  WebView2 will load fresh frontend files on next startup", file=out)
     else:
-        print("  No WebView2 cache to clear")
+        print("  No WebView2 cache to clear", file=out)
