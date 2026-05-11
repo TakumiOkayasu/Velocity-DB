@@ -10,14 +10,14 @@
 ## サマリ
 
 | # | 目標 | 実装 | 計測機構 | 既存ベンチマーク | 達成判定 |
-|---|------|------|----------|------------------|----------|
+| --- | ------ | ------ | ---------- | ------------------ | ---------- |
 | 1 | アプリ起動 < 0.3s | ✅ | ❌ | ❌ | 🔍 未実測 |
 | 2 | SQL Server 接続 < 50ms | ✅ | ⚠️ 部分 | ❌ | 🔍 未実測 |
 | 3 | SELECT (100万行) < 500ms | ✅ | ✅ | ❌ | 🔍 未実測 |
 | 4 | 結果表示開始 < 100ms | ✅ | ✅ | ⚠️ 部分 | 🔍 未実測 |
 | 5 | 仮想スクロール 60fps | ✅ | ❌ | ⚠️ 部分 | 🔍 未実測 |
 | 6 | SQL フォーマット < 50ms | ✅ | ❌ | ❌ | 🔍 未実測 |
-| 7 | CSV エクスポート (10万行) < 2s | ✅ | ❌ | ❌ | 🔍 未実測 |
+| 7 | CSV エクスポート (10万行) < 2s | ✅ | ✅ | ✅ | 🔍 未実測 |
 | 8 | A5:ER ロード (100テーブル) < 1s | ✅ | ❌ | ❌ | 🔍 未実測 |
 | 9 | ER 図レンダリング (50テーブル) < 500ms | ✅ | ❌ | ❌ | 🔍 未実測 |
 | 10 | クエリ履歴検索 (1万件) < 100ms | ✅ | ❌ | ❌ | 🔍 未実測 |
@@ -33,7 +33,7 @@
 ### #1. アプリ起動 < 0.3s
 
 | 項目 | 内容 |
-|------|------|
+| ------ | ------ |
 | 実装ファイル | `backend/webview_app.cpp:57-153` |
 | 実装手法 | WebView2 直接初期化 (`webview::webview`)、ブラウザキャッシュ無効化、仮想ホスト経由ナビゲート |
 | 計測機構 | なし (起動時刻のロギングなし) |
@@ -43,7 +43,7 @@
 ### #2. SQL Server 接続 < 50ms
 
 | 項目 | 内容 |
-|------|------|
+| ------ | ------ |
 | 実装ファイル | `backend/database/connection_registry.h`, `backend/database/sqlserver_driver.cpp`, `backend/database/async_connection_executor.h` |
 | 実装手法 | ODBC Native API 直接利用、`shared_ptr` ベースの接続レジストリ、ThreadPool (MAX_THREADS=8) で非同期化 |
 | 計測機構 | 部分的 (`async_connection_executor` 内部) |
@@ -53,7 +53,7 @@
 ### #3. SELECT (100万行) < 500ms
 
 | 項目 | 内容 |
-|------|------|
+| ------ | ------ |
 | 実装ファイル | `backend/database/async_query_executor.h:31-101`, `backend/database/async_query_executor.cpp` |
 | 実装手法 | ThreadPool で非同期実行、`AsyncQueryResult` に `startTime` / `endTime` (`std::chrono::steady_clock`) を保持 |
 | 計測機構 | あり (`AsyncQueryResult.startTime/endTime`) |
@@ -63,7 +63,7 @@
 ### #4. 結果表示開始 < 100ms
 
 | 項目 | 内容 |
-|------|------|
+| ------ | ------ |
 | 実装ファイル | `frontend/src/components/grid/GridTable.tsx:47-82`, `frontend/src/components/grid/ResultGrid.tsx`, `frontend/src/store/query/slices/dataViewSlice.ts` |
 | 実装手法 | TanStack React Virtual で行を仮想化。`broken-state` 検出時は `FALLBACK_RENDER_LIMIT=50` で先頭行のみ描画 (issue #417 参照) |
 | 計測機構 | `dataViewSlice` 内に `performance.now()` 利用箇所あり |
@@ -73,7 +73,7 @@
 ### #5. 仮想スクロール 60fps 安定
 
 | 項目 | 内容 |
-|------|------|
+| ------ | ------ |
 | 実装ファイル | `frontend/src/components/grid/GridTable.tsx`, `frontend/src/components/grid/ResultGrid.tsx` |
 | 実装手法 | TanStack Virtual + 行高固定 32px + `memo` 最適化 |
 | 計測機構 | なし |
@@ -83,7 +83,7 @@
 ### #6. SQL フォーマット < 50ms
 
 | 項目 | 内容 |
-|------|------|
+| ------ | ------ |
 | 実装ファイル | `backend/parsers/sql_formatter.h:11-40`, `backend/parsers/sql_formatter.cpp` |
 | 実装手法 | `unordered_set` でキーワード判定 (O(1))、文字単位ストリーミングパース |
 | 計測機構 | なし |
@@ -93,17 +93,18 @@
 ### #7. CSV エクスポート (10万行) < 2s
 
 | 項目 | 内容 |
-|------|------|
+| ------ | ------ |
 | 実装ファイル | `backend/exporters/csv_exporter.h`, `backend/exporters/csv_exporter.cpp:8-79` |
 | 実装手法 | `std::ofstream` バイナリモードでストリーム書き込み、UTF-8 BOM、CSV エスケープ、`reserve()` 事前割り当て |
-| 計測機構 | なし |
-| 計測手段 | `tests/exporters/test_csv_exporter.cpp` に 10 万行のダミー `ResultSet` を生成して計測アサート追加 |
-| 達成判定 | **未実測**。ディスク I/O 性能に依存 |
+| 計測機構 | あり (`tests/perf/test_csv_exporter_bench.cpp` の `std::chrono::steady_clock` 計測) |
+| 既存ベンチマーク | `tests/perf/test_csv_exporter_bench.cpp` (10 万行 × 10 列、NULL/エスケープ混在) で 2s 上限を `EXPECT_LT` |
+| 計測手段 | `ctest --preset release -L perf` で実行 |
+| 達成判定 | **未実測** (要 CI 実機)。ディスク I/O 性能に依存 |
 
 ### #8. A5:ER ロード (100テーブル) < 1s
 
 | 項目 | 内容 |
-|------|------|
+| ------ | ------ |
 | 実装ファイル | `backend/parsers/a5er_parser.h`, `backend/parsers/a5er_parser.cpp` |
 | 実装手法 | `pugixml` 直接利用、テキスト/XML 両形式対応 |
 | 計測機構 | なし |
@@ -113,7 +114,7 @@
 ### #9. ER 図レンダリング (50テーブル) < 500ms
 
 | 項目 | 内容 |
-|------|------|
+| ------ | ------ |
 | 実装ファイル | `frontend/src/components/diagram/ERDiagram.tsx:1-100` |
 | 実装手法 | React Flow (`@xyflow/react`)、ノード/エッジの memo 化、`GRID_LAYOUT` 自動配置 |
 | 計測機構 | なし |
@@ -123,7 +124,7 @@
 ### #10. クエリ履歴検索 (1万件) < 100ms
 
 | 項目 | 内容 |
-|------|------|
+| ------ | ------ |
 | 実装ファイル | `backend/database/query_history.h:46-72`, `backend/database/query_history.cpp:34-60` |
 | 実装手法 | `std::vector<HistoryItem>` で最大 10000 件保持。`std::search` + `std::tolower` による case-insensitive linear search (O(n*m)) |
 | 計測機構 | なし |
@@ -134,7 +135,7 @@
 ### #11. 結果フィルタリング (AVX2 SIMD)
 
 | 項目 | 内容 |
-|------|------|
+| ------ | ------ |
 | 実装ファイル | `backend/utils/simd_filter.h:11-33`, `backend/utils/simd_filter.cpp` |
 | 実装手法 | AVX2 intrinsics (`_mm256_*`) 直接利用、`__cpuidex()` で実行時 AVX2 検出、非対応 CPU では `std::memcmp()` フォールバック |
 | 計測機構 | なし |
@@ -144,7 +145,7 @@
 ### #12. LRU 結果キャッシュ (100MB)
 
 | 項目 | 内容 |
-|------|------|
+| ------ | ------ |
 | 実装ファイル | `backend/database/result_cache.h:14-62`, `backend/database/result_cache.cpp` |
 | 実装手法 | `unordered_map` + `std::list` による O(1) アクセス・LRU 順序更新。デフォルト上限 100MB (`100 * 1024 * 1024`) |
 | 計測機構 | N/A (キャッシュは時間目標ではなくサイズ上限と LRU 動作が目標) |
