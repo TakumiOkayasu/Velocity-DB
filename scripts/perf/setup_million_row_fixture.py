@@ -3,6 +3,11 @@
 # requires-python = ">=3.14"
 # dependencies = ["psycopg[binary]>=3.2", "pyodbc>=5.2"]
 # ///
+# pyright: reportMissingImports=false, reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
+# Pylance/Pyright cannot resolve PEP 723 inline-script dependencies — psycopg
+# and pyodbc are installed on demand by `uv run` and are not part of any
+# persistent virtualenv. Silence the missing-import cascade for this file
+# only; runtime correctness is verified via the bench fixture itself.
 """Fixture generator for SELECT 100万行 benchmark (issue #546).
 
 Creates `perf_million_rows` table on the target database and bulk-inserts
@@ -28,17 +33,25 @@ in tests/perf/integration/test_select_million_rows_bench.cpp.
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 import time
 from typing import Protocol
 
 ROW_COUNT = 1_000_000
 
-# TABLE_NAME is a module-level compile-time constant with no external input,
-# so f-string interpolation into DDL/DML below is safe. The CLAUDE.md rule
-# against string-concat SQL targets user-derived values; we keep f-strings
-# here to keep statements readable and centralize the identifier.
 TABLE_NAME = "perf_million_rows"
+
+# Defense in depth: TABLE_NAME is a module-level constant today, but validating
+# it on import means any future edit that introduces a non-identifier value
+# fails fast at startup rather than at SQL execution. Pattern matches the
+# subset of SQL identifiers we actually use (lowercase, snake_case).
+# PostgreSQL caps identifiers at 63 bytes (NAMEDATALEN-1); SQL Server allows
+# 128. Using the stricter PG limit keeps TABLE_NAME portable across drivers.
+_MAX_IDENT_LEN = 63
+_IDENT_RE = re.compile(rf"^[a-z_][a-z0-9_]{{0,{_MAX_IDENT_LEN - 1}}}$")
+if not _IDENT_RE.fullmatch(TABLE_NAME):
+    raise ValueError(f"unsafe TABLE_NAME: {TABLE_NAME!r}")
 
 
 class FixtureLoader(Protocol):
@@ -53,52 +66,62 @@ class FixtureLoader(Protocol):
 class PostgresLoader:
     def __init__(self, conn_str: str) -> None:
         import psycopg
+        from psycopg import sql
 
         self._conn = psycopg.connect(conn_str, autocommit=True)
+        self._sql = sql
+        self._ident = sql.Identifier(TABLE_NAME)
 
     def drop_and_create(self) -> None:
+        sql = self._sql
         with self._conn.cursor() as cur:
-            cur.execute(f"DROP TABLE IF EXISTS {TABLE_NAME}")
+            cur.execute(sql.SQL("DROP TABLE IF EXISTS {t}").format(t=self._ident))
             cur.execute(
-                f"""
-                CREATE TABLE {TABLE_NAME} (
-                    id            INTEGER PRIMARY KEY,
-                    name          VARCHAR(64) NOT NULL,
-                    description   TEXT NOT NULL,
-                    value         INTEGER NOT NULL,
-                    created_at    TIMESTAMP NOT NULL,
-                    pad1          VARCHAR(32) NOT NULL,
-                    pad2          VARCHAR(32) NOT NULL,
-                    pad3          INTEGER NOT NULL,
-                    pad4          INTEGER NOT NULL,
-                    pad5          VARCHAR(16) NOT NULL
-                )
-                """
+                sql.SQL(
+                    """
+                    CREATE TABLE {t} (
+                        id            INTEGER PRIMARY KEY,
+                        name          VARCHAR(64) NOT NULL,
+                        description   TEXT NOT NULL,
+                        value         INTEGER NOT NULL,
+                        created_at    TIMESTAMP NOT NULL,
+                        pad1          VARCHAR(32) NOT NULL,
+                        pad2          VARCHAR(32) NOT NULL,
+                        pad3          INTEGER NOT NULL,
+                        pad4          INTEGER NOT NULL,
+                        pad5          VARCHAR(16) NOT NULL
+                    )
+                    """
+                ).format(t=self._ident)
             )
 
     def bulk_insert(self) -> None:
+        sql = self._sql
         with self._conn.cursor() as cur:
             cur.execute(
-                f"""
-                INSERT INTO {TABLE_NAME}
-                SELECT
-                    g,
-                    'name_' || g,
-                    'desc_row_' || g || '_with_padding_text',
-                    (g * 7) % 1000,
-                    TIMESTAMP '2020-01-01 00:00:00' + (g || ' seconds')::INTERVAL,
-                    'pad1_' || (g % 100),
-                    'pad2_' || (g % 100),
-                    g % 500,
-                    g % 250,
-                    'p5_' || (g % 50)
-                FROM generate_series(1, {ROW_COUNT}) AS g
-                """
+                sql.SQL(
+                    """
+                    INSERT INTO {t}
+                    SELECT
+                        g,
+                        'name_' || g,
+                        'desc_row_' || g || '_with_padding_text',
+                        (g * 7) % 1000,
+                        TIMESTAMP '2020-01-01 00:00:00' + (g || ' seconds')::INTERVAL,
+                        'pad1_' || (g % 100),
+                        'pad2_' || (g % 100),
+                        g % 500,
+                        g % 250,
+                        'p5_' || (g % 50)
+                    FROM generate_series(1, {n}) AS g
+                    """
+                ).format(t=self._ident, n=sql.Literal(ROW_COUNT))
             )
 
     def row_count(self) -> int:
+        sql = self._sql
         with self._conn.cursor() as cur:
-            cur.execute(f"SELECT COUNT(*) FROM {TABLE_NAME}")
+            cur.execute(sql.SQL("SELECT COUNT(*) FROM {t}").format(t=self._ident))
             row = cur.fetchone()
             return int(row[0]) if row else 0
 
@@ -111,6 +134,11 @@ class MssqlLoader:
 
     `generate_series` exists from SQL Server 2022 but ODBC Driver 18 is the
     portable floor — fall back to a chained CROSS JOIN to multiply rows.
+
+    pyodbc lacks an equivalent of `psycopg.sql` for safe identifier
+    composition, so we keep TABLE_NAME as an f-string interpolation guarded by
+    the module-level `_IDENT_RE` check. ROW_COUNT goes through real `?`
+    parameter binding wherever SQL Server allows it (`TOP (?)`).
     """
 
     def __init__(self, conn_str: str) -> None:
@@ -120,7 +148,12 @@ class MssqlLoader:
 
     def drop_and_create(self) -> None:
         with self._conn.cursor() as cur:
+            # nosemgrep: python.lang.security.audit.formatted-sql-query.formatted-sql-query
+            # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query
+            # TABLE_NAME is regex-validated module constant (see _IDENT_RE).
             cur.execute(f"IF OBJECT_ID('{TABLE_NAME}', 'U') IS NOT NULL DROP TABLE {TABLE_NAME}")
+            # nosemgrep: python.lang.security.audit.formatted-sql-query.formatted-sql-query
+            # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query
             cur.execute(
                 f"""
                 CREATE TABLE {TABLE_NAME} (
@@ -146,6 +179,9 @@ class MssqlLoader:
         # silent row shortage. Single round-trip is far faster than driver-side row
         # binding for 100万行.
         with self._conn.cursor() as cur:
+            # nosemgrep: python.lang.security.audit.formatted-sql-query.formatted-sql-query
+            # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query
+            # TABLE_NAME validated at module load; ROW_COUNT passed as parameter.
             cur.execute(
                 f"""
                 ;WITH digits AS (
@@ -154,7 +190,7 @@ class MssqlLoader:
                     SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9
                 ),
                 nums AS (
-                    SELECT TOP ({ROW_COUNT})
+                    SELECT TOP (?)
                         ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS g
                     FROM digits d1, digits d2, digits d3, digits d4, digits d5, digits d6, digits d7
                 )
@@ -171,7 +207,8 @@ class MssqlLoader:
                     g % 250,
                     'p5_' + CAST(g % 50 AS VARCHAR(10))
                 FROM nums
-                """
+                """,
+                (ROW_COUNT,),
             )
             self._conn.commit()
 
