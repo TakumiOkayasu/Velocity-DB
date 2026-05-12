@@ -14,6 +14,7 @@ import {
   exportProvider,
   queryProvider,
   schemaProvider,
+  settingsProvider,
   transactionProvider,
 } from './providers';
 import type { ConnectionInfo, TestConnectionInfo } from './providers/connection';
@@ -27,6 +28,14 @@ import type {
   ReferencingForeignKeyInfo,
   TriggerInfo,
 } from './providers/schema';
+import type {
+  AppSettings,
+  ConnectionProfile,
+  SaveConnectionProfileInput,
+  SaveSessionStateInput,
+  SessionState,
+  UpdateSettingsInput,
+} from './providers/settings';
 import type { ConnectResultResponse } from './schemas';
 import * as S from './schemas';
 
@@ -108,8 +117,8 @@ function toCardinality(value: string): Cardinality {
 // - Query history / cache / SQL builder (#520 で queryProvider に移管: getQueryHistory /
 //   removeQueryHistory / clearQueryHistory / setQueryHistoryFavorite / getCacheStats / clearCache /
 //   buildDataViewSql / buildWhereClause / buildDmlStatements / uppercaseKeywords)
-// - Schema (#521) / Transaction (#522) / Export (#523): 移管済 (委譲のみ)
-// - Settings / Search / IO: 未移管 (#524+)
+// - Schema (#521) / Transaction (#522) / Export (#523) / Settings (#524): 移管済 (委譲のみ)
+// - Search / IO: 未移管 (#525+)
 class Bridge {
   private async call<T>(
     method: string,
@@ -440,196 +449,47 @@ class Bridge {
     );
   }
 
-  // Settings methods
-  async getSettings(): Promise<{
-    general: {
-      autoConnect: boolean;
-      lastConnectionId: string;
-      confirmOnExit: boolean;
-      maxQueryHistory: number;
-      maxRecentConnections: number;
-      language: string;
-    };
-    editor: {
-      fontSize: number;
-      fontFamily: string;
-      wordWrap: boolean;
-      tabSize: number;
-      insertSpaces: boolean;
-      showLineNumbers: boolean;
-      showMinimap: boolean;
-      theme: string;
-    };
-    grid: {
-      defaultPageSize: number;
-      showRowNumbers: boolean;
-      enableCellEditing: boolean;
-      dateFormat: string;
-      nullDisplay: string;
-    };
-    query: {
-      timeoutSeconds: number;
-    };
-  }> {
-    return this.call('getSettings', {}, S.getSettings);
+  // Settings methods (→ settingsProvider)
+  async getSettings(): Promise<AppSettings> {
+    return settingsProvider.getSettings();
   }
 
-  async updateSettings(settings: {
-    general?: Partial<{
-      autoConnect: boolean;
-      confirmOnExit: boolean;
-      maxQueryHistory: number;
-      language: string;
-    }>;
-    editor?: Partial<{
-      fontSize: number;
-      fontFamily: string;
-      wordWrap: boolean;
-      tabSize: number;
-      theme: string;
-    }>;
-    grid?: Partial<{
-      defaultPageSize: number;
-      showRowNumbers: boolean;
-      nullDisplay: string;
-    }>;
-    query?: Partial<{
-      timeoutSeconds: number;
-    }>;
-    window?: Partial<{
-      width: number;
-      height: number;
-      x: number;
-      y: number;
-      isMaximized: boolean;
-    }>;
-  }): Promise<{ saved: boolean }> {
-    return this.call('updateSettings', settings, S.updateSettings);
+  async updateSettings(settings: UpdateSettingsInput): Promise<{ saved: boolean }> {
+    return settingsProvider.updateSettings(settings);
   }
 
-  // Connection profile methods
-  async getConnectionProfiles(): Promise<{
-    profiles: {
-      id: string;
-      name: string;
-      server: string;
-      port?: number;
-      database: string;
-      username: string;
-      useWindowsAuth: boolean;
-      savePassword?: boolean;
-      isProduction?: boolean;
-      isReadOnly?: boolean;
-      environment?: 'development' | 'staging' | 'production';
-      dbType?: 'sqlserver' | 'postgresql' | 'mysql';
-      folderPath?: string;
-      ssh?: {
-        enabled: boolean;
-        host: string;
-        port: number;
-        username: string;
-        authType: 'password' | 'privateKey';
-        privateKeyPath: string;
-        savePassword: boolean;
-      };
-    }[];
-  }> {
-    return this.call('getConnectionProfiles', {}, S.getConnectionProfiles);
+  // Connection profile methods (→ settingsProvider)
+  async getConnectionProfiles(): Promise<{ profiles: ConnectionProfile[] }> {
+    return settingsProvider.getConnectionProfiles();
   }
 
-  async saveConnectionProfile(profile: {
-    id?: string;
-    name: string;
-    server: string;
-    port?: number;
-    database: string;
-    username?: string;
-    useWindowsAuth: boolean;
-    savePassword?: boolean;
-    password?: string;
-    isProduction?: boolean;
-    isReadOnly?: boolean;
-    environment?: 'development' | 'staging' | 'production';
-    dbType?: 'sqlserver' | 'postgresql' | 'mysql';
-    folderPath?: string;
-    ssh?: {
-      enabled: boolean;
-      host: string;
-      port: number;
-      username: string;
-      authType: 'password' | 'privateKey';
-      privateKeyPath?: string;
-      savePassword?: boolean;
-      password?: string;
-      keyPassphrase?: string;
-    };
-  }): Promise<{ id: string }> {
-    return this.call('saveConnectionProfile', profile, S.saveConnectionProfile);
+  async saveConnectionProfile(profile: SaveConnectionProfileInput): Promise<{ id: string }> {
+    return settingsProvider.saveConnectionProfile(profile);
   }
 
   async deleteConnectionProfile(id: string): Promise<{ deleted: boolean }> {
-    return this.call('deleteConnectionProfile', { id }, S.deleteConnectionProfile);
+    return settingsProvider.deleteConnectionProfile(id);
   }
 
   async getProfilePassword(profileId: string): Promise<{ password: string }> {
-    return this.call('getProfilePassword', { id: profileId }, S.getProfilePassword);
+    return settingsProvider.getProfilePassword(profileId);
   }
 
   async getSshPassword(profileId: string): Promise<{ password: string }> {
-    return this.call('getSshPassword', { id: profileId }, S.getSshPassword);
+    return settingsProvider.getSshPassword(profileId);
   }
 
   async getSshKeyPassphrase(profileId: string): Promise<{ passphrase: string }> {
-    return this.call('getSshKeyPassphrase', { id: profileId }, S.getSshKeyPassphrase);
+    return settingsProvider.getSshKeyPassphrase(profileId);
   }
 
-  // Session methods
-  async getSessionState(): Promise<{
-    activeConnectionId: string;
-    activeTabId: string;
-    windowX: number;
-    windowY: number;
-    windowWidth: number;
-    windowHeight: number;
-    isMaximized: boolean;
-    leftPanelWidth: number;
-    bottomPanelHeight: number;
-    openTabs: {
-      id: string;
-      title: string;
-      content: string;
-      filePath: string;
-      isDirty: boolean;
-      cursorLine: number;
-      cursorColumn: number;
-    }[];
-    expandedTreeNodes: string[];
-  }> {
-    return this.call('getSessionState', {}, S.getSessionState);
+  // Session methods (→ settingsProvider)
+  async getSessionState(): Promise<SessionState> {
+    return settingsProvider.getSessionState();
   }
 
-  async saveSessionState(state: {
-    activeConnectionId?: string;
-    activeTabId?: string;
-    windowX?: number;
-    windowY?: number;
-    windowWidth?: number;
-    windowHeight?: number;
-    isMaximized?: boolean;
-    leftPanelWidth?: number;
-    bottomPanelHeight?: number;
-    openTabs?: {
-      id: string;
-      title: string;
-      content: string;
-      filePath: string;
-      isDirty: boolean;
-      cursorLine: number;
-      cursorColumn: number;
-    }[];
-    expandedTreeNodes?: string[];
-  }): Promise<{ saved: boolean }> {
-    return this.call('saveSessionState', state, S.saveSessionState);
+  async saveSessionState(state: SaveSessionStateInput): Promise<{ saved: boolean }> {
+    return settingsProvider.saveSessionState(state);
   }
 
   // Search methods
