@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DatabaseObject, MenuItem } from '../../types';
 
-vi.mock('../../api/bridge', () => ({
-  bridge: {
+vi.mock('../../api/providers', () => ({
+  schemaProvider: {
     getColumns: vi.fn(),
   },
 }));
@@ -12,7 +12,7 @@ vi.mock('../../utils/logger', () => ({
 }));
 
 import { act, renderHook } from '@testing-library/react';
-import { bridge } from '../../api/bridge';
+import { schemaProvider as bridge } from '../../api/providers';
 import { useContextMenuItems } from '../../hooks/useContextMenuItems';
 
 function makeNode(overrides: Partial<DatabaseObject> = {}): DatabaseObject {

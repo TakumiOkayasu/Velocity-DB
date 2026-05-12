@@ -25,8 +25,8 @@ vi.mock('../../../store/connectionMigration', () => ({
   applyConnectionMigration: vi.fn(),
 }));
 
-vi.mock('../../../api/bridge', () => ({
-  bridge: {
+vi.mock('../../../api/providers', () => ({
+  settingsProvider: {
     getConnectionProfiles: vi.fn().mockResolvedValue({
       profiles: [
         {

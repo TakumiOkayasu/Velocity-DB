@@ -1,9 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DatabaseObject } from '../../types';
 
-// Mock bridge
-vi.mock('../../api/bridge', () => ({
-  bridge: {
+vi.mock('../../api/providers', () => ({
+  queryProvider: {
     executeQuery: vi.fn(),
   },
 }));

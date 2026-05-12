@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useRef } from 'react';
-import { bridge } from '../../api/bridge';
+import { settingsProvider } from '../../api/providers';
 import { useDialogState } from '../../hooks/useDialogState';
 import { useFileDrop } from '../../hooks/useFileDrop';
 import { useKeyboardShortcutHandler } from '../../hooks/useKeyboardShortcutHandler';
@@ -242,7 +242,7 @@ export function MainLayout() {
       }
 
       saveWindowSizeTimeoutRef.current = window.setTimeout(() => {
-        bridge.updateSettings({
+        settingsProvider.updateSettings({
           window: {
             width: window.innerWidth,
             height: window.innerHeight,
@@ -259,7 +259,7 @@ export function MainLayout() {
 
     // Save before unload
     const handleBeforeUnload = () => {
-      bridge.updateSettings({
+      settingsProvider.updateSettings({
         window: {
           width: window.innerWidth,
           height: window.innerHeight,

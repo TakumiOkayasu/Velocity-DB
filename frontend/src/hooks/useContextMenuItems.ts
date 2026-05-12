@@ -1,5 +1,5 @@
 import { type Dispatch, type SetStateAction, useCallback } from 'react';
-import { bridge } from '../api/bridge';
+import { schemaProvider } from '../api/providers';
 import type { ToastType } from '../store/toastStore';
 import type { DatabaseObject, DatabaseType, MenuItem } from '../types';
 import { log } from '../utils/logger';
@@ -51,7 +51,7 @@ export function useContextMenuItems({
           label: 'INSERT文をコピー',
           action: async () => {
             try {
-              const columns = await bridge.getColumns(
+              const columns = await schemaProvider.getColumns(
                 connectionId,
                 extractBareTableName(node.name)
               );
@@ -84,7 +84,10 @@ export function useContextMenuItems({
         label: 'カラム一覧をコピー',
         action: async () => {
           try {
-            const columns = await bridge.getColumns(connectionId, extractBareTableName(node.name));
+            const columns = await schemaProvider.getColumns(
+              connectionId,
+              extractBareTableName(node.name)
+            );
             const columnList = columns.map((c) => c.name).join(', ');
             await navigator.clipboard.writeText(columnList);
           } catch (error) {

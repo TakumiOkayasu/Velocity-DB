@@ -1,3 +1,6 @@
+import type { ERDiagramParseResult } from '../api/providers/schema';
+import { DEFAULT_PAGE } from './erDiagramConstants';
+
 // === 共通中間表現 ===
 
 export interface ERDiagramModel {
@@ -101,4 +104,69 @@ export function parseERDiagram(content: string, filename?: string): ERDiagramMod
   }
 
   throw new Error('対応するER図パーサーが見つかりません');
+}
+
+// === IPC レスポンス → ERDiagramModel 変換 ===
+
+type Cardinality = '1:1' | '1:N' | 'N:M';
+
+function toCardinality(value: string): Cardinality {
+  if (value === '1:1' || value === '1:N' || value === 'N:M') return value;
+  return '1:N';
+}
+
+/** ERDiagramParseResult → ERDiagramModel 変換 */
+export function toERDiagramModel(
+  result: ERDiagramParseResult,
+  fallbackName?: string
+): ERDiagramModel {
+  return {
+    name: result.name || fallbackName || '',
+    tables: result.tables.map((t) => ({
+      name: t.name,
+      logicalName: t.logicalName,
+      comment: t.comment,
+      page: t.page || DEFAULT_PAGE,
+      posX: t.posX,
+      posY: t.posY,
+      color: t.color || undefined,
+      bkColor: t.bkColor || undefined,
+      columns: t.columns.map((c) => ({
+        name: c.name,
+        logicalName: c.logicalName,
+        type: c.type,
+        nullable: c.nullable,
+        isPrimaryKey: c.isPrimaryKey,
+        defaultValue: c.defaultValue,
+        comment: c.comment,
+        color: c.color || undefined,
+      })),
+      indexes: t.indexes.map((idx) => ({
+        name: idx.name,
+        isUnique: idx.isUnique,
+        columns: idx.columns,
+      })),
+    })),
+    relations: result.relations.map((r) => ({
+      name: r.name,
+      sourceTable: r.parentTable,
+      targetTable: r.childTable,
+      sourceColumn: r.parentColumn,
+      targetColumn: r.childColumn,
+      cardinality: toCardinality(r.cardinality),
+    })),
+    shapes: result.shapes.map((s) => ({
+      shapeType: s.shapeType,
+      text: s.text,
+      fillColor: s.fillColor || undefined,
+      fontColor: s.fontColor || undefined,
+      fillAlpha: s.fillAlpha,
+      fontSize: s.fontSize,
+      left: s.left,
+      top: s.top,
+      width: s.width,
+      height: s.height,
+      page: s.page || DEFAULT_PAGE,
+    })),
+  };
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { bridge } from '../../api/bridge';
+import { schemaProvider } from '../../api/providers';
 import { useColumnActions } from '../../hooks/useColumnActions';
 import { useContextMenuItems } from '../../hooks/useContextMenuItems';
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
@@ -46,7 +46,7 @@ export function ConnectionTreeSection({
     try {
       log.info(`[ConnectionTreeSection] Loading tables for connection: ${connection.id}`);
 
-      const { tables, loadTimeMs } = await bridge.getTables(connection.id, '');
+      const { tables, loadTimeMs } = await schemaProvider.getTables(connection.id, '');
 
       // Store the load time in connection store
       useConnectionStore.getState().setTableListLoadTime(connection.id, loadTimeMs);
@@ -108,7 +108,7 @@ export function ConnectionTreeSection({
     ): Promise<DatabaseObject[]> => {
       try {
         log.debug(`[ConnectionTreeSection] Loading columns for table: ${tableName}`);
-        const columns = await bridge.getColumns(connection.id, tableName);
+        const columns = await schemaProvider.getColumns(connection.id, tableName);
         log.debug(`[ConnectionTreeSection] Loaded ${columns.length} columns for ${tableName}`);
         return columns.map((col) => {
           return {

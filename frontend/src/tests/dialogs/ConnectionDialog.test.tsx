@@ -1,20 +1,17 @@
 import { within } from '@testing-library/dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { bridge } from '../../api/bridge';
+import { settingsProvider as bridge } from '../../api/providers';
 import { ConnectionDialog } from '../../components/dialogs/ConnectionDialog';
 import { useConnectionStore } from '../../store/connectionStore';
 
-vi.mock('../../api/bridge', () => ({
-  bridge: {
+vi.mock('../../api/providers', () => ({
+  settingsProvider: {
     getConnectionProfiles: vi.fn().mockResolvedValue({ profiles: [] }),
     saveConnectionProfile: vi.fn(),
     deleteConnectionProfile: vi.fn(),
     getProfilePassword: vi.fn(),
   },
-}));
-
-vi.mock('../../api/providers', () => ({
   connectionProvider: {
     testConnection: vi.fn(),
   },

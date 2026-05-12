@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { bridge } from '../api/bridge';
+import { schemaProvider } from '../api/providers';
 import type { Column } from '../types';
 import { log } from '../utils/logger';
 
@@ -51,7 +51,7 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
     });
 
     try {
-      const { tables } = await bridge.getTables(connectionId, '');
+      const { tables } = await schemaProvider.getTables(connectionId, '');
       log.debug(`[SchemaStore] Loaded ${tables.length} tables for ${connectionId}`);
 
       const tableSchemas: TableSchema[] = tables.map((t) => ({
@@ -120,7 +120,7 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
     });
 
     try {
-      const columns = await bridge.getColumns(connectionId, tableName);
+      const columns = await schemaProvider.getColumns(connectionId, tableName);
       log.debug(`[SchemaStore] Loaded ${columns.length} columns for ${tableName}`);
 
       set((state) => {

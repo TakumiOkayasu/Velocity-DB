@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useSchemaStore } from '../../store/schemaStore';
 
-vi.mock('../../api/bridge', () => ({
-  bridge: {
+vi.mock('../../api/providers', () => ({
+  schemaProvider: {
     getTables: vi.fn(),
     getColumns: vi.fn(),
   },

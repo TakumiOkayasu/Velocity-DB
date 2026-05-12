@@ -6,7 +6,7 @@ import {
   useReducer,
   useRef,
 } from 'react';
-import { bridge } from '../../../api/bridge';
+import { settingsProvider } from '../../../api/providers';
 import { useConnectionStore } from '../../../store/connectionStore';
 import {
   isDatabaseType,
@@ -21,7 +21,9 @@ import {
   profileFormReducer,
 } from './useConnectionProfile.reducer';
 
-type BridgeProfile = Awaited<ReturnType<typeof bridge.getConnectionProfiles>>['profiles'][number];
+type BridgeProfile = Awaited<
+  ReturnType<typeof settingsProvider.getConnectionProfiles>
+>['profiles'][number];
 
 function normalizeProfile(p: BridgeProfile): SavedConnectionProfile {
   return {
@@ -108,7 +110,7 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
     let password = '';
     if (profile.savePassword) {
       try {
-        const result = await bridge.getProfilePassword(profile.id);
+        const result = await settingsProvider.getProfilePassword(profile.id);
         if (operationCounterRef.current !== operationId) return;
         if (result.password) {
           password = result.password;
@@ -135,7 +137,7 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
 
     const currentOperationId = operationCounterRef.current;
 
-    bridge
+    settingsProvider
       .getConnectionProfiles()
       .then((result) => {
         if (operationCounterRef.current !== currentOperationId) return;
@@ -175,7 +177,7 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
     const folderPath = config.folderPath.trim();
 
     try {
-      const result = await bridge.saveConnectionProfile({
+      const result = await settingsProvider.saveConnectionProfile({
         id: isNewProfile ? '' : (currentEditingId ?? ''),
         name: config.name,
         server: config.server,
@@ -264,7 +266,7 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
     if (!editingProfileId) return;
 
     try {
-      await bridge.deleteConnectionProfile(editingProfileId);
+      await settingsProvider.deleteConnectionProfile(editingProfileId);
 
       const targetId = editingProfileId;
       const updatedProfiles = profiles.filter((p) => p.id !== targetId);

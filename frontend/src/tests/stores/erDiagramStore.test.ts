@@ -1,9 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useERDiagramStore } from '../../store/erDiagramStore';
 
-vi.mock('../../api/bridge', () => ({
-  bridge: {},
-  toERDiagramModel: vi.fn(),
+vi.mock('../../api/providers', () => ({
+  schemaProvider: {},
 }));
 
 describe('erDiagramStore - viewport & focus', () => {

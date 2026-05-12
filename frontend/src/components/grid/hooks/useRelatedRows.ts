@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-// bridge: getForeignKeys (Schema系) — #521 で SchemaProvider に移管予定
-// queryProvider: buildWhereClause (Query系) — #520 移管済
-import { bridge } from '../../../api/bridge';
-import { queryProvider } from '../../../api/providers';
+import { queryProvider, schemaProvider } from '../../../api/providers';
 import type { ForeignKeyInfo } from '../../../types';
 import { log } from '../../../utils/logger';
 
@@ -38,7 +35,7 @@ export function useRelatedRows({
 
     const fetchForeignKeys = async () => {
       try {
-        const fks = await bridge.getForeignKeys(connectionId, tableName);
+        const fks = await schemaProvider.getForeignKeys(connectionId, tableName);
         setForeignKeys(fks);
         log.debug(`[useRelatedRows] Loaded ${fks.length} foreign keys for ${tableName}`);
       } catch (error) {

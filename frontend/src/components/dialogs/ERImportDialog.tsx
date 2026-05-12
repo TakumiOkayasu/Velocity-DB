@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
-import { bridge, toERDiagramModel } from '../../api/bridge';
-import type { ERDiagramModel } from '../../utils/erDiagramParser';
+import { schemaProvider } from '../../api/providers';
+import { type ERDiagramModel, toERDiagramModel } from '../../utils/erDiagramParser';
 import { DialogOverlay } from '../common/DialogOverlay';
 import styles from './ERImportDialog.module.css';
 
@@ -27,7 +27,7 @@ export function ERImportDialog({ isOpen, onClose, onImport }: ERImportDialogProp
 
     try {
       const content = await file.text();
-      const result = await bridge.parseERDiagram({
+      const result = await schemaProvider.parseERDiagram({
         content,
         filename: file.name,
       });

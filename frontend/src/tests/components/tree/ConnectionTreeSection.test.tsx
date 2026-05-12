@@ -34,8 +34,8 @@ vi.mock('../../../store/toastStore', () => {
   return { useToastStore };
 });
 
-vi.mock('../../../api/bridge', () => ({
-  bridge: {
+vi.mock('../../../api/providers', () => ({
+  schemaProvider: {
     getTables: getTablesMock,
     getColumns: getColumnsMock,
     getReferencingForeignKeys: vi.fn().mockResolvedValue([]),

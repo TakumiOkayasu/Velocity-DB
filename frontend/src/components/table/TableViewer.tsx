@@ -1,6 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { bridge } from '../../api/bridge';
-import { queryProvider } from '../../api/providers';
+import { queryProvider, schemaProvider } from '../../api/providers';
 import { useConnectionStore } from '../../store/connectionStore';
 import { stripBrackets } from '../../utils/stringUtils';
 import { useTableDataState } from './hooks/useTableDataState';
@@ -99,7 +98,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
   const loadColumns = useCallback(async () => {
     if (!activeConnectionId) return;
     try {
-      const result = await bridge.getColumns(activeConnectionId, fullTableName);
+      const result = await schemaProvider.getColumns(activeConnectionId, fullTableName);
       setColumns(result);
     } catch (err) {
       console.error('Failed to load columns:', err);
@@ -109,7 +108,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
   const loadIndexes = useCallback(async () => {
     if (!activeConnectionId) return;
     try {
-      const result = await bridge.getIndexes(activeConnectionId, fullTableName);
+      const result = await schemaProvider.getIndexes(activeConnectionId, fullTableName);
       setIndexes(result);
     } catch (err) {
       console.error('Failed to load indexes:', err);
@@ -119,7 +118,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
   const loadConstraints = useCallback(async () => {
     if (!activeConnectionId) return;
     try {
-      const result = await bridge.getConstraints(activeConnectionId, fullTableName);
+      const result = await schemaProvider.getConstraints(activeConnectionId, fullTableName);
       setConstraints(result);
     } catch (err) {
       console.error('Failed to load constraints:', err);
@@ -129,7 +128,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
   const loadForeignKeys = useCallback(async () => {
     if (!activeConnectionId) return;
     try {
-      const result = await bridge.getForeignKeys(activeConnectionId, fullTableName);
+      const result = await schemaProvider.getForeignKeys(activeConnectionId, fullTableName);
       setForeignKeys(result);
     } catch (err) {
       console.error('Failed to load foreign keys:', err);
@@ -139,7 +138,10 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
   const loadReferencingForeignKeys = useCallback(async () => {
     if (!activeConnectionId) return;
     try {
-      const result = await bridge.getReferencingForeignKeys(activeConnectionId, fullTableName);
+      const result = await schemaProvider.getReferencingForeignKeys(
+        activeConnectionId,
+        fullTableName
+      );
       setReferencingForeignKeys(result);
     } catch (err) {
       console.error('Failed to load referencing foreign keys:', err);
@@ -149,7 +151,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
   const loadTriggers = useCallback(async () => {
     if (!activeConnectionId) return;
     try {
-      const result = await bridge.getTriggers(activeConnectionId, fullTableName);
+      const result = await schemaProvider.getTriggers(activeConnectionId, fullTableName);
       setTriggers(result);
     } catch (err) {
       console.error('Failed to load triggers:', err);
@@ -159,7 +161,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
   const loadMetadata = useCallback(async () => {
     if (!activeConnectionId) return;
     try {
-      const result = await bridge.getTableMetadata(activeConnectionId, fullTableName);
+      const result = await schemaProvider.getTableMetadata(activeConnectionId, fullTableName);
       setMetadata(result);
     } catch (err) {
       console.error('Failed to load metadata:', err);
@@ -169,7 +171,7 @@ export function TableViewer({ tableName, schemaName = 'dbo' }: TableViewerProps)
   const loadDdl = useCallback(async () => {
     if (!activeConnectionId) return;
     try {
-      const result = await bridge.getTableDDL(activeConnectionId, fullTableName);
+      const result = await schemaProvider.getTableDDL(activeConnectionId, fullTableName);
       setDdl(result.ddl);
     } catch (err) {
       console.error('Failed to load DDL:', err);

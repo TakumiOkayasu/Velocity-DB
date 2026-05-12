@@ -3,30 +3,25 @@ import '../helpers/mockSettingsUtils';
 import { PAGE_SIZE } from '../../store/query/helpers/fetchTable';
 import { useQueryStore } from '../../store/queryStore';
 
-vi.mock('../../api/bridge', () => ({
-  bridge: {
+vi.mock('../../api/providers', () => ({
+  queryProvider: {
     executeAsyncQuery: vi.fn(),
     getAsyncQueryResult: vi.fn(),
     cancelAsyncQuery: vi.fn(),
     removeAsyncQuery: vi.fn().mockResolvedValue({ removed: true }),
     cancelQuery: vi.fn(),
-    getColumns: vi.fn(),
     executeQueryPaginated: vi.fn(),
     getRowCount: vi.fn(),
-  },
-}));
-
-// #520 で queryProvider に移管: buildDataViewSql
-vi.mock('../../api/providers', () => ({
-  queryProvider: {
     buildDataViewSql: vi.fn(),
   },
+  schemaProvider: {
+    getColumns: vi.fn(),
+  },
 }));
 
-import { bridge } from '../../api/bridge';
-import { queryProvider } from '../../api/providers';
+import { queryProvider, schemaProvider } from '../../api/providers';
 
-const mockedBridge = vi.mocked(bridge);
+const mockedBridge = { ...vi.mocked(queryProvider), ...vi.mocked(schemaProvider) };
 const mockedQueryProvider = vi.mocked(queryProvider);
 
 function mockTruncatedDataView(rowCount: number) {

@@ -1,7 +1,11 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import { bridge } from '../../api/bridge';
+import { ioProvider, queryProvider, schemaProvider } from '../../api/providers';
 import type { AbortRegistrable } from './interfaces/AbortRegistrable';
+import type { ColumnBridgeable } from './interfaces/ColumnBridgeable';
+import type { FileBridgeable } from './interfaces/FileBridgeable';
+import type { PaginatedBridgeable } from './interfaces/PaginatedBridgeable';
+import type { QueryBridgeable } from './interfaces/QueryBridgeable';
 import { createDataViewSlice } from './slices/dataViewSlice';
 import { createERDiagramSlice } from './slices/erDiagramSlice';
 import { createFileIOSlice } from './slices/fileIOSlice';
@@ -9,6 +13,26 @@ import { createFormatSlice } from './slices/formatSlice';
 import { createExecuteSlice } from './slices/queryExecuteSlice';
 import { createManageSlice } from './slices/queryManageSlice';
 import type { QueryState } from './types';
+
+// 個別 provider を Bridgeable 契約に束ねる薄いアダプタ。
+// 各 slice は narrow な Bridgeable interface に依存し、合成は queryStore (= 上位レイヤ) で行う。
+const queryBridge: QueryBridgeable & ColumnBridgeable & PaginatedBridgeable = {
+  executeAsyncQuery: (connectionId, sql) => queryProvider.executeAsyncQuery(connectionId, sql),
+  getAsyncQueryResult: (queryId) => queryProvider.getAsyncQueryResult(queryId),
+  cancelAsyncQuery: (queryId) => queryProvider.cancelAsyncQuery(queryId),
+  removeAsyncQuery: (queryId) => queryProvider.removeAsyncQuery(queryId),
+  cancelQuery: (connectionId) => queryProvider.cancelQuery(connectionId),
+  executeQueryPaginated: (connectionId, sql, startRow, endRow, sortModel) =>
+    queryProvider.executeQueryPaginated(connectionId, sql, startRow, endRow, sortModel),
+  getRowCount: (connectionId, sql) => queryProvider.getRowCount(connectionId, sql),
+  getColumns: (connectionId, table) => schemaProvider.getColumns(connectionId, table),
+};
+
+const fileBridge: FileBridgeable = {
+  saveQueryToFile: (content, defaultFileName) =>
+    ioProvider.saveQueryToFile(content, defaultFileName),
+  loadQueryFromFile: () => ioProvider.loadQueryFromFile(),
+};
 
 // DI: Abort controller registry (Omusubi Context Layer — owns mutable state)
 const abortControllers = new Map<string, AbortController>();
@@ -40,9 +64,9 @@ export const useQueryStore = create<QueryState>((set, get) => ({
 
   // Slices (Device Layer implementations injected via DI)
   ...createManageSlice(set, get, { abort: abortAdapter }),
-  ...createExecuteSlice(set, get, { bridge, abort: abortAdapter }),
-  ...createDataViewSlice(set, get, { bridge, abort: abortAdapter }),
-  ...createFileIOSlice(set, get, { bridge }),
+  ...createExecuteSlice(set, get, { bridge: queryBridge, abort: abortAdapter }),
+  ...createDataViewSlice(set, get, { bridge: queryBridge, abort: abortAdapter }),
+  ...createFileIOSlice(set, get, { bridge: fileBridge }),
   ...createFormatSlice(set, get),
   ...createERDiagramSlice(set, get),
 }));

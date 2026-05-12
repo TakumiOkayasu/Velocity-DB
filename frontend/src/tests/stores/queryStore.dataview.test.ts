@@ -2,30 +2,27 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '../helpers/mockSettingsUtils';
 import { useQueryStore } from '../../store/queryStore';
 
-vi.mock('../../api/bridge', () => ({
-  bridge: {
+vi.mock('../../api/providers', () => ({
+  queryProvider: {
     executeAsyncQuery: vi.fn(),
     getAsyncQueryResult: vi.fn(),
     cancelAsyncQuery: vi.fn(),
     removeAsyncQuery: vi.fn().mockResolvedValue({ removed: true }),
     cancelQuery: vi.fn(),
+    buildDataViewSql: vi.fn(),
+  },
+  schemaProvider: {
     getColumns: vi.fn(),
+  },
+  ioProvider: {
     saveQueryToFile: vi.fn(),
     loadQueryFromFile: vi.fn(),
   },
 }));
 
-// #520 で queryProvider に移管: buildDataViewSql
-vi.mock('../../api/providers', () => ({
-  queryProvider: {
-    buildDataViewSql: vi.fn(),
-  },
-}));
+import { queryProvider, schemaProvider } from '../../api/providers';
 
-import { bridge } from '../../api/bridge';
-import { queryProvider } from '../../api/providers';
-
-const mockedBridge = vi.mocked(bridge);
+const mockedBridge = { ...vi.mocked(queryProvider), ...vi.mocked(schemaProvider) };
 const mockedQueryProvider = vi.mocked(queryProvider);
 
 function mockDataViewQuery(columns: { name: string; type: string }[], rows: string[][]) {

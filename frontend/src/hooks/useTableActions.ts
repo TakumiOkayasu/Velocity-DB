@@ -1,6 +1,5 @@
 import { type Dispatch, type SetStateAction, useCallback, useState } from 'react';
-import { bridge } from '../api/bridge';
-import { queryProvider } from '../api/providers';
+import { queryProvider, schemaProvider } from '../api/providers';
 import type { DatabaseObject, DatabaseType, MenuItem } from '../types';
 import { log } from '../utils/logger';
 import {
@@ -55,7 +54,7 @@ export function useTableActions({
     async (node: DatabaseObject) => {
       const { schema, table } = parseTableName(node);
       try {
-        const fks = await bridge.getReferencingForeignKeys(connectionId, node.name);
+        const fks = await schemaProvider.getReferencingForeignKeys(connectionId, node.name);
         const sqls = buildDropTableSql(schema, table, dbType, fks);
         setTableAction({
           type: 'drop-confirm',
@@ -76,7 +75,7 @@ export function useTableActions({
     async (node: DatabaseObject) => {
       const { schema, table } = parseTableName(node);
       try {
-        const fks = await bridge.getReferencingForeignKeys(connectionId, node.name);
+        const fks = await schemaProvider.getReferencingForeignKeys(connectionId, node.name);
         const sqls = buildTruncateTableSql(schema, table, dbType, fks);
         setTableAction({
           type: 'truncate-confirm',

@@ -31,18 +31,20 @@ vi.mock('../../../store/connectionMigration', () => ({
   applyConnectionMigration: vi.fn(),
 }));
 
-vi.mock('../../../api/bridge', () => ({
-  bridge: {
+vi.mock('../../../api/providers', () => ({
+  settingsProvider: {
     getConnectionProfiles: vi.fn(),
     getProfilePassword: vi.fn().mockResolvedValue({ password: '' }),
     getSshPassword: vi.fn().mockResolvedValue({ password: '' }),
     getSshKeyPassphrase: vi.fn().mockResolvedValue({ passphrase: '' }),
+  },
+  schemaProvider: {
     getTables: vi.fn().mockResolvedValue({ tables: [], loadTimeMs: 0 }),
     getColumns: vi.fn().mockResolvedValue([]),
   },
 }));
 
-import { bridge } from '../../../api/bridge';
+import { settingsProvider as bridge } from '../../../api/providers';
 import { ObjectTree } from '../../../components/tree/ObjectTree';
 
 type ProfileFixture = Awaited<ReturnType<typeof bridge.getConnectionProfiles>>['profiles'][number];
