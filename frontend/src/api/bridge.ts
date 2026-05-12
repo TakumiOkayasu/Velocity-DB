@@ -14,6 +14,7 @@ import {
   exportProvider,
   queryProvider,
   schemaProvider,
+  searchProvider,
   settingsProvider,
   transactionProvider,
 } from './providers';
@@ -28,6 +29,7 @@ import type {
   ReferencingForeignKeyInfo,
   TriggerInfo,
 } from './providers/schema';
+import type { SearchObjectOptions, SearchObjectResult } from './providers/search';
 import type {
   AppSettings,
   ConnectionProfile,
@@ -117,8 +119,9 @@ function toCardinality(value: string): Cardinality {
 // - Query history / cache / SQL builder (#520 で queryProvider に移管: getQueryHistory /
 //   removeQueryHistory / clearQueryHistory / setQueryHistoryFavorite / getCacheStats / clearCache /
 //   buildDataViewSql / buildWhereClause / buildDmlStatements / uppercaseKeywords)
-// - Schema (#521) / Transaction (#522) / Export (#523) / Settings (#524): 移管済 (委譲のみ)
-// - Search / IO: 未移管 (#525+)
+// - Schema (#521) / Transaction (#522) / Export (#523) / Settings (#524) / Search (#525):
+//   移管済 (委譲のみ)
+// - IO: 未移管 (#526+)
 class Bridge {
   private async call<T>(
     method: string,
@@ -492,32 +495,17 @@ class Bridge {
     return settingsProvider.saveSessionState(state);
   }
 
-  // Search methods
+  // Search methods (→ searchProvider)
   async searchObjects(
     connectionId: string,
     pattern: string,
-    options?: {
-      searchTables?: boolean;
-      searchViews?: boolean;
-      searchProcedures?: boolean;
-      searchFunctions?: boolean;
-      searchColumns?: boolean;
-      caseSensitive?: boolean;
-      maxResults?: number;
-    }
-  ): Promise<
-    {
-      objectType: string;
-      schemaName: string;
-      objectName: string;
-      parentName: string;
-    }[]
-  > {
-    return this.call('searchObjects', { connectionId, pattern, ...options }, S.searchObjects);
+    options?: SearchObjectOptions
+  ): Promise<SearchObjectResult[]> {
+    return searchProvider.searchObjects(connectionId, pattern, options);
   }
 
   async quickSearch(connectionId: string, prefix: string, limit = 20): Promise<string[]> {
-    return this.call('quickSearch', { connectionId, prefix, limit }, S.quickSearch);
+    return searchProvider.quickSearch(connectionId, prefix, limit);
   }
 
   // Table metadata methods (→ schemaProvider)
