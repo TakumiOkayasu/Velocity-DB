@@ -4,6 +4,7 @@ import { type ConnectionProvider, createConnectionProvider } from './connection'
 import { createExportProvider, type ExportProvider } from './export';
 import { createQueryProvider, type QueryProvider } from './query';
 import { createSchemaProvider, type SchemaProvider } from './schema';
+import { createSearchProvider, type SearchProvider } from './search';
 import { createSettingsProvider, type SettingsProvider } from './settings';
 import { createTransactionProvider, type TransactionProvider } from './transaction';
 import type { BridgeLogger, ResponseValidator } from './types';
@@ -20,6 +21,7 @@ interface Providers {
   transaction: TransactionProvider;
   exportData: ExportProvider;
   settings: SettingsProvider;
+  search: SearchProvider;
 }
 
 function buildProviders(): Providers {
@@ -30,6 +32,7 @@ function buildProviders(): Providers {
     transaction: createTransactionProvider(invokerInstance, loggerInstance, validatorInstance),
     exportData: createExportProvider(invokerInstance, loggerInstance, validatorInstance),
     settings: createSettingsProvider(invokerInstance, loggerInstance, validatorInstance),
+    search: createSearchProvider(invokerInstance, loggerInstance, validatorInstance),
   };
 }
 
@@ -54,6 +57,7 @@ export const schemaProvider: SchemaProvider = makeProviderProxy('schema');
 export const transactionProvider: TransactionProvider = makeProviderProxy('transaction');
 export const exportProvider: ExportProvider = makeProviderProxy('exportData');
 export const settingsProvider: SettingsProvider = makeProviderProxy('settings');
+export const searchProvider: SearchProvider = makeProviderProxy('search');
 
 /** テスト専用: invoker を差し替えて全 provider を再構築する */
 export function __setIpcInvokerForTest(invoker: IpcInvoker): void {
