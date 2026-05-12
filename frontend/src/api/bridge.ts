@@ -9,7 +9,12 @@ import type {
 import { DEFAULT_PAGE } from '../utils/erDiagramConstants';
 import type { ERDiagramModel } from '../utils/erDiagramParser';
 import { log } from '../utils/logger';
-import { connectionProvider, queryProvider, schemaProvider } from './providers';
+import {
+  connectionProvider,
+  queryProvider,
+  schemaProvider,
+  transactionProvider,
+} from './providers';
 import type { ConnectionInfo, TestConnectionInfo } from './providers/connection';
 import type { CacheStats, QueryHistoryEntry } from './providers/query';
 import type {
@@ -274,17 +279,17 @@ class Bridge {
     return schemaProvider.getColumns(connectionId, table);
   }
 
-  // Transaction methods
+  // Transaction methods (→ transactionProvider)
   async beginTransaction(connectionId: string): Promise<void> {
-    return this.call('beginTransaction', { connectionId }, S.beginTransaction);
+    return transactionProvider.beginTransaction(connectionId);
   }
 
   async commit(connectionId: string): Promise<void> {
-    return this.call('commit', { connectionId }, S.commit);
+    return transactionProvider.commit(connectionId);
   }
 
   async rollback(connectionId: string): Promise<void> {
-    return this.call('rollback', { connectionId }, S.rollback);
+    return transactionProvider.rollback(connectionId);
   }
 
   // Export methods
