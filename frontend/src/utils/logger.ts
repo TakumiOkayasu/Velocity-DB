@@ -1,4 +1,28 @@
-import { bridge } from '../api/bridge';
+// console.error が後段で override されるため、module load 時に原本を捕捉しておく。
+// override 後の console.error を呼ぶと logger.addToQueue → flush → 再度ここに到達して無限ループする。
+const pristineConsoleError =
+  typeof console !== 'undefined' ? console.error.bind(console) : () => {};
+
+// logger は最下層ユーティリティとして bridge / facade に依存しない。
+// writeFrontendLog 用の IPC 呼び出しを window.invoke 直叩きで行う (#556: 循環参照解消)。
+async function invokeWriteFrontendLog(content: string): Promise<void> {
+  const winInvoke = window.invoke;
+  if (!winInvoke) return;
+  const request = JSON.stringify({
+    method: 'writeFrontendLog',
+    params: JSON.stringify({ content }),
+  });
+  const raw = await winInvoke(request);
+  // backend が success=false を返した場合は捕捉済みの原本 console.error に出す (無限ループ防止)
+  try {
+    const parsed = JSON.parse(raw) as { success?: boolean; error?: string };
+    if (parsed.success === false) {
+      pristineConsoleError(`[logger] writeFrontendLog failed: ${parsed.error ?? 'unknown'}`);
+    }
+  } catch {
+    // parse 失敗は無視 (無限ループ防止)
+  }
+}
 
 export enum LogLevel {
   DEBUG = 'DEBUG',
@@ -115,8 +139,7 @@ class Logger {
         }
       }
 
-      // Write to backend file (log/frontend.log)
-      await bridge.writeFrontendLog(logs);
+      await invokeWriteFrontendLog(logs);
     } catch (_error) {
       // Ignore log write errors (to avoid infinite loops)
       // Note: Does not error even in environments without localStorage

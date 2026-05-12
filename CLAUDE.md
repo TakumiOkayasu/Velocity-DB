@@ -147,6 +147,7 @@ frontend/
 - CSS Modules、Zustand、memo化 (GridToolbar, GridStatusBar, ResultGrid)
 - biome: lineWidth 100, シングルクォート, セミコロンあり
 - イベントハンドラ名に `handle` 接頭辞禁止（`deleteRow` ✅ / `handleDeleteRow` ❌）
+- **`utils/logger.ts` は最下層ユーティリティ**: `api/bridge` や `api/providers/*` 等の facade / 上位層を import 禁止。backend への書き出しは `window.invoke` 直叩きで行う (#556: 循環参照解消)。各 Bridge 抽出 (#521-#527) でも同原則を維持する
 
 ### Python (scripts/)
 

@@ -15,12 +15,6 @@ import type { CacheStats, QueryHistoryEntry } from './providers/query';
 import type { ConnectResultResponse } from './schemas';
 import * as S from './schemas';
 
-declare global {
-  interface Window {
-    invoke?: (request: string) => Promise<string>;
-  }
-}
-
 /** ER diagram parse result returned from backend IPC (tool-agnostic) */
 export interface ERDiagramParseResult {
   name: string;
