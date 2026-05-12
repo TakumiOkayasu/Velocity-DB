@@ -9,66 +9,24 @@ import type {
 import { DEFAULT_PAGE } from '../utils/erDiagramConstants';
 import type { ERDiagramModel } from '../utils/erDiagramParser';
 import { log } from '../utils/logger';
-import { connectionProvider, queryProvider } from './providers';
+import { connectionProvider, queryProvider, schemaProvider } from './providers';
 import type { ConnectionInfo, TestConnectionInfo } from './providers/connection';
 import type { CacheStats, QueryHistoryEntry } from './providers/query';
+import type {
+  ColumnInfo,
+  ERDiagramParseResult,
+  ForeignKeyInfo,
+  GetTablesResult,
+  IndexInfo,
+  ReferencingForeignKeyInfo,
+  TriggerInfo,
+} from './providers/schema';
 import type { ConnectResultResponse } from './schemas';
 import * as S from './schemas';
 
-/** ER diagram parse result returned from backend IPC (tool-agnostic) */
-export interface ERDiagramParseResult {
-  name: string;
-  databaseType: string;
-  tables: {
-    name: string;
-    logicalName: string;
-    comment: string;
-    columns: {
-      name: string;
-      logicalName: string;
-      type: string;
-      size: number;
-      scale: number;
-      nullable: boolean;
-      isPrimaryKey: boolean;
-      defaultValue: string;
-      comment: string;
-      color: string;
-    }[];
-    indexes: {
-      name: string;
-      columns: string[];
-      isUnique: boolean;
-    }[];
-    posX: number;
-    posY: number;
-    page: string;
-    color: string;
-    bkColor: string;
-  }[];
-  relations: {
-    name: string;
-    parentTable: string;
-    childTable: string;
-    parentColumn: string;
-    childColumn: string;
-    cardinality: string;
-  }[];
-  shapes: {
-    shapeType: string;
-    text: string;
-    fillColor: string;
-    fontColor: string;
-    fillAlpha: number;
-    fontSize: number;
-    left: number;
-    top: number;
-    width: number;
-    height: number;
-    page: string;
-  }[];
-  ddl: string;
-}
+// ERImportDialog / erDiagramStore が `import type { ERDiagramParseResult } from '../api/bridge'` で参照しているため、
+// schema.ts に型を移設した後も bridge 経由の互換を維持する目的で再エクスポートする。#527 で旧 Bridge 削除時に整理予定。
+export type { ERDiagramParseResult } from './providers/schema';
 
 /** ERDiagramParseResult → ERDiagramModel 変換 */
 export function toERDiagramModel(
@@ -303,51 +261,17 @@ class Bridge {
     return queryProvider.lintSql(sql, dbType);
   }
 
-  // Schema methods
+  // Schema methods (→ schemaProvider)
   async getDatabases(connectionId: string): Promise<string[]> {
-    return this.call('getDatabases', { connectionId }, S.getDatabases);
+    return schemaProvider.getDatabases(connectionId);
   }
 
-  async getTables(
-    connectionId: string,
-    database: string
-  ): Promise<{
-    tables: {
-      schema: string;
-      name: string;
-      type: string;
-      comment?: string;
-    }[];
-    loadTimeMs: number;
-  }> {
-    log.info(`[Bridge] Getting tables for connection: ${connectionId}, database: ${database}`);
-    const startTime = performance.now();
-    const tables = await this.call('getTables', { connectionId, database }, S.getTables);
-    const endTime = performance.now();
-    const loadTimeMs = endTime - startTime;
-
-    log.info(`[Bridge] Received ${tables.length} tables in ${loadTimeMs.toFixed(2)}ms`);
-
-    return {
-      tables,
-      loadTimeMs,
-    };
+  async getTables(connectionId: string, database: string): Promise<GetTablesResult> {
+    return schemaProvider.getTables(connectionId, database);
   }
 
-  async getColumns(
-    connectionId: string,
-    table: string
-  ): Promise<
-    {
-      name: string;
-      type: string;
-      size: number;
-      nullable: boolean;
-      isPrimaryKey: boolean;
-      comment?: string;
-    }[]
-  > {
-    return this.call('getColumns', { connectionId, table }, S.getColumns);
+  async getColumns(connectionId: string, table: string): Promise<ColumnInfo[]> {
+    return schemaProvider.getColumns(connectionId, table);
   }
 
   // Transaction methods
@@ -432,13 +356,13 @@ class Bridge {
     return queryProvider.setQueryHistoryFavorite(id, isFavorite);
   }
 
-  // ER diagram methods
+  // ER diagram methods (→ schemaProvider)
   async parseERDiagram(params: {
     content?: string;
     filename?: string;
     filepath?: string;
   }): Promise<ERDiagramParseResult> {
-    return this.call('parseERDiagram', params, S.parseERDiagram);
+    return schemaProvider.parseERDiagram(params);
   }
 
   // Execution plan methods (→ queryProvider)
@@ -460,7 +384,7 @@ class Bridge {
   }
 
   async clearSchemaCache(): Promise<{ cleared: boolean }> {
-    return this.call('clearSchemaCache', {}, S.clearCache);
+    return schemaProvider.clearSchemaCache();
   }
 
   // Async query methods (→ queryProvider)
@@ -729,83 +653,36 @@ class Bridge {
     return this.call('quickSearch', { connectionId, prefix, limit }, S.quickSearch);
   }
 
-  // Table metadata methods
-  async getIndexes(
-    connectionId: string,
-    table: string
-  ): Promise<
-    {
-      name: string;
-      columns: string[];
-      isUnique: boolean;
-      isPrimaryKey: boolean;
-      type: string;
-    }[]
-  > {
-    return this.call('getIndexes', { connectionId, table }, S.getIndexes);
+  // Table metadata methods (→ schemaProvider)
+  async getIndexes(connectionId: string, table: string): Promise<IndexInfo[]> {
+    return schemaProvider.getIndexes(connectionId, table);
   }
 
   async getConstraints(connectionId: string, table: string): Promise<ConstraintInfo[]> {
-    return this.call('getConstraints', { connectionId, table }, S.getConstraints);
+    return schemaProvider.getConstraints(connectionId, table);
   }
 
-  async getForeignKeys(
-    connectionId: string,
-    table: string
-  ): Promise<
-    {
-      name: string;
-      columns: string[];
-      referencedTable: string;
-      referencedColumns: string[];
-      onDelete: string;
-      onUpdate: string;
-    }[]
-  > {
-    return this.call('getForeignKeys', { connectionId, table }, S.getForeignKeys);
+  async getForeignKeys(connectionId: string, table: string): Promise<ForeignKeyInfo[]> {
+    return schemaProvider.getForeignKeys(connectionId, table);
   }
 
   async getReferencingForeignKeys(
     connectionId: string,
     table: string
-  ): Promise<
-    {
-      name: string;
-      referencingTable: string;
-      referencingColumns: string[];
-      columns: string[];
-      onDelete: string;
-      onUpdate: string;
-    }[]
-  > {
-    return this.call(
-      'getReferencingForeignKeys',
-      { connectionId, table },
-      S.getReferencingForeignKeys
-    );
+  ): Promise<ReferencingForeignKeyInfo[]> {
+    return schemaProvider.getReferencingForeignKeys(connectionId, table);
   }
 
-  async getTriggers(
-    connectionId: string,
-    table: string
-  ): Promise<
-    {
-      name: string;
-      type: string;
-      events: string[];
-      isEnabled: boolean;
-      definition: string;
-    }[]
-  > {
-    return this.call('getTriggers', { connectionId, table }, S.getTriggers);
+  async getTriggers(connectionId: string, table: string): Promise<TriggerInfo[]> {
+    return schemaProvider.getTriggers(connectionId, table);
   }
 
   async getTableMetadata(connectionId: string, table: string): Promise<TableMetadata> {
-    return this.call('getTableMetadata', { connectionId, table }, S.getTableMetadata);
+    return schemaProvider.getTableMetadata(connectionId, table);
   }
 
   async getTableDDL(connectionId: string, table: string): Promise<{ ddl: string }> {
-    return this.call('getTableDDL', { connectionId, table }, S.getTableDDL);
+    return schemaProvider.getTableDDL(connectionId, table);
   }
 
   async writeFrontendLog(content: string): Promise<void> {

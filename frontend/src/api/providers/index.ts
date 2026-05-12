@@ -2,6 +2,7 @@ import { log } from '../../utils/logger';
 import { type IpcInvoker, WindowIpcInvoker } from '../ipc/ipc-invoker';
 import { type ConnectionProvider, createConnectionProvider } from './connection';
 import { createQueryProvider, type QueryProvider } from './query';
+import { createSchemaProvider, type SchemaProvider } from './schema';
 import type { BridgeLogger, ResponseValidator } from './types';
 import { createZodValidator } from './validator';
 
@@ -12,12 +13,14 @@ const validatorInstance: ResponseValidator = createZodValidator();
 interface Providers {
   connection: ConnectionProvider;
   query: QueryProvider;
+  schema: SchemaProvider;
 }
 
 function buildProviders(): Providers {
   return {
     connection: createConnectionProvider(invokerInstance, loggerInstance, validatorInstance),
     query: createQueryProvider(invokerInstance, loggerInstance, validatorInstance),
+    schema: createSchemaProvider(invokerInstance, loggerInstance, validatorInstance),
   };
 }
 
@@ -38,6 +41,7 @@ function makeProviderProxy<K extends keyof Providers>(key: K): Providers[K] {
 
 export const connectionProvider: ConnectionProvider = makeProviderProxy('connection');
 export const queryProvider: QueryProvider = makeProviderProxy('query');
+export const schemaProvider: SchemaProvider = makeProviderProxy('schema');
 
 /** テスト専用: invoker を差し替えて全 provider を再構築する */
 export function __setIpcInvokerForTest(invoker: IpcInvoker): void {
