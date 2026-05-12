@@ -2,16 +2,14 @@ import type {
   AsyncQueryResultResponse,
   ConstraintInfo,
   DatabaseType,
-  IPCRequest,
-  IPCResponse,
   TableMetadata,
 } from '../types';
 import { DEFAULT_PAGE } from '../utils/erDiagramConstants';
 import type { ERDiagramModel } from '../utils/erDiagramParser';
-import { log } from '../utils/logger';
 import {
   connectionProvider,
   exportProvider,
+  ioProvider,
   queryProvider,
   schemaProvider,
   searchProvider,
@@ -19,6 +17,7 @@ import {
   transactionProvider,
 } from './providers';
 import type { ConnectionInfo, TestConnectionInfo } from './providers/connection';
+import type { Bookmark } from './providers/io';
 import type { CacheStats, QueryHistoryEntry } from './providers/query';
 import type {
   ColumnInfo,
@@ -39,7 +38,6 @@ import type {
   UpdateSettingsInput,
 } from './providers/settings';
 import type { ConnectResultResponse } from './schemas';
-import * as S from './schemas';
 
 // ERImportDialog / erDiagramStore が `import type { ERDiagramParseResult } from '../api/bridge'` で参照しているため、
 // schema.ts に型を移設した後も bridge 経由の互換を維持する目的で再エクスポートする。#527 で旧 Bridge 削除時に整理予定。
@@ -101,10 +99,6 @@ export function toERDiagramModel(
   };
 }
 
-function isIPCResponse(obj: unknown): obj is IPCResponse {
-  return typeof obj === 'object' && obj !== null && 'success' in obj;
-}
-
 type Cardinality = '1:1' | '1:N' | 'N:M';
 
 function toCardinality(value: string): Cardinality {
@@ -119,81 +113,9 @@ function toCardinality(value: string): Cardinality {
 // - Query history / cache / SQL builder (#520 で queryProvider に移管: getQueryHistory /
 //   removeQueryHistory / clearQueryHistory / setQueryHistoryFavorite / getCacheStats / clearCache /
 //   buildDataViewSql / buildWhereClause / buildDmlStatements / uppercaseKeywords)
-// - Schema (#521) / Transaction (#522) / Export (#523) / Settings (#524) / Search (#525):
-//   移管済 (委譲のみ)
-// - IO: 未移管 (#526+)
+// - Schema (#521) / Transaction (#522) / Export (#523) / Settings (#524) / Search (#525) /
+//   IO (#526): 移管済 (委譲のみ)
 class Bridge {
-  private async call<T>(
-    method: string,
-    params: Record<string, unknown>,
-    schema: { parse(data: unknown): T }
-  ): Promise<T> {
-    const request: IPCRequest = {
-      method,
-      params: JSON.stringify(params),
-    };
-
-    if (window.invoke) {
-      const requestStr = JSON.stringify(request);
-      // Skip logging for writeFrontendLog to prevent infinite loop
-      const shouldLog = method !== 'writeFrontendLog';
-
-      if (shouldLog) {
-        log.debug(`[Bridge] Sending request: ${method}`);
-      }
-
-      const responseRaw = await window.invoke(requestStr);
-
-      if (shouldLog) {
-        log.debug(`[Bridge] Received response for ${method} (type: ${typeof responseRaw})`);
-      }
-
-      // If response is already an object, webview may have parsed it
-      let response: IPCResponse;
-      if (typeof responseRaw === 'string') {
-        const parsed: unknown = JSON.parse(responseRaw);
-        if (!isIPCResponse(parsed)) {
-          log.error(`[Bridge] Invalid response structure for ${method}`);
-          throw new Error(`Invalid response structure for ${method}`);
-        }
-        response = parsed;
-      } else if (isIPCResponse(responseRaw)) {
-        response = responseRaw;
-      } else {
-        log.error(`[Bridge] Unexpected response type: ${typeof responseRaw}`);
-        throw new Error(`Unexpected response type: ${typeof responseRaw}`);
-      }
-
-      if (!response.success) {
-        log.error(`[Bridge] Error response for ${method}: ${response.error}`);
-        throw new Error(response.error || 'Unknown error');
-      }
-
-      if (shouldLog) {
-        log.debug(`[Bridge] Successfully processed ${method}`);
-      }
-      return schema.parse(response.data);
-    }
-
-    // Development mode only: dynamically import mock data
-    // Note: mockData types are not strictly validated - this is intentional for dev mode flexibility
-    // Real API calls in production go through proper type checking via IPC response handling above
-    if (import.meta.env.DEV) {
-      const { mockData } = await import('./mockData');
-      // Small delay to simulate network
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      const data = mockData[method];
-      if (data === undefined) {
-        log.warning(`[Bridge DEV] No mock data for method: ${method}`);
-        throw new Error(`[Bridge DEV] No mock data for method: ${method}`);
-      }
-      log.debug(`[Bridge DEV] Returning mock data for ${method}`);
-      return schema.parse(data);
-    }
-
-    throw new Error('Backend not available');
-  }
-
   // Connection methods (→ connectionProvider)
   async connectAsync(connectionInfo: ConnectionInfo): Promise<{ requestId: string }> {
     return connectionProvider.connectAsync(connectionInfo);
@@ -540,40 +462,33 @@ class Bridge {
     return schemaProvider.getTableDDL(connectionId, table);
   }
 
+  // IO methods (→ ioProvider)
   async writeFrontendLog(content: string): Promise<void> {
-    return this.call('writeFrontendLog', { content }, S.writeFrontendLog);
+    return ioProvider.writeFrontendLog(content);
   }
 
-  // File operations
   async saveQueryToFile(content: string, defaultFileName?: string): Promise<{ filePath: string }> {
-    return this.call('saveQueryToFile', { content, defaultFileName }, S.saveQueryToFile);
+    return ioProvider.saveQueryToFile(content, defaultFileName);
   }
 
   async loadQueryFromFile(): Promise<{ filePath: string; content: string }> {
-    return this.call('loadQueryFromFile', {}, S.loadQueryFromFile);
+    return ioProvider.loadQueryFromFile();
   }
 
   async browseFile(filter?: string): Promise<{ filePath: string }> {
-    return this.call('browseFile', { filter }, S.browseFile);
+    return ioProvider.browseFile(filter);
   }
 
-  // Bookmark operations
-  async getBookmarks(): Promise<
-    {
-      id: string;
-      name: string;
-      content: string;
-    }[]
-  > {
-    return this.call('getBookmarks', {}, S.getBookmarks);
+  async getBookmarks(): Promise<Bookmark[]> {
+    return ioProvider.getBookmarks();
   }
 
   async saveBookmark(id: string, name: string, content: string): Promise<void> {
-    return this.call('saveBookmark', { id, name, content }, S.saveBookmark);
+    return ioProvider.saveBookmark(id, name, content);
   }
 
   async deleteBookmark(id: string): Promise<void> {
-    return this.call('deleteBookmark', { id }, S.deleteBookmark);
+    return ioProvider.deleteBookmark(id);
   }
 }
 
