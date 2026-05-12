@@ -1,11 +1,5 @@
 import { type IPCRequest, type IPCResponse, isIPCResponse } from './ipc-protocol';
 
-declare global {
-  interface Window {
-    invoke?: (request: string) => Promise<string>;
-  }
-}
-
 const MOCK_NETWORK_DELAY_MS = 50;
 
 // ログ送信自体が backend へ writeFrontendLog として渡るため、ログ出力で無限ループしないようスキップ
