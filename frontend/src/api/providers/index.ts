@@ -2,6 +2,7 @@ import { log } from '../../utils/logger';
 import { type IpcInvoker, WindowIpcInvoker } from '../ipc/ipc-invoker';
 import { type ConnectionProvider, createConnectionProvider } from './connection';
 import { createExportProvider, type ExportProvider } from './export';
+import { createIoProvider, type IoProvider } from './io';
 import { createQueryProvider, type QueryProvider } from './query';
 import { createSchemaProvider, type SchemaProvider } from './schema';
 import { createSearchProvider, type SearchProvider } from './search';
@@ -22,6 +23,7 @@ interface Providers {
   exportData: ExportProvider;
   settings: SettingsProvider;
   search: SearchProvider;
+  io: IoProvider;
 }
 
 function buildProviders(): Providers {
@@ -33,6 +35,7 @@ function buildProviders(): Providers {
     exportData: createExportProvider(invokerInstance, loggerInstance, validatorInstance),
     settings: createSettingsProvider(invokerInstance, loggerInstance, validatorInstance),
     search: createSearchProvider(invokerInstance, loggerInstance, validatorInstance),
+    io: createIoProvider(invokerInstance, loggerInstance, validatorInstance),
   };
 }
 
@@ -58,6 +61,7 @@ export const transactionProvider: TransactionProvider = makeProviderProxy('trans
 export const exportProvider: ExportProvider = makeProviderProxy('exportData');
 export const settingsProvider: SettingsProvider = makeProviderProxy('settings');
 export const searchProvider: SearchProvider = makeProviderProxy('search');
+export const ioProvider: IoProvider = makeProviderProxy('io');
 
 /** テスト専用: invoker を差し替えて全 provider を再構築する */
 export function __setIpcInvokerForTest(invoker: IpcInvoker): void {
