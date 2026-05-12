@@ -1,14 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useQueryStore } from '../../store/queryStore';
 
-vi.mock('../../api/bridge', () => ({
-  bridge: {
+vi.mock('../../api/providers', () => ({
+  queryProvider: {
     executeAsyncQuery: vi.fn(),
     getAsyncQueryResult: vi.fn(),
     cancelAsyncQuery: vi.fn(),
     removeAsyncQuery: vi.fn().mockResolvedValue({ removed: true }),
     cancelQuery: vi.fn(),
+  },
+  schemaProvider: {
     getColumns: vi.fn(),
+  },
+  ioProvider: {
     saveQueryToFile: vi.fn(),
     loadQueryFromFile: vi.fn(),
   },

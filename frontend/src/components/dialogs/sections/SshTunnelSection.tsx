@@ -1,4 +1,4 @@
-import { bridge } from '../../../api/bridge';
+import { ioProvider } from '../../../api/providers';
 import { isSshAuthType } from '../../../types';
 import type { SshConfig } from '../../../types/connectionForm';
 import styles from '../ConnectionDialog.module.css';
@@ -97,7 +97,7 @@ export function SshTunnelSection({ ssh, onChange }: SshTunnelSectionProps) {
                     className={styles.browseButton}
                     onClick={async () => {
                       try {
-                        const result = await bridge.browseFile(
+                        const result = await ioProvider.browseFile(
                           '秘密鍵ファイル (*.pem;*.ppk;id_*)|*.pem;*.ppk;id_*|すべてのファイル (*.*)|*.*'
                         );
                         if (result.filePath) {

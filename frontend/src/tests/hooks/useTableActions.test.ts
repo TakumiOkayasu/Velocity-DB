@@ -1,28 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DatabaseObject } from '../../types';
 
-// Mock bridge (Schema methods 用 — getReferencingForeignKeys は #520 で SchemaProvider に移管予定)
-vi.mock('../../api/bridge', () => ({
-  bridge: {
+vi.mock('../../api/providers', () => ({
+  schemaProvider: {
     getReferencingForeignKeys: vi.fn(),
   },
-}));
-
-// Mock providers (Query methods 用 — #519 で queryProvider に移管済み)
-vi.mock('../../api/providers', () => ({
   queryProvider: {
     executeQuery: vi.fn(),
   },
 }));
 
-// Mock logger
 vi.mock('../../utils/logger', () => ({
   log: { info: vi.fn(), debug: vi.fn(), error: vi.fn(), warn: vi.fn() },
 }));
 
 import { act, renderHook } from '@testing-library/react';
-import { bridge } from '../../api/bridge';
-import { queryProvider } from '../../api/providers';
+import { schemaProvider as bridge, queryProvider } from '../../api/providers';
 import { useTableActions } from '../../hooks/useTableActions';
 
 function makeTableNode(overrides: Partial<DatabaseObject> = {}): DatabaseObject {

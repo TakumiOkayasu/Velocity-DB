@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import { bridge } from '../api/bridge';
+import { ioProvider } from '../api/providers';
 import type { Bookmark } from '../types';
 import { log } from '../utils/logger';
 
@@ -23,7 +23,7 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   loadBookmarks: async () => {
     set({ isLoading: true, error: null });
     try {
-      const bookmarks = await bridge.getBookmarks();
+      const bookmarks = await ioProvider.getBookmarks();
       log.info(`[BookmarkStore] Loaded ${bookmarks.length} bookmarks`);
       set({ bookmarks, isLoading: false });
     } catch (error) {
@@ -41,7 +41,7 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     set((state) => ({ bookmarks: [...state.bookmarks, newBookmark], error: null }));
 
     try {
-      await bridge.saveBookmark(id, name, content);
+      await ioProvider.saveBookmark(id, name, content);
       log.info(`[BookmarkStore] Saved bookmark: ${name}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to save bookmark';
@@ -59,7 +59,7 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     set((state) => ({ bookmarks: state.bookmarks.filter((b) => b.id !== id), error: null }));
 
     try {
-      await bridge.deleteBookmark(id);
+      await ioProvider.deleteBookmark(id);
       log.info(`[BookmarkStore] Deleted bookmark: ${id}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to delete bookmark';

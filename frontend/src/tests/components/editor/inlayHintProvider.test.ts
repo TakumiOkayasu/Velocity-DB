@@ -6,15 +6,15 @@ vi.mock('monaco-editor', () => ({
   },
 }));
 
-vi.mock('../../../api/bridge', () => ({
-  bridge: {
+vi.mock('../../../api/providers', () => ({
+  schemaProvider: {
     getColumns: vi.fn(),
     getTables: vi.fn(),
   },
 }));
 
 import type * as Monaco from 'monaco-editor';
-import { bridge } from '../../../api/bridge';
+import { schemaProvider as bridge } from '../../../api/providers';
 import { createInlayHintProvider } from '../../../components/editor/inlayHintProvider';
 import { useSchemaStore } from '../../../store/schemaStore';
 import type { Column } from '../../../types';

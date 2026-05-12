@@ -1,5 +1,5 @@
 import * as S from '../schemas';
-import type { BridgeLogger, IpcInvoker, ResponseValidator } from './types';
+import { BaseProvider, type IpcInvoker, type ResponseValidator } from './types';
 
 // ============================================================================
 // 検索結果 (searchObjects)
@@ -35,39 +35,27 @@ export interface SearchProvider {
   quickSearch(connectionId: string, prefix: string, limit?: number): Promise<string[]>;
 }
 
-class SearchProviderImpl implements SearchProvider {
-  constructor(
-    private readonly invoker: IpcInvoker,
-    // 共通シグネチャ維持 (#517 軸③): 現状未使用だが将来 log.info 等を実利用するため
-    private readonly logger: BridgeLogger,
-    private readonly validator: ResponseValidator
-  ) {
-    void this.logger; // TS6138 抑制: 共通シグネチャ維持のため未使用受け取りを許可
-  }
-
+class SearchProviderImpl extends BaseProvider implements SearchProvider {
   async searchObjects(
     connectionId: string,
     pattern: string,
     options?: SearchObjectOptions
   ): Promise<SearchObjectResult[]> {
-    const raw = await this.invoker.invoke('searchObjects', {
-      connectionId,
-      pattern,
-      ...options,
-    });
-    return this.validator.parse(S.searchObjects, raw);
+    return this.invokeAndParse(
+      'searchObjects',
+      { connectionId, pattern, ...options },
+      S.searchObjects
+    );
   }
 
   async quickSearch(connectionId: string, prefix: string, limit = 20): Promise<string[]> {
-    const raw = await this.invoker.invoke('quickSearch', { connectionId, prefix, limit });
-    return this.validator.parse(S.quickSearch, raw);
+    return this.invokeAndParse('quickSearch', { connectionId, prefix, limit }, S.quickSearch);
   }
 }
 
 export function createSearchProvider(
   invoker: IpcInvoker,
-  logger: BridgeLogger,
   validator: ResponseValidator
 ): SearchProvider {
-  return new SearchProviderImpl(invoker, logger, validator);
+  return new SearchProviderImpl(invoker, validator);
 }

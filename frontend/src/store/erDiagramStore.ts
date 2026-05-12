@@ -1,8 +1,8 @@
 import { create } from 'zustand';
-import { bridge, toERDiagramModel } from '../api/bridge';
+import { schemaProvider } from '../api/providers';
 import type { ERRelationEdge, ERShapeNode, ERTableNode } from '../types';
 import { DEFAULT_PAGE, GRID_LAYOUT } from '../utils/erDiagramConstants';
-import type { ERDiagramModel } from '../utils/erDiagramParser';
+import { type ERDiagramModel, toERDiagramModel } from '../utils/erDiagramParser';
 import { extractPages } from '../utils/erDiagramUtils';
 
 export interface Viewport {
@@ -106,7 +106,7 @@ export const useERDiagramStore = create<ERDiagramState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const result = await bridge.parseERDiagram({ filepath });
+      const result = await schemaProvider.parseERDiagram({ filepath });
       const model = toERDiagramModel(result);
       get().loadFromParsedModel(model);
       set({ isLoading: false });
@@ -123,7 +123,7 @@ export const useERDiagramStore = create<ERDiagramState>((set, get) => ({
 
     try {
       // Get tables
-      const { tables: tablesData } = await bridge.getTables(connectionId, database);
+      const { tables: tablesData } = await schemaProvider.getTables(connectionId, database);
       const tables: ERTableNode[] = [];
       const relations: ERRelationEdge[] = [];
 
@@ -139,7 +139,7 @@ export const useERDiagramStore = create<ERDiagramState>((set, get) => ({
           : tableInfo.name;
 
         try {
-          const columnsData = await bridge.getColumns(connectionId, fullTableName);
+          const columnsData = await schemaProvider.getColumns(connectionId, fullTableName);
 
           const col = i % gridColumns;
           const row = Math.floor(i / gridColumns);

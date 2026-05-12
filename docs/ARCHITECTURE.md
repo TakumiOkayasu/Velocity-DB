@@ -10,7 +10,7 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                        Frontend (React)                      │
 ├─────────────────────────────────────────────────────────────┤
-│  UI Components  │  Zustand Stores  │  Bridge (IPC Client)   │
+│  UI Components  │  Zustand Stores  │  Providers (api/providers/) │
 └─────────────────────────────────────────────────────────────┘
                               │ IPC (JSON)
 ┌─────────────────────────────────────────────────────────────┐
@@ -29,8 +29,8 @@
 | **クエリ実行** | `AsyncQueryExecutor` | `queryStore` |
 | **設定・セッション** | `SettingsContext` | `sessionStore` |
 | **クエリ履歴** | `QueryHistory` | `historyStore` |
-| **エクスポート** | `ExportContext` | (Bridge経由) |
-| **SQL整形** | `UtilityContext` | (Bridge経由) |
+| **エクスポート** | `ExportContext` | `exportProvider` |
+| **SQL整形** | `UtilityContext` | `queryProvider` |
 | **ブックマーク** | `SettingsManager` | `bookmarkStore` |
 | **ER図** | - | `erDiagramStore` |
 | **編集状態** | - | `editStore` |
@@ -64,7 +64,7 @@
 connectionStore.connect()
     │
     ▼
-Bridge.connect(params)  ──IPC──►  IPCHandler.openDatabaseConnection()
+connectionProvider.connectAsync(params)  ──IPC──►  IPCHandler.openDatabaseConnection()
                                       │
                                       ▼
                                   DatabaseContext
@@ -88,7 +88,7 @@ connectionStore.setActive(connectionId)
 queryStore.execute(sql)
     │
     ▼
-Bridge.executeSQL()  ──IPC──►  IPCHandler.executeSQL()
+queryProvider.executeAsyncQuery()  ──IPC──►  IPCHandler.executeSQL()
                                    │
                                    ▼
                                ConnectionRegistry.get()
@@ -132,7 +132,17 @@ backend/
 ```text
 frontend/src/
 ├── api/
-│   └── bridge.ts           # IPC通信
+│   ├── ipc/                # IPC 基盤 (ipc-invoker / ipc-protocol / mock)
+│   └── providers/          # IPC ファサード群 (機能別)
+│       ├── connection.ts   # 接続管理
+│       ├── query.ts        # クエリ実行・履歴・キャッシュ・SQL組立
+│       ├── schema.ts       # スキーマ情報
+│       ├── transaction.ts  # トランザクション
+│       ├── export.ts       # エクスポート
+│       ├── settings.ts     # 設定・接続プロファイル・セッション
+│       ├── search.ts       # オブジェクト検索
+│       ├── io.ts           # ファイル I/O・ブックマーク
+│       └── index.ts        # 集約 export (xxxProvider)
 ├── store/                  # 状態管理 (Zustand)
 │   ├── connectionStore.ts
 │   ├── schemaStore.ts
@@ -170,7 +180,7 @@ frontend/src/
 
 1. **Backend**: Context に機能追加 or 新Context作成
 2. **Frontend**: 既存Store拡張 or 新Store作成
-3. **IPC**: `IPCHandler` にルート追加、`Bridge` にメソッド追加
+3. **IPC**: `IPCHandler` にルート追加、`api/providers/xxx.ts` にメソッド追加 (`api/providers/index.ts` で `xxxProvider` を公開)
 
 ### 新DBドライバ追加時
 

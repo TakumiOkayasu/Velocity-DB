@@ -1,10 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { bridge } from '../../api/bridge';
+import { settingsProvider } from '../../api/providers';
 import { SettingsDialog } from '../../components/dialogs/SettingsDialog';
 
-vi.mock('../../api/bridge', () => ({
-  bridge: {
+vi.mock('../../api/providers', () => ({
+  settingsProvider: {
     updateSettings: vi.fn().mockResolvedValue(undefined),
   },
 }));
@@ -17,7 +17,7 @@ describe('SettingsDialog', () => {
 
   beforeEach(() => {
     localStorage.clear();
-    vi.mocked(bridge.updateSettings).mockClear();
+    vi.mocked(settingsProvider.updateSettings).mockClear();
   });
 
   afterEach(() => {
@@ -81,7 +81,7 @@ describe('SettingsDialog', () => {
 
       fireEvent.click(screen.getByText('保存'));
       // 保存時は秒単位で Backend へ同期される (Backend の clamp 1-3600 と整合)
-      expect(bridge.updateSettings).toHaveBeenCalledWith({
+      expect(settingsProvider.updateSettings).toHaveBeenCalledWith({
         query: { timeoutSeconds: 600 },
       });
     });
@@ -106,7 +106,7 @@ describe('SettingsDialog', () => {
       const input = getTimeoutInput();
       fireEvent.change(input, { target: { value: '3600' } });
       fireEvent.click(screen.getByText('保存'));
-      expect(bridge.updateSettings).toHaveBeenCalledWith({
+      expect(settingsProvider.updateSettings).toHaveBeenCalledWith({
         query: { timeoutSeconds: 3600 },
       });
     });

@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { bridge } from '../../api/bridge';
+import { settingsProvider } from '../../api/providers';
 import { applyConnectionMigration } from '../../store/connectionMigration';
 import { useConnectionActions, useConnectionStore } from '../../store/connectionStore';
 import {
@@ -17,7 +17,9 @@ import { FolderNode } from './FolderNode';
 import styles from './ObjectTree.module.css';
 import { ProfileNode } from './ProfileNode';
 
-type RawProfile = Awaited<ReturnType<typeof bridge.getConnectionProfiles>>['profiles'][number];
+type RawProfile = Awaited<
+  ReturnType<typeof settingsProvider.getConnectionProfiles>
+>['profiles'][number];
 
 function normalizeProfile(p: RawProfile): SavedConnectionProfile {
   return {
@@ -74,7 +76,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
   useEffect(() => {
     const fetchProfiles = async () => {
       try {
-        const result = await bridge.getConnectionProfiles();
+        const result = await settingsProvider.getConnectionProfiles();
         setProfiles(result.profiles.map(normalizeProfile));
       } catch (error) {
         console.error('Failed to fetch profiles:', error);
@@ -161,16 +163,16 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
       let sshKeyPassphrase = '';
 
       if (!confirmingProfile.useWindowsAuth) {
-        const pwResult = await bridge.getProfilePassword(confirmingProfile.id);
+        const pwResult = await settingsProvider.getProfilePassword(confirmingProfile.id);
         password = pwResult.password || '';
       }
 
       if (confirmingProfile.ssh?.enabled) {
         if (confirmingProfile.ssh.authType === 'password') {
-          const sshPwResult = await bridge.getSshPassword(confirmingProfile.id);
+          const sshPwResult = await settingsProvider.getSshPassword(confirmingProfile.id);
           sshPassword = sshPwResult.password || '';
         } else {
-          const passphraseResult = await bridge.getSshKeyPassphrase(confirmingProfile.id);
+          const passphraseResult = await settingsProvider.getSshKeyPassphrase(confirmingProfile.id);
           sshKeyPassphrase = passphraseResult.passphrase || '';
         }
       }

@@ -2,21 +2,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '../helpers/mockSettingsUtils';
 import { useQueryStore } from '../../store/queryStore';
 
-vi.mock('../../api/bridge', () => ({
-  bridge: {
+vi.mock('../../api/providers', () => ({
+  queryProvider: {
     executeAsyncQuery: vi.fn(),
     getAsyncQueryResult: vi.fn(),
     cancelAsyncQuery: vi.fn(),
     removeAsyncQuery: vi.fn().mockResolvedValue({ removed: true }),
     lintSql: vi.fn().mockResolvedValue({ diagnostics: [], lintUnavailable: true }),
-    getColumns: vi.fn(),
     cancelQuery: vi.fn(),
+  },
+  schemaProvider: {
+    getColumns: vi.fn(),
   },
 }));
 
-import { bridge } from '../../api/bridge';
+import { queryProvider } from '../../api/providers';
 
-const mockedBridge = vi.mocked(bridge);
+const mockedBridge = vi.mocked(queryProvider);
 
 describe('runtimeDiagnostics', () => {
   beforeEach(() => {

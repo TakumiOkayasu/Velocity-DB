@@ -10,7 +10,7 @@ export interface IpcInvoker {
   invoke(method: string, params: Record<string, unknown>): Promise<unknown>;
 }
 
-/** WindowIpcInvoker が利用する logger の最小 IF (providers/types.ts の BridgeLogger と互換) */
+/** WindowIpcInvoker が利用する logger の最小 IF。debug/warning/error のみ使用 */
 export interface IpcInvokerLogger {
   debug(message: string): void;
   warning(message: string): void;

@@ -1,4 +1,4 @@
-import { bridge as apiBridge } from '../../../api/bridge';
+import { queryProvider, schemaProvider } from '../../../api/providers';
 import type { SqlMarkerInput } from '../../../utils/editorMarkers';
 import { parseErrorMessage } from '../../../utils/errorParser';
 import { log } from '../../../utils/logger';
@@ -73,7 +73,7 @@ export function createExecuteSlice(
     const fullName = parsed.schema ? `${parsed.schema}.${parsed.table}` : parsed.table;
 
     try {
-      const fks = await apiBridge.getReferencingForeignKeys(connectionId, fullName);
+      const fks = await schemaProvider.getReferencingForeignKeys(connectionId, fullName);
       if (fks.length === 0) return [sql];
 
       if (parsed.type === 'drop') {
@@ -102,7 +102,7 @@ export function createExecuteSlice(
     if (!conn?.dbType) return null;
 
     try {
-      const result = await apiBridge.lintSql(sql, conn.dbType);
+      const result = await queryProvider.lintSql(sql, conn.dbType);
       if (result.lintUnavailable) {
         log.warning(`[queryExecuteSlice] lint unavailable: ${result.reason ?? 'unknown'}`);
         return null;
@@ -157,11 +157,11 @@ export function createExecuteSlice(
           const hasTransaction = sqls[0] === SQL_BEGIN_TRANSACTION;
           try {
             for (const s of sqls) {
-              await apiBridge.executeQuery(connectionId, s, false);
+              await queryProvider.executeQuery(connectionId, s, false);
             }
           } catch (error) {
             if (hasTransaction) {
-              await apiBridge.executeQuery(connectionId, 'ROLLBACK', false).catch(() => {});
+              await queryProvider.executeQuery(connectionId, 'ROLLBACK', false).catch(() => {});
             }
             throw error;
           }
