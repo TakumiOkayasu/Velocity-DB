@@ -1,6 +1,7 @@
 import { log } from '../../utils/logger';
 import { type IpcInvoker, WindowIpcInvoker } from '../ipc/ipc-invoker';
 import { type ConnectionProvider, createConnectionProvider } from './connection';
+import { createExportProvider, type ExportProvider } from './export';
 import { createQueryProvider, type QueryProvider } from './query';
 import { createSchemaProvider, type SchemaProvider } from './schema';
 import { createTransactionProvider, type TransactionProvider } from './transaction';
@@ -16,6 +17,7 @@ interface Providers {
   query: QueryProvider;
   schema: SchemaProvider;
   transaction: TransactionProvider;
+  exportData: ExportProvider;
 }
 
 function buildProviders(): Providers {
@@ -24,6 +26,7 @@ function buildProviders(): Providers {
     query: createQueryProvider(invokerInstance, loggerInstance, validatorInstance),
     schema: createSchemaProvider(invokerInstance, loggerInstance, validatorInstance),
     transaction: createTransactionProvider(invokerInstance, loggerInstance, validatorInstance),
+    exportData: createExportProvider(invokerInstance, loggerInstance, validatorInstance),
   };
 }
 
@@ -46,6 +49,7 @@ export const connectionProvider: ConnectionProvider = makeProviderProxy('connect
 export const queryProvider: QueryProvider = makeProviderProxy('query');
 export const schemaProvider: SchemaProvider = makeProviderProxy('schema');
 export const transactionProvider: TransactionProvider = makeProviderProxy('transaction');
+export const exportProvider: ExportProvider = makeProviderProxy('exportData');
 
 /** テスト専用: invoker を差し替えて全 provider を再構築する */
 export function __setIpcInvokerForTest(invoker: IpcInvoker): void {
