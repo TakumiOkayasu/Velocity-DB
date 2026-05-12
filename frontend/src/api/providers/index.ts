@@ -28,14 +28,14 @@ interface Providers {
 
 function buildProviders(): Providers {
   return {
-    connection: createConnectionProvider(invokerInstance, loggerInstance, validatorInstance),
-    query: createQueryProvider(invokerInstance, loggerInstance, validatorInstance),
+    connection: createConnectionProvider(invokerInstance, validatorInstance),
+    query: createQueryProvider(invokerInstance, validatorInstance),
     schema: createSchemaProvider(invokerInstance, loggerInstance, validatorInstance),
-    transaction: createTransactionProvider(invokerInstance, loggerInstance, validatorInstance),
-    exportData: createExportProvider(invokerInstance, loggerInstance, validatorInstance),
-    settings: createSettingsProvider(invokerInstance, loggerInstance, validatorInstance),
-    search: createSearchProvider(invokerInstance, loggerInstance, validatorInstance),
-    io: createIoProvider(invokerInstance, loggerInstance, validatorInstance),
+    transaction: createTransactionProvider(invokerInstance),
+    exportData: createExportProvider(invokerInstance),
+    settings: createSettingsProvider(invokerInstance, validatorInstance),
+    search: createSearchProvider(invokerInstance, validatorInstance),
+    io: createIoProvider(invokerInstance, validatorInstance),
   };
 }
 

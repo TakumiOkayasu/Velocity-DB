@@ -1,5 +1,5 @@
 import * as S from '../schemas';
-import type { BridgeLogger, IpcInvoker, ResponseValidator } from './types';
+import { asIpcParams, BaseProvider, type IpcInvoker, type ResponseValidator } from './types';
 
 // ============================================================================
 // 設定 (getSettings / updateSettings)
@@ -187,89 +187,66 @@ export interface SettingsProvider {
   saveSessionState(state: SaveSessionStateInput): Promise<{ saved: boolean }>;
 }
 
-class SettingsProviderImpl implements SettingsProvider {
-  constructor(
-    private readonly invoker: IpcInvoker,
-    // 共通シグネチャ維持 (#517 軸③): 現状未使用だが将来 log.info 等を実利用するため
-    private readonly logger: BridgeLogger,
-    private readonly validator: ResponseValidator
-  ) {
-    void this.logger; // TS6138 抑制: 共通シグネチャ維持のため未使用受け取りを許可
-  }
-
+class SettingsProviderImpl extends BaseProvider implements SettingsProvider {
   // ---- 設定 ----
 
   async getSettings(): Promise<AppSettings> {
     // S.getSettings は z.any() で実質 noop のため parse を省略 (connection.ts と同方針)
-    const raw = await this.invoker.invoke('getSettings', {});
-    return raw as AppSettings;
+    return (await this.invokeRaw('getSettings')) as AppSettings;
   }
 
   async updateSettings(settings: UpdateSettingsInput): Promise<{ saved: boolean }> {
-    const raw = await this.invoker.invoke(
-      'updateSettings',
-      settings as unknown as Record<string, unknown>
-    );
-    return this.validator.parse(S.updateSettings, raw);
+    return this.invokeAndParse('updateSettings', asIpcParams(settings), S.updateSettings);
   }
 
   // ---- 接続プロファイル ----
 
   async getConnectionProfiles(): Promise<{ profiles: ConnectionProfile[] }> {
     // S.getConnectionProfiles は z.any() で実質 noop のため parse を省略
-    const raw = await this.invoker.invoke('getConnectionProfiles', {});
-    return raw as { profiles: ConnectionProfile[] };
+    return (await this.invokeRaw('getConnectionProfiles')) as {
+      profiles: ConnectionProfile[];
+    };
   }
 
   async saveConnectionProfile(profile: SaveConnectionProfileInput): Promise<{ id: string }> {
-    const raw = await this.invoker.invoke(
+    return this.invokeAndParse(
       'saveConnectionProfile',
-      profile as unknown as Record<string, unknown>
+      asIpcParams(profile),
+      S.saveConnectionProfile
     );
-    return this.validator.parse(S.saveConnectionProfile, raw);
   }
 
   async deleteConnectionProfile(id: string): Promise<{ deleted: boolean }> {
-    const raw = await this.invoker.invoke('deleteConnectionProfile', { id });
-    return this.validator.parse(S.deleteConnectionProfile, raw);
+    return this.invokeAndParse('deleteConnectionProfile', { id }, S.deleteConnectionProfile);
   }
 
   async getProfilePassword(profileId: string): Promise<{ password: string }> {
-    const raw = await this.invoker.invoke('getProfilePassword', { id: profileId });
-    return this.validator.parse(S.getProfilePassword, raw);
+    return this.invokeAndParse('getProfilePassword', { id: profileId }, S.getProfilePassword);
   }
 
   async getSshPassword(profileId: string): Promise<{ password: string }> {
-    const raw = await this.invoker.invoke('getSshPassword', { id: profileId });
-    return this.validator.parse(S.getSshPassword, raw);
+    return this.invokeAndParse('getSshPassword', { id: profileId }, S.getSshPassword);
   }
 
   async getSshKeyPassphrase(profileId: string): Promise<{ passphrase: string }> {
-    const raw = await this.invoker.invoke('getSshKeyPassphrase', { id: profileId });
-    return this.validator.parse(S.getSshKeyPassphrase, raw);
+    return this.invokeAndParse('getSshKeyPassphrase', { id: profileId }, S.getSshKeyPassphrase);
   }
 
   // ---- セッション ----
 
   async getSessionState(): Promise<SessionState> {
     // S.getSessionState は z.any() で実質 noop のため parse を省略
-    const raw = await this.invoker.invoke('getSessionState', {});
-    return raw as SessionState;
+    return (await this.invokeRaw('getSessionState')) as SessionState;
   }
 
   async saveSessionState(state: SaveSessionStateInput): Promise<{ saved: boolean }> {
-    const raw = await this.invoker.invoke(
-      'saveSessionState',
-      state as unknown as Record<string, unknown>
-    );
-    return this.validator.parse(S.saveSessionState, raw);
+    return this.invokeAndParse('saveSessionState', asIpcParams(state), S.saveSessionState);
   }
 }
 
 export function createSettingsProvider(
   invoker: IpcInvoker,
-  logger: BridgeLogger,
   validator: ResponseValidator
 ): SettingsProvider {
-  return new SettingsProviderImpl(invoker, logger, validator);
+  return new SettingsProviderImpl(invoker, validator);
 }

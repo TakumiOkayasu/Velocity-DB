@@ -1,6 +1,6 @@
 import type { ConstraintInfo, TableMetadata } from '../../types';
 import * as S from '../schemas';
-import type { BridgeLogger, IpcInvoker, ResponseValidator } from './types';
+import { BaseProvider, type BridgeLogger, type IpcInvoker, type ResponseValidator } from './types';
 
 /** ER diagram parse result returned from backend IPC (tool-agnostic) */
 export interface ERDiagramParseResult {
@@ -134,16 +134,17 @@ export interface SchemaProvider {
   }): Promise<ERDiagramParseResult>;
 }
 
-class SchemaProviderImpl implements SchemaProvider {
+class SchemaProviderImpl extends BaseProvider implements SchemaProvider {
   constructor(
-    private readonly invoker: IpcInvoker,
+    invoker: IpcInvoker,
     private readonly logger: BridgeLogger,
-    private readonly validator: ResponseValidator
-  ) {}
+    validator: ResponseValidator
+  ) {
+    super(invoker, validator);
+  }
 
   async getDatabases(connectionId: string): Promise<string[]> {
-    const raw = await this.invoker.invoke('getDatabases', { connectionId });
-    return this.validator.parse(S.getDatabases, raw);
+    return this.invokeAndParse('getDatabases', { connectionId }, S.getDatabases);
   }
 
   async getTables(connectionId: string, database: string): Promise<GetTablesResult> {
@@ -151,59 +152,53 @@ class SchemaProviderImpl implements SchemaProvider {
       `[Bridge] Getting tables for connection: ${connectionId}, database: ${database}`
     );
     const startTime = performance.now();
-    const raw = await this.invoker.invoke('getTables', { connectionId, database });
-    const tables = this.validator.parse(S.getTables, raw);
+    const tables = await this.invokeAndParse('getTables', { connectionId, database }, S.getTables);
     const loadTimeMs = performance.now() - startTime;
     this.logger.info(`[Bridge] Received ${tables.length} tables in ${loadTimeMs.toFixed(2)}ms`);
     return { tables, loadTimeMs };
   }
 
   async getColumns(connectionId: string, table: string): Promise<ColumnInfo[]> {
-    const raw = await this.invoker.invoke('getColumns', { connectionId, table });
-    return this.validator.parse(S.getColumns, raw);
+    return this.invokeAndParse('getColumns', { connectionId, table }, S.getColumns);
   }
 
   async getIndexes(connectionId: string, table: string): Promise<IndexInfo[]> {
-    const raw = await this.invoker.invoke('getIndexes', { connectionId, table });
-    return this.validator.parse(S.getIndexes, raw);
+    return this.invokeAndParse('getIndexes', { connectionId, table }, S.getIndexes);
   }
 
   async getConstraints(connectionId: string, table: string): Promise<ConstraintInfo[]> {
-    const raw = await this.invoker.invoke('getConstraints', { connectionId, table });
-    return this.validator.parse(S.getConstraints, raw);
+    return this.invokeAndParse('getConstraints', { connectionId, table }, S.getConstraints);
   }
 
   async getForeignKeys(connectionId: string, table: string): Promise<ForeignKeyInfo[]> {
-    const raw = await this.invoker.invoke('getForeignKeys', { connectionId, table });
-    return this.validator.parse(S.getForeignKeys, raw);
+    return this.invokeAndParse('getForeignKeys', { connectionId, table }, S.getForeignKeys);
   }
 
   async getReferencingForeignKeys(
     connectionId: string,
     table: string
   ): Promise<ReferencingForeignKeyInfo[]> {
-    const raw = await this.invoker.invoke('getReferencingForeignKeys', { connectionId, table });
-    return this.validator.parse(S.getReferencingForeignKeys, raw);
+    return this.invokeAndParse(
+      'getReferencingForeignKeys',
+      { connectionId, table },
+      S.getReferencingForeignKeys
+    );
   }
 
   async getTriggers(connectionId: string, table: string): Promise<TriggerInfo[]> {
-    const raw = await this.invoker.invoke('getTriggers', { connectionId, table });
-    return this.validator.parse(S.getTriggers, raw);
+    return this.invokeAndParse('getTriggers', { connectionId, table }, S.getTriggers);
   }
 
   async getTableMetadata(connectionId: string, table: string): Promise<TableMetadata> {
-    const raw = await this.invoker.invoke('getTableMetadata', { connectionId, table });
-    return this.validator.parse(S.getTableMetadata, raw);
+    return this.invokeAndParse('getTableMetadata', { connectionId, table }, S.getTableMetadata);
   }
 
   async getTableDDL(connectionId: string, table: string): Promise<{ ddl: string }> {
-    const raw = await this.invoker.invoke('getTableDDL', { connectionId, table });
-    return this.validator.parse(S.getTableDDL, raw);
+    return this.invokeAndParse('getTableDDL', { connectionId, table }, S.getTableDDL);
   }
 
   async clearSchemaCache(): Promise<{ cleared: boolean }> {
-    const raw = await this.invoker.invoke('clearSchemaCache', {});
-    return this.validator.parse(S.clearCache, raw);
+    return this.invokeAndParse('clearSchemaCache', {}, S.clearCache);
   }
 
   async parseERDiagram(params: {
@@ -211,10 +206,13 @@ class SchemaProviderImpl implements SchemaProvider {
     filename?: string;
     filepath?: string;
   }): Promise<ERDiagramParseResult> {
-    const raw = await this.invoker.invoke('parseERDiagram', params);
     // S.parseERDiagram は z.any() のため parse 後の型は unknown 相当。
     // backend 側 IPC が ERDiagramParseResult 形状を返す契約。
-    return this.validator.parse(S.parseERDiagram, raw) as ERDiagramParseResult;
+    return (await this.invokeAndParse(
+      'parseERDiagram',
+      params,
+      S.parseERDiagram
+    )) as ERDiagramParseResult;
   }
 }
 

@@ -1,6 +1,6 @@
 import type { AsyncQueryResultResponse, DatabaseType } from '../../types';
 import * as S from '../schemas';
-import type { BridgeLogger, IpcInvoker, ResponseValidator } from './types';
+import { BaseProvider, type IpcInvoker, type ResponseValidator } from './types';
 
 type Column = { name: string; type: string; comment?: string };
 type AsyncColumn = { name: string; type: string };
@@ -138,23 +138,13 @@ export interface QueryProvider {
   uppercaseKeywords(sql: string): Promise<{ sql: string }>;
 }
 
-class QueryProviderImpl implements QueryProvider {
-  constructor(
-    private readonly invoker: IpcInvoker,
-    // 共通シグネチャ維持 (#517 軸③): 現状未使用だが #520+ で log.info 等を実利用するため
-    private readonly logger: BridgeLogger,
-    private readonly validator: ResponseValidator
-  ) {
-    void this.logger; // TS6138 抑制: 共通シグネチャ維持のため未使用受け取りを許可
-  }
-
+class QueryProviderImpl extends BaseProvider implements QueryProvider {
   async executeQuery(
     connectionId: string,
     sql: string,
     useCache = true
   ): Promise<ExecuteQueryResult> {
-    const raw = await this.invoker.invoke('executeQuery', { connectionId, sql, useCache });
-    return this.validator.parse(S.executeQuery, raw);
+    return this.invokeAndParse('executeQuery', { connectionId, sql, useCache }, S.executeQuery);
   }
 
   async executeQueryPaginated(
@@ -164,54 +154,44 @@ class QueryProviderImpl implements QueryProvider {
     endRow: number,
     sortModel?: SortModel
   ): Promise<PaginatedQueryResult> {
-    const raw = await this.invoker.invoke('executeQueryPaginated', {
-      connectionId,
-      sql,
-      startRow,
-      endRow,
-      sortModel,
-    });
-    return this.validator.parse(S.executeQueryPaginated, raw);
+    return this.invokeAndParse(
+      'executeQueryPaginated',
+      { connectionId, sql, startRow, endRow, sortModel },
+      S.executeQueryPaginated
+    );
   }
 
   async getRowCount(connectionId: string, sql: string): Promise<{ rowCount: number }> {
-    const raw = await this.invoker.invoke('getRowCount', { connectionId, sql });
-    return this.validator.parse(S.getRowCount, raw);
+    return this.invokeAndParse('getRowCount', { connectionId, sql }, S.getRowCount);
   }
 
   async cancelQuery(connectionId: string): Promise<void> {
     // S.cancelQuery は z.any() で実質 noop のため parse を省略
-    await this.invoker.invoke('cancelQuery', { connectionId });
+    await this.invokeRaw('cancelQuery', { connectionId });
   }
 
   async lintSql(sql: string, dbType: DatabaseType): Promise<LintSqlResult> {
-    const raw = await this.invoker.invoke('lintSql', { sql, dbType });
-    return this.validator.parse(S.lintSql, raw);
+    return this.invokeAndParse('lintSql', { sql, dbType }, S.lintSql);
   }
 
   async executeAsyncQuery(connectionId: string, sql: string): Promise<{ queryId: string }> {
-    const raw = await this.invoker.invoke('executeAsyncQuery', { connectionId, sql });
-    return this.validator.parse(S.executeAsyncQuery, raw);
+    return this.invokeAndParse('executeAsyncQuery', { connectionId, sql }, S.executeAsyncQuery);
   }
 
   async getAsyncQueryResult(queryId: string): Promise<AsyncQueryResultResponse> {
-    const raw = await this.invoker.invoke('getAsyncQueryResult', { queryId });
-    return this.validator.parse(S.getAsyncQueryResult, raw);
+    return this.invokeAndParse('getAsyncQueryResult', { queryId }, S.getAsyncQueryResult);
   }
 
   async cancelAsyncQuery(queryId: string): Promise<{ cancelled: boolean }> {
-    const raw = await this.invoker.invoke('cancelAsyncQuery', { queryId });
-    return this.validator.parse(S.cancelAsyncQuery, raw);
+    return this.invokeAndParse('cancelAsyncQuery', { queryId }, S.cancelAsyncQuery);
   }
 
   async removeAsyncQuery(queryId: string): Promise<{ removed: boolean }> {
-    const raw = await this.invoker.invoke('removeAsyncQuery', { queryId });
-    return this.validator.parse(S.removeAsyncQuery, raw);
+    return this.invokeAndParse('removeAsyncQuery', { queryId }, S.removeAsyncQuery);
   }
 
   async getActiveQueries(): Promise<string[]> {
-    const raw = await this.invoker.invoke('getActiveQueries', {});
-    return this.validator.parse(S.getActiveQueries, raw);
+    return this.invokeAndParse('getActiveQueries', {}, S.getActiveQueries);
   }
 
   async filterResultSet(
@@ -222,15 +202,11 @@ class QueryProviderImpl implements QueryProvider {
     filterValue: string,
     filterValueMax?: string
   ): Promise<FilterResultSet> {
-    const raw = await this.invoker.invoke('filterResultSet', {
-      connectionId,
-      sql,
-      columnIndex,
-      filterType,
-      filterValue,
-      filterValueMax,
-    });
-    return this.validator.parse(S.filterResultSet, raw);
+    return this.invokeAndParse(
+      'filterResultSet',
+      { connectionId, sql, columnIndex, filterType, filterValue, filterValueMax },
+      S.filterResultSet
+    );
   }
 
   async getExecutionPlan(
@@ -238,38 +214,39 @@ class QueryProviderImpl implements QueryProvider {
     sql: string,
     actual = false
   ): Promise<{ plan: string; actual: boolean }> {
-    const raw = await this.invoker.invoke('getExecutionPlan', { connectionId, sql, actual });
-    return this.validator.parse(S.getExecutionPlan, raw);
+    return this.invokeAndParse(
+      'getExecutionPlan',
+      { connectionId, sql, actual },
+      S.getExecutionPlan
+    );
   }
 
   async getQueryHistory(): Promise<QueryHistoryEntry[]> {
-    const raw = await this.invoker.invoke('getQueryHistory', {});
-    return this.validator.parse(S.getQueryHistory, raw);
+    return this.invokeAndParse('getQueryHistory', {}, S.getQueryHistory);
   }
 
   async removeQueryHistory(id: string): Promise<{ removed: boolean }> {
-    const raw = await this.invoker.invoke('removeQueryHistory', { id });
-    return this.validator.parse(S.removeQueryHistory, raw);
+    return this.invokeAndParse('removeQueryHistory', { id }, S.removeQueryHistory);
   }
 
   async clearQueryHistory(): Promise<{ cleared: boolean }> {
-    const raw = await this.invoker.invoke('clearQueryHistory', {});
-    return this.validator.parse(S.clearQueryHistory, raw);
+    return this.invokeAndParse('clearQueryHistory', {}, S.clearQueryHistory);
   }
 
   async setQueryHistoryFavorite(id: string, isFavorite: boolean): Promise<{ updated: boolean }> {
-    const raw = await this.invoker.invoke('setQueryHistoryFavorite', { id, isFavorite });
-    return this.validator.parse(S.setQueryHistoryFavorite, raw);
+    return this.invokeAndParse(
+      'setQueryHistoryFavorite',
+      { id, isFavorite },
+      S.setQueryHistoryFavorite
+    );
   }
 
   async getCacheStats(): Promise<CacheStats> {
-    const raw = await this.invoker.invoke('getCacheStats', {});
-    return this.validator.parse(S.getCacheStats, raw);
+    return this.invokeAndParse('getCacheStats', {}, S.getCacheStats);
   }
 
   async clearCache(): Promise<{ cleared: boolean }> {
-    const raw = await this.invoker.invoke('clearCache', {});
-    return this.validator.parse(S.clearCache, raw);
+    return this.invokeAndParse('clearCache', {}, S.clearCache);
   }
 
   async buildDataViewSql(
@@ -278,41 +255,43 @@ class QueryProviderImpl implements QueryProvider {
     limit: number,
     whereClause?: string
   ): Promise<{ sql: string }> {
-    const raw = await this.invoker.invoke('buildDataViewSql', {
-      connectionId,
-      tableName,
-      limit,
-      whereClause,
-    });
-    return this.validator.parse(S.buildDataViewSql, raw);
+    return this.invokeAndParse(
+      'buildDataViewSql',
+      { connectionId, tableName, limit, whereClause },
+      S.buildDataViewSql
+    );
   }
 
   async buildWhereClause(
     connectionId: string,
     conditions: BuildWhereCondition[]
   ): Promise<{ whereClause: string }> {
-    const raw = await this.invoker.invoke('buildWhereClause', { connectionId, conditions });
-    return this.validator.parse(S.buildWhereClause, raw);
+    return this.invokeAndParse(
+      'buildWhereClause',
+      { connectionId, conditions },
+      S.buildWhereClause
+    );
   }
 
   async buildDmlStatements(
     connectionId: string,
     params: BuildDmlParams
   ): Promise<{ statements: string[] }> {
-    const raw = await this.invoker.invoke('buildDmlStatements', { connectionId, ...params });
-    return this.validator.parse(S.buildDmlStatements, raw);
+    return this.invokeAndParse(
+      'buildDmlStatements',
+      { connectionId, ...params },
+      S.buildDmlStatements
+    );
   }
 
   async uppercaseKeywords(sql: string): Promise<{ sql: string }> {
-    const raw = await this.invoker.invoke('uppercaseKeywords', { sql });
-    return this.validator.parse(S.uppercaseKeywords, raw);
+    return this.invokeAndParse('uppercaseKeywords', { sql }, S.uppercaseKeywords);
   }
 }
 
 export function createQueryProvider(
   invoker: IpcInvoker,
-  logger: BridgeLogger,
   validator: ResponseValidator
 ): QueryProvider {
-  return new QueryProviderImpl(invoker, logger, validator);
+  return new QueryProviderImpl(invoker, validator);
 }

@@ -1,5 +1,5 @@
 import * as S from '../schemas';
-import type { BridgeLogger, IpcInvoker, ResponseValidator } from './types';
+import { BaseProvider, type IpcInvoker, type ResponseValidator } from './types';
 
 // ============================================================================
 // Bookmark (getBookmarks)
@@ -25,59 +25,41 @@ export interface IoProvider {
   deleteBookmark(id: string): Promise<void>;
 }
 
-class IoProviderImpl implements IoProvider {
-  constructor(
-    private readonly invoker: IpcInvoker,
-    // 共通シグネチャ維持 (#517 軸③): 現状未使用だが将来 log.info 等を実利用するため
-    private readonly logger: BridgeLogger,
-    private readonly validator: ResponseValidator
-  ) {
-    void this.logger; // TS6138 抑制: 共通シグネチャ維持のため未使用受け取りを許可
-  }
-
+class IoProviderImpl extends BaseProvider implements IoProvider {
   async writeFrontendLog(content: string): Promise<void> {
     // 呼出側不在の dead method (utils/logger.ts は #556 で window.invoke 直叩き化、
     // 他に直接呼ぶ consumer なし)。Issue #526 の facade 完全性のため残置。
     // 将来 logger 以外から構造化ログ送出が必要になった際の入口として機能する。
     // schema は zVoid のため parse を省略 (transaction.ts と同方針)。
-    await this.invoker.invoke('writeFrontendLog', { content });
+    await this.invokeRaw('writeFrontendLog', { content });
   }
 
   async saveQueryToFile(content: string, defaultFileName?: string): Promise<{ filePath: string }> {
-    const raw = await this.invoker.invoke('saveQueryToFile', { content, defaultFileName });
-    return this.validator.parse(S.saveQueryToFile, raw);
+    return this.invokeAndParse('saveQueryToFile', { content, defaultFileName }, S.saveQueryToFile);
   }
 
   async loadQueryFromFile(): Promise<{ filePath: string; content: string }> {
-    const raw = await this.invoker.invoke('loadQueryFromFile', {});
-    return this.validator.parse(S.loadQueryFromFile, raw);
+    return this.invokeAndParse('loadQueryFromFile', {}, S.loadQueryFromFile);
   }
 
   async browseFile(filter?: string): Promise<{ filePath: string }> {
-    const raw = await this.invoker.invoke('browseFile', { filter });
-    return this.validator.parse(S.browseFile, raw);
+    return this.invokeAndParse('browseFile', { filter }, S.browseFile);
   }
 
   async getBookmarks(): Promise<Bookmark[]> {
-    const raw = await this.invoker.invoke('getBookmarks', {});
-    return this.validator.parse(S.getBookmarks, raw);
+    return this.invokeAndParse('getBookmarks', {}, S.getBookmarks);
   }
 
   async saveBookmark(id: string, name: string, content: string): Promise<void> {
     // S.saveBookmark は zVoid のため parse を省略
-    await this.invoker.invoke('saveBookmark', { id, name, content });
+    await this.invokeRaw('saveBookmark', { id, name, content });
   }
 
   async deleteBookmark(id: string): Promise<void> {
-    // S.deleteBookmark は zVoid のため parse を省略
-    await this.invoker.invoke('deleteBookmark', { id });
+    await this.invokeRaw('deleteBookmark', { id });
   }
 }
 
-export function createIoProvider(
-  invoker: IpcInvoker,
-  logger: BridgeLogger,
-  validator: ResponseValidator
-): IoProvider {
-  return new IoProviderImpl(invoker, logger, validator);
+export function createIoProvider(invoker: IpcInvoker, validator: ResponseValidator): IoProvider {
+  return new IoProviderImpl(invoker, validator);
 }
