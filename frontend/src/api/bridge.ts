@@ -11,6 +11,7 @@ import type { ERDiagramModel } from '../utils/erDiagramParser';
 import { log } from '../utils/logger';
 import {
   connectionProvider,
+  exportProvider,
   queryProvider,
   schemaProvider,
   transactionProvider,
@@ -107,7 +108,8 @@ function toCardinality(value: string): Cardinality {
 // - Query history / cache / SQL builder (#520 で queryProvider に移管: getQueryHistory /
 //   removeQueryHistory / clearQueryHistory / setQueryHistoryFavorite / getCacheStats / clearCache /
 //   buildDataViewSql / buildWhereClause / buildDmlStatements / uppercaseKeywords)
-// - Schema / Transaction / Export / Settings / Search / IO: 未移管 (#521+)
+// - Schema (#521) / Transaction (#522) / Export (#523): 移管済 (委譲のみ)
+// - Settings / Search / IO: 未移管 (#524+)
 class Bridge {
   private async call<T>(
     method: string,
@@ -292,17 +294,17 @@ class Bridge {
     return transactionProvider.rollback(connectionId);
   }
 
-  // Export methods
+  // Export methods (→ exportProvider)
   async exportCSV(data: Record<string, string | null>[], filepath: string): Promise<void> {
-    return this.call('exportCSV', { data, filepath }, S.exportCSV);
+    return exportProvider.exportCSV(data, filepath);
   }
 
   async exportJSON(data: Record<string, string | null>[], filepath: string): Promise<void> {
-    return this.call('exportJSON', { data, filepath }, S.exportJSON);
+    return exportProvider.exportJSON(data, filepath);
   }
 
   async exportExcel(data: Record<string, string | null>[], filepath: string): Promise<void> {
-    return this.call('exportExcel', { data, filepath }, S.exportExcel);
+    return exportProvider.exportExcel(data, filepath);
   }
 
   // SQL builder methods (→ queryProvider)
