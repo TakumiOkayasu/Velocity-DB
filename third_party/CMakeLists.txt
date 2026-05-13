@@ -52,10 +52,14 @@ endif()
 # Glaze - C++23 JSON reflection library
 # https://github.com/stephenberry/glaze
 include(FetchContent)
+# TLS_VERIFY OFF: Windows schannel が CRL/OCSP 取得失敗で
+# CRYPT_E_NO_REVOCATION_CHECK を返す環境への回避策。
+# URL_HASH (SHA256) で内容完全性は担保される。
 FetchContent_Declare(
     glaze
     URL https://github.com/stephenberry/glaze/archive/refs/tags/v5.0.0.tar.gz
     URL_HASH SHA256=37e4ab809f18c5497a35481f347c1ed63761324644e358d92a7a11fe647fd44a
+    TLS_VERIFY OFF
     EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(glaze)
