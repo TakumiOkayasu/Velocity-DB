@@ -13,7 +13,7 @@ public:
     bool exportData(const ResultSet& data, const std::string& filepath, const ExportOptions& options) override;
 
 private:
-    [[nodiscard]] std::string escapeCSV(const std::string& value, const ExportOptions& options) const;
+    [[nodiscard]] std::string escapeCSV(std::string_view value, const ExportOptions& options) const;
 };
 
 }  // namespace velocitydb

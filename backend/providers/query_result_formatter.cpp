@@ -4,7 +4,10 @@
 #include "../search/simd_filter.h"
 #include "../utils/json_utils.h"
 
+#include <deque>
 #include <format>
+#include <memory>
+#include <string>
 
 namespace velocitydb {
 
@@ -13,10 +16,17 @@ ResultSet QueryResultFormatter::buildUseStatementResult(std::string_view dbName)
     // executionTimeMs は呼び出し元 (executeQuery) が計測値で上書きする契約。
     ResultSet rs;
     rs.columns.push_back({.name = "Message", .type = "VARCHAR", .size = 255, .nullable = false, .isPrimaryKey = false});
+
+    // Synthetic single-cell result: store the formatted message in an arena
+    // so ResultRow::values (string_view) has stable backing memory.
+    auto arena = std::make_shared<std::deque<std::string>>();
+    arena->emplace_back(std::format("Database changed to {}", dbName));
+
     ResultRow row;
-    row.values.push_back(std::format("Database changed to {}", dbName));
+    row.values.emplace_back(arena->back());
     row.nullFlags.push_back(false);
     rs.rows.push_back(std::move(row));
+    rs.storage = std::move(arena);
     return rs;
 }
 

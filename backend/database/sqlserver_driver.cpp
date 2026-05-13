@@ -5,7 +5,11 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <deque>
+#include <memory>
 #include <stdexcept>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace velocitydb {
@@ -141,6 +145,20 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
     std::vector<SQLWCHAR> buffer(INITIAL_BUFFER_CHARS);
     SQLLEN indicator = 0;
 
+    // String arena that backs ResultRow::values. std::deque is used because
+    // it never invalidates pointers to existing elements on push_back, which
+    // lets us hand out string_views into already-stored cells while the loop
+    // continues to grow the arena. shared_ptr ties the arena lifetime to the
+    // ResultSet (caches/copies share without duplicating memory).
+    auto arena = std::make_shared<std::deque<std::string>>();
+    auto* const arenaPtr = arena.get();
+
+    auto pushCell = [&](std::string&& s, ResultRow& row) {
+        arenaPtr->emplace_back(std::move(s));
+        row.values.emplace_back(arenaPtr->back());
+        row.nullFlags.push_back(false);
+    };
+
     while ((ret = SQLFetch(stmt)) == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
         ResultRow row;
         row.values.reserve(static_cast<size_t>(numCols));
@@ -162,15 +180,13 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
                 for (size_t j = 0; j < largeBuffer.size() && largeBuffer[j] != 0; ++j) {
                     strLen = j + 1;
                 }
-                row.values.emplace_back(sqlWcharToUtf8(largeBuffer.data(), strLen));
-                row.nullFlags.push_back(false);
+                pushCell(sqlWcharToUtf8(largeBuffer.data(), strLen), row);
             } else if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
                 size_t strLen = 0;
                 for (size_t j = 0; j < buffer.size() && buffer[j] != 0; ++j) {
                     strLen = j + 1;
                 }
-                row.values.emplace_back(sqlWcharToUtf8(buffer.data(), strLen));
-                row.nullFlags.push_back(false);
+                pushCell(sqlWcharToUtf8(buffer.data(), strLen), row);
             } else {
                 row.values.emplace_back();
                 row.nullFlags.push_back(true);
@@ -178,6 +194,10 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
         }
         result.rows.push_back(std::move(row));
     }
+
+    // Hand arena ownership to the ResultSet so the string_views above stay
+    // valid for the lifetime of the result.
+    result.storage = std::move(arena);
 
     SQLLEN rowCount = 0;
     ret = SQLRowCount(stmt, &rowCount);

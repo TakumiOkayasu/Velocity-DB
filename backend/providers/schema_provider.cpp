@@ -412,19 +412,21 @@ std::string SchemaProvider::getTableDDL(std::string_view params) {
             if (!first)
                 ddl += ",\n";
             first = false;
-            ddl += "    " + formatter->quoteIdentifier(row.values[0]) + " " + row.values[1];
+            // string_view (row.values[N]) は string + では加算できないため
+            // std::format で組み立てる。issue #553 (ResultRow string_view 化)。
+            ddl += std::format("    {} {}", formatter->quoteIdentifier(row.values[0]), row.values[1]);
             if (!row.values[2].empty() && row.values[2] != "-1") {
-                ddl += "(" + row.values[2] + ")";
+                ddl += std::format("({})", row.values[2]);
             } else if (!row.values[3].empty() && row.values[3] != "0") {
-                ddl += "(" + row.values[3];
+                ddl += std::format("({}", row.values[3]);
                 if (!row.values[4].empty() && row.values[4] != "0")
-                    ddl += "," + row.values[4];
+                    ddl += std::format(",{}", row.values[4]);
                 ddl += ")";
             }
             if (row.values[5] == "NO")
                 ddl += " NOT NULL";
             if (!row.values[6].empty())
-                ddl += " DEFAULT " + row.values[6];
+                ddl += std::format(" DEFAULT {}", row.values[6]);
         }
 
         auto pkQuery = dialect->getDDLPrimaryKeyQuery(schema, tbl);

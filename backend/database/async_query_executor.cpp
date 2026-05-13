@@ -5,7 +5,10 @@
 #include "../utils/string_utils.h"
 
 #include <algorithm>
+#include <deque>
 #include <format>
+#include <memory>
+#include <string>
 
 namespace velocitydb {
 
@@ -74,12 +77,17 @@ std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<IDatabaseDriver> dri
                         [[maybe_unused]] auto _ = driver->execute(stmt);
                         std::string dbName = SQLParser::extractDatabaseName(stmt);
 
-                        // Create result for USE statement
+                        // Create result for USE statement. Synthetic value
+                        // needs an arena so ResultRow::values (string_view)
+                        // has stable backing for the message text.
                         currentResult.columns.push_back({.name = "Message", .type = "VARCHAR", .size = 255, .nullable = false, .isPrimaryKey = false});
+                        auto messageArena = std::make_shared<std::deque<std::string>>();
+                        messageArena->emplace_back(std::format("Database changed to {}", dbName));
                         ResultRow messageRow;
-                        messageRow.values.push_back(std::format("Database changed to {}", dbName));
+                        messageRow.values.emplace_back(messageArena->back());
                         messageRow.nullFlags.push_back(false);
                         currentResult.rows.push_back(messageRow);
+                        currentResult.storage = std::move(messageArena);
                         currentResult.affectedRows = 0;
                         currentResult.executionTimeMs = 0.0;
                     } else {

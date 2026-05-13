@@ -52,7 +52,12 @@ struct ColumnInfo {
 };
 
 struct ResultRow {
-    std::vector<std::string> values;
+    /// Values reference memory owned by ResultSet::storage (driver-specific
+    /// backing such as a PGresult buffer or a string arena). The string_view
+    /// itself is cheap (pointer + length) and avoids per-cell std::string
+    /// allocation on the hot path (1M rows x 10 cols = 10M cells for the
+    /// SELECT 100万行 bench, issue #553).
+    std::vector<std::string_view> values;
     std::vector<bool> nullFlags;  // true = SQL NULL
 
     [[nodiscard]] bool isNull(size_t index) const noexcept { return index < nullFlags.size() && nullFlags[index]; }
@@ -63,6 +68,13 @@ struct ResultSet {
     std::vector<ResultRow> rows;
     int64_t affectedRows = 0;
     double executionTimeMs = 0.0;
+
+    /// Type-erased backing for the string_views in `rows`. Held only for
+    /// lifetime: shared_ptr lets ResultSet copy (e.g. result_cache) without
+    /// duplicating the underlying buffer. Concrete types are driver-private
+    /// (PGresult* with PQclear deleter for PostgreSQL, std::deque<std::string>
+    /// arena for ODBC / synthetic results).
+    std::shared_ptr<void> storage;
 };
 
 // ─── ISP: Query execution interface ───

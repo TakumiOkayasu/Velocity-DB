@@ -81,7 +81,7 @@ bool JSONExporter::exportData(const ResultSet& data, const std::string& filepath
     return true;
 }
 
-std::string JSONExporter::escapeJSON(const std::string& value) const {
+std::string JSONExporter::escapeJSON(std::string_view value) const {
     std::ostringstream result;
     for (char c : value) {
         switch (c) {

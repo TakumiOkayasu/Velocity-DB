@@ -55,11 +55,11 @@ bool CSVExporter::exportData(const ResultSet& data, const std::string& filepath,
     return true;
 }
 
-std::string CSVExporter::escapeCSV(const std::string& value, const ExportOptions& options) const {
+std::string CSVExporter::escapeCSV(std::string_view value, const ExportOptions& options) const {
     auto needsQuote = options.quoteStrings || value.contains(options.delimiter) || value.contains('"') || value.contains('\n') || value.contains('\r');
 
     if (!needsQuote) {
-        return value;
+        return std::string{value};
     }
 
     std::string result;
