@@ -5,9 +5,13 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 set(BUILD_GMOCK ON CACHE BOOL "" FORCE)
 set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
 
+# TLS_VERIFY OFF: Windows schannel が CRL/OCSP 取得失敗で
+# CRYPT_E_NO_REVOCATION_CHECK を返す環境への回避策。
+# TODO(@TakumiOkayasu): URL_HASH SHA256 を追加して内容完全性を担保する
 FetchContent_Declare(
     googletest
     URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+    TLS_VERIFY OFF
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     EXCLUDE_FROM_ALL
 )
