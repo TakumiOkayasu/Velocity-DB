@@ -29,9 +29,7 @@ class IoProviderImpl extends BaseProvider implements IoProvider {
   async writeFrontendLog(content: string): Promise<void> {
     // 呼出側不在の dead method (utils/logger.ts は #556 で window.invoke 直叩き化、
     // 他に直接呼ぶ consumer なし)。Issue #526 の facade 完全性のため残置。
-    // 将来 logger 以外から構造化ログ送出が必要になった際の入口として機能する。
-    // schema は zVoid のため parse を省略 (transaction.ts と同方針)。
-    await this.invokeRaw('writeFrontendLog', { content });
+    await this.invokeAndParse('writeFrontendLog', { content }, S.writeFrontendLog);
   }
 
   async saveQueryToFile(content: string, defaultFileName?: string): Promise<{ filePath: string }> {
@@ -51,12 +49,11 @@ class IoProviderImpl extends BaseProvider implements IoProvider {
   }
 
   async saveBookmark(id: string, name: string, content: string): Promise<void> {
-    // S.saveBookmark は zVoid のため parse を省略
-    await this.invokeRaw('saveBookmark', { id, name, content });
+    await this.invokeAndParse('saveBookmark', { id, name, content }, S.saveBookmark);
   }
 
   async deleteBookmark(id: string): Promise<void> {
-    await this.invokeRaw('deleteBookmark', { id });
+    await this.invokeAndParse('deleteBookmark', { id }, S.deleteBookmark);
   }
 }
 

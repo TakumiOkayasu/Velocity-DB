@@ -166,8 +166,7 @@ class QueryProviderImpl extends BaseProvider implements QueryProvider {
   }
 
   async cancelQuery(connectionId: string): Promise<void> {
-    // S.cancelQuery は z.any() で実質 noop のため parse を省略
-    await this.invokeRaw('cancelQuery', { connectionId });
+    await this.invokeAndParse('cancelQuery', { connectionId }, S.cancelQuery);
   }
 
   async lintSql(sql: string, dbType: DatabaseType): Promise<LintSqlResult> {

@@ -1,7 +1,5 @@
-import type { IpcInvoker } from './types';
-
-// 全 method の schema が zVoid (parse 不要) のため BaseProvider は継承しない。
-// validator を持たず invoker のみで完結する設計 (transaction.ts と同方針)。
+import * as S from '../schemas';
+import { BaseProvider, type IpcInvoker, type ResponseValidator } from './types';
 
 export interface ExportProvider {
   exportCSV(data: Record<string, string | null>[], filepath: string): Promise<void>;
@@ -9,23 +7,23 @@ export interface ExportProvider {
   exportExcel(data: Record<string, string | null>[], filepath: string): Promise<void>;
 }
 
-class ExportProviderImpl implements ExportProvider {
-  constructor(private readonly invoker: IpcInvoker) {}
-
+class ExportProviderImpl extends BaseProvider implements ExportProvider {
   async exportCSV(data: Record<string, string | null>[], filepath: string): Promise<void> {
-    // S.exportCSV は z.any() で実質 noop のため parse を省略
-    await this.invoker.invoke('exportCSV', { data, filepath });
+    await this.invokeAndParse('exportCSV', { data, filepath }, S.exportCSV);
   }
 
   async exportJSON(data: Record<string, string | null>[], filepath: string): Promise<void> {
-    await this.invoker.invoke('exportJSON', { data, filepath });
+    await this.invokeAndParse('exportJSON', { data, filepath }, S.exportJSON);
   }
 
   async exportExcel(data: Record<string, string | null>[], filepath: string): Promise<void> {
-    await this.invoker.invoke('exportExcel', { data, filepath });
+    await this.invokeAndParse('exportExcel', { data, filepath }, S.exportExcel);
   }
 }
 
-export function createExportProvider(invoker: IpcInvoker): ExportProvider {
-  return new ExportProviderImpl(invoker);
+export function createExportProvider(
+  invoker: IpcInvoker,
+  validator: ResponseValidator
+): ExportProvider {
+  return new ExportProviderImpl(invoker, validator);
 }

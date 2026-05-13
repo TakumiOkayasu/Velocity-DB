@@ -26,7 +26,7 @@ describe('exportProvider', () => {
 
   describe.each(EXPORT_METHODS)('%s', (method) => {
     it('IPC を呼び data と filepath を渡す', async () => {
-      mock.setResponse(method, null);
+      mock.setResponse(method, {});
 
       await exportProvider[method](SAMPLE_DATA, SAMPLE_PATHS[method]);
 
@@ -46,7 +46,7 @@ describe('exportProvider', () => {
   });
 
   it('メソッドを分割代入してから呼んでも this が失われない', async () => {
-    mock.setResponse('exportCSV', null);
+    mock.setResponse('exportCSV', {});
     const { exportCSV } = exportProvider;
 
     await exportCSV(SAMPLE_DATA, SAMPLE_PATHS.exportCSV);
@@ -56,11 +56,11 @@ describe('exportProvider', () => {
 
   it('__setIpcInvokerForTest 後に再度差し替えると新しい invoker が使われる', async () => {
     const first = new MockIpcInvoker();
-    first.setResponse('exportJSON', null);
+    first.setResponse('exportJSON', {});
     __setIpcInvokerForTest(first);
 
     const second = new MockIpcInvoker();
-    second.setResponse('exportJSON', null);
+    second.setResponse('exportJSON', {});
     __setIpcInvokerForTest(second);
 
     await exportProvider.exportJSON(SAMPLE_DATA, SAMPLE_PATHS.exportJSON);

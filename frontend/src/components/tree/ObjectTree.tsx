@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { settingsProvider } from '../../api/providers';
+import { connectionProfileProvider } from '../../api/providers';
 import { applyConnectionMigration } from '../../store/connectionMigration';
 import { useConnectionActions, useConnectionStore } from '../../store/connectionStore';
 import {
@@ -18,7 +18,7 @@ import styles from './ObjectTree.module.css';
 import { ProfileNode } from './ProfileNode';
 
 type RawProfile = Awaited<
-  ReturnType<typeof settingsProvider.getConnectionProfiles>
+  ReturnType<typeof connectionProfileProvider.getConnectionProfiles>
 >['profiles'][number];
 
 function normalizeProfile(p: RawProfile): SavedConnectionProfile {
@@ -76,7 +76,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
   useEffect(() => {
     const fetchProfiles = async () => {
       try {
-        const result = await settingsProvider.getConnectionProfiles();
+        const result = await connectionProfileProvider.getConnectionProfiles();
         setProfiles(result.profiles.map(normalizeProfile));
       } catch (error) {
         console.error('Failed to fetch profiles:', error);
@@ -163,16 +163,18 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
       let sshKeyPassphrase = '';
 
       if (!confirmingProfile.useWindowsAuth) {
-        const pwResult = await settingsProvider.getProfilePassword(confirmingProfile.id);
+        const pwResult = await connectionProfileProvider.getProfilePassword(confirmingProfile.id);
         password = pwResult.password || '';
       }
 
       if (confirmingProfile.ssh?.enabled) {
         if (confirmingProfile.ssh.authType === 'password') {
-          const sshPwResult = await settingsProvider.getSshPassword(confirmingProfile.id);
+          const sshPwResult = await connectionProfileProvider.getSshPassword(confirmingProfile.id);
           sshPassword = sshPwResult.password || '';
         } else {
-          const passphraseResult = await settingsProvider.getSshKeyPassphrase(confirmingProfile.id);
+          const passphraseResult = await connectionProfileProvider.getSshKeyPassphrase(
+            confirmingProfile.id
+          );
           sshKeyPassphrase = passphraseResult.passphrase || '';
         }
       }
