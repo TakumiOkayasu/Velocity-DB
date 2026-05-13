@@ -189,13 +189,10 @@ describe('schemaProvider', () => {
     expect(mock.calls[0]?.params).toEqual({ filename: 'a.erd', content: 'x' });
   });
 
-  // 現状の schemas.ts は parseERDiagram を z.any() 定義としているため、
-  // 不正形状でも throw しない仕様を明示記録 (構造化 schema 化は別 Issue: parseERDiagram zod スキーマ)
-  it('parseERDiagram は z.any() のため不正形状でも throw しない (将来の構造化 schema 化で破壊的変化)', async () => {
+  it('parseERDiagram は不正形状の応答に対して throw する', async () => {
     mock.setResponse('parseERDiagram', 'wrong-shape');
 
-    const result = (await schemaProvider.parseERDiagram({})) as unknown;
-    expect(result).toBe('wrong-shape');
+    await expect(schemaProvider.parseERDiagram({})).rejects.toThrow();
   });
 
   it('メソッドを分割代入してから呼んでも this が失われない', async () => {

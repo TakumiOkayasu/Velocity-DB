@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { settingsProvider } from '../../api/providers';
+import { appSettingsProvider } from '../../api/providers';
 import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
 import { DialogOverlay } from '../common/DialogOverlay';
 import styles from './SettingsDialog.module.css';
@@ -46,7 +46,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
   const handleSave = useCallback(() => {
     localStorage.setItem('app-settings', JSON.stringify(settings));
     // Sync query timeout to Backend
-    settingsProvider
+    appSettingsProvider
       .updateSettings({
         query: { timeoutSeconds: Math.round(settings.query.timeout / 1000) },
       })

@@ -1,7 +1,5 @@
-import type { IpcInvoker } from './types';
-
-// 全 method の schema が zVoid (parse 不要) のため BaseProvider は継承しない。
-// validator を持たず invoker のみで完結する設計 (export.ts と同方針)。
+import * as S from '../schemas';
+import { BaseProvider, type IpcInvoker, type ResponseValidator } from './types';
 
 export interface TransactionProvider {
   beginTransaction(connectionId: string): Promise<void>;
@@ -9,23 +7,23 @@ export interface TransactionProvider {
   rollback(connectionId: string): Promise<void>;
 }
 
-class TransactionProviderImpl implements TransactionProvider {
-  constructor(private readonly invoker: IpcInvoker) {}
-
+class TransactionProviderImpl extends BaseProvider implements TransactionProvider {
   async beginTransaction(connectionId: string): Promise<void> {
-    // S.beginTransaction は z.any() で実質 noop のため parse を省略
-    await this.invoker.invoke('beginTransaction', { connectionId });
+    await this.invokeAndParse('beginTransaction', { connectionId }, S.beginTransaction);
   }
 
   async commit(connectionId: string): Promise<void> {
-    await this.invoker.invoke('commit', { connectionId });
+    await this.invokeAndParse('commit', { connectionId }, S.commit);
   }
 
   async rollback(connectionId: string): Promise<void> {
-    await this.invoker.invoke('rollback', { connectionId });
+    await this.invokeAndParse('rollback', { connectionId }, S.rollback);
   }
 }
 
-export function createTransactionProvider(invoker: IpcInvoker): TransactionProvider {
-  return new TransactionProviderImpl(invoker);
+export function createTransactionProvider(
+  invoker: IpcInvoker,
+  validator: ResponseValidator
+): TransactionProvider {
+  return new TransactionProviderImpl(invoker, validator);
 }

@@ -206,13 +206,7 @@ class SchemaProviderImpl extends BaseProvider implements SchemaProvider {
     filename?: string;
     filepath?: string;
   }): Promise<ERDiagramParseResult> {
-    // S.parseERDiagram は z.any() のため parse 後の型は unknown 相当。
-    // backend 側 IPC が ERDiagramParseResult 形状を返す契約。
-    return (await this.invokeAndParse(
-      'parseERDiagram',
-      params,
-      S.parseERDiagram
-    )) as ERDiagramParseResult;
+    return this.invokeAndParse('parseERDiagram', params, S.parseERDiagram);
   }
 }
 

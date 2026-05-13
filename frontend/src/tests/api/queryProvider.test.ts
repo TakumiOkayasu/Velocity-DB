@@ -78,7 +78,7 @@ describe('queryProvider', () => {
   });
 
   it('cancelQuery は connectionId を渡し void を返す', async () => {
-    mock.setResponse('cancelQuery', null);
+    mock.setResponse('cancelQuery', {});
 
     await queryProvider.cancelQuery('conn1');
 
@@ -178,7 +178,7 @@ describe('queryProvider', () => {
   });
 
   it('メソッドを分割代入してから呼んでも this が失われない', async () => {
-    mock.setResponse('cancelQuery', null);
+    mock.setResponse('cancelQuery', {});
 
     const { cancelQuery } = queryProvider;
     await cancelQuery('conn1');

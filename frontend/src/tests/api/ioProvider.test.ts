@@ -18,7 +18,7 @@ describe('ioProvider', () => {
 
   describe('writeFrontendLog', () => {
     it('content を渡し IPC を呼ぶ', async () => {
-      mock.setResponse('writeFrontendLog', null);
+      mock.setResponse('writeFrontendLog', {});
 
       await ioProvider.writeFrontendLog('log entry');
 
@@ -127,7 +127,7 @@ describe('ioProvider', () => {
 
   describe('saveBookmark', () => {
     it('id / name / content を渡し IPC を呼ぶ', async () => {
-      mock.setResponse('saveBookmark', null);
+      mock.setResponse('saveBookmark', {});
 
       await ioProvider.saveBookmark('b1', 'list-users', 'SELECT * FROM users');
 
@@ -140,7 +140,7 @@ describe('ioProvider', () => {
 
   describe('deleteBookmark', () => {
     it('id を渡し IPC を呼ぶ', async () => {
-      mock.setResponse('deleteBookmark', null);
+      mock.setResponse('deleteBookmark', {});
 
       await ioProvider.deleteBookmark('b1');
 

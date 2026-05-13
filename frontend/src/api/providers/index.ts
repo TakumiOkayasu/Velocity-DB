@@ -1,12 +1,17 @@
 import { log } from '../../utils/logger';
 import { type IpcInvoker, WindowIpcInvoker } from '../ipc/ipc-invoker';
+import { type AppSettingsProvider, createAppSettingsProvider } from './app-settings';
 import { type ConnectionProvider, createConnectionProvider } from './connection';
+import {
+  type ConnectionProfileProvider,
+  createConnectionProfileProvider,
+} from './connection-profile';
 import { createExportProvider, type ExportProvider } from './export';
 import { createIoProvider, type IoProvider } from './io';
 import { createQueryProvider, type QueryProvider } from './query';
 import { createSchemaProvider, type SchemaProvider } from './schema';
 import { createSearchProvider, type SearchProvider } from './search';
-import { createSettingsProvider, type SettingsProvider } from './settings';
+import { createSessionProvider, type SessionProvider } from './session';
 import { createTransactionProvider, type TransactionProvider } from './transaction';
 import type { BridgeLogger, ResponseValidator } from './types';
 import { createZodValidator } from './validator';
@@ -21,7 +26,9 @@ interface Providers {
   schema: SchemaProvider;
   transaction: TransactionProvider;
   exportData: ExportProvider;
-  settings: SettingsProvider;
+  appSettings: AppSettingsProvider;
+  connectionProfile: ConnectionProfileProvider;
+  session: SessionProvider;
   search: SearchProvider;
   io: IoProvider;
 }
@@ -31,9 +38,11 @@ function buildProviders(): Providers {
     connection: createConnectionProvider(invokerInstance, validatorInstance),
     query: createQueryProvider(invokerInstance, validatorInstance),
     schema: createSchemaProvider(invokerInstance, loggerInstance, validatorInstance),
-    transaction: createTransactionProvider(invokerInstance),
-    exportData: createExportProvider(invokerInstance),
-    settings: createSettingsProvider(invokerInstance, validatorInstance),
+    transaction: createTransactionProvider(invokerInstance, validatorInstance),
+    exportData: createExportProvider(invokerInstance, validatorInstance),
+    appSettings: createAppSettingsProvider(invokerInstance, validatorInstance),
+    connectionProfile: createConnectionProfileProvider(invokerInstance, validatorInstance),
+    session: createSessionProvider(invokerInstance, validatorInstance),
     search: createSearchProvider(invokerInstance, validatorInstance),
     io: createIoProvider(invokerInstance, validatorInstance),
   };
@@ -59,7 +68,10 @@ export const queryProvider: QueryProvider = makeProviderProxy('query');
 export const schemaProvider: SchemaProvider = makeProviderProxy('schema');
 export const transactionProvider: TransactionProvider = makeProviderProxy('transaction');
 export const exportProvider: ExportProvider = makeProviderProxy('exportData');
-export const settingsProvider: SettingsProvider = makeProviderProxy('settings');
+export const appSettingsProvider: AppSettingsProvider = makeProviderProxy('appSettings');
+export const connectionProfileProvider: ConnectionProfileProvider =
+  makeProviderProxy('connectionProfile');
+export const sessionProvider: SessionProvider = makeProviderProxy('session');
 export const searchProvider: SearchProvider = makeProviderProxy('search');
 export const ioProvider: IoProvider = makeProviderProxy('io');
 

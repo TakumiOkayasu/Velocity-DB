@@ -16,7 +16,7 @@ describe('transactionProvider', () => {
 
   describe.each(TX_METHODS)('%s', (method) => {
     it('IPC を呼び connectionId を渡す', async () => {
-      mock.setResponse(method, null);
+      mock.setResponse(method, {});
 
       await transactionProvider[method]('conn-1');
 
@@ -31,7 +31,7 @@ describe('transactionProvider', () => {
   });
 
   it('メソッドを分割代入してから呼んでも this が失われない', async () => {
-    mock.setResponse('beginTransaction', null);
+    mock.setResponse('beginTransaction', {});
     const { beginTransaction } = transactionProvider;
 
     await beginTransaction('conn-1');
@@ -41,11 +41,11 @@ describe('transactionProvider', () => {
 
   it('__setIpcInvokerForTest 後に再度差し替えると新しい invoker が使われる', async () => {
     const first = new MockIpcInvoker();
-    first.setResponse('commit', null);
+    first.setResponse('commit', {});
     __setIpcInvokerForTest(first);
 
     const second = new MockIpcInvoker();
-    second.setResponse('commit', null);
+    second.setResponse('commit', {});
     __setIpcInvokerForTest(second);
 
     await transactionProvider.commit('conn-1');

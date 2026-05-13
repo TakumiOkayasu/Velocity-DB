@@ -46,7 +46,7 @@ describe('connectionProvider', () => {
   });
 
   it('cancelConnect は IPC を呼び出す', async () => {
-    mock.setResponse('cancelConnect', null);
+    mock.setResponse('cancelConnect', {});
 
     await connectionProvider.cancelConnect('req-1');
 
@@ -54,7 +54,7 @@ describe('connectionProvider', () => {
   });
 
   it('disconnect は connectionId を渡す', async () => {
-    mock.setResponse('disconnect', null);
+    mock.setResponse('disconnect', {});
 
     await connectionProvider.disconnect('conn-1');
 

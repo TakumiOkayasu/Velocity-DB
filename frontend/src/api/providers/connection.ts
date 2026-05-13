@@ -45,12 +45,11 @@ class ConnectionProviderImpl extends BaseProvider implements ConnectionProvider 
   }
 
   async cancelConnect(requestId: string): Promise<void> {
-    // S.cancelConnect は z.any() で実質 noop のため parse を省略
-    await this.invokeRaw('cancelConnect', { requestId });
+    await this.invokeAndParse('cancelConnect', { requestId }, S.cancelConnect);
   }
 
   async disconnect(connectionId: string): Promise<void> {
-    await this.invokeRaw('disconnect', { connectionId });
+    await this.invokeAndParse('disconnect', { connectionId }, S.disconnect);
   }
 
   async testConnection(info: TestConnectionInfo): Promise<{ success: boolean; message: string }> {
