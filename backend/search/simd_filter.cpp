@@ -135,10 +135,12 @@ std::vector<size_t> SIMDFilter::sortByColumn(const ResultSet& data, size_t colum
         const auto& valA = data.rows[a].values[columnIndex];
         const auto& valB = data.rows[b].values[columnIndex];
 
-        // Try numeric comparison first
+        // Try numeric comparison first. std::stod has no string_view overload
+        // so we materialize a temporary std::string per comparison; this only
+        // runs for sort operations (not the hot SELECT path).
         try {
-            double numA = std::stod(valA);
-            double numB = std::stod(valB);
+            double numA = std::stod(std::string{valA});
+            double numB = std::stod(std::string{valB});
             return ascending ? (numA < numB) : (numA > numB);
         } catch (...) {
             // Fall back to string comparison

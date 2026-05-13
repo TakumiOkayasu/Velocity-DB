@@ -64,7 +64,7 @@ std::vector<std::string> GlobalSearch::quickSearch(IDatabaseDriver* driver, IObj
     results.reserve(queryResult.rows.size());
     for (const auto& row : queryResult.rows) {
         if (!row.values.empty())
-            results.push_back(row.values[0]);
+            results.emplace_back(row.values[0]);
     }
 
     return results;

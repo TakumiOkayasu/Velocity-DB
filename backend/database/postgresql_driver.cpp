@@ -14,8 +14,11 @@ namespace velocitydb {
 
 namespace {
 
-/// Convert PostgreSQL OID to human-readable type name.
-std::string oidToTypeName(Oid oid) {
+/// Convert PostgreSQL OID to human-readable type name. Returns string_view
+/// into a static literal for known OIDs (no allocation); the caller copies
+/// into ColumnInfo::name only once per column. Unknown OIDs fall back to a
+/// formatted std::string returned by oidToTypeNameFallback().
+constexpr std::string_view oidToTypeName(Oid oid) noexcept {
     switch (oid) {
         case 16:
             return "boolean";
@@ -74,7 +77,7 @@ std::string oidToTypeName(Oid oid) {
         case 3802:
             return "jsonb";
         default:
-            return std::format("oid({})", oid);
+            return {};  // sentinel: caller formats oid(N)
     }
 }
 
@@ -180,15 +183,20 @@ ResultSet PostgreSqlDriver::execute(std::string_view sql) {
     }
 
     if (status == PGRES_TUPLES_OK) {
-        int numCols = PQnfields(pgResult.get());
-        int numRows = PQntuples(pgResult.get());
+        // Cache raw PGresult* once: avoids repeated unique_ptr::get() in the
+        // hot loop (numRows * numCols iterations) and lets the compiler keep
+        // the pointer in a register.
+        auto* const pg = pgResult.get();
+        const int numCols = PQnfields(pg);
+        const int numRows = PQntuples(pg);
 
         result.columns.reserve(static_cast<size_t>(numCols));
         for (int i = 0; i < numCols; ++i) {
             ColumnInfo col;
-            col.name = PQfname(pgResult.get(), i);
-            col.type = oidToTypeName(PQftype(pgResult.get(), i));
-            int rawSize = PQfsize(pgResult.get(), i);
+            col.name = PQfname(pg, i);
+            const auto typeName = oidToTypeName(PQftype(pg, i));
+            col.type = typeName.empty() ? std::format("oid({})", PQftype(pg, i)) : std::string{typeName};
+            const int rawSize = PQfsize(pg, i);
             col.size = (rawSize > 0) ? rawSize : 0;
             col.nullable = true;
             col.isPrimaryKey = false;
@@ -201,11 +209,18 @@ ResultSet PostgreSqlDriver::execute(std::string_view sql) {
             row.values.reserve(static_cast<size_t>(numCols));
             row.nullFlags.reserve(static_cast<size_t>(numCols));
             for (int c = 0; c < numCols; ++c) {
-                if (PQgetisnull(pgResult.get(), r, c)) {
+                if (PQgetisnull(pg, r, c)) {
                     row.values.emplace_back();
                     row.nullFlags.push_back(true);
                 } else {
-                    row.values.emplace_back(PQgetvalue(pgResult.get(), r, c));
+                    // string_view directly into libpq's response buffer. The
+                    // PGresult is kept alive via result.storage below, so the
+                    // view stays valid for the lifetime of the ResultSet.
+                    // PQgetlength is O(1) (libpq stores the length in its
+                    // tuple table) — no strlen scan over the value.
+                    const char* const v = PQgetvalue(pg, r, c);
+                    const auto len = static_cast<size_t>(PQgetlength(pg, r, c));
+                    row.values.emplace_back(v, len);
                     row.nullFlags.push_back(false);
                 }
             }
@@ -213,6 +228,12 @@ ResultSet PostgreSqlDriver::execute(std::string_view sql) {
         }
 
         result.affectedRows = numRows;
+
+        // Hand PGresult ownership to ResultSet via the type-erased storage
+        // slot. PGresultPtr is a unique_ptr; release() transfers raw ownership
+        // to the shared_ptr so its custom deleter (PQclear) runs at the right
+        // time. ResultSet copies (e.g. result_cache) share this PGresult.
+        result.storage = std::shared_ptr<PGresult>(pgResult.release(), &PQclear);
     } else if (status == PGRES_COMMAND_OK) {
         const char* cmdTuples = PQcmdTuples(pgResult.get());
         if (cmdTuples && cmdTuples[0] != '\0') {

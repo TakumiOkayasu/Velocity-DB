@@ -17,7 +17,7 @@ public:
     void setArrayFormat(bool asArray) { m_asArray = asArray; }
 
 private:
-    std::string escapeJSON(const std::string& value) const;
+    std::string escapeJSON(std::string_view value) const;
 
     bool m_prettyPrint = true;
     bool m_asArray = true;
