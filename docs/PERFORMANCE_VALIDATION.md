@@ -192,8 +192,90 @@ uv run scripts/pdg.py test backend
    - 「高速」(#11) のように定量的でない記述を、具体値もしくは相対値 (例: 「非 SIMD 比 N 倍」) に置き換え
    - 計測条件 (CPU、メモリ、DB ロケーション) の前提を README に併記
 
+## フロントエンド計測ベースライン (#494)
+
+`#479` パフォーマンスリファクタの起点として、フロントエンド主要画面の初回マウント時間と本番 bundle 構成を計測する仕組みを整備した (`#494`)。後続の `#501` (ResultGrid 最適化) / `#505` (selector 最適化) / `#504` (store 分割) は本セクションのベースライン値を起点に効果を判定する。
+
+### 計測対象と計測機構
+
+| 対象 | ファイル | 計測 mark 名 |
+| ---- | -------- | ------------ |
+| ResultGrid | `frontend/src/components/grid/ResultGrid.tsx` | `result-grid` |
+| ObjectTree | `frontend/src/components/tree/ObjectTree.tsx` | `object-tree` |
+| SqlEditor (Monaco) | `frontend/src/components/editor/SqlEditor.tsx` | `sql-editor` |
+
+各コンポーネントは `useFirstRenderMark` (`frontend/src/utils/perfMarks.ts`) で初回マウントの `${name}:start` / `${name}:end` mark を打ち、`${name}` の measure entry を Performance API に記録する。再レンダリングでは記録しない (初回マウントのみ)。
+
+### 初回レンダリング時間の取得手順
+
+1. dev server 起動:
+
+   ```powershell
+   uv run scripts/pdg.py dev
+   ```
+
+2. Chrome / Edge で `http://localhost:5173/` を開く
+3. DevTools → Performance タブで Record 開始
+4. 操作:
+   - ResultGrid: 任意のクエリを実行して結果を表示
+   - ObjectTree: 接続プロファイルを開いてスキーマを展開
+   - SqlEditor: 新規タブを開いて Monaco を初期化
+5. Record 停止 → Timings レーンの `result-grid` / `object-tree` / `sql-editor` measure entry の duration を読み取り
+
+または DevTools → Console で以下を実行:
+
+```js
+performance.getEntriesByType('measure')
+  .filter(e => ['result-grid', 'object-tree', 'sql-editor'].includes(e.name))
+  .map(e => ({ name: e.name, duration_ms: e.duration.toFixed(2) }));
+```
+
+### bundle サイズレポートの取得手順
+
+`rollup-plugin-visualizer` v7.0.1 (Vite 8 / rolldown 対応) を opt-in で組み込んでいる。`VELOCITYDB_BUNDLE_REPORT=1` を設定したビルド時のみ `frontend/dist/bundle-report.html` を生成する。
+
+```powershell
+$env:VELOCITYDB_BUNDLE_REPORT = '1'
+uv run scripts/pdg.py build frontend
+# → frontend/dist/bundle-report.html をブラウザで開く
+Remove-Item Env:VELOCITYDB_BUNDLE_REPORT
+```
+
+`gzipSize` / `brotliSize` を有効にしているため、各 chunk の raw / gzip / brotli サイズを併記レポートする。
+
+### ベースライン値テーブル (要追記)
+
+> 計測者は実機で取得した値を以下の表に追記してください。計測環境 (OS / CPU / WebView2 Runtime version) も併記すること。
+
+#### 初回マウント時間
+
+| 対象 | 計測条件 | duration (ms) | 計測日 | 環境 |
+| ---- | -------- | ------------- | ------ | ---- |
+| ResultGrid | 1000 行 × 10 列 | TBD | YYYY-MM-DD | TBD |
+| ResultGrid | 10000 行 × 10 列 | TBD | YYYY-MM-DD | TBD |
+| ObjectTree | 接続プロファイル 1 件展開 (テーブル 50 件) | TBD | YYYY-MM-DD | TBD |
+| SqlEditor | 新規タブ初期化 | TBD | YYYY-MM-DD | TBD |
+
+#### bundle 構成
+
+| chunk | raw (KB) | gzip (KB) | brotli (KB) | 計測日 |
+| ----- | -------- | --------- | ----------- | ------ |
+| `vendor-monaco` | TBD | TBD | TBD | YYYY-MM-DD |
+| `vendor-table` | TBD | TBD | TBD | YYYY-MM-DD |
+| `vendor-reactflow` | TBD | TBD | TBD | YYYY-MM-DD |
+| `vendor-react` | TBD | TBD | TBD | YYYY-MM-DD |
+| `vendor-state` | TBD | TBD | TBD | YYYY-MM-DD |
+| `vendor-sqltools-formatter` | TBD | TBD | TBD | YYYY-MM-DD |
+| entry (`index`) | TBD | TBD | TBD | YYYY-MM-DD |
+
+### 本セクションのスコープ外 (follow-up)
+
+- `web-vitals` ライブラリ導入による LCP / CLS / INP の自動取得 — WebView2 file:// 配信での挙動が未確認のため別 issue 化
+- Lighthouse CI 自動実行 — 同上
+- Playwright + Chrome DevTools Protocol での measure 自動取得 — `#5` (60fps 検証) と統合検討
+
 ## 参考
 
 - [README.md - パフォーマンス目標と実装](../README.md#パフォーマンス目標と実装)
 - [docs/ARCHITECTURE.md](./ARCHITECTURE.md)
-- 関連 issue: #418 (パフォーマンス向上)、#416 (本検証)
+- 関連 issue: #418 (パフォーマンス向上)、#416 (本検証)、#479 (perf リファクタ親)、#494 (フロントエンド計測基盤)

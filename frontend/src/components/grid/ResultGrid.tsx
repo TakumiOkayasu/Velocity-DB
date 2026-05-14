@@ -27,6 +27,7 @@ import { type ColumnMeta, type GridViewMode, isNumericType, type RowData } from 
 import { parseErrorMessage } from '../../utils/errorParser';
 import { lazyWithRetry } from '../../utils/lazyWithRetry';
 import { log } from '../../utils/logger';
+import { useFirstRenderMark } from '../../utils/perfMarks';
 import { getStatementType } from '../../utils/sql/statement-type';
 import { QueryConfirmDialog } from '../dialogs/QueryConfirmDialog';
 import { GridFilterBar } from './GridFilterBar';
@@ -75,6 +76,7 @@ interface ResultGridProps {
 }
 
 function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps = {}) {
+  useFirstRenderMark('result-grid');
   // --- Store subscriptions ---
   const activeQueryId = useQueryStore((state) => state.activeQueryId);
   const isActiveDataView = useIsActiveDataView();

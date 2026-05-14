@@ -10,6 +10,7 @@ import {
   type SavedConnectionProfile,
 } from '../../types';
 import { groupProfilesByFolder, type ProfileGroup } from '../../utils/groupProfilesByFolder';
+import { useFirstRenderMark } from '../../utils/perfMarks';
 import { pruneCollapsedFolders } from '../../utils/pruneCollapsedFolders';
 import type { ExpandableType } from '../../utils/treeNode';
 import { DialogOverlay } from '../common/DialogOverlay';
@@ -60,6 +61,7 @@ interface ObjectTreeProps {
 }
 
 export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
+  useFirstRenderMark('object-tree');
   const { connections, profileVersion } = useConnectionStore(
     useShallow((state) => ({
       connections: state.connections,

@@ -15,6 +15,7 @@ import {
   setSqlMarkers,
 } from '../../utils/editorMarkers';
 import { log } from '../../utils/logger';
+import { useFirstRenderMark } from '../../utils/perfMarks';
 import { formatSQL } from '../../utils/sqlFormat';
 import { createCompletionProvider } from './completionProvider';
 import { createInlayHintProvider } from './inlayHintProvider';
@@ -46,6 +47,7 @@ function useApplyMarkers(
 }
 
 export function SqlEditor() {
+  useFirstRenderMark('sql-editor');
   const { queries, activeQueryId, updateQuery } = useQueryStore();
   const activeQuery = queries.find((q) => q.id === activeQueryId);
   const queryConnectionId = activeQuery?.connectionId ?? null;

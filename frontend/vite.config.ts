@@ -1,6 +1,7 @@
 import path from 'node:path';
 import react from '@vitejs/plugin-react';
-import { defineConfig, type Plugin } from 'vite';
+import { visualizer } from 'rollup-plugin-visualizer';
+import { defineConfig, type Plugin, type PluginOption } from 'vite';
 
 /**
  * Prevents Vite from bundling unused Monaco language workers (css, html, json, typescript).
@@ -25,8 +26,24 @@ function monacoWorkerExcludePlugin(): Plugin {
   };
 }
 
+const BUNDLE_REPORT_ENABLED = process.env.VELOCITYDB_BUNDLE_REPORT === '1';
+
 export default defineConfig({
-  plugins: [react(), monacoWorkerExcludePlugin()],
+  plugins: [
+    react(),
+    monacoWorkerExcludePlugin(),
+    ...(BUNDLE_REPORT_ENABLED
+      ? [
+          visualizer({
+            filename: 'dist/bundle-report.html',
+            template: 'treemap',
+            gzipSize: true,
+            brotliSize: true,
+            sourcemap: true,
+          }) as PluginOption,
+        ]
+      : []),
+  ],
   base: './', // Use relative paths for file:// protocol
   resolve: {
     alias: {
