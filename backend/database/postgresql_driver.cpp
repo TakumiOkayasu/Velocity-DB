@@ -1,12 +1,11 @@
 #include "postgresql_driver.h"
 
-#include "../utils/logger.h"
 #include "copy_from_stdin_handler.h"
 #include "pg_result_ptr.h"
+#include "profile_gate.h"
 
 #include <charconv>
 #include <chrono>
-#include <cstdlib>
 #include <cstring>
 #include <format>
 #include <stdexcept>
@@ -14,23 +13,17 @@
 
 namespace velocitydb {
 
-namespace {
+/// Env var for the [pg-prof] gate. Kept resident so future SELECT-100万行
+/// perf regressions can be split into libpq-internal vs driver-loop time
+/// without rebuilding (see #579 close: binary protocol was infeasible
+/// because libpq fetch alone was 4.7s for the bench fixture, 5x text mode —
+/// the split needs to be re-checkable at any time). Lives in a named
+/// namespace (external linkage) so it can be passed as a template NTTP to
+/// profile::isEnabledOnce without relying on the C++20 P1907 relaxation
+/// for internal-linkage pointer NTTPs.
+inline constexpr char kPgProfileEnv[] = "VELOCITYDB_PG_PROFILE";
 
-/// Profile gate. Set the env var VELOCITYDB_PG_PROFILE=1 (or any non-empty,
-/// non-"0" value) to emit a "[pg-prof] fetch=Xms loop=Yms rows=N cols=M" line
-/// via the global logger for each text-mode query in execute(). Kept resident
-/// so future SELECT-100万行 perf regressions can be split into libpq-internal
-/// vs driver-loop time without rebuilding (see #579 close: binary protocol
-/// was infeasible because libpq fetch alone was 4.7s for the bench fixture,
-/// 5x text mode — the split needs to be re-checkable at any time). The gate
-/// is evaluated once on first call; default OFF keeps log output quiet.
-[[nodiscard]] bool isPgProfileEnabled() noexcept {
-    static const auto enabled = []() {
-        const auto* env = std::getenv("VELOCITYDB_PG_PROFILE");
-        return env != nullptr && env[0] != '\0' && env[0] != '0';
-    }();
-    return enabled;
-}
+namespace {
 
 /// Convert PostgreSQL OID to human-readable type name. Returns string_view
 /// into a static literal for known OIDs (no allocation); the caller copies
@@ -249,10 +242,10 @@ ResultSet PostgreSqlDriver::execute(std::string_view sql) {
         }
         const auto loopEnd = std::chrono::steady_clock::now();
 
-        if (isPgProfileEnabled()) [[unlikely]] {
+        if (profile::isEnabledOnce<kPgProfileEnv>()) [[unlikely]] {
             const auto fetchMs = std::chrono::duration_cast<std::chrono::milliseconds>(fetchEnd - fetchStart).count();
             const auto loopMs = std::chrono::duration_cast<std::chrono::milliseconds>(loopEnd - loopStart).count();
-            get_logger().log<LogLevel::INFO>(std::format("[pg-prof] fetch={}ms loop={}ms rows={} cols={}", fetchMs, loopMs, numRows, numCols));
+            profile::emit("[pg-prof] fetch={}ms loop={}ms rows={} cols={}", fetchMs, loopMs, numRows, numCols);
         }
 
         result.affectedRows = numRows;

@@ -1,11 +1,13 @@
 #include "sqlserver_driver.h"
 
 #include "odbc_helpers.h"
+#include "profile_gate.h"
 
 #include <algorithm>
 #include <array>
 #include <chrono>
 #include <deque>
+#include <format>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -13,6 +15,14 @@
 #include <vector>
 
 namespace velocitydb {
+
+/// Env var for the [mssql-prof] gate. SQL Server counterpart of [pg-prof]
+/// (#583) so #553 follow-up perf work can split ODBC-internal (SQLExecDirectW
+/// returning all rows) vs driver loop (SQLFetch + SQLGetData + UTF-16→UTF-8)
+/// time without rebuilding. Lives in a named namespace (external linkage)
+/// so it can be passed as a template NTTP to profile::isEnabledOnce without
+/// relying on the C++20 P1907 relaxation for internal-linkage pointer NTTPs.
+inline constexpr char kMssqlProfileEnv[] = "VELOCITYDB_MSSQL_PROFILE";
 
 SQLServerDriver::SQLServerDriver() {
     m_env = odbc::allocateEnvironment();
@@ -101,7 +111,9 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
     SQLSetStmtAttr(stmt, SQL_ATTR_QUERY_TIMEOUT, toSqlPointer(queryTimeout), 0);
 
     auto wideSql = utf8ToWide(sql);
+    const auto execStart = std::chrono::steady_clock::now();
     ret = SQLExecDirectW(stmt, toSqlWchar(wideSql.data()), SQL_NTS);
+    const auto execEnd = std::chrono::steady_clock::now();
     if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO && ret != SQL_NO_DATA) [[unlikely]] {
         m_lastError = odbc::getDiagnosticMessage(ret, SQL_HANDLE_STMT, stmt);
         throw std::runtime_error(m_lastError);
@@ -159,6 +171,7 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
         row.nullFlags.push_back(false);
     };
 
+    const auto loopStart = std::chrono::steady_clock::now();
     while ((ret = SQLFetch(stmt)) == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
         ResultRow row;
         row.values.reserve(static_cast<size_t>(numCols));
@@ -193,6 +206,13 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
             }
         }
         result.rows.push_back(std::move(row));
+    }
+    const auto loopEnd = std::chrono::steady_clock::now();
+
+    if (profile::isEnabledOnce<kMssqlProfileEnv>()) [[unlikely]] {
+        const auto execMs = std::chrono::duration_cast<std::chrono::milliseconds>(execEnd - execStart).count();
+        const auto loopMs = std::chrono::duration_cast<std::chrono::milliseconds>(loopEnd - loopStart).count();
+        profile::emit("[mssql-prof] exec={}ms loop={}ms rows={} cols={}", execMs, loopMs, result.rows.size(), numCols);
     }
 
     // Hand arena ownership to the ResultSet so the string_views above stay
