@@ -111,6 +111,10 @@ def build_backend(
 
     print("\n[1/4] Setting up MSVC environment...", file=out)
     env = utils.get_msvc_env(out=out)
+    # vcpkg detect_compiler が bundled ninja 経路 (vcpkg-parallel-configure) で
+    # `ninja -v` を error code 1 で失敗させる長期 issue (#40785, #17195) を回避。
+    # system ninja を強制使用する公式 env (Microsoft Learn vcpkg env vars 参照)。
+    env["VCPKG_FORCE_SYSTEM_BINARIES"] = "1"
 
     print("\n[2/4] Checking build tools...", file=out)
     if not utils.check_build_tools(env, out=out):
