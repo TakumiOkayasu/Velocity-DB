@@ -1,12 +1,20 @@
-#include <gtest/gtest.h>
 #include "database/result_cache.h"
+
+#include <deque>
+#include <memory>
+#include <string>
+
+#include <gtest/gtest.h>
 
 namespace velocitydb {
 namespace test {
 
 namespace {
 
+// ResultRow::values は string_view なので、本体の std::string を arena に保持し
+// ResultSet::storage 経由で寿命を一致させる (#553 partial fix で導入された契約)。
 ResultSet makeResultSet(int numRows, int numCols) {
+    auto arena = std::make_shared<std::deque<std::string>>();
     ResultSet rs;
     rs.columns.reserve(static_cast<size_t>(numCols));
     for (int c = 0; c < numCols; ++c) {
@@ -18,12 +26,14 @@ ResultSet makeResultSet(int numRows, int numCols) {
         row.values.reserve(static_cast<size_t>(numCols));
         row.nullFlags.reserve(static_cast<size_t>(numCols));
         for (int c = 0; c < numCols; ++c) {
-            row.values.push_back("val_" + std::to_string(r) + "_" + std::to_string(c));
+            arena->emplace_back("val_" + std::to_string(r) + "_" + std::to_string(c));
+            row.values.push_back(arena->back());
             row.nullFlags.push_back(false);
         }
         rs.rows.push_back(std::move(row));
     }
     rs.affectedRows = numRows;
+    rs.storage = arena;
     return rs;
 }
 
@@ -160,9 +170,7 @@ TEST_F(ResultCacheTest, PutMovesRvalueResultSet) {
 TEST_F(ResultCacheTest, GetAndApplyExecutesCallbackUnderLock) {
     cache.put("ref", makeResultSet(2, 2));
 
-    auto result = cache.getAndApply("ref", [](const ResultSet& r) {
-        return std::string(r.rows[0].values[0]);
-    });
+    auto result = cache.getAndApply("ref", [](const ResultSet& r) { return std::string(r.rows[0].values[0]); });
     EXPECT_EQ(result, "val_0_0");
 }
 

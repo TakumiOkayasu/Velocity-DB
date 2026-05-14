@@ -7,37 +7,39 @@
 
 #include "search/simd_filter.h"
 
-#include <gtest/gtest.h>
-
+#include <deque>
+#include <memory>
 #include <string>
+
+#include <gtest/gtest.h>
 
 namespace velocitydb {
 namespace test {
 
-namespace {
-
-ResultRow makeRow(std::initializer_list<std::string> values) {
-    ResultRow row;
-    for (const auto& v : values) {
-        row.values.push_back(v);
-        row.nullFlags.push_back(false);
-    }
-    return row;
-}
-
-ResultRow makeRowWithNull(size_t nullIndex, std::initializer_list<std::string> values) {
-    auto row = makeRow(values);
-    if (nullIndex < row.nullFlags.size()) {
-        row.nullFlags[nullIndex] = true;
-    }
-    return row;
-}
-
-}  // namespace
-
+// ResultRow::values は string_view なので、本体の std::string を fixture の
+// arena に保持して寿命を保証する (#553 partial fix で導入された契約)。
 class SIMDFilterTest : public ::testing::Test {
 protected:
     SIMDFilter filter;
+    std::shared_ptr<std::deque<std::string>> arena = std::make_shared<std::deque<std::string>>();
+
+    ResultRow makeRow(std::initializer_list<std::string> values) {
+        ResultRow row;
+        for (const auto& v : values) {
+            arena->emplace_back(v);
+            row.values.push_back(arena->back());
+            row.nullFlags.push_back(false);
+        }
+        return row;
+    }
+
+    ResultRow makeRowWithNull(size_t nullIndex, std::initializer_list<std::string> values) {
+        auto row = makeRow(values);
+        if (nullIndex < row.nullFlags.size()) {
+            row.nullFlags[nullIndex] = true;
+        }
+        return row;
+    }
 };
 
 TEST_F(SIMDFilterTest, FilterEquals_MatchesExactValues) {
