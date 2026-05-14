@@ -1,10 +1,12 @@
 #include "postgresql_driver.h"
 
+#include "../utils/logger.h"
 #include "copy_from_stdin_handler.h"
 #include "pg_result_ptr.h"
 
 #include <charconv>
 #include <chrono>
+#include <cstdlib>
 #include <cstring>
 #include <format>
 #include <stdexcept>
@@ -13,6 +15,22 @@
 namespace velocitydb {
 
 namespace {
+
+/// Profile gate. Set the env var VELOCITYDB_PG_PROFILE=1 (or any non-empty,
+/// non-"0" value) to emit a "[pg-prof] fetch=Xms loop=Yms rows=N cols=M" line
+/// via the global logger for each text-mode query in execute(). Kept resident
+/// so future SELECT-100万行 perf regressions can be split into libpq-internal
+/// vs driver-loop time without rebuilding (see #579 close: binary protocol
+/// was infeasible because libpq fetch alone was 4.7s for the bench fixture,
+/// 5x text mode — the split needs to be re-checkable at any time). The gate
+/// is evaluated once on first call; default OFF keeps log output quiet.
+[[nodiscard]] bool isPgProfileEnabled() noexcept {
+    static const auto enabled = []() {
+        const auto* env = std::getenv("VELOCITYDB_PG_PROFILE");
+        return env != nullptr && env[0] != '\0' && env[0] != '0';
+    }();
+    return enabled;
+}
 
 /// Convert PostgreSQL OID to human-readable type name. Returns string_view
 /// into a static literal for known OIDs (no allocation); the caller copies
@@ -159,7 +177,9 @@ ResultSet PostgreSqlDriver::execute(std::string_view sql) {
     const auto startTime = std::chrono::high_resolution_clock::now();
 
     auto* conn = m_conn.load(std::memory_order_acquire);
+    const auto fetchStart = std::chrono::steady_clock::now();
     PGresultPtr pgResult(PQexec(conn, std::string(sql).c_str()));
+    const auto fetchEnd = std::chrono::steady_clock::now();
     if (!pgResult) [[unlikely]] {
         m_lastError = PQerrorMessage(conn);
         throw std::runtime_error(m_lastError);
@@ -203,6 +223,7 @@ ResultSet PostgreSqlDriver::execute(std::string_view sql) {
             result.columns.push_back(std::move(col));
         }
 
+        const auto loopStart = std::chrono::steady_clock::now();
         result.rows.reserve(static_cast<size_t>(numRows));
         for (int r = 0; r < numRows; ++r) {
             ResultRow row;
@@ -225,6 +246,13 @@ ResultSet PostgreSqlDriver::execute(std::string_view sql) {
                 }
             }
             result.rows.push_back(std::move(row));
+        }
+        const auto loopEnd = std::chrono::steady_clock::now();
+
+        if (isPgProfileEnabled()) [[unlikely]] {
+            const auto fetchMs = std::chrono::duration_cast<std::chrono::milliseconds>(fetchEnd - fetchStart).count();
+            const auto loopMs = std::chrono::duration_cast<std::chrono::milliseconds>(loopEnd - loopStart).count();
+            get_logger().log<LogLevel::INFO>(std::format("[pg-prof] fetch={}ms loop={}ms rows={} cols={}", fetchMs, loopMs, numRows, numCols));
         }
 
         result.affectedRows = numRows;
