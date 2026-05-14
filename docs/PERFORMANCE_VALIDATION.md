@@ -258,15 +258,32 @@ Remove-Item Env:VELOCITYDB_BUNDLE_REPORT
 
 #### bundle 構成
 
+計測環境: Docker (`oven/bun:latest`) で `bunx vite build` (production)。raw / gzip は Vite 標準出力、brotli は `brotli -q 11` で別計測。サイズは decimal kB (`bytes / 1000`)。
+
 | chunk | raw (KB) | gzip (KB) | brotli (KB) | 計測日 |
 | ----- | -------- | --------- | ----------- | ------ |
-| `vendor-monaco` | TBD | TBD | TBD | YYYY-MM-DD |
-| `vendor-table` | TBD | TBD | TBD | YYYY-MM-DD |
-| `vendor-reactflow` | TBD | TBD | TBD | YYYY-MM-DD |
-| `vendor-react` | TBD | TBD | TBD | YYYY-MM-DD |
-| `vendor-state` | TBD | TBD | TBD | YYYY-MM-DD |
-| `vendor-sqltools-formatter` | TBD | TBD | TBD | YYYY-MM-DD |
-| entry (`index`) | TBD | TBD | TBD | YYYY-MM-DD |
+| `vendor-monaco` | 4203.27 | 1079.19 | 823.09 | 2026-05-14 |
+| `vendor-table` | 63.10 | 16.74 | 14.96 | 2026-05-14 |
+| `vendor-reactflow` | 173.49 | 55.98 | 48.29 | 2026-05-14 |
+| `vendor-react` | 182.90 | 57.55 | 49.28 | 2026-05-14 |
+| `vendor-state` | 2.37 | 1.15 | 1.05 | 2026-05-14 |
+| `vendor-sqltools-formatter` | 33.05 | 9.46 | 8.18 | 2026-05-14 |
+| entry (`index`) | 40.27 | 12.52 | 10.95 | 2026-05-14 |
+
+参考 (`#501` 等での比較に有用な周辺 chunk):
+
+| chunk | raw (KB) | gzip (KB) |
+| ----- | -------- | --------- |
+| `providers` (dynamic) | 280.31 | 64.47 |
+| `editor.worker` (Monaco worker) | 280.01 | (raw のみ) |
+| `style.css` | 234.86 | 35.73 |
+| `ResultGrid` | 54.80 | 18.01 |
+| `LeftPanel` | 28.01 | 9.54 |
+| `ConnectionDialog` | 20.82 | 5.72 |
+| `queryStore` | 19.60 | 6.63 |
+| `SqlEditor` | 16.15 | 6.02 |
+
+> `vendor-monaco` が全体の **78%** (raw) / **76%** (gzip) / **75%** (brotli) を占める。Monaco の lazy-load 分割は `#501`/`#494` 後続の優先課題候補 (follow-up issue へ)。
 
 ### 本セクションのスコープ外 (follow-up)
 
