@@ -41,10 +41,10 @@ test.describe('#494 perf baseline', () => {
     await page.waitForFunction(
       (names) =>
         (names as readonly string[]).every(
-          (n) => performance.getEntriesByName(n, 'measure').length > 0,
+          (n) => performance.getEntriesByName(n, 'measure').length > 0
         ),
       TARGETS,
-      { timeout: 15_000 },
+      { timeout: 15_000 }
     );
 
     const durations = await page.evaluate((names) => {
