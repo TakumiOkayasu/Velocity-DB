@@ -35,6 +35,7 @@ set(TEST_SOURCES
     parsers/test_sql_linter.cpp
     parsers/test_sql_parser.cpp
     database/test_postgresql_driver.cpp
+    database/test_pg_binary_decoder.cpp
     database/test_psql_subprocess.cpp
     exporters/test_csv_exporter.cpp
     providers/test_lint_provider.cpp
