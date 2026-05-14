@@ -24,6 +24,7 @@ set(LIB_SOURCES
     database/sqlserver_dialect.cpp
     database/postgresql_driver.cpp
     database/postgresql_dialect.cpp
+    database/pg_binary_decoder.cpp
     database/copy_from_stdin_handler.cpp
     database/psql_subprocess.cpp
     database/driver_factory.cpp
@@ -98,6 +99,9 @@ set(HEADERS
     database/copy_from_stdin_handler.h
     database/psql_subprocess.h
     database/pg_result_ptr.h
+    database/pg_result_bundle.h
+    database/pg_endian.h
+    database/pg_binary_decoder.h
     database/connection_registry.h
     database/result_cache.h
     database/async_query_executor.h
