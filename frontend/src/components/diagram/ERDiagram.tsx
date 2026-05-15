@@ -16,6 +16,7 @@ import { useERDiagramContext } from '../../hooks/useERDiagramContext';
 import { useERDiagramStore } from '../../store/erDiagramStore';
 import type { ERRelationEdge, ERShapeNode, ERTableNode } from '../../types';
 import { ALL_PAGES, DEFAULT_PAGE, GRID_LAYOUT } from '../../utils/erDiagramConstants';
+import { useERDiagramRenderMark } from '../../utils/perfMarks';
 import styles from './ERDiagram.module.css';
 import { ERDiagramSearch } from './ERDiagramSearch';
 import { ShapeNode } from './ShapeNode';
@@ -278,6 +279,8 @@ export function ERDiagram({ onTableClick, onOpenImportDialog }: ERDiagramProps) 
 
   const allTables = useERDiagramStore((s) => s.tables);
   const hasData = totalTableCount > 0;
+
+  useERDiagramRenderMark(totalTableCount);
 
   // 「すべて」タブ時はグリッド再配置（ページ間で座標が重複するため）
   const layoutTables = useMemo(

@@ -198,13 +198,18 @@ uv run scripts/pdg.py test backend
 
 ### 計測対象と計測機構
 
-| 対象 | ファイル | 計測 mark 名 |
-| ---- | -------- | ------------ |
-| ResultGrid | `frontend/src/components/grid/ResultGrid.tsx` | `result-grid` |
-| ObjectTree | `frontend/src/components/tree/ObjectTree.tsx` | `object-tree` |
-| SqlEditor (Monaco) | `frontend/src/components/editor/SqlEditor.tsx` | `sql-editor` |
+| 対象 | ファイル | 計測 mark 名 | 対応 README 目標 |
+| ---- | -------- | ------------ | ---------------- |
+| App ルート | `frontend/src/App.tsx` | `startup` | #1 起動 < 0.3s |
+| ResultGrid | `frontend/src/components/grid/ResultGrid.tsx` | `result-grid` | #4 結果表示開始 < 100ms |
+| ObjectTree | `frontend/src/components/tree/ObjectTree.tsx` | `object-tree` | — |
+| SqlEditor (Monaco) | `frontend/src/components/editor/SqlEditor.tsx` | `sql-editor` | — |
+| ERDiagram (50 テーブル以上) | `frontend/src/components/diagram/ERDiagram.tsx` | `er-diagram-50` | #9 ER 図 50 テーブル < 500ms (spec は #9 サブ issue で追加) |
 
 各コンポーネントは `useFirstRenderMark` (`frontend/src/utils/perfMarks.ts`) で初回マウントの `${name}:start` / `${name}:end` mark を打ち、`${name}` の measure entry を Performance API に記録する。再レンダリングでは記録しない (初回マウントのみ)。
+
+- `useStartupMark()` は `useFirstRenderMark('startup')` のラッパー (App ルート専用)。
+- `useERDiagramRenderMark(tableCount, threshold=50)` は `tableCount` が `threshold` 以上に達した最初のレンダリング時のみ mark を打つ条件付き hook。閾値未達の ER 図 (例: 49 テーブル) では mark が記録されない仕様。
 
 ### 初回レンダリング時間の取得手順
 
@@ -226,9 +231,22 @@ uv run scripts/pdg.py test backend
 
 ```js
 performance.getEntriesByType('measure')
-  .filter(e => ['result-grid', 'object-tree', 'sql-editor'].includes(e.name))
+  .filter(e => ['startup', 'result-grid', 'object-tree', 'sql-editor', 'er-diagram-50'].includes(e.name))
   .map(e => ({ name: e.name, duration_ms: e.duration.toFixed(2) }));
 ```
+
+### Docker 経由の Playwright 自動取得
+
+`frontend/e2e/perf-baseline.spec.ts` は dev server (Vite) で `startup` / `result-grid` / `object-tree` / `sql-editor` の 4 mark を取得し、`[#494 baseline] <JSON>` 形式で stdout に出力する。WebView2 / production preview とは値が一致しない (Vite の HMR + source map を含むため) が、リグレッション検出の基準値として使用できる。
+
+```bash
+docker run --rm -v "C:/prog/Velocity-DB://app" \
+  --mount "type=volume,target=//app/frontend/node_modules" \
+  -w "//app/frontend" oven/bun:latest \
+  sh -c 'bun install && bunx playwright install --with-deps chromium && bunx playwright test perf-baseline'
+```
+
+`er-diagram-50` (#9) はフィクスチャ (50 テーブル以上の ER 図ファイル) が別タスクのため、本 spec では取得しない。実機で ER 図ファイルを読み込んだ後、上記の DevTools Console コマンドで取得する。
 
 ### bundle サイズレポートの取得手順
 
@@ -251,10 +269,15 @@ Remove-Item Env:VELOCITYDB_BUNDLE_REPORT
 
 | 対象 | 計測条件 | duration (ms) | 計測日 | 環境 |
 | ---- | -------- | ------------- | ------ | ---- |
+| startup (App) | `page.goto('/')` 直後 | TBD | YYYY-MM-DD | TBD |
+| ResultGrid | 空配列 (mock invoke) | TBD | YYYY-MM-DD | TBD |
 | ResultGrid | 1000 行 × 10 列 | TBD | YYYY-MM-DD | TBD |
 | ResultGrid | 10000 行 × 10 列 | TBD | YYYY-MM-DD | TBD |
 | ObjectTree | 接続プロファイル 1 件展開 (テーブル 50 件) | TBD | YYYY-MM-DD | TBD |
 | SqlEditor | 新規タブ初期化 | TBD | YYYY-MM-DD | TBD |
+| ERDiagram (50 テーブル) | サンプル A5:ER ファイル読込 | TBD | YYYY-MM-DD | TBD |
+
+> 上記表のうち `startup` / `ResultGrid 空配列` / `ObjectTree` / `SqlEditor` は `frontend/e2e/perf-baseline.spec.ts` で自動取得可。`ResultGrid 1000/10000 行` と `ERDiagram 50 テーブル` はフィクスチャ不在のため別タスク (#501 / 新規 #9 サブ issue 想定)。
 
 #### bundle 構成
 

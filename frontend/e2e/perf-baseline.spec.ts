@@ -27,10 +27,17 @@ const MOCK_INVOKE_SCRIPT = `
   };
 `;
 
-const TARGETS = ['result-grid', 'object-tree', 'sql-editor'] as const;
+/**
+ * `startup` は App ルート (`frontend/src/App.tsx`) 初回マウント時に
+ * `useStartupMark()` が打つ measure。README #1 (起動 < 0.3s) ベースライン用。
+ *
+ * `er-diagram-50` (README #9) は 50 テーブル以上のフィクスチャ用意が
+ * 別タスクのため本 spec では取得しない。
+ */
+const TARGETS = ['startup', 'result-grid', 'object-tree', 'sql-editor'] as const;
 
 test.describe('#494 perf baseline', () => {
-  test('useFirstRenderMark の duration を 3 画面で取得', async ({ page }) => {
+  test('useFirstRenderMark の duration を 4 mark で取得', async ({ page }) => {
     await page.addInitScript(MOCK_INVOKE_SCRIPT);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
