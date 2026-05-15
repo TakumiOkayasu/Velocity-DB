@@ -250,11 +250,9 @@ if(ENABLE_SIMD AND MSVC)
     target_compile_options(VelocityDBCore PRIVATE /arch:AVX2)
 endif()
 
-# libssh2: prefer shared, fall back to static (vcpkg may provide either)
+# libssh2: vcpkg provides Libssh2::libssh2 alias (shared or static, transparent to caller)
 if(SSH_TUNNEL_ENABLED)
-    target_link_libraries(VelocityDBCore PUBLIC
-        $<IF:$<TARGET_EXISTS:Libssh2::libssh2_shared>,Libssh2::libssh2_shared,Libssh2::libssh2_static>
-    )
+    target_link_libraries(VelocityDBCore PUBLIC Libssh2::libssh2)
     target_compile_definitions(VelocityDBCore PUBLIC SSH_TUNNEL_ENABLED)
 endif()
 

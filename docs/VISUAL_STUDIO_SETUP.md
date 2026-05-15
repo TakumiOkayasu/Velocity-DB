@@ -11,6 +11,8 @@
 
 ## セットアップ手順
 
+> **注**: 初回 `uv run scripts/pdg.py build backend` 実行時、project-local vcpkg が `<repo>/vcpkg/` に自動 clone されます (約 50MB、`.gitignore` 済)。CMake 4.x と VS 同梱 vcpkg-tool の世代非互換を回避するため必須です。
+
 ### 1. フロントエンドのビルド
 
 アプリ実行時にフロントエンドが必要です。初回は以下を実行してください：

@@ -18,6 +18,8 @@ Windows専用RDBMS管理ツール（DataGripライクなUI/UX）。SQL Server / 
 
 統合CLI: `uv run scripts/pdg.py` (ショートカット: `b`uild, `t`est, `l`int, `d`ev, `c`heck)
 
+> **注**: 初回 `build backend` で project-local vcpkg が `<repo>/vcpkg/` に自動 clone される (約 50MB、`.gitignore` 済)。CMake 4.x と VS 同梱 vcpkg-tool の世代非互換を回避するため必須。
+
 ```bash
 uv run scripts/pdg.py build backend              # C++ (Release)
 uv run scripts/pdg.py build backend --type Debug  # C++ (Debug)
