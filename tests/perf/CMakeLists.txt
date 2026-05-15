@@ -13,6 +13,7 @@ set(PERF_TEST_SOURCES
     test_simd_filter_bench.cpp
     test_csv_exporter_bench.cpp
     test_result_cache_bench.cpp
+    test_sql_formatter_bench.cpp
     integration/test_select_million_rows_bench.cpp
 )
 
