@@ -179,26 +179,40 @@ ResultSet SQLServerDriver::execute(std::string_view sql) {
 
         for (SQLSMALLINT i = 1; i <= numCols; ++i) {
             ret = SQLGetData(stmt, i, SQL_C_WCHAR, buffer.data(), buffer.size() * sizeof(SQLWCHAR), &indicator);
-            if (indicator == SQL_NULL_DATA) {
+            if (indicator == SQL_NULL_DATA || indicator == SQL_NO_TOTAL) {
+                // SQL_NO_TOTAL: driver cannot report data length (rare;
+                // typically max-size LOB without length metadata). Emit
+                // NULL rather than fabricating an empty string from the
+                // pre-NUL prefix of `buffer`, which would lose the
+                // "length unknown" signal once the NUL-scan was removed.
                 row.values.emplace_back();
                 row.nullFlags.push_back(true);
             } else if (ret == SQL_SUCCESS_WITH_INFO && indicator > static_cast<SQLLEN>((buffer.size() - 1) * sizeof(SQLWCHAR))) {
-                size_t requiredChars = (static_cast<size_t>(indicator) / sizeof(SQLWCHAR)) + 1;
-                std::vector<SQLWCHAR> largeBuffer(requiredChars);
-                size_t alreadyReadChars = buffer.size() - 1;
+                // Truncation path: the first call wrote (buffer.size() - 1)
+                // WCHARs plus a NUL; `indicator` holds the FULL payload
+                // length in bytes (NUL excluded) per ODBC SQLGetData spec.
+                // Use it to size the spill buffer in O(1) — no NUL scan.
+                const size_t totalChars = wcharCountFromIndicator(indicator);
+                std::vector<SQLWCHAR> largeBuffer(totalChars + 1);  // +1 for ODBC-written NUL
+                const size_t alreadyReadChars = buffer.size() - 1;
                 std::copy(buffer.begin(), buffer.begin() + static_cast<ptrdiff_t>(alreadyReadChars), largeBuffer.begin());
                 SQLLEN remainingIndicator = 0;
-                ret = SQLGetData(stmt, i, SQL_C_WCHAR, largeBuffer.data() + alreadyReadChars, (requiredChars - alreadyReadChars) * sizeof(SQLWCHAR), &remainingIndicator);
-                size_t strLen = 0;
-                for (size_t j = 0; j < largeBuffer.size() && largeBuffer[j] != 0; ++j) {
-                    strLen = j + 1;
+                ret = SQLGetData(stmt, i, SQL_C_WCHAR, largeBuffer.data() + alreadyReadChars, (largeBuffer.size() - alreadyReadChars) * sizeof(SQLWCHAR), &remainingIndicator);
+                if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) [[unlikely]] {
+                    // Spill fetch failed mid-cell: without the NUL-scan
+                    // guard we would otherwise hand `totalChars` of partly
+                    // uninitialised data to the UTF-8 converter. Treat as
+                    // NULL so the row stays consistent.
+                    row.values.emplace_back();
+                    row.nullFlags.push_back(true);
+                } else {
+                    pushCell(sqlWcharToUtf8(largeBuffer.data(), totalChars), row);
                 }
-                pushCell(sqlWcharToUtf8(largeBuffer.data(), strLen), row);
             } else if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
-                size_t strLen = 0;
-                for (size_t j = 0; j < buffer.size() && buffer[j] != 0; ++j) {
-                    strLen = j + 1;
-                }
+                // Normal path: `indicator` is the payload length in bytes
+                // (NUL excluded). Replaces the per-cell NUL-scan loop that
+                // dominated the SELECT 100万行 fetch loop — see issue #589.
+                const size_t strLen = wcharCountFromIndicator(indicator);
                 pushCell(sqlWcharToUtf8(buffer.data(), strLen), row);
             } else {
                 row.values.emplace_back();
