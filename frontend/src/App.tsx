@@ -5,8 +5,11 @@ import { MainLayout } from './components/layout/MainLayout';
 import { useSuppressNativeSelectAll } from './hooks/useSuppressNativeSelectAll';
 import { useConnectionStore } from './store/connectionStore';
 import { useQueryStore } from './store/queryStore';
+import { useStartupMark } from './utils/perfMarks';
 
 function App() {
+  useStartupMark();
+
   const activeQueryConnectionId = useQueryStore((state) => {
     const query = state.queries.find((q) => q.id === state.activeQueryId);
     return query?.connectionId ?? null;
