@@ -27,6 +27,7 @@ FetchContent_MakeAvailable(googletest)
 set(TEST_SOURCES
     test_main.cpp
     database/test_sqlserver_driver.cpp
+    database/test_odbc_unicode.cpp
     database/test_query_history.cpp
     database/test_sql_builder.cpp
     database/test_transaction_manager.cpp
