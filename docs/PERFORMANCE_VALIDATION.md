@@ -16,7 +16,7 @@
 | 3 | SELECT (100万行) < 500ms | ✅ | ✅ | ❌ | 🔍 未実測 |
 | 4 | 結果表示開始 < 100ms | ✅ | ✅ | ⚠️ 部分 | 🔍 未実測 |
 | 5 | 仮想スクロール 60fps | ✅ | ❌ | ⚠️ 部分 | 🔍 未実測 |
-| 6 | SQL フォーマット < 50ms | ✅ | ❌ | ❌ | 🔍 未実測 |
+| 6 | SQL フォーマット < 50ms | ✅ | ✅ | ✅ | ✅ 中 1ms / 大 40ms |
 | 7 | CSV エクスポート (10万行) < 2s | ✅ | ✅ | ✅ | 🔍 未実測 |
 | 8 | A5:ER ロード (100テーブル) < 1s | ✅ | ❌ | ❌ | 🔍 未実測 |
 | 9 | ER 図レンダリング (50テーブル) < 500ms | ✅ | ❌ | ❌ | 🔍 未実測 |
@@ -86,9 +86,11 @@
 | ------ | ------ |
 | 実装ファイル | `backend/parsers/sql_formatter.h:11-40`, `backend/parsers/sql_formatter.cpp` |
 | 実装手法 | `unordered_set` でキーワード判定 (O(1))、文字単位ストリーミングパース |
-| 計測機構 | なし |
-| 計測手段 | `tests/parsers/test_sql_formatter.cpp` に `std::chrono::steady_clock` ベースの計測アサートを追加 |
-| 達成判定 | **未実測**。ローカル実測が容易な項目 |
+| 計測機構 | あり (`tests/perf/test_sql_formatter_bench.cpp`) |
+| 既存ベンチマーク | `tests/perf/test_sql_formatter_bench.cpp` (小 JOIN-heavy / 中 500 行 / 大 10000 行、5 反復で mean/median/max を出力) で中サイズ mean < 50ms を `EXPECT_LT` |
+| 計測手段 | `ctest --preset release -L perf` で実行 |
+| 達成判定 | **✅ 達成**。中サイズ (500 行 / 40KB) で mean=1ms、大 (10000 行 / 826KB) で mean=40ms (target 50ms 圏内、2026-05-15 ローカル Release) |
+| ベースライン値 (2026-05-15) | 小 JOIN-heavy (3648 chars): mean=0ms / median=0ms / max=0ms<br>中 500行 (40219 chars): mean=1ms / median=1ms / max=2ms<br>大 10000行 (826769 chars): mean=40ms / median=41ms / max=41ms |
 
 ### #7. CSV エクスポート (10万行) < 2s
 
@@ -182,7 +184,7 @@ uv run scripts/pdg.py test backend
 1. **ベンチマークテスト群の追加** (別 issue / PR)
    - ✅ バックエンド基盤: `tests/perf/` 新設、`VelocityDBPerfTests` 実行ファイル、`perf` ctest ラベル (#425)
    - ✅ `scripts/pdg.py` に `bench` サブコマンド (`pdg bench backend` で `ctest -L perf`)
-   - 🔍 個別目標 (#3 SELECT / #6 SQL フォーマット / #10 履歴検索 / #11 SIMD) の計測テスト追加は別 PR
+   - 🔍 個別目標 (#3 SELECT / #11 SIMD) の計測テスト追加は別 PR (#6 #10 は対応済)
    - 🔍 フロントエンド: Vitest での `performance.now()` ベース計測 + Playwright での E2E 計測 (未着手)
 2. **CI への組み込み**
    - ✅ 通常テスト workflow (`ci.yml` / `test.yml`) は `ctest -LE perf` で perf を除外
