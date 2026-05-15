@@ -25,7 +25,11 @@
         "CMAKE_CXX_STANDARD": "23",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "BUILD_TESTS": "ON",
-        "ENABLE_SIMD": "ON"
+        "ENABLE_SIMD": "ON",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+      },
+      "environment": {
+        "VCPKG_ROOT": "${sourceDir}/vcpkg"
       }
     },
     {

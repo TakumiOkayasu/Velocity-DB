@@ -252,6 +252,9 @@ jobs:
     needs: detect-versions
     if: needs.detect-versions.outputs.vcpkg_needs_update == 'true'
     runs-on: windows-latest
+    env:
+      VCPKG_ROOT: ${{ github.workspace }}\vcpkg
+      VCPKG_DISABLE_METRICS: '1'
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
@@ -287,9 +290,20 @@ jobs:
         if: steps.check-pr.outputs.skip == 'false'
         run: choco install ninja -y
 
+      # VS18 同梱 vcpkg-tool は古い detect_compiler portfile を持つため、project-local の vcpkg を
+      # baseline SHA で checkout して bootstrap (ci.yml と同方式)。upgrade job 自身は後段で
+      # baseline を更新するので、ここでは upgrade 前の baseline で snapshot を揃える。
+      - name: Bootstrap project-local vcpkg
+        if: steps.check-pr.outputs.skip == 'false'
+        run: |
+          $baseline = (Get-Content vcpkg.json | ConvertFrom-Json).'builtin-baseline'
+          if (-not $baseline) { throw "vcpkg.json: builtin-baseline missing" }
+          git clone --filter=tree:0 https://github.com/microsoft/vcpkg.git vcpkg
+          git -C vcpkg checkout $baseline
+          .\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+
       # validation 失敗は「自動アップグレード不能」シグナル (vcpkg 側でターゲット名変更等)
-      # workflow 全体を failure にするとノイズなので continue-on-error にして
-      # 失敗時は代わりに Issue を起票する
+      # workflow 全体を failure にするとノイズなので continue-on-error にして、失敗時は代わりに Issue を起票する
       - name: Validate backend build
         id: validate
         if: steps.check-pr.outputs.skip == 'false'

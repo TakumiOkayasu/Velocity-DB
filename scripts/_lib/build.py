@@ -1,11 +1,15 @@
 """Build commands for Velocity-DB."""
 
 import io
+import json
 import shutil
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from typing import TextIO
 
 from . import utils
+
+VCPKG_REPO_URL = "https://github.com/microsoft/vcpkg.git"
 
 
 def build_frontend(clean: bool = False, out: TextIO | None = None) -> bool:
@@ -85,6 +89,138 @@ def _copy_frontend_to_build(build_type: str, out: TextIO | None = None) -> None:
         print(f"  [FAIL] {e}", file=out)
 
 
+def _read_vcpkg_baseline(vcpkg_json: Path) -> str | None:
+    """Return the builtin-baseline SHA from vcpkg.json, or None on parse error.
+
+    NOTE: 2 文 except に分割しているのは ruff 0.15.13 が `except (E, F):` を
+    `except E, F:` (Python 2 構文・Py3 SyntaxError) に format するバグの回避。
+    ruff 修正後は tuple 形式に戻して可。
+    """
+    try:
+        data = json.loads(vcpkg_json.read_text(encoding="utf-8"))
+        baseline = data.get("builtin-baseline")
+        return baseline if isinstance(baseline, str) else None
+    except json.JSONDecodeError:
+        return None
+    except OSError:
+        return None
+
+
+def _clone_vcpkg(vcpkg_dir: Path, out: TextIO | None) -> None:
+    """Shallow-clone microsoft/vcpkg into vcpkg_dir. Raises on failure."""
+    print("\n[vcpkg] Cloning microsoft/vcpkg (shallow)...", file=out)
+    ok, _ = utils.run_command(
+        ["git", "clone", "--depth=1", "--filter=tree:0", VCPKG_REPO_URL, str(vcpkg_dir)],
+        "git clone vcpkg",
+        out=out,
+    )
+    if not ok:
+        raise RuntimeError("Failed to clone vcpkg. Check network/proxy settings.")
+
+
+def _bootstrap_vcpkg(vcpkg_dir: Path, out: TextIO | None) -> None:
+    """Run bootstrap-vcpkg.bat -disableMetrics to materialize vcpkg.exe."""
+    print("\n[vcpkg] Bootstrapping vcpkg.exe...", file=out)
+    ok, _ = utils.run_command(
+        [str(vcpkg_dir / "bootstrap-vcpkg.bat"), "-disableMetrics"],
+        "bootstrap-vcpkg",
+        cwd=vcpkg_dir,
+        out=out,
+    )
+    if not ok:
+        raise RuntimeError("Failed to bootstrap vcpkg (bootstrap-vcpkg.bat).")
+
+
+def _warn_on_baseline_drift(project_root: Path, vcpkg_dir: Path, out: TextIO | None) -> None:
+    """Print a notice when vcpkg.json baseline differs from clone HEAD.
+
+    Auto-update is owned by tool-version-upgrade.yml; this is purely informational.
+    """
+    baseline = _read_vcpkg_baseline(project_root / "vcpkg.json")
+    if not baseline:
+        return
+
+    head_ok, head_sha = utils.run_command(
+        ["git", "-C", str(vcpkg_dir), "rev-parse", "HEAD"],
+        "git rev-parse",
+        capture_output=True,
+        out=None,
+    )
+    if not (head_ok and head_sha):
+        return
+
+    head = head_sha.strip()
+    if baseline == head:
+        return
+
+    print(
+        f"  [vcpkg] Note: vcpkg.json baseline ({baseline[:12]}) "
+        f"differs from clone HEAD ({head[:12]}). "
+        f"Auto-upgrade runs weekly via tool-version-upgrade.yml.",
+        file=out,
+    )
+
+
+def _ensure_vcpkg(project_root: Path, out: TextIO | None = None) -> Path:
+    """Ensure project-local vcpkg exists at <project_root>/vcpkg and is bootstrapped.
+
+    VS18 同梱 vcpkg-tool は古い detect_compiler portfile を持ち、CMake 4.2 の
+    `ninja -t recompact` 経路で `rules.ninja` 不在エラーを永続発生させる。
+    project-local の最新 vcpkg を持つことで VS 同梱 vcpkg を経路から完全排除する。
+
+    Idempotent: 既に有効な clone があれば clone/bootstrap をスキップする。
+    """
+    vcpkg_dir = project_root / "vcpkg"
+    toolchain_file = vcpkg_dir / "scripts" / "buildsystems" / "vcpkg.cmake"
+    vcpkg_exe = vcpkg_dir / "vcpkg.exe"
+
+    if not toolchain_file.exists():
+        _clone_vcpkg(vcpkg_dir, out)
+    if not vcpkg_exe.exists():
+        _bootstrap_vcpkg(vcpkg_dir, out)
+    _warn_on_baseline_drift(project_root, vcpkg_dir, out)
+    return vcpkg_dir
+
+
+def _migrate_to_local_vcpkg(project_root: Path, out: TextIO | None = None) -> None:
+    """Transition guard: rmtree build/vcpkg_installed/ if it was populated by a
+    non-project-local vcpkg-tool (e.g. VS18 bundled).
+
+    Best-effort; swallows all parse / IO errors. Schedule for removal 2 releases
+    after this PR lands (project-local vcpkg は安定運用後不要になる)。
+    """
+    info_path = project_root / "build" / "vcpkg_installed" / "vcpkg" / "manifest-info.json"
+    if not info_path.exists():
+        return
+    try:
+        data = json.loads(info_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return
+    except OSError:
+        return
+
+    raw = data.get("vcpkg_root") or data.get("install_path") or ""
+    if not raw:
+        return
+    try:
+        recorded = Path(raw).resolve()
+        local = (project_root / "vcpkg").resolve()
+    except OSError:
+        return
+    except RuntimeError:
+        return
+    if recorded == local:
+        return
+
+    installed = project_root / "build" / "vcpkg_installed"
+    print(
+        f"\n[vcpkg] Detected stale install from {recorded}; "
+        f"clearing {installed.relative_to(project_root)} for migration.",
+        file=out,
+    )
+    shutil.rmtree(installed, ignore_errors=True)
+
+
 def build_backend(
     build_type: str = "Release",
     clean: bool = False,
@@ -115,6 +251,12 @@ def build_backend(
     # `ninja -v` を error code 1 で失敗させる長期 issue (#40785, #17195) を回避。
     # system ninja を強制使用する公式 env (Microsoft Learn vcpkg env vars 参照)。
     env["VCPKG_FORCE_SYSTEM_BINARIES"] = "1"
+    # project-local vcpkg を強制使用 (VS 同梱の古い vcpkg-tool を経路から完全排除)。
+    # vcvars64.bat が VCPKG_ROOT を VS 同梱 path に設定するためここで上書きする。
+    vcpkg_dir = _ensure_vcpkg(project_root, out=out)
+    env["VCPKG_ROOT"] = str(vcpkg_dir)
+    env["VCPKG_DISABLE_METRICS"] = "1"
+    _migrate_to_local_vcpkg(project_root, out=out)
 
     print("\n[2/4] Checking build tools...", file=out)
     if not utils.check_build_tools(env, out=out):

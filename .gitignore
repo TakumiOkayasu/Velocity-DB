@@ -3,6 +3,9 @@ build/
 dist/
 out/
 
+# vcpkg (project-local clone, bootstrapped by scripts/_lib/build.py)
+vcpkg/
+
 # Visual Studio
 .vs/
 *.user
