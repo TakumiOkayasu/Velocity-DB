@@ -117,7 +117,7 @@ jobs:
           database: postgres
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
 
       - name: Load 100万行 fixture (PostgreSQL)
         # Inline the connection string instead of routing through $env:PG_CONN
