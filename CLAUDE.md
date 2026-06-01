@@ -58,11 +58,12 @@ docker run --rm -v "C:/prog/Velocity-DB://app" \
   -w "//app/frontend" oven/bun:latest \
   sh -c 'bun install && bunx biome check src/path/to/file.ts'
 
-# E2Eテスト (Playwright)
+# E2Eテスト (Playwright) — Node.js ベースの公式イメージを使用 (bun は worker_threads 非互換)
+# image タグは bun.lock の @playwright/test バージョンに合わせること
 docker run --rm -v "C:/prog/Velocity-DB://app" \
-  --mount "type=volume,target=//app/frontend/node_modules" \
-  -w "//app/frontend" oven/bun:latest \
-  sh -c 'bun install && bunx playwright install --with-deps chromium && bunx playwright test'
+  --mount "type=volume,target=//app/frontend/node_modules,source=frontend-bun-pw" \
+  -w "//app/frontend" mcr.microsoft.com/playwright:v1.58.2-jammy \
+  bash -c 'npm install -g bun 2>&1 | tail -2 && bun install 2>&1 | tail -3 && npx playwright test'
 ```
 
 `--mount type=volume` で node_modules を隔離（Windows/Linux バイナリ非互換対策）。

@@ -200,13 +200,13 @@ uv run scripts/pdg.py test backend
 
 ### 計測対象と計測機構
 
-| 対象 | ファイル | 計測 mark 名 | 対応 README 目標 |
-| ---- | -------- | ------------ | ---------------- |
-| App ルート | `frontend/src/App.tsx` | `startup` | #1 起動 < 0.3s |
-| ResultGrid | `frontend/src/components/grid/ResultGrid.tsx` | `result-grid` | #4 結果表示開始 < 100ms |
-| ObjectTree | `frontend/src/components/tree/ObjectTree.tsx` | `object-tree` | — |
-| SqlEditor (Monaco) | `frontend/src/components/editor/SqlEditor.tsx` | `sql-editor` | — |
-| ERDiagram (50 テーブル以上) | `frontend/src/components/diagram/ERDiagram.tsx` | `er-diagram-50` | #9 ER 図 50 テーブル < 500ms (spec は #9 サブ issue で追加) |
+| 対象 | ファイル | 計測 mark 名 | 自動取得 | 対応 README 目標 |
+| ---- | -------- | ------------ | -------- | ---------------- |
+| App ルート | `frontend/src/App.tsx` | `startup` | ✅ E2E spec | #1 起動 < 0.3s |
+| ObjectTree | `frontend/src/components/tree/ObjectTree.tsx` | `object-tree` | ✅ E2E spec | — |
+| SqlEditor (Monaco) | `frontend/src/components/editor/SqlEditor.tsx` | `sql-editor` | ✅ E2E spec | — |
+| ResultGrid | `frontend/src/components/grid/ResultGrid.tsx` | `result-grid` | ⚠️ 手動 (クエリ実行後) | #4 結果表示開始 < 100ms |
+| ERDiagram (50 テーブル以上) | `frontend/src/components/diagram/ERDiagram.tsx` | `er-diagram-50` | ⚠️ フィクスチャ不在 (#597) | #9 ER 図 50 テーブル < 500ms |
 
 各コンポーネントは `useFirstRenderMark` (`frontend/src/utils/perfMarks.ts`) で初回マウントの `${name}:start` / `${name}:end` mark を打ち、`${name}` の measure entry を Performance API に記録する。再レンダリングでは記録しない (初回マウントのみ)。
 
@@ -239,16 +239,15 @@ performance.getEntriesByType('measure')
 
 ### Docker 経由の Playwright 自動取得
 
-`frontend/e2e/perf-baseline.spec.ts` は dev server (Vite) で `startup` / `result-grid` / `object-tree` / `sql-editor` の 4 mark を取得し、`[#494 baseline] <JSON>` 形式で stdout に出力する。WebView2 / production preview とは値が一致しない (Vite の HMR + source map を含むため) が、リグレッション検出の基準値として使用できる。
+`frontend/e2e/perf-baseline.spec.ts` は dev server (Vite) で `startup` / `object-tree` / `sql-editor` の 3 mark を取得し、`[#494 baseline] <JSON>` 形式で stdout に出力する。WebView2 / production preview とは値が一致しない (Vite の HMR + source map を含むため) が、リグレッション検出の基準値として使用できる。
 
-```bash
-docker run --rm -v "C:/prog/Velocity-DB://app" \
-  --mount "type=volume,target=//app/frontend/node_modules" \
-  -w "//app/frontend" oven/bun:latest \
-  sh -c 'bun install && bunx playwright install --with-deps chromium && bunx playwright test perf-baseline'
-```
+`bun` は worker_threads 非互換のため Node.js ベースの公式 Playwright image を使用する。image タグは `bun.lock` の `@playwright/test` バージョンと一致させること。
 
-`er-diagram-50` (#9) はフィクスチャ (50 テーブル以上の ER 図ファイル) が別タスクのため、本 spec では取得しない。実機で ER 図ファイルを読み込んだ後、上記の DevTools Console コマンドで取得する。
+Docker コマンドの詳細 (image タグ含む) は `CLAUDE.md`「E2Eテスト (Playwright)」を参照すること。image タグは `bun.lock` の `@playwright/test` バージョンと一致させる。
+
+`result-grid` は BottomPanel (クエリ実行後に表示) に mount されるため本 spec では取得しない。実機で接続 + クエリ実行後に DevTools Console で取得: `performance.getEntriesByType('measure').filter(e => e.name === 'result-grid')`
+
+`er-diagram-50` (#9) はフィクスチャ (50 テーブル以上の ER 図ファイル) が別タスク (#597) のため、本 spec では取得しない。
 
 ### bundle サイズレポートの取得手順
 
@@ -263,23 +262,25 @@ Remove-Item Env:VELOCITYDB_BUNDLE_REPORT
 
 `gzipSize` / `brotliSize` を有効にしているため、各 chunk の raw / gzip / brotli サイズを併記レポートする。
 
-### ベースライン値テーブル (要追記)
+### ベースライン値テーブル
 
-> 計測者は実機で取得した値を以下の表に追記してください。計測環境 (OS / CPU / WebView2 Runtime version) も併記すること。
+> **計測環境の注記**: 自動取得値は Docker (Node.js Playwright 公式 image) + Chromium headless + Vite dev server で取得。production WebView2 + 実機値とは異なる (リグレッション検出用途)。
 
 #### 初回マウント時間
 
 | 対象 | 計測条件 | duration (ms) | 計測日 | 環境 |
 | ---- | -------- | ------------- | ------ | ---- |
-| startup (App) | `page.goto('/')` 直後 | TBD | YYYY-MM-DD | TBD |
-| ResultGrid | 空配列 (mock invoke) | TBD | YYYY-MM-DD | TBD |
-| ResultGrid | 1000 行 × 10 列 | TBD | YYYY-MM-DD | TBD |
-| ResultGrid | 10000 行 × 10 列 | TBD | YYYY-MM-DD | TBD |
-| ObjectTree | 接続プロファイル 1 件展開 (テーブル 50 件) | TBD | YYYY-MM-DD | TBD |
-| SqlEditor | 新規タブ初期化 | TBD | YYYY-MM-DD | TBD |
-| ERDiagram (50 テーブル) | サンプル A5:ER ファイル読込 | TBD | YYYY-MM-DD | TBD |
+| startup (App) | `page.goto('/')` 直後 | 126.7 | 2026-06-01 | Docker Linux + Chromium headless + Vite dev |
+| ObjectTree | LeftPanel 常時表示 (接続なし) | 18.0 | 2026-06-01 | Docker Linux + Chromium headless + Vite dev |
+| SqlEditor (Monaco) | 新規タブ初期化 (Ctrl+N) | 1.4 | 2026-06-01 | Docker Linux + Chromium headless + Vite dev |
+| ResultGrid | 空配列 (mock invoke) | TBD | — | クエリ実行後に mount、実機 DevTools で取得 |
+| ResultGrid | 1000 行 × 10 列 | TBD | — | フィクスチャ不在 (#501) |
+| ResultGrid | 10000 行 × 10 列 | TBD | — | フィクスチャ不在 (#501) |
+| ERDiagram (50 テーブル) | サンプル A5:ER ファイル読込 | TBD | — | フィクスチャ不在 (#597) |
 
-> 上記表のうち `startup` / `ResultGrid 空配列` / `ObjectTree` / `SqlEditor` は `frontend/e2e/perf-baseline.spec.ts` で自動取得可。`ResultGrid 1000/10000 行` と `ERDiagram 50 テーブル` はフィクスチャ不在のため別タスク (#501 / 新規 #9 サブ issue 想定)。
+> `startup` / `ObjectTree` / `SqlEditor` は `frontend/e2e/perf-baseline.spec.ts` で自動取得可 (Docker + Node.js Playwright)。
+> `ResultGrid 空配列` はクエリ実行後に mount されるため実機で手動取得: `performance.getEntriesByType('measure').filter(e => e.name === 'result-grid')`
+> `ResultGrid 1000/10000 行` と `ERDiagram 50 テーブル` はフィクスチャ不在のため別タスク (#501 / #597)。
 
 #### bundle 構成
 
