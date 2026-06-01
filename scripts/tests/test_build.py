@@ -102,15 +102,17 @@ def test_ensure_vcpkg_raises_on_clone_failure(
         _ensure_vcpkg(tmp_path, out=io.StringIO())
 
 
-def test_ensure_vcpkg_warns_on_baseline_drift(
+def test_ensure_vcpkg_syncs_on_baseline_drift(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _make_valid_vcpkg_dir(tmp_path)
-    (tmp_path / "vcpkg.json").write_text(
-        '{"builtin-baseline": "01f602195983451bc83e72f4214af2cbc495aa94"}'
-    )
+    baseline = "01f602195983451bc83e72f4214af2cbc495aa94"
+    (tmp_path / "vcpkg.json").write_text(f'{{"builtin-baseline": "{baseline}"}}')
+
+    invoked: list[list[str]] = []
 
     def fake_run(cmd, desc, **_kwargs):
+        invoked.append(list(cmd))
         if "rev-parse" in cmd:
             return True, "ffffffffffffffffffffffffffffffffffffffff\n"
         return True, ""
@@ -120,10 +122,39 @@ def test_ensure_vcpkg_warns_on_baseline_drift(
     buf = io.StringIO()
     _ensure_vcpkg(tmp_path, out=buf)
 
-    output = buf.getvalue()
-    assert "differs from clone HEAD" in output
-    assert "01f602195983" in output
-    assert "ffffffffffff" in output
+    flat = [" ".join(cmd) for cmd in invoked]
+    assert any("fetch" in c and baseline in c for c in flat), (
+        "drift should trigger git fetch of baseline"
+    )
+    assert any("checkout" in c and baseline in c for c in flat), (
+        "drift should trigger git checkout of baseline"
+    )
+    assert any("bootstrap-vcpkg.bat" in c for c in flat), (
+        "post-sync bootstrap should re-run for port-tool integrity"
+    )
+    assert "Syncing clone to baseline" in buf.getvalue()
+
+
+def test_ensure_vcpkg_reports_error_on_fetch_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _make_valid_vcpkg_dir(tmp_path)
+    baseline = "01f602195983451bc83e72f4214af2cbc495aa94"
+    (tmp_path / "vcpkg.json").write_text(f'{{"builtin-baseline": "{baseline}"}}')
+
+    def fake_run(cmd, desc, **_kwargs):
+        if "rev-parse" in cmd:
+            return True, "ffffffffffffffffffffffffffffffffffffffff\n"
+        if "fetch" in cmd:
+            return False, "network error"
+        return True, ""
+
+    monkeypatch.setattr(build_mod.utils, "run_command", fake_run)
+
+    buf = io.StringIO()
+    _ensure_vcpkg(tmp_path, out=buf)
+
+    assert "failed to fetch baseline" in buf.getvalue()
 
 
 def test_migrate_noop_when_no_install(tmp_path: Path) -> None:

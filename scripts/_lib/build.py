@@ -131,14 +131,20 @@ def _bootstrap_vcpkg(vcpkg_dir: Path, out: TextIO | None) -> None:
         raise RuntimeError("Failed to bootstrap vcpkg (bootstrap-vcpkg.bat).")
 
 
-def _warn_on_baseline_drift(project_root: Path, vcpkg_dir: Path, out: TextIO | None) -> None:
-    """Print a notice when vcpkg.json baseline differs from clone HEAD.
+def _sync_vcpkg_to_baseline(project_root: Path, vcpkg_dir: Path, out: TextIO | None) -> bool:
+    """Ensure clone HEAD matches vcpkg.json builtin-baseline.
 
-    Auto-update is owned by tool-version-upgrade.yml; this is purely informational.
+    vcpkg はバージョン解決時にローカル作業ツリーの `versions/<x>-/<port>.json`
+    を参照するため、HEAD が baseline と一致していないと baseline で要求された
+    バージョンのエントリが見つからずエラーになる (例: libpq@18.4 が 18.3 までしか
+    存在しないツリー上で要求されるケース)。Drift 検出時は fetch + checkout で
+    自動同期する。同期後は vcpkg.exe を再 bootstrap する (port-tool 整合性のため)。
+
+    Returns True on success or when no drift / no baseline. False on sync failure.
     """
     baseline = _read_vcpkg_baseline(project_root / "vcpkg.json")
     if not baseline:
-        return
+        return True
 
     head_ok, head_sha = utils.run_command(
         ["git", "-C", str(vcpkg_dir), "rev-parse", "HEAD"],
@@ -147,18 +153,42 @@ def _warn_on_baseline_drift(project_root: Path, vcpkg_dir: Path, out: TextIO | N
         out=None,
     )
     if not (head_ok and head_sha):
-        return
+        return True
 
     head = head_sha.strip()
     if baseline == head:
-        return
+        return True
 
     print(
-        f"  [vcpkg] Note: vcpkg.json baseline ({baseline[:12]}) "
-        f"differs from clone HEAD ({head[:12]}). "
-        f"Auto-upgrade runs weekly via tool-version-upgrade.yml.",
+        f"\n[vcpkg] Syncing clone to baseline {baseline[:12]} (was {head[:12]})...",
         file=out,
     )
+    fetch_ok, _ = utils.run_command(
+        ["git", "-C", str(vcpkg_dir), "fetch", "--depth=1", "origin", baseline],
+        "git fetch baseline",
+        out=out,
+    )
+    if not fetch_ok:
+        print(
+            f"  [vcpkg] ERROR: failed to fetch baseline {baseline[:12]}. Check network/proxy.",
+            file=out,
+        )
+        return False
+
+    checkout_ok, _ = utils.run_command(
+        ["git", "-C", str(vcpkg_dir), "checkout", baseline],
+        "git checkout baseline",
+        out=out,
+    )
+    if not checkout_ok:
+        print(
+            f"  [vcpkg] ERROR: failed to checkout baseline {baseline[:12]}.",
+            file=out,
+        )
+        return False
+
+    _bootstrap_vcpkg(vcpkg_dir, out)
+    return True
 
 
 def _ensure_vcpkg(project_root: Path, out: TextIO | None = None) -> Path:
@@ -178,7 +208,7 @@ def _ensure_vcpkg(project_root: Path, out: TextIO | None = None) -> Path:
         _clone_vcpkg(vcpkg_dir, out)
     if not vcpkg_exe.exists():
         _bootstrap_vcpkg(vcpkg_dir, out)
-    _warn_on_baseline_drift(project_root, vcpkg_dir, out)
+    _sync_vcpkg_to_baseline(project_root, vcpkg_dir, out)
     return vcpkg_dir
 
 
