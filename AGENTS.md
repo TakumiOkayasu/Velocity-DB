@@ -1,8 +1,8 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
-Velocity-DB固有の指示。グローバルルール (`~/.claude/CLAUDE.md`) に従った上で、以下を適用。
+Velocity-DB固有の指示。グローバルルール (`~/.Codex/AGENTS.md`) に従った上で、以下を適用。
 
 ## プロジェクト概要
 
@@ -164,6 +164,6 @@ frontend/
 | `docs/TROUBLESHOOTING.md` | トラブルシューティング |
 | `docs/VISUAL_STUDIO_SETUP.md` | VS2022 でのデバッグ手順 |
 
-## Claude Code責任範囲
+## Codex責任範囲
 
 UI問題発生時: `log/frontend.log` と `log/backend.log` を確認 → エラー原因特定 → 修正。

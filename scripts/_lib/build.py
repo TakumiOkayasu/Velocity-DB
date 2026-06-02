@@ -10,6 +10,12 @@ from typing import TextIO
 from . import utils
 
 VCPKG_REPO_URL = "https://github.com/microsoft/vcpkg.git"
+_VCPKG_AV_FAILURE_MARKERS = (
+    "Could not invoke sanity check executable",
+    "[WinError 5]",
+    "LNK1104",
+    "アクセスが拒否されました",
+)
 
 
 def build_frontend(clean: bool = False, out: TextIO | None = None) -> bool:
@@ -251,6 +257,210 @@ def _migrate_to_local_vcpkg(project_root: Path, out: TextIO | None = None) -> No
     shutil.rmtree(installed, ignore_errors=True)
 
 
+def _read_log(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def _find_vcpkg_antivirus_evidence(project_root: Path) -> list[Path]:
+    log_paths = [
+        project_root / "build" / "vcpkg-manifest-install.log",
+        *project_root.glob("vcpkg/buildtrees/*/config-*-meson-log.txt.log"),
+        *project_root.glob("vcpkg/buildtrees/*/config-*-out.log"),
+    ]
+
+    evidence: list[Path] = []
+    for path in log_paths:
+        if not path.exists():
+            continue
+        content = _read_log(path)
+        if "sanitycheck" in content and any(
+            marker in content for marker in _VCPKG_AV_FAILURE_MARKERS
+        ):
+            evidence.append(path)
+
+    return evidence
+
+
+def _print_vcpkg_antivirus_diagnosis(project_root: Path, out: TextIO | None = None) -> None:
+    evidence = _find_vcpkg_antivirus_evidence(project_root)
+    if not evidence:
+        return
+
+    print("\n[vcpkg] Antivirus quarantine likely blocked the build.", file=out)
+    print(
+        "  Meson creates and runs a temporary sanity-check executable during vcpkg configure.",
+        file=out,
+    )
+    print(
+        "  The logs show Windows refused to run or open that generated executable.",
+        file=out,
+    )
+    print("  Evidence:", file=out)
+    for path in evidence[:3]:
+        print(f"    - {path.relative_to(project_root)}", file=out)
+    print("  Recovery:", file=out)
+    print("    1. Restore the quarantined generated file in Norton if it is listed.", file=out)
+    print(
+        f"    2. Add a Norton exclusion for {project_root / 'vcpkg' / 'buildtrees'}",
+        file=out,
+    )
+    print(
+        f"       and {project_root / 'build' / 'vcpkg_installed'} while building.",
+        file=out,
+    )
+    print(
+        f"    3. Remove {project_root / 'vcpkg' / 'buildtrees' / 'libpq'} "
+        "and rerun: uv run scripts/pdg.py build backend",
+        file=out,
+    )
+
+
+def _get_env_path(env: dict[str, str]) -> str | None:
+    for key, value in env.items():
+        if key.upper() == "PATH":
+            return value
+    return None
+
+
+def _find_ninja(env: dict[str, str]) -> Path | None:
+    ninja = shutil.which("ninja", path=_get_env_path(env))
+    return Path(ninja) if ninja else None
+
+
+# VS の CMake 拡張に同梱された Ninja は単独実行非対応（`ninja -v` で失敗）。
+# PATH から拾われて CMAKE_MAKE_PROGRAM にキャッシュされると compiler test が失敗し、
+# CMAKE_CXX_COMPILER_WORKS=FALSE が毒として残り再 configure が連鎖失敗するため除外する。
+_VS_CMAKE_NINJA_MARKER = "CommonExtensions\\Microsoft\\CMake\\Ninja"
+
+
+def _strip_vs_cmake_ninja(env: dict[str, str]) -> None:
+    """env PATH から単独実行不可の VS CMake 内蔵 Ninja ディレクトリを除外する。"""
+    path_key = next((k for k in env if k.upper() == "PATH"), "PATH")
+    dirs = [d for d in env.get(path_key, "").split(";") if _VS_CMAKE_NINJA_MARKER not in d]
+    env[path_key] = ";".join(dirs)
+
+
+def _prioritize_ninja_in_path(env: dict[str, str], ninja_path: Path) -> None:
+    """PATH で指定 ninja のディレクトリを先頭に移動する（VS CMake 内蔵 Ninja は除外済み前提）。"""
+    _strip_vs_cmake_ninja(env)
+    path_key = next((k for k in env if k.upper() == "PATH"), "PATH")
+    ninja_dir = str(ninja_path.parent)
+    dirs = [d for d in env.get(path_key, "").split(";") if d.lower() != ninja_dir.lower()]
+    env[path_key] = ";".join([ninja_dir] + dirs)
+
+
+def _as_cmake_path(path: Path) -> str:
+    return path.as_posix()
+
+
+def _read_cmake_cache_value(cache_path: Path, name: str) -> str | None:
+    try:
+        for line in cache_path.read_text(encoding="utf-8", errors="replace").splitlines():
+            if line.startswith(f"{name}:"):
+                return line.partition("=")[2].strip()
+    except OSError:
+        return None
+    return None
+
+
+def _same_path(left: str | None, right: str | None) -> bool:
+    if not left or not right:
+        return False
+    try:
+        return Path(left).resolve() == Path(right).resolve()
+    except OSError:
+        return False
+    except RuntimeError:
+        return False
+
+
+def _is_within(path: Path, parent: Path) -> bool:
+    try:
+        path.resolve().relative_to(parent.resolve())
+        return True
+    except ValueError:
+        return False
+    except OSError:
+        return False
+    except RuntimeError:
+        return False
+
+
+def _remove_path_within(path: Path, parent: Path) -> None:
+    if not _is_within(path, parent):
+        raise RuntimeError(f"Refusing to remove path outside workspace: {path}")
+    if path.is_dir():
+        shutil.rmtree(path)
+        return
+    if path.exists():
+        path.unlink()
+
+
+def _clear_cmake_scratch(project_root: Path, build_dir: Path, out: TextIO | None = None) -> None:
+    """前回の中断実行が残した不完全な TryCompile ディレクトリを除去する。
+
+    cmake 4.2 は TryCompile ディレクトリをパラメータハッシュで識別するため既存
+    ディレクトリを再利用し `ninja -t recompact` を実行する。前回実行が rules.ninja
+    を書かずに終了した場合 recompact が失敗する。CMakeScratch は cmake が毎回再生
+    成するため無条件クリアしても安全。
+    """
+    scratch_dir = build_dir / "CMakeFiles" / "CMakeScratch"
+    if scratch_dir.exists():
+        print("\n[CMake] Clearing CMakeScratch (stale TryCompile dirs).", file=out)
+        _remove_path_within(scratch_dir, project_root)
+
+
+def _clear_stale_cmake_cache(
+    project_root: Path,
+    build_dir: Path,
+    env: dict[str, str],
+    chosen_ninja: Path | None = None,
+    out: TextIO | None = None,
+) -> None:
+    cache_path = build_dir / "CMakeCache.txt"
+    if not cache_path.exists():
+        return
+
+    env_path = _get_env_path(env)
+    current_cl = shutil.which("cl", path=env_path)
+    current_linker = shutil.which("link", path=env_path)
+    cached_tools = {
+        "Z_VCPKG_CL": current_cl,
+        "CMAKE_LINKER": current_linker,
+    }
+    stale_entries = [
+        name
+        for name, current_path in cached_tools.items()
+        if (cached_path := _read_cmake_cache_value(cache_path, name))
+        and not _same_path(cached_path, current_path)
+    ]
+
+    # キャッシュ済 CMAKE_MAKE_PROGRAM が今回選ぶ ninja と食い違うと、CMake は古い ninja を
+    # 再利用し、compiler test が失敗すると CMAKE_CXX_COMPILER_WORKS=FALSE が毒として残る。
+    # 以降の再 configure は try_compile で rules.ninja を生成できず `ninja -t recompact`
+    # が連鎖失敗する。どちらの兆候もキャッシュ破損なので検知したら全クリアする。
+    if chosen_ninja is not None:
+        cached_make = _read_cmake_cache_value(cache_path, "CMAKE_MAKE_PROGRAM")
+        if cached_make and not _same_path(cached_make, str(chosen_ninja)):
+            stale_entries.append("CMAKE_MAKE_PROGRAM")
+    if _read_cmake_cache_value(cache_path, "CMAKE_CXX_COMPILER_WORKS") == "FALSE":
+        stale_entries.append("CMAKE_CXX_COMPILER_WORKS")
+
+    if not stale_entries:
+        return
+
+    print(
+        "\n[CMake] Detected stale/poisoned entries in build/CMakeCache.txt; clearing CMake cache.",
+        file=out,
+    )
+    print(f"  Stale entries: {', '.join(stale_entries)}", file=out)
+    _remove_path_within(cache_path, project_root)
+    _remove_path_within(build_dir / "CMakeFiles", project_root)
+
+
 def build_backend(
     build_type: str = "Release",
     clean: bool = False,
@@ -277,10 +487,8 @@ def build_backend(
 
     print("\n[1/4] Setting up MSVC environment...", file=out)
     env = utils.get_msvc_env(out=out)
-    # vcpkg detect_compiler が bundled ninja 経路 (vcpkg-parallel-configure) で
-    # `ninja -v` を error code 1 で失敗させる長期 issue (#40785, #17195) を回避。
-    # system ninja を強制使用する公式 env (Microsoft Learn vcpkg env vars 参照)。
-    env["VCPKG_FORCE_SYSTEM_BINARIES"] = "1"
+    # Use installed build tools instead of letting vcpkg fetch newer tool binaries.
+    # Without this, vcpkg may try to download CMake during compiler detection.
     # project-local vcpkg を強制使用 (VS 同梱の古い vcpkg-tool を経路から完全排除)。
     # vcvars64.bat が VCPKG_ROOT を VS 同梱 path に設定するためここで上書きする。
     vcpkg_dir = _ensure_vcpkg(project_root, out=out)
@@ -288,17 +496,32 @@ def build_backend(
     env["VCPKG_DISABLE_METRICS"] = "1"
     _migrate_to_local_vcpkg(project_root, out=out)
 
+    # 単独実行不可の VS CMake 内蔵 Ninja を PATH から除外してから選定する。これを
+    # CMAKE_MAKE_PROGRAM に固定しないと、それがキャッシュされ compiler test を破壊する。
+    _strip_vs_cmake_ninja(env)
+    ninja_path = _find_ninja(env)
+    if ninja_path:
+        _prioritize_ninja_in_path(env, ninja_path)
+    # 選定した ninja と食い違う / 毒化したキャッシュを検知してクリアする。
+    _clear_stale_cmake_cache(project_root, build_dir, env, ninja_path, out=out)
+    _clear_cmake_scratch(project_root, build_dir, out=out)
+
     print("\n[2/4] Checking build tools...", file=out)
     if not utils.check_build_tools(env, out=out):
         return False
 
     print(f"\n[3/4] Configuring with CMake (preset: {preset})...", file=out)
     cmake_cmd = ["cmake", "--preset", preset]
+    if ninja_path:
+        cmake_ninja_path = _as_cmake_path(ninja_path)
+        cmake_cmd.append(f"-DCMAKE_MAKE_PROGRAM:FILEPATH={cmake_ninja_path}")
+        print(f"Using Ninja from: {ninja_path}", file=out)
     success, stderr = utils.run_command(
         cmake_cmd, "CMake Configure", env=env, capture_output=True, out=out
     )
     if not success:
         print("\nERROR: CMake configuration failed", file=out)
+        _print_vcpkg_antivirus_diagnosis(project_root, out=out)
         if stderr and out is None:
             print(f"\n{stderr}")
         return False
