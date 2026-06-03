@@ -19,7 +19,7 @@
 | 6 | SQL フォーマット < 50ms | ✅ | ✅ | ✅ | ✅ 中 1ms / 大 40ms |
 | 7 | CSV エクスポート (10万行) < 2s | ✅ | ✅ | ✅ | 🔍 未実測 |
 | 8 | A5:ER ロード (100テーブル) < 1s | ✅ | ✅ | ✅ | ✅ テキスト 2254μs / XML 834μs |
-| 9 | ER 図レンダリング (50テーブル) < 500ms | ✅ | ❌ | ❌ | 🔍 未実測 |
+| 9 | ER 図レンダリング (50テーブル) < 500ms | ✅ | ✅ | ✅ | ✅ 77.2ms (Playwright headless, 2026-06-03) |
 | 10 | クエリ履歴検索 (1万件) < 100ms | ✅ | ❌ | ❌ | 🔍 未実測 |
 | 11 | 結果フィルタリング (AVX2 SIMD) | ✅ | ❌ | ❌ | 🔍 未実測 |
 | 12 | LRU 結果キャッシュ (100MB) | ✅ | N/A | ✅ | ✅ サイズ上限・LRU 動作確認済 |
@@ -119,9 +119,9 @@
 | ------ | ------ |
 | 実装ファイル | `frontend/src/components/diagram/ERDiagram.tsx:1-100` |
 | 実装手法 | React Flow (`@xyflow/react`)、ノード/エッジの memo 化、`GRID_LAYOUT` 自動配置 |
-| 計測機構 | なし |
-| 計測手段 | E2E (Playwright) で 50 テーブル分のサンプルを開いた時の `performance.mark` を記録 |
-| 達成判定 | **未実測**。SVG レンダラ性能に依存 |
+| 計測機構 | `useERDiagramRenderMark(tableCount, threshold=50)` hook (`frontend/src/utils/perfMarks.ts`) が 50テーブル到達時に `er-diagram-50` measure を記録 |
+| 計測手段 | `frontend/e2e/perf-baseline.spec.ts` (#597 describe) が Docker Playwright で「新規ER図」タブ → フィクスチャ (`frontend/e2e/fixtures/er-diagram-50tables.json`, 50テーブル) をインポート → measure 取得 |
+| 達成判定 | **✅ 77.2ms (Playwright Chromium headless + Vite dev, 2026-06-03)**。目標 500ms を大幅に下回る |
 
 ### #10. クエリ履歴検索 (1万件) < 100ms
 
@@ -206,7 +206,7 @@ uv run scripts/pdg.py test backend
 | ObjectTree | `frontend/src/components/tree/ObjectTree.tsx` | `object-tree` | ✅ E2E spec | — |
 | SqlEditor (Monaco) | `frontend/src/components/editor/SqlEditor.tsx` | `sql-editor` | ✅ E2E spec | — |
 | ResultGrid | `frontend/src/components/grid/ResultGrid.tsx` | `result-grid` | ⚠️ 手動 (クエリ実行後) | #4 結果表示開始 < 100ms |
-| ERDiagram (50 テーブル以上) | `frontend/src/components/diagram/ERDiagram.tsx` | `er-diagram-50` | ⚠️ フィクスチャ不在 (#597) | #9 ER 図 50 テーブル < 500ms |
+| ERDiagram (50 テーブル以上) | `frontend/src/components/diagram/ERDiagram.tsx` | `er-diagram-50` | ✅ E2E spec (#597) | #9 ER 図 50 テーブル < 500ms |
 
 各コンポーネントは `useFirstRenderMark` (`frontend/src/utils/perfMarks.ts`) で初回マウントの `${name}:start` / `${name}:end` mark を打ち、`${name}` の measure entry を Performance API に記録する。再レンダリングでは記録しない (初回マウントのみ)。
 
@@ -247,7 +247,7 @@ Docker コマンドの詳細 (image タグ含む) は `CLAUDE.md`「E2Eテスト
 
 `result-grid` は BottomPanel (クエリ実行後に表示) に mount されるため本 spec では取得しない。実機で接続 + クエリ実行後に DevTools Console で取得: `performance.getEntriesByType('measure').filter(e => e.name === 'result-grid')`
 
-`er-diagram-50` (#9) はフィクスチャ (50 テーブル以上の ER 図ファイル) が別タスク (#597) のため、本 spec では取得しない。
+`er-diagram-50` (#9) は `#597 ER diagram baseline` describe ブロックで取得。「+ボタン → 新規ER図」→ `frontend/e2e/fixtures/er-diagram-50tables.json` をインポート → measure 記録の流れ。
 
 ### bundle サイズレポートの取得手順
 
@@ -276,7 +276,7 @@ Remove-Item Env:VELOCITYDB_BUNDLE_REPORT
 | ResultGrid | 空配列 (mock invoke) | TBD | — | クエリ実行後に mount、実機 DevTools で取得 |
 | ResultGrid | 1000 行 × 10 列 | TBD | — | フィクスチャ不在 (#501) |
 | ResultGrid | 10000 行 × 10 列 | TBD | — | フィクスチャ不在 (#501) |
-| ERDiagram (50 テーブル) | サンプル A5:ER ファイル読込 | TBD | — | フィクスチャ不在 (#597) |
+| ERDiagram (50 テーブル) | 「新規ER図」→ 50テーブルフィクスチャインポート | 77.2 | 2026-06-03 | Docker Linux + Chromium headless + Vite dev |
 
 > `startup` / `ObjectTree` / `SqlEditor` は `frontend/e2e/perf-baseline.spec.ts` で自動取得可 (Docker + Node.js Playwright)。
 > `ResultGrid 空配列` はクエリ実行後に mount されるため実機で手動取得: `performance.getEntriesByType('measure').filter(e => e.name === 'result-grid')`
