@@ -1,5 +1,6 @@
 import type { Query } from '../../../types';
 import { generateQueryId, getQueryCounter } from '../helpers/executionState';
+import { toQueriesById } from '../helpers/queriesMap';
 import type { AbortRegistrable } from '../interfaces/AbortRegistrable';
 import type { Manageable } from '../interfaces/Manageable';
 import type { GetState, SetState } from '../types';
@@ -14,7 +15,10 @@ export function createManageSlice(set: SetState, get: GetState, deps: ManageSlic
   const appendQuery = (name: string, content: string, connectionId: string | null = null) => {
     const id = generateQueryId();
     const newQuery: Query = { id, name, content, connectionId, isDirty: false };
-    set((state) => ({ queries: [...state.queries, newQuery], activeQueryId: id }));
+    set((state) => {
+      const newQueries = [...state.queries, newQuery];
+      return { queries: newQueries, queriesById: toQueriesById(newQueries), activeQueryId: id };
+    });
   };
 
   return {
@@ -47,6 +51,7 @@ export function createManageSlice(set: SetState, get: GetState, deps: ManageSlic
 
       set({
         queries: newQueries,
+        queriesById: toQueriesById(newQueries),
         activeQueryId: newActiveId,
         results: newResults,
         errors: newErrors,
@@ -57,21 +62,26 @@ export function createManageSlice(set: SetState, get: GetState, deps: ManageSlic
     },
 
     updateQuery: (id, content) => {
-      set((state) => ({
-        queries: state.queries.map((q) => (q.id === id ? { ...q, content, isDirty: true } : q)),
-      }));
+      set((state) => {
+        const newQueries = state.queries.map((q) =>
+          q.id === id ? { ...q, content, isDirty: true } : q
+        );
+        return { queries: newQueries, queriesById: toQueriesById(newQueries) };
+      });
     },
 
     updateQueryConnection: (id, connectionId) => {
-      set((state) => ({
-        queries: state.queries.map((q) => (q.id === id ? { ...q, connectionId } : q)),
-      }));
+      set((state) => {
+        const newQueries = state.queries.map((q) => (q.id === id ? { ...q, connectionId } : q));
+        return { queries: newQueries, queriesById: toQueriesById(newQueries) };
+      });
     },
 
     renameQuery: (id, name) => {
-      set((state) => ({
-        queries: state.queries.map((q) => (q.id === id ? { ...q, name } : q)),
-      }));
+      set((state) => {
+        const newQueries = state.queries.map((q) => (q.id === id ? { ...q, name } : q));
+        return { queries: newQueries, queriesById: toQueriesById(newQueries) };
+      });
     },
 
     setActive: (id) => {
@@ -79,11 +89,12 @@ export function createManageSlice(set: SetState, get: GetState, deps: ManageSlic
     },
 
     migrateConnection: (oldId, newId) => {
-      set((state) => ({
-        queries: state.queries.map((q) =>
+      set((state) => {
+        const newQueries = state.queries.map((q) =>
           q.connectionId === oldId ? { ...q, connectionId: newId } : q
-        ),
-      }));
+        );
+        return { queries: newQueries, queriesById: toQueriesById(newQueries) };
+      });
     },
 
     addQueryFromFile: appendQuery,
@@ -101,7 +112,7 @@ export function createManageSlice(set: SetState, get: GetState, deps: ManageSlic
         const newQueries = [...state.queries];
         const [moved] = newQueries.splice(fromIndex, 1);
         newQueries.splice(toIndex, 0, moved);
-        return { queries: newQueries };
+        return { queries: newQueries, queriesById: state.queriesById };
       });
     },
   };

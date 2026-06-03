@@ -269,7 +269,7 @@ export function createExecuteSlice(
 
   return {
     executeQuery: async (id, connectionId) => {
-      const query = get().queries.find((q) => q.id === id);
+      const query = get().queriesById[id];
       if (!query || !query.content.trim()) return;
       clearPagination(id);
       await executeAsync(id, connectionId, query.content);

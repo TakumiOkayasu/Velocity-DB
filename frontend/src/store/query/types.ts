@@ -25,6 +25,7 @@ export interface QueryState
     Formattable,
     ERDiagrammable {
   queries: Query[];
+  queriesById: Record<string, Query>;
   activeQueryId: string | null;
   results: Record<string, QueryResult>;
   executingQueryIds: Set<string>;

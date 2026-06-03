@@ -11,6 +11,7 @@ import {
 } from '../helpers/executionState';
 import { fetchTableWithComments, PAGE_SIZE, toBaseSql } from '../helpers/fetchTable';
 import { fetchAndUpdateRowCount } from '../helpers/paginationHelper';
+import { toQueriesById } from '../helpers/queriesMap';
 import type { AbortRegistrable } from '../interfaces/AbortRegistrable';
 import type { ColumnBridgeable } from '../interfaces/ColumnBridgeable';
 import type { DataViewable } from '../interfaces/DataViewable';
@@ -101,11 +102,15 @@ export function createDataViewSlice(
 
         log.info(`[QueryStore] Creating new query tab: ${id} for table ${tableName}`);
 
-        set((state) => ({
-          ...startExecution(state, id),
-          queries: [...state.queries, newQuery],
-          activeQueryId: id,
-        }));
+        set((state) => {
+          const newQueries = [...state.queries, newQuery];
+          return {
+            ...startExecution(state, id),
+            queries: newQueries,
+            queriesById: toQueriesById(newQueries),
+            activeQueryId: id,
+          };
+        });
 
         log.debug(`[QueryStore] Fetching table data for ${tableName}`);
         const fetchStart = performance.now();
@@ -150,7 +155,7 @@ export function createDataViewSlice(
     },
 
     applyWhereFilter: async (id, connectionId, whereClause): Promise<string | null> => {
-      const query = get().queries.find((q) => q.id === id);
+      const query = get().queriesById[id];
       if (!query?.sourceTable) return null;
 
       const controller = new AbortController();
@@ -164,12 +169,16 @@ export function createDataViewSlice(
           whereClause.trim() || undefined
         );
 
-        set((state) => ({
-          ...startExecution(state, id),
-          queries: state.queries.map((q) =>
+        set((state) => {
+          const newQueries = state.queries.map((q) =>
             q.id === id ? { ...q, content: sql, whereClause: whereClause.trim(), isDirty: true } : q
-          ),
-        }));
+          );
+          return {
+            ...startExecution(state, id),
+            queries: newQueries,
+            queriesById: toQueriesById(newQueries),
+          };
+        });
 
         const resultSet = await fetchTableWithComments(
           bridge,
@@ -211,7 +220,7 @@ export function createDataViewSlice(
     },
 
     refreshDataView: async (id, connectionId) => {
-      const query = get().queries.find((q) => q.id === id);
+      const query = get().queriesById[id];
       if (!query?.sourceTable) return;
 
       log.info(`[QueryStore] Refreshing data view: ${query.sourceTable}`);
