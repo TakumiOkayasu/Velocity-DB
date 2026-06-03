@@ -30,6 +30,7 @@ describe('queryStore', () => {
     // Reset stores before each test
     useQueryStore.setState({
       queries: [],
+      queriesById: {},
       activeQueryId: null,
       results: {},
       executingQueryIds: new Set<string>(),
@@ -50,10 +51,12 @@ describe('queryStore', () => {
 
       addQuery('conn_1');
 
-      const { queries, activeQueryId } = useQueryStore.getState();
+      const { queries, activeQueryId, queriesById } = useQueryStore.getState();
       expect(queries).toHaveLength(1);
       expect(queries[0].connectionId).toBe('conn_1');
       expect(activeQueryId).toBe(queries[0].id);
+      expect(Object.keys(queriesById)).toEqual(queries.map((q) => q.id));
+      expect(queriesById[queries[0].id]).toBe(queries[0]);
     });
 
     it('should generate unique query ids', () => {
@@ -92,6 +95,7 @@ describe('queryStore', () => {
       const state = useQueryStore.getState();
       expect(state.queries).toHaveLength(0);
       expect(state.results[queryId]).toBeUndefined();
+      expect(Object.keys(state.queriesById)).toEqual(state.queries.map((q) => q.id));
     });
   });
 
@@ -105,9 +109,12 @@ describe('queryStore', () => {
 
       updateQuery(queryId, 'SELECT * FROM users');
 
-      const updated = useQueryStore.getState().queries[0];
+      const state = useQueryStore.getState();
+      const updated = state.queries[0];
       expect(updated.content).toBe('SELECT * FROM users');
       expect(updated.isDirty).toBe(true);
+      expect(Object.keys(state.queriesById)).toEqual(state.queries.map((q) => q.id));
+      expect(state.queriesById[queryId]).toBe(updated);
     });
   });
 

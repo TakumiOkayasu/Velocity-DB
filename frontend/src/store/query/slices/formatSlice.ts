@@ -1,5 +1,6 @@
 import { formatSQL } from '../../../utils/sqlFormat';
 import { useToastStore } from '../../toastStore';
+import { toQueriesById } from '../helpers/queriesMap';
 import type { Formattable } from '../interfaces/Formattable';
 import type { GetState, SetState } from '../types';
 
@@ -11,11 +12,12 @@ export function createFormatSlice(set: SetState, get: GetState): Formattable {
 
       try {
         const formatted = await formatSQL(query.content);
-        set((state) => ({
-          queries: state.queries.map((q) =>
+        set((state) => {
+          const newQueries = state.queries.map((q) =>
             q.id === id ? { ...q, content: formatted, isDirty: true } : q
-          ),
-        }));
+          );
+          return { queries: newQueries, queriesById: toQueriesById(newQueries) };
+        });
       } catch (error) {
         const reason = error instanceof Error ? error.message : 'Failed to format SQL';
         useToastStore.getState().addToast(`フォーマットできません: ${reason}`, 'error');

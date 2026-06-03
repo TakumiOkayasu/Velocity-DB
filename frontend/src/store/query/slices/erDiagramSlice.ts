@@ -1,5 +1,6 @@
 import type { Query } from '../../../types';
 import { generateQueryId } from '../helpers/executionState';
+import { toQueriesById } from '../helpers/queriesMap';
 import type { ERDiagrammable } from '../interfaces/ERDiagrammable';
 import type { GetState, SetState } from '../types';
 
@@ -23,10 +24,10 @@ export function createERDiagramSlice(set: SetState, get: GetState): ERDiagrammab
         isERDiagram: true,
       };
 
-      set((state) => ({
-        queries: [...state.queries, newQuery],
-        activeQueryId: id,
-      }));
+      set((state) => {
+        const newQueries = [...state.queries, newQuery];
+        return { queries: newQueries, queriesById: toQueriesById(newQueries), activeQueryId: id };
+      });
 
       return id;
     },

@@ -53,6 +53,7 @@ const abortAdapter: AbortRegistrable = {
 export const useQueryStore = create<QueryState>((set, get) => ({
   // Shared state
   queries: [],
+  queriesById: {},
   activeQueryId: null,
   results: {},
   executingQueryIds: new Set<string>(),
@@ -75,23 +76,16 @@ export const useQueryStore = create<QueryState>((set, get) => ({
 export const useQueries = () => useQueryStore(useShallow((state) => state.queries));
 
 export const useActiveQuery = () =>
-  useQueryStore((state) => {
-    const query = state.queries.find((q) => q.id === state.activeQueryId);
-    return query ?? null;
-  });
+  useQueryStore((state) => state.queriesById[state.activeQueryId ?? ''] ?? null);
 
 export const useIsActiveDataView = () =>
-  useQueryStore(
-    (state) => state.queries.find((q) => q.id === state.activeQueryId)?.isDataView === true
-  );
+  useQueryStore((state) => state.queriesById[state.activeQueryId ?? '']?.isDataView === true);
 
 export const useIsActiveERDiagram = () =>
-  useQueryStore(
-    (state) => state.queries.find((q) => q.id === state.activeQueryId)?.isERDiagram === true
-  );
+  useQueryStore((state) => state.queriesById[state.activeQueryId ?? '']?.isERDiagram === true);
 
 export const useQueryById = (queryId: string | null | undefined) =>
-  useQueryStore((state) => (queryId ? state.queries.find((q) => q.id === queryId) : undefined));
+  useQueryStore((state) => (queryId ? state.queriesById[queryId] : undefined));
 
 export const useQueryResult = (queryId: string | null | undefined) =>
   useQueryStore((state) => (queryId ? (state.results[queryId] ?? null) : null));
