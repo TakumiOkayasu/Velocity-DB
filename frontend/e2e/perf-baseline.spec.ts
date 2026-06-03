@@ -9,10 +9,29 @@ import { expect, type Page, test } from '@playwright/test';
  *
  * 実行方法: CLAUDE.md「E2Eテスト (Playwright)」参照 (image タグは bun.lock の @playwright/test バージョンに合わせること)
  *
- * `result-grid` (BottomPanel) はクエリ実行後にのみ mount されるため本 spec では取得しない。
- * 実機で接続 + クエリ実行後に DevTools Console で取得すること:
- *   performance.getEntriesByType('measure').filter(e => e.name === 'result-grid')
  */
+
+/**
+ * ResultGrid 計測用フィクスチャ (1000行 × 10列) を生成する。
+ * getAsyncQueryResult IPC の mock レスポンスとして使用する。
+ */
+function buildResultGridFixture({ rowCount, colCount }: { rowCount: number; colCount: number }) {
+  const columns = Array.from({ length: colCount }, (_, i) => ({
+    name: `col_${i}`,
+    type: 'nvarchar',
+  }));
+  const rows = Array.from({ length: rowCount }, (_, r) =>
+    Array.from({ length: colCount }, (_, c) => `v${r}_${c}`)
+  );
+  return {
+    queryId: 'mock-q-1',
+    status: 'completed',
+    columns,
+    rows,
+    affectedRows: 0,
+    executionTimeMs: 10,
+  };
+}
 
 /**
  * ER 図フィクスチャ (50テーブル) を生成する。
@@ -89,6 +108,8 @@ function buildERFixture() {
   };
 }
 
+const resultGridFixture1k = buildResultGridFixture({ rowCount: 1000, colCount: 10 });
+
 const erFixture = buildERFixture();
 
 const MOCK_INVOKE_SCRIPT = `
@@ -132,14 +153,49 @@ const MOCK_INVOKE_SCRIPT_ER = `
   };
 `;
 
+/** ResultGrid 計測用: connectAsync → getAsyncQueryResult で 1000行を返し result-grid measure を取得 */
+const MOCK_INVOKE_SCRIPT_RESULT_GRID = `
+  const RESULT_FIXTURE = ${JSON.stringify(resultGridFixture1k)};
+  const RESULT_RESPONSE_STR = JSON.stringify({ success: true, data: RESULT_FIXTURE });
+  window.invoke = async (requestStr) => {
+    let method = '';
+    try { method = JSON.parse(requestStr).method; } catch (_e) {}
+    if (method === 'loadSession') {
+      return JSON.stringify({
+        success: true,
+        data: { queries: [], activeQueryId: null, connectionProfiles: [], window: {} },
+      });
+    }
+    if (method === 'connectAsync') {
+      return JSON.stringify({ success: true, data: { requestId: 'req-1' } });
+    }
+    if (method === 'getConnectResult') {
+      return JSON.stringify({ success: true, data: { status: 'connected', connectionId: 'mock-conn-1' } });
+    }
+    if (method === 'getDatabases') {
+      return JSON.stringify({ success: true, data: ['master'] });
+    }
+    if (method === 'getTables') {
+      return JSON.stringify({ success: true, data: [] });
+    }
+    if (method === 'executeAsyncQuery') {
+      return JSON.stringify({ success: true, data: { queryId: 'mock-q-1' } });
+    }
+    if (method === 'getAsyncQueryResult') {
+      return RESULT_RESPONSE_STR;
+    }
+    return JSON.stringify({ success: true, data: {} });
+  };
+`;
+
 /**
  * 取得対象 marks (3 件):
  * - `startup`: App ルート初回マウント。README #1 (起動 < 0.3s) ベースライン用
  * - `object-tree`: ObjectTree 初回マウント (LeftPanel は起動時に常時表示)
  * - `sql-editor`: SqlEditor (Monaco) 初回マウント (Ctrl+N で新規タブ作成後)
  *
- * 取得しない marks:
- * - `result-grid`: BottomPanel はクエリ実行後にのみ表示。実機で手動取得
+ * 取得しない marks (collectDurations の TARGETS 外):
+ * - (なし。result-grid は #501 describe で個別取得)
  */
 const TARGETS = ['startup', 'object-tree', 'sql-editor'] as const;
 type TargetName = (typeof TARGETS)[number];
@@ -269,5 +325,66 @@ test.describe('#597 ER diagram baseline', () => {
     expect(durationMs).not.toBeNull();
     expect(durationMs).toBeGreaterThan(0.1);
     expect(durationMs).toBeLessThan(ER_DIAGRAM_TARGET_MS);
+  });
+});
+
+test.describe('#501 ResultGrid baseline', () => {
+  test('should_record_result_grid_duration_when_1k_rows_loaded', async ({ page }) => {
+    await page.addInitScript(MOCK_INVOKE_SCRIPT_RESULT_GRID);
+    await page.goto('/');
+
+    // startup mark 待機
+    await page.waitForFunction(
+      () => performance.getEntriesByName('startup', 'measure').length > 0,
+      { timeout: 15_000 }
+    );
+
+    // 接続ダイアログを開く
+    await page.click('button[title="新規接続"]');
+    await page.waitForSelector('#conn-server', { timeout: 10_000 });
+
+    // 接続フォーム入力 (SQL Server, localhost/master)
+    await page.fill('#conn-name', 'Baseline Test');
+    await page.fill('#conn-server', 'localhost');
+    await page.fill('#conn-database', 'master');
+
+    // ConnectionDialog フッターの接続ボタン (data-testid="conn-submit" で一意に識別)
+    await page.locator('[data-testid="conn-submit"]').click();
+
+    // 接続ダイアログが閉じるまで待機 (#conn-server が DOM から消える)
+    await page.waitForSelector('#conn-server', { state: 'detached', timeout: 15_000 });
+
+    // 接続後は SQL エディタタブが自動で開かないため Ctrl+N で開く
+    await page.keyboard.press('Control+n');
+    await page.waitForSelector('.monaco-editor', { timeout: 10_000 });
+
+    // クエリ入力・実行 (実行ショートカットは F9)
+    await page.click('.monaco-editor');
+    await page.keyboard.press('Control+a');
+    await page.keyboard.type('SELECT 1');
+    // 実行ボタンが enabled になるまで待機 (接続完了後に connectionId がセットされる)
+    await page.waitForSelector('button[title="実行 (F9)"]:not([disabled])', { timeout: 10_000 });
+    await page.keyboard.press('F9');
+
+    // result-grid measure が記録されるまで待機
+    await page.waitForFunction(
+      () => performance.getEntriesByName('result-grid', 'measure').length > 0,
+      { timeout: 30_000 }
+    );
+
+    const durationMs = await page.evaluate(() => {
+      const entry = performance.getEntriesByName('result-grid', 'measure')[0];
+      return entry ? Number(entry.duration.toFixed(2)) : null;
+    });
+
+    console.log(`[#501 baseline] result-grid-1k=${durationMs}ms`);
+    test
+      .info()
+      .annotations.push({ type: 'perf-baseline', description: `result-grid-1k=${durationMs}ms` });
+
+    expect(durationMs).not.toBeNull();
+    expect(durationMs).toBeGreaterThan(0.1);
+    // TODO(@TakumiOkayasu): #501 最適化完了後に上限 assertion を追加する
+    // expect(durationMs).toBeLessThan(RESULT_GRID_TARGET_MS); // 目標: 100ms
   });
 });
