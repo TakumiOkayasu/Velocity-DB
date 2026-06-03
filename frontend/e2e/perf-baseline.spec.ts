@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 /**
  * #494 Frontend 計測基盤 — 初回マウント duration ベースライン取得 (自動化)
@@ -44,44 +44,70 @@ const MOCK_INVOKE_SCRIPT = `
  * - `er-diagram-50`: 50 テーブル以上のフィクスチャが別タスク (#597)
  */
 const TARGETS = ['startup', 'object-tree', 'sql-editor'] as const;
+type TargetName = (typeof TARGETS)[number];
+
+/**
+ * README #1「アプリ起動 < 0.3s」に対応するリグレッション上限 (Playwright Chromium headless 基準)。
+ * 実測ベースライン 151.9ms の ~1.5x。300ms は README 目標値だが headless CI には粗すぎるため絞っている。
+ */
+const STARTUP_TARGET_MS = 230;
+
+type DurationEntry = { name: TargetName; duration_ms: number | null };
+
+async function collectDurations(page: Page): Promise<DurationEntry[]> {
+  await page.addInitScript(MOCK_INVOKE_SCRIPT);
+  await page.goto('/');
+
+  // startup mark が記録されるまで待機してから Ctrl+N を送る (networkidle 不使用:
+  // Vite dev の HMR WebSocket が networkidle 到達を妨げる場合があるため)
+  await page.waitForFunction(() => performance.getEntriesByName('startup', 'measure').length > 0, {
+    timeout: 15_000,
+  });
+
+  // SqlEditor は新規タブ作成でマウントされる (#391 spec と同じ手法)。
+  await page.keyboard.press('Control+n');
+
+  await page.waitForFunction(
+    (names) =>
+      (names as readonly string[]).every(
+        (n) => performance.getEntriesByName(n, 'measure').length > 0
+      ),
+    TARGETS,
+    { timeout: 30_000 }
+  );
+
+  return page.evaluate((names) => {
+    return (names as readonly string[]).map((n) => ({
+      name: n as TargetName,
+      duration_ms: (() => {
+        const entry = performance.getEntriesByName(n, 'measure')[0];
+        return entry ? Number(entry.duration.toFixed(2)) : null;
+      })(),
+    }));
+  }, TARGETS);
+}
 
 test.describe('#494 perf baseline', () => {
-  test('useFirstRenderMark の duration ベースラインを取得', async ({ page }) => {
-    await page.addInitScript(MOCK_INVOKE_SCRIPT);
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-
-    // SqlEditor は新規タブ作成でマウントされる (#391 spec と同じ手法)。
-    await page.keyboard.press('Control+n');
-
-    await page.waitForFunction(
-      (names) =>
-        (names as readonly string[]).every(
-          (n) => performance.getEntriesByName(n, 'measure').length > 0
-        ),
-      TARGETS,
-      { timeout: 30_000 }
-    );
-
-    const durations = await page.evaluate((names) => {
-      return (names as readonly string[]).map((n) => {
-        const entry = performance.getEntriesByName(n, 'measure')[0];
-        return {
-          name: n,
-          duration_ms: entry ? Number(entry.duration.toFixed(2)) : null,
-        };
-      });
-    }, TARGETS);
+  test('should_record_positive_durations_for_all_targets_when_app_mounts', async ({ page }) => {
+    const durations = await collectDurations(page);
 
     // stdout に集計可能な形で出力 (docs 転記用)。PERFORMANCE_VALIDATION.md 更新時に参照。
     console.log(`[#494 baseline] ${JSON.stringify(durations)}`);
 
     for (const d of durations) {
       expect(d.duration_ms).not.toBeNull();
-      expect(d.duration_ms).toBeGreaterThan(0);
+      // 0.1ms 未満は mark 未記録の可能性がある (getEntriesByName が空を返した場合のフォールバック検出)
+      expect(d.duration_ms).toBeGreaterThan(0.1);
       test
         .info()
         .annotations.push({ type: 'perf-baseline', description: `${d.name}=${d.duration_ms}ms` });
     }
+  });
+
+  test('startup_should_be_under_target_ms_when_app_mounts', async ({ page }) => {
+    const durations = await collectDurations(page);
+    const startup = durations.find((d) => d.name === TARGETS[0]);
+    expect(startup?.duration_ms).not.toBeNull();
+    expect(startup?.duration_ms).toBeLessThan(STARTUP_TARGET_MS);
   });
 });
