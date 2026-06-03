@@ -1,0 +1,2852 @@
+{
+  "name": "Fixture50Tables",
+  "databaseType": "SQLServer",
+  "tables": [
+    {
+      "name": "table_001",
+      "logicalName": "Table 001",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 0,
+      "posY": 0,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_002",
+      "logicalName": "Table 002",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 200,
+      "posY": 0,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_003",
+      "logicalName": "Table 003",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 400,
+      "posY": 0,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_004",
+      "logicalName": "Table 004",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 600,
+      "posY": 0,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_005",
+      "logicalName": "Table 005",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 800,
+      "posY": 0,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_006",
+      "logicalName": "Table 006",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1000,
+      "posY": 0,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_007",
+      "logicalName": "Table 007",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1200,
+      "posY": 0,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_008",
+      "logicalName": "Table 008",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1400,
+      "posY": 0,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_009",
+      "logicalName": "Table 009",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1600,
+      "posY": 0,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_010",
+      "logicalName": "Table 010",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1800,
+      "posY": 0,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_011",
+      "logicalName": "Table 011",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 0,
+      "posY": 250,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_012",
+      "logicalName": "Table 012",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 200,
+      "posY": 250,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_013",
+      "logicalName": "Table 013",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 400,
+      "posY": 250,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_014",
+      "logicalName": "Table 014",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 600,
+      "posY": 250,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_015",
+      "logicalName": "Table 015",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 800,
+      "posY": 250,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_016",
+      "logicalName": "Table 016",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1000,
+      "posY": 250,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_017",
+      "logicalName": "Table 017",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1200,
+      "posY": 250,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_018",
+      "logicalName": "Table 018",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1400,
+      "posY": 250,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_019",
+      "logicalName": "Table 019",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1600,
+      "posY": 250,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_020",
+      "logicalName": "Table 020",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1800,
+      "posY": 250,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_021",
+      "logicalName": "Table 021",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 0,
+      "posY": 500,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_022",
+      "logicalName": "Table 022",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 200,
+      "posY": 500,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_023",
+      "logicalName": "Table 023",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 400,
+      "posY": 500,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_024",
+      "logicalName": "Table 024",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 600,
+      "posY": 500,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_025",
+      "logicalName": "Table 025",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 800,
+      "posY": 500,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_026",
+      "logicalName": "Table 026",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1000,
+      "posY": 500,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_027",
+      "logicalName": "Table 027",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1200,
+      "posY": 500,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_028",
+      "logicalName": "Table 028",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1400,
+      "posY": 500,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_029",
+      "logicalName": "Table 029",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1600,
+      "posY": 500,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_030",
+      "logicalName": "Table 030",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1800,
+      "posY": 500,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_031",
+      "logicalName": "Table 031",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 0,
+      "posY": 750,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_032",
+      "logicalName": "Table 032",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 200,
+      "posY": 750,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_033",
+      "logicalName": "Table 033",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 400,
+      "posY": 750,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_034",
+      "logicalName": "Table 034",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 600,
+      "posY": 750,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_035",
+      "logicalName": "Table 035",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 800,
+      "posY": 750,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_036",
+      "logicalName": "Table 036",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1000,
+      "posY": 750,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_037",
+      "logicalName": "Table 037",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1200,
+      "posY": 750,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_038",
+      "logicalName": "Table 038",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1400,
+      "posY": 750,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_039",
+      "logicalName": "Table 039",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1600,
+      "posY": 750,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_040",
+      "logicalName": "Table 040",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1800,
+      "posY": 750,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_041",
+      "logicalName": "Table 041",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 0,
+      "posY": 1000,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_042",
+      "logicalName": "Table 042",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 200,
+      "posY": 1000,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_043",
+      "logicalName": "Table 043",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 400,
+      "posY": 1000,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_044",
+      "logicalName": "Table 044",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 600,
+      "posY": 1000,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_045",
+      "logicalName": "Table 045",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 800,
+      "posY": 1000,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_046",
+      "logicalName": "Table 046",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1000,
+      "posY": 1000,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_047",
+      "logicalName": "Table 047",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1200,
+      "posY": 1000,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_048",
+      "logicalName": "Table 048",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1400,
+      "posY": 1000,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_049",
+      "logicalName": "Table 049",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1600,
+      "posY": 1000,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    },
+    {
+      "name": "table_050",
+      "logicalName": "Table 050",
+      "comment": "",
+      "columns": [
+        {
+          "name": "id",
+          "logicalName": "id",
+          "type": "INT",
+          "size": 0,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": true,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "name",
+          "logicalName": "name",
+          "type": "NVARCHAR",
+          "size": 100,
+          "scale": 0,
+          "nullable": false,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        },
+        {
+          "name": "value",
+          "logicalName": "value",
+          "type": "NVARCHAR",
+          "size": 255,
+          "scale": 0,
+          "nullable": true,
+          "isPrimaryKey": false,
+          "defaultValue": "",
+          "comment": "",
+          "color": ""
+        }
+      ],
+      "indexes": [],
+      "posX": 1800,
+      "posY": 1000,
+      "page": "MAIN",
+      "color": "",
+      "bkColor": ""
+    }
+  ],
+  "relations": [
+    {
+      "name": "FK_table_002_table_001",
+      "parentTable": "table_001",
+      "childTable": "table_002",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_003_table_002",
+      "parentTable": "table_002",
+      "childTable": "table_003",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_004_table_003",
+      "parentTable": "table_003",
+      "childTable": "table_004",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_005_table_004",
+      "parentTable": "table_004",
+      "childTable": "table_005",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_006_table_005",
+      "parentTable": "table_005",
+      "childTable": "table_006",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_007_table_006",
+      "parentTable": "table_006",
+      "childTable": "table_007",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_008_table_007",
+      "parentTable": "table_007",
+      "childTable": "table_008",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_009_table_008",
+      "parentTable": "table_008",
+      "childTable": "table_009",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_010_table_009",
+      "parentTable": "table_009",
+      "childTable": "table_010",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_011_table_010",
+      "parentTable": "table_010",
+      "childTable": "table_011",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_012_table_011",
+      "parentTable": "table_011",
+      "childTable": "table_012",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_013_table_012",
+      "parentTable": "table_012",
+      "childTable": "table_013",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_014_table_013",
+      "parentTable": "table_013",
+      "childTable": "table_014",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_015_table_014",
+      "parentTable": "table_014",
+      "childTable": "table_015",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_016_table_015",
+      "parentTable": "table_015",
+      "childTable": "table_016",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_017_table_016",
+      "parentTable": "table_016",
+      "childTable": "table_017",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_018_table_017",
+      "parentTable": "table_017",
+      "childTable": "table_018",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_019_table_018",
+      "parentTable": "table_018",
+      "childTable": "table_019",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_020_table_019",
+      "parentTable": "table_019",
+      "childTable": "table_020",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_021_table_020",
+      "parentTable": "table_020",
+      "childTable": "table_021",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_022_table_021",
+      "parentTable": "table_021",
+      "childTable": "table_022",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_023_table_022",
+      "parentTable": "table_022",
+      "childTable": "table_023",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_024_table_023",
+      "parentTable": "table_023",
+      "childTable": "table_024",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_025_table_024",
+      "parentTable": "table_024",
+      "childTable": "table_025",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_026_table_025",
+      "parentTable": "table_025",
+      "childTable": "table_026",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_027_table_026",
+      "parentTable": "table_026",
+      "childTable": "table_027",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_028_table_027",
+      "parentTable": "table_027",
+      "childTable": "table_028",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_029_table_028",
+      "parentTable": "table_028",
+      "childTable": "table_029",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_030_table_029",
+      "parentTable": "table_029",
+      "childTable": "table_030",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_031_table_030",
+      "parentTable": "table_030",
+      "childTable": "table_031",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_032_table_031",
+      "parentTable": "table_031",
+      "childTable": "table_032",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_033_table_032",
+      "parentTable": "table_032",
+      "childTable": "table_033",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_034_table_033",
+      "parentTable": "table_033",
+      "childTable": "table_034",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_035_table_034",
+      "parentTable": "table_034",
+      "childTable": "table_035",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_036_table_035",
+      "parentTable": "table_035",
+      "childTable": "table_036",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_037_table_036",
+      "parentTable": "table_036",
+      "childTable": "table_037",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_038_table_037",
+      "parentTable": "table_037",
+      "childTable": "table_038",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_039_table_038",
+      "parentTable": "table_038",
+      "childTable": "table_039",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_040_table_039",
+      "parentTable": "table_039",
+      "childTable": "table_040",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_041_table_040",
+      "parentTable": "table_040",
+      "childTable": "table_041",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_042_table_041",
+      "parentTable": "table_041",
+      "childTable": "table_042",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_043_table_042",
+      "parentTable": "table_042",
+      "childTable": "table_043",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_044_table_043",
+      "parentTable": "table_043",
+      "childTable": "table_044",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_045_table_044",
+      "parentTable": "table_044",
+      "childTable": "table_045",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_046_table_045",
+      "parentTable": "table_045",
+      "childTable": "table_046",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_047_table_046",
+      "parentTable": "table_046",
+      "childTable": "table_047",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_048_table_047",
+      "parentTable": "table_047",
+      "childTable": "table_048",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_049_table_048",
+      "parentTable": "table_048",
+      "childTable": "table_049",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    },
+    {
+      "name": "FK_table_050_table_049",
+      "parentTable": "table_049",
+      "childTable": "table_050",
+      "parentColumn": "id",
+      "childColumn": "id",
+      "cardinality": "1:N"
+    }
+  ],
+  "shapes": [],
+  "ddl": ""
+}
