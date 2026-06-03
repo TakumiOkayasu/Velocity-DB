@@ -18,7 +18,7 @@
 | 5 | 仮想スクロール 60fps | ✅ | ❌ | ⚠️ 部分 | 🔍 未実測 |
 | 6 | SQL フォーマット < 50ms | ✅ | ✅ | ✅ | ✅ 中 1ms / 大 40ms |
 | 7 | CSV エクスポート (10万行) < 2s | ✅ | ✅ | ✅ | 🔍 未実測 |
-| 8 | A5:ER ロード (100テーブル) < 1s | ✅ | ❌ | ❌ | 🔍 未実測 |
+| 8 | A5:ER ロード (100テーブル) < 1s | ✅ | ✅ | ✅ | ✅ テキスト 2254μs / XML 834μs |
 | 9 | ER 図レンダリング (50テーブル) < 500ms | ✅ | ❌ | ❌ | 🔍 未実測 |
 | 10 | クエリ履歴検索 (1万件) < 100ms | ✅ | ❌ | ❌ | 🔍 未実測 |
 | 11 | 結果フィルタリング (AVX2 SIMD) | ✅ | ❌ | ❌ | 🔍 未実測 |
@@ -109,9 +109,9 @@
 | ------ | ------ |
 | 実装ファイル | `backend/parsers/a5er_parser.h`, `backend/parsers/a5er_parser.cpp` |
 | 実装手法 | `pugixml` 直接利用、テキスト/XML 両形式対応 |
-| 計測機構 | なし |
-| 計測手段 | 100 テーブルを含む A5:ER ファイルを `tests/parsers/test_a5er_parser.cpp` 用フィクスチャに追加 |
-| 達成判定 | **未実測**。ファイルサイズ・スキーマ複雑度に依存 |
+| 計測機構 | `tests/perf/test_a5er_parser_bench.cpp` — `A5ERParser::parseFromString()` を 5 反復計測 (I/O 分離) |
+| 計測手段 | `ctest --test-dir build -R A5ERParserBench -V`。フィクスチャ: `tests/fixtures/a5er/fixture_100tables.a5er(.xml)` (100 テーブル × 5 列 + 99 リレーション、`gen_a5er_fixture.py` で再生成可) |
+| 達成判定 | **✅ テキスト形式 mean=2254μs / XML 形式 mean=834μs (2026-06-03, Release ビルド, Windows 11, kRepeatCount=20, ウォームアップ 2 回)**。目標 100ms (100000μs) を大幅に下回る |
 
 ### #9. ER 図レンダリング (50テーブル) < 500ms
 

@@ -14,6 +14,7 @@ set(PERF_TEST_SOURCES
     test_csv_exporter_bench.cpp
     test_result_cache_bench.cpp
     test_sql_formatter_bench.cpp
+    test_a5er_parser_bench.cpp
     integration/test_select_million_rows_bench.cpp
 )
 
@@ -22,6 +23,10 @@ add_executable(VelocityDBPerfTests ${PERF_TEST_SOURCES})
 target_include_directories(VelocityDBPerfTests PRIVATE
     ${CMAKE_SOURCE_DIR}/backend
     ${CMAKE_SOURCE_DIR}/third_party
+)
+
+target_compile_definitions(VelocityDBPerfTests PRIVATE
+    TEST_FIXTURES_DIR="${CMAKE_SOURCE_DIR}/tests/fixtures"
 )
 
 target_link_libraries(VelocityDBPerfTests PRIVATE
