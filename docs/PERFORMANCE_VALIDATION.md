@@ -313,7 +313,7 @@ Remove-Item Env:VELOCITYDB_BUNDLE_REPORT
 | `queryStore` | 19.60 | 6.63 |
 | `SqlEditor` | 16.15 | 6.02 |
 
-> `vendor-monaco` が全体の **78%** (raw) / **76%** (gzip) / **75%** (brotli) を占める。Monaco の lazy-load 分割は `#501`/`#494` 後続の優先課題候補 (follow-up issue へ)。
+> `vendor-monaco` が全体の **78%** (raw) / **76%** (gzip) / **75%** (brotli) を占める。`SqlEditor` / `ResultGrid` / `ERDiagramView` はいずれも `lazyWithRetry` (React.lazy) で動的 import しているため、`vendor-monaco` は SqlEditor タブを初めて開くまで読み込まれない (初期 JS = entry 40kB のみ)。#507 対応済。
 
 ### 本セクションのスコープ外 (follow-up)
 

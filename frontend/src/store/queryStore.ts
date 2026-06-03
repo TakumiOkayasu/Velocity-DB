@@ -3,6 +3,7 @@
 export type { QueryState } from './query';
 export {
   useActiveQuery,
+  useActiveQueryMeta,
   useIsActiveDataView,
   useIsActiveERDiagram,
   useIsQueryExecuting,

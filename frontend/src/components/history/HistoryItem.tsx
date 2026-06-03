@@ -1,6 +1,6 @@
 import { memo, useCallback } from 'react';
 import { useHistoryStore } from '../../store/historyStore';
-import { useQueryStore } from '../../store/queryStore';
+import { useQueryActions, useQueryStore } from '../../store/queryStore';
 import type { HistoryItem as HistoryItemType } from '../../types';
 import styles from './HistoryItem.module.css';
 
@@ -10,7 +10,8 @@ interface HistoryItemProps {
 
 export const HistoryItem = memo(function HistoryItem({ item }: HistoryItemProps) {
   const { setFavorite, removeHistory } = useHistoryStore();
-  const { addQuery, queries, updateQuery, executeQuery } = useQueryStore();
+  const hasQueries = useQueryStore((s) => s.queries.length > 0);
+  const { addQuery, updateQuery, executeQuery } = useQueryActions();
 
   const formatTimestamp = (epochMs: number): string => {
     return new Date(epochMs).toLocaleString('ja-JP', {
@@ -29,14 +30,14 @@ export const HistoryItem = memo(function HistoryItem({ item }: HistoryItemProps)
 
   const handleClick = useCallback(() => {
     // Add query to new tab or update active tab
-    if (queries.length === 0) {
+    if (!hasQueries) {
       addQuery();
     }
     const activeId = useQueryStore.getState().activeQueryId;
     if (activeId) {
       updateQuery(activeId, item.sql);
     }
-  }, [queries.length, addQuery, updateQuery, item.sql]);
+  }, [hasQueries, addQuery, updateQuery, item.sql]);
 
   const handleDoubleClick = useCallback(() => {
     // Set SQL in editor and execute it
