@@ -17,16 +17,16 @@
 | 4 | 結果表示開始 < 100ms | ✅ | ✅ | ⚠️ 部分 | 🔍 未実測 |
 | 5 | 仮想スクロール 60fps | ✅ | ❌ | ⚠️ 部分 | 🔍 未実測 |
 | 6 | SQL フォーマット < 50ms | ✅ | ✅ | ✅ | ✅ 中 1ms / 大 40ms |
-| 7 | CSV エクスポート (10万行) < 2s | ✅ | ✅ | ✅ | 🔍 未実測 |
+| 7 | CSV エクスポート (10万行) < 2s | ✅ | ✅ | ✅ | ✅ 196ms (ctest Release, 2026-06-03) |
 | 8 | A5:ER ロード (100テーブル) < 1s | ✅ | ✅ | ✅ | ✅ テキスト 2254μs / XML 834μs |
 | 9 | ER 図レンダリング (50テーブル) < 500ms | ✅ | ✅ | ✅ | ✅ 77.2ms (Playwright headless, 2026-06-03) |
-| 10 | クエリ履歴検索 (1万件) < 100ms | ✅ | ❌ | ❌ | 🔍 未実測 |
-| 11 | 結果フィルタリング (AVX2 SIMD) | ✅ | ❌ | ❌ | 🔍 未実測 |
+| 10 | クエリ履歴検索 (1万件) < 100ms | ✅ | ✅ | ✅ | ✅ < 100ms (ctest Release, 2026-06-03) |
+| 11 | 結果フィルタリング (AVX2 SIMD) | ✅ | ✅ | ✅ | ✅ equals 0ms / contains 1ms (ctest Release, 2026-06-03) |
 | 12 | LRU 結果キャッシュ (100MB) | ✅ | N/A | ✅ | ✅ サイズ上限・LRU 動作確認済 |
 
 **凡例**: ✅ 実装あり / ⚠️ 部分的 / ❌ なし / 🔍 未実測
 
-**結論**: 全 12 項目に該当する実装機構は存在する。ただし継続的な計測 (ベンチマークテスト) が整備されているのは LRU キャッシュ (#12) のみであり、**ほとんどの項目で目標値が継続的に守られていることを保証する仕組みがない**。
+**結論**: 全 12 項目に該当する実装機構は存在する。#1/#6/#7/#8/#9/#10/#11/#12 は ctest または E2E で継続的な計測が整備済みで目標値を満たすことが確認されている。#2/#3/#4/#5 は実 DB / WebView2 実環境を要するため未実測。
 
 ## 各項目の詳細
 
@@ -100,8 +100,9 @@
 | 実装手法 | `std::ofstream` バイナリモードでストリーム書き込み、UTF-8 BOM、CSV エスケープ、`reserve()` 事前割り当て |
 | 計測機構 | あり (`tests/perf/test_csv_exporter_bench.cpp` の `std::chrono::steady_clock` 計測) |
 | 既存ベンチマーク | `tests/perf/test_csv_exporter_bench.cpp` (10 万行 × 10 列、NULL/エスケープ混在) で 2s 上限を `EXPECT_LT` |
-| 計測手段 | `ctest --preset release -L perf` で実行 |
-| 達成判定 | **未実測** (要 CI 実機)。ディスク I/O 性能に依存 |
+| 計測手段 | `ctest --preset release -L perf` または `ctest --test-dir build -R CSVExporterBench -V` |
+| 達成判定 | **✅ 196ms (ctest Release, 2026-06-03)**。目標 2000ms を大幅に下回る |
+| ベースライン値 (2026-06-03) | 10万行 × 10列 (NULL/エスケープ混在): 196ms |
 
 ### #8. A5:ER ロード (100テーブル) < 1s
 
@@ -129,9 +130,9 @@
 | ------ | ------ |
 | 実装ファイル | `backend/database/query_history.h:46-72`, `backend/database/query_history.cpp:34-60` |
 | 実装手法 | `std::vector<HistoryItem>` で最大 10000 件保持。`std::search` + `std::tolower` による case-insensitive linear search (O(n*m)) |
-| 計測機構 | なし |
-| 計測手段 | `tests/database/test_query_history.cpp` に 1 万件投入後 `search()` を計測 |
-| 達成判定 | **未実測**。ローカル実測が容易な項目 |
+| 計測機構 | `tests/perf/test_query_history_search_bench.cpp` — 1 万件投入後 `search()` を短/中/長/NoMatch の 4 パターンで計測し `< 100ms` を `EXPECT_LT` |
+| 計測手段 | `ctest --test-dir build -R QueryHistorySearchBench -V` |
+| 達成判定 | **✅ < 100ms (ctest Release, 2026-06-03)**。4 パターン全て PASS |
 | 備考 | 線形検索のため、SQL 平均長や検索語長によっては目標 100ms を超える可能性がある。インデックス化検討の余地あり |
 
 ### #11. 結果フィルタリング (AVX2 SIMD)
@@ -140,9 +141,10 @@
 | ------ | ------ |
 | 実装ファイル | `backend/utils/simd_filter.h:11-33`, `backend/utils/simd_filter.cpp` |
 | 実装手法 | AVX2 intrinsics (`_mm256_*`) 直接利用、`__cpuidex()` で実行時 AVX2 検出、非対応 CPU では `std::memcmp()` フォールバック |
-| 計測機構 | なし |
-| 計測手段 | `tests/utils/` 配下に `test_simd_filter.cpp` を新規追加し、AVX2 経路 vs フォールバック経路を計測比較 |
-| 達成判定 | **未実測**。「高速」の定義が README に明記されていない (相対比較の基準が不明) |
+| 計測機構 | `tests/perf/test_simd_filter_bench.cpp` — `simdStringEquals` (100k 反復 × 64byte) / `simdStringContains` (64KB haystack) を AVX2 経路と scalar 経路で計測比較し `< 50ms` を `EXPECT_LT` |
+| 計測手段 | `ctest --test-dir build -R SimdFilterBench -V` |
+| 達成判定 | **✅ equals 0ms / contains 1ms (ctest Release, 2026-06-03)**。AVX2 available: yes。simdStringContains は `std::string_view::find` より 4 倍高速 (ratio=0.26) |
+| ベースライン値 (2026-06-03) | simdStringEquals: 0ms (memcmp 比 ratio=0.92)<br>simdStringContains: 1ms (string_view::find: 4ms, ratio=0.26) |
 
 ### #12. LRU 結果キャッシュ (100MB)
 
@@ -184,8 +186,9 @@ uv run scripts/pdg.py test backend
 1. **ベンチマークテスト群の追加** (別 issue / PR)
    - ✅ バックエンド基盤: `tests/perf/` 新設、`VelocityDBPerfTests` 実行ファイル、`perf` ctest ラベル (#425)
    - ✅ `scripts/pdg.py` に `bench` サブコマンド (`pdg bench backend` で `ctest -L perf`)
-   - 🔍 個別目標 (#3 SELECT / #11 SIMD) の計測テスト追加は別 PR (#6 #10 は対応済)
-   - 🔍 フロントエンド: Vitest での `performance.now()` ベース計測 + Playwright での E2E 計測 (未着手)
+   - ✅ 個別目標 #6/#7/#8/#10/#11 の計測テスト整備済
+   - 🔍 #3 SELECT 100万行: 実 DB 必要、別 issue (#589)
+   - ✅ フロントエンド: Playwright E2E で #1/#9 を自動計測済 (#606/#607/#609)
 2. **CI への組み込み**
    - ✅ 通常テスト workflow (`ci.yml` / `test.yml`) は `ctest -LE perf` で perf を除外
    - ✅ `bench.yml` を新設 (`workflow_dispatch` で手動実行)
