@@ -5,7 +5,13 @@ import * as monaco from 'monaco-editor';
 import { type MutableRefObject, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useKeyboardHandler } from '../../hooks/useKeyboardHandler';
 import { useConnections } from '../../store/connectionStore';
-import { useLintDiagnostics, useQueryStore, useRuntimeDiagnostics } from '../../store/queryStore';
+import {
+  useActiveQuery,
+  useLintDiagnostics,
+  useQueryActions,
+  useQueryStore,
+  useRuntimeDiagnostics,
+} from '../../store/queryStore';
 import { useSchemaStore } from '../../store/schemaStore';
 import { extractReferencedDatabases } from '../../utils/crossDbDetector';
 import {
@@ -48,8 +54,9 @@ function useApplyMarkers(
 
 export function SqlEditor() {
   useFirstRenderMark('sql-editor');
-  const { queries, activeQueryId, updateQuery } = useQueryStore();
-  const activeQuery = queries.find((q) => q.id === activeQueryId);
+  const activeQuery = useActiveQuery();
+  const activeQueryId = activeQuery?.id ?? null;
+  const { updateQuery } = useQueryActions();
   const queryConnectionId = activeQuery?.connectionId ?? null;
   const connections = useConnections();
   const currentDb = connections.find((c) => c.id === queryConnectionId)?.database ?? '';

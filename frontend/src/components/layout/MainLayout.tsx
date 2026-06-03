@@ -5,8 +5,12 @@ import { useFileDrop } from '../../hooks/useFileDrop';
 import { useKeyboardShortcutHandler } from '../../hooks/useKeyboardShortcutHandler';
 import { usePanelLayoutState } from '../../hooks/usePanelLayoutState';
 import { applyConnectionMigration } from '../../store/connectionMigration';
-import { useConnectionStore } from '../../store/connectionStore';
-import { useQueryStore } from '../../store/queryStore';
+import {
+  useConnectionActions,
+  useConnectionStore,
+  useConnections,
+} from '../../store/connectionStore';
+import { useActiveQueryMeta, useQueryActions, useQueryStore } from '../../store/queryStore';
 import type { ConnectionConfig } from '../../types/connectionForm';
 import { lazyWithRetry } from '../../utils/lazyWithRetry';
 import { checkQueryExecutability } from '../../utils/queryExecutionCheck';
@@ -15,7 +19,6 @@ import { ToolbarIcons } from '../icons/SvgIcons';
 import { CenterPanel } from './CenterPanel';
 import styles from './MainLayout.module.css';
 import { resolveNewQueryConnectionId } from './newQueryConnection';
-import { isRunButtonDisabled } from './runButtonState';
 
 // Lazy load heavy components (dialogs, panels) to reduce initial bundle size
 const LeftPanel = lazyWithRetry(() =>
@@ -55,27 +58,37 @@ export function MainLayout() {
     hasOpenDialog,
   } = useDialogState();
 
-  const { connections, addConnection, cancelConnection, isConnecting } = useConnectionStore();
+  const connections = useConnections();
+  const { addConnection, cancelConnection } = useConnectionActions();
+  const isConnecting = useConnectionStore((s) => s.isConnecting);
+
+  const activeQueryId = useQueryStore((s) => s.activeQueryId);
   const {
-    queries,
-    activeQueryId,
-    results,
-    addQuery,
-    addQueryFromFile,
-    removeQuery,
-    executeQuery,
-    cancelQuery,
-    formatQuery,
-    isExecuting,
-  } = useQueryStore();
-  const activeQuery = queries.find((q) => q.id === activeQueryId);
-  const activeQueryConnectionId = activeQuery?.connectionId ?? null;
+    connectionId: activeQueryConnectionId,
+    isDataView,
+    name: activeQueryName,
+  } = useActiveQueryMeta();
+  const hasActiveResult = useQueryStore(
+    (s) => s.activeQueryId !== null && s.results[s.activeQueryId] !== undefined
+  );
+  const isExecuting = useQueryStore((s) => s.isExecuting);
+  const isRunDisabled = useQueryStore((s) => {
+    const q = s.queriesById[s.activeQueryId ?? ''];
+    if (!q || !q.connectionId) return true;
+    if (q.isDataView === true || q.isERDiagram === true) return true;
+    return q.content.trim().length === 0;
+  });
+  const isFormatDisabled = useQueryStore((s) => {
+    const q = s.queriesById[s.activeQueryId ?? ''];
+    return !q?.content || q?.isDataView === true;
+  });
+  const { addQuery, addQueryFromFile, removeQuery, executeQuery, cancelQuery, formatQuery } =
+    useQueryActions();
 
   const { isFileDragOver } = useFileDrop({ addQueryFromFile, activeQueryConnectionId });
   const activeQueryConnection = connections.find((c) => c.id === activeQueryConnectionId);
   const isProduction = activeQueryConnection?.isProduction ?? false;
   const isReadOnly = activeQueryConnection?.isReadOnly ?? false;
-  const isDataView = activeQuery?.isDataView === true;
 
   const {
     leftPanelWidth,
@@ -89,7 +102,7 @@ export function MainLayout() {
     shouldShowBottomPanel,
   } = usePanelLayoutState({
     activeQueryId,
-    hasActiveResult: activeQueryId !== null && results[activeQueryId] !== undefined,
+    hasActiveResult,
     isDataView,
   });
 
@@ -143,9 +156,11 @@ export function MainLayout() {
   }, [activeQueryId, activeQueryConnectionId, executeQuery, setIsBottomPanelVisible]);
 
   const handleExecute = useCallback(() => {
-    if (!activeQueryId || !activeQueryConnectionId || !activeQuery) return;
+    if (!activeQueryId || !activeQueryConnectionId) return;
+    const query = useQueryStore.getState().queriesById[activeQueryId];
+    if (!query) return;
 
-    const result = checkQueryExecutability(activeQuery.content, { isReadOnly, isProduction });
+    const result = checkQueryExecutability(query.content, { isReadOnly, isProduction });
 
     if (result.action === 'execute') {
       doExecuteQuery();
@@ -168,7 +183,6 @@ export function MainLayout() {
   }, [
     activeQueryId,
     activeQueryConnectionId,
-    activeQuery,
     isProduction,
     isReadOnly,
     doExecuteQuery,
@@ -306,7 +320,7 @@ export function MainLayout() {
           <button
             type="button"
             onClick={isExecuting ? handleCancel : handleExecute}
-            disabled={isRunButtonDisabled(activeQuery, activeQueryConnectionId)}
+            disabled={isRunDisabled}
             title={isExecuting ? '停止 (Escape)' : '実行 (F9)'}
             className={styles.executeButton}
           >
@@ -320,7 +334,7 @@ export function MainLayout() {
             type="button"
             className={styles.iconButton}
             onClick={handleFormat}
-            disabled={!activeQuery?.content || isDataView}
+            disabled={isFormatDisabled}
             title="SQLフォーマット (Ctrl+Shift+F)"
           >
             <ToolbarIcons.Format />
@@ -454,7 +468,9 @@ export function MainLayout() {
             </span>
           )}
         </div>
-        <div className={styles.statusCenter}>{activeQuery && <span>{activeQuery.name}</span>}</div>
+        <div className={styles.statusCenter}>
+          {activeQueryName && <span>{activeQueryName}</span>}
+        </div>
         <div className={styles.statusRight}>
           <span
             className={`${styles.statusItem} ${activeQueryConnection ? styles.connected : styles.disconnected}`}

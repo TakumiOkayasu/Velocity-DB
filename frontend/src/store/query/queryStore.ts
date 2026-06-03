@@ -78,6 +78,19 @@ export const useQueries = () => useQueryStore(useShallow((state) => state.querie
 export const useActiveQuery = () =>
   useQueryStore((state) => state.queriesById[state.activeQueryId ?? ''] ?? null);
 
+/** Active query のメタ情報 (connectionId / isDataView / name)。content は含まず、毎タイピング再レンダーを防ぐ。 */
+export const useActiveQueryMeta = () =>
+  useQueryStore(
+    useShallow((s) => {
+      const q = s.queriesById[s.activeQueryId ?? ''] ?? null;
+      return {
+        connectionId: q?.connectionId ?? null,
+        isDataView: q?.isDataView === true,
+        name: q?.name ?? null,
+      };
+    })
+  );
+
 export const useIsActiveDataView = () =>
   useQueryStore((state) => state.queriesById[state.activeQueryId ?? '']?.isDataView === true);
 
