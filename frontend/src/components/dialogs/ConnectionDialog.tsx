@@ -258,6 +258,7 @@ export function ConnectionDialog({
           </button>
           <button
             type="button"
+            data-testid="conn-submit"
             className={styles.connectButton}
             onClick={isConnecting ? onCancelConnect : handleConnect}
           >

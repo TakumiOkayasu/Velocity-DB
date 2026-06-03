@@ -14,7 +14,7 @@
 | 1 | アプリ起動 < 0.3s | ✅ | ✅ | ✅ | ✅ 191.7ms (Playwright headless, 2026-06-03) |
 | 2 | SQL Server 接続 < 50ms | ✅ | ⚠️ 部分 | ❌ | 🔍 未実測 |
 | 3 | SELECT (100万行) < 500ms | ✅ | ✅ | ❌ | 🔍 未実測 |
-| 4 | 結果表示開始 < 100ms | ✅ | ✅ | ⚠️ 部分 | 🔍 未実測 |
+| 4 | 結果表示開始 < 100ms | ✅ | ✅ | ✅ | 🔍 161.3ms (最適化前ベースライン, 2026-06-03) |
 | 5 | 仮想スクロール 60fps | ✅ | ❌ | ⚠️ 部分 | 🔍 未実測 |
 | 6 | SQL フォーマット < 50ms | ✅ | ✅ | ✅ | ✅ 中 1ms / 大 40ms |
 | 7 | CSV エクスポート (10万行) < 2s | ✅ | ✅ | ✅ | ✅ 196ms (ctest Release, 2026-06-03) |
@@ -66,9 +66,10 @@
 | ------ | ------ |
 | 実装ファイル | `frontend/src/components/grid/GridTable.tsx:47-82`, `frontend/src/components/grid/ResultGrid.tsx`, `frontend/src/store/query/slices/dataViewSlice.ts` |
 | 実装手法 | TanStack React Virtual で行を仮想化。`broken-state` 検出時は `FALLBACK_RENDER_LIMIT=50` で先頭行のみ描画 (issue #417 参照) |
-| 計測機構 | `dataViewSlice` 内に `performance.now()` 利用箇所あり |
-| 計測手段 | E2E (Playwright) で `performance.measure` を計測する追加テスト |
-| 達成判定 | **未実測**。WebView2 レンダラのレイアウト時間を含む |
+| 計測機構 | `useFirstRenderMark('result-grid')` hook (`frontend/src/utils/perfMarks.ts`) が ResultGrid 初回マウント時に `result-grid` measure を記録 |
+| 計測手段 | `frontend/e2e/perf-baseline.spec.ts` (#501 describe) が接続 mock → F9 実行 → 1000行 × 10列フィクスチャで ResultGrid を mount → measure 取得 |
+| 達成判定 | **🔍 161.3ms (Playwright headless, 1000行×10列 mock, 2026-06-03)**。目標 100ms を超過。ただし本計測は最適化前のベースライン値 (#501 実装後に再計測予定) |
+| ベースライン値 (2026-06-03) | result-grid-1k: 161.3ms (1000行×10列, Playwright Chromium headless + Vite dev) |
 
 ### #5. 仮想スクロール 60fps 安定
 
