@@ -20,7 +20,28 @@ endif()
 # quarantines this as Win64:MalwareX-gen. FORCED skips the probe.
 set(CMAKE_C_COMPILER_FORCED TRUE)
 
+# CMake 4.2 + Ninja: the CXX compiler usability test (try_compile in
+# CMakeTestCXXCompiler) runs `ninja -t recompact` on a TryCompile dir whose
+# build.ninja includes a not-yet-generated CMakeFiles/rules.ninja, failing
+# configure and poisoning CMAKE_CXX_COMPILER_WORKS=FALSE. That cached FALSE
+# makes every reconfigure re-run the failing test (a loop --clean cannot break).
+# Pre-asserting WORKS=TRUE skips that one try_compile; the compiler is known-good
+# (incremental builds compile objects fine). Unlike CMAKE_CXX_COMPILER_FORCED,
+# this keeps ABI / compile-feature detection so GoogleTest's
+# target_compile_features still sees the known cxx_std_* features.
+set(CMAKE_CXX_COMPILER_WORKS TRUE)
+
 project(VelocityDB VERSION 1.4.2 LANGUAGES CXX)
+
+# Pre-asserting CMAKE_CXX_COMPILER_WORKS above also skips CMake's compile-feature
+# recording, leaving CMAKE_CXX_COMPILE_FEATURES empty so consumers that call
+# target_compile_features (e.g. GoogleTest's cxx_std_14) error with
+# "no known features for CXX compiler MSVC". MSVC 19.51 supports through C++23,
+# so advertise the standard meta-features explicitly when recording was skipped.
+if(NOT CMAKE_CXX_COMPILE_FEATURES)
+    set(CMAKE_CXX_COMPILE_FEATURES
+        cxx_std_98 cxx_std_11 cxx_std_14 cxx_std_17 cxx_std_20 cxx_std_23)
+endif()
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

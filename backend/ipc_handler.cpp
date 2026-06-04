@@ -1,5 +1,6 @@
 #include "ipc_handler.h"
 
+#include "database/profile_gate.h"
 #include "interfaces/providers/async_query_provider.h"
 #include "interfaces/providers/connection_provider.h"
 #include "interfaces/providers/export_provider.h"
@@ -15,9 +16,17 @@
 #include "simdjson.h"
 #include "utils/json_utils.h"
 
+#include <chrono>
 #include <format>
 
 namespace velocitydb {
+
+/// Env var name as a NUL-terminated literal with external linkage, so it can be
+/// passed as a template NTTP to profile::isEnabledOnce without relying on the
+/// C++20 P1907 relaxation for internal-linkage pointer NTTPs.
+/// Set VELOCITYDB_IPC_PROFILE to a non-empty, non-"0" value to log per-handler
+/// dispatch timing to log/backend.log. Default OFF: zero hot-path overhead.
+inline constexpr char kIpcProfileEnv[] = "VELOCITYDB_IPC_PROFILE";
 
 IPCHandler::IPCHandler(ISystemContext& ctx) : m_ctx(ctx) {
     registerRoutes();
@@ -139,7 +148,14 @@ std::string IPCHandler::dispatchRequest(std::string_view request) {
         }
 
         if (auto route = m_routes.find(method); route != m_routes.end()) [[likely]] {
-            return route->second(params);
+            if (!profile::isEnabledOnce<kIpcProfileEnv>()) [[likely]] {
+                return route->second(params);
+            }
+            const auto dispatchStart = std::chrono::steady_clock::now();
+            auto response = route->second(params);
+            const auto elapsedUs = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - dispatchStart).count();
+            profile::emit("[ipc-prof] method={} {:.3f}ms", method, static_cast<double>(elapsedUs) / 1000.0);
+            return response;
         }
 
         return JsonUtils::errorResponse(std::format("Unknown method: {}", method));
