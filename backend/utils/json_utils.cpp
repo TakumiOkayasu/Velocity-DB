@@ -3,10 +3,36 @@
 #include "database/driver_interface.h"
 
 #include <algorithm>
+#include <array>
 #include <format>
-#include <sstream>
 
 namespace velocitydb {
+namespace {
+
+// Byte lookup: true when the byte must be escaped in JSON output.
+constexpr auto kNeedsEscape = [] {
+    std::array<bool, 256> tbl{};
+    for (unsigned i = 0; i < 0x20; ++i)
+        tbl[i] = true;
+    tbl[static_cast<unsigned>('"')] = true;
+    tbl[static_cast<unsigned>('\\')] = true;
+    return tbl;
+}();
+
+// Fixed escape sequences for the 7 named JSON escape characters; nullptr elsewhere.
+constexpr auto kEscapeSeq = [] {
+    std::array<const char*, 256> tbl{};
+    tbl[static_cast<unsigned>('"')] = "\\\"";
+    tbl[static_cast<unsigned>('\\')] = "\\\\";
+    tbl[static_cast<unsigned>('\b')] = "\\b";
+    tbl[static_cast<unsigned>('\f')] = "\\f";
+    tbl[static_cast<unsigned>('\n')] = "\\n";
+    tbl[static_cast<unsigned>('\r')] = "\\r";
+    tbl[static_cast<unsigned>('\t')] = "\\t";
+    return tbl;
+}();
+
+}  // namespace
 
 std::string JsonUtils::successResponse(std::string_view data) {
     return std::format(R"({{"success":true,"data":{}}})", data);
@@ -16,59 +42,43 @@ std::string JsonUtils::errorResponse(std::string_view message) {
     return std::format(R"({{"success":false,"error":"{}"}})", escapeString(message));
 }
 
+void JsonUtils::appendEscapedString(std::string& json, std::string_view str) {
+    const auto* p = str.data();
+    const auto* end = p + str.size();
+    while (p < end && !kNeedsEscape[static_cast<unsigned char>(*p)])
+        ++p;
+    if (p == end) {
+        json += str;  // fast path: no escapes, single memcpy
+        return;
+    }
+    json.reserve(json.size() + str.size() + str.size() / 8);
+    json.append(str.data(), p - str.data());  // safe prefix in one shot
+    for (; p < end; ++p) {
+        const auto uc = static_cast<unsigned char>(*p);
+        if (const char* seq = kEscapeSeq[uc]) {
+            json += seq;
+        } else if (uc < 0x20) {
+            json += std::format("\\u{:04x}", static_cast<unsigned>(uc));
+        } else {
+            json += *p;
+        }
+    }
+}
+
 void JsonUtils::appendJsonValue(std::string& json, const ResultRow& row, size_t colIndex) {
     if (row.isNull(colIndex)) {
         json += "null";
     } else {
         json += '"';
-        json += escapeString(row.values[colIndex]);
+        appendEscapedString(json, row.values[colIndex]);
         json += '"';
     }
 }
 
 std::string JsonUtils::escapeString(std::string_view str) {
-    // Fast path: check if string needs escaping
-    constexpr auto needsEscaping = [](char c) { return c == '"' || c == '\\' || c == '\b' || c == '\f' || c == '\n' || c == '\r' || c == '\t' || static_cast<unsigned char>(c) < 0x20; };
-    if (!std::ranges::any_of(str, needsEscaping)) {
-        return std::string(str);
-    }
-
-    // Slow path: escape special characters
     std::string result;
-    result.reserve(str.size() + str.size() / 8);
-
-    for (char c : str) {
-        switch (c) {
-            case '"':
-                result += "\\\"";
-                break;
-            case '\\':
-                result += "\\\\";
-                break;
-            case '\b':
-                result += "\\b";
-                break;
-            case '\f':
-                result += "\\f";
-                break;
-            case '\n':
-                result += "\\n";
-                break;
-            case '\r':
-                result += "\\r";
-                break;
-            case '\t':
-                result += "\\t";
-                break;
-            default:
-                if (static_cast<unsigned char>(c) < 0x20) {
-                    result += std::format("\\u{:04x}", static_cast<int>(c));
-                } else {
-                    result += c;
-                }
-                break;
-        }
-    }
+    result.reserve(str.size());
+    appendEscapedString(result, str);
     return result;
 }
 
@@ -78,7 +88,7 @@ void JsonUtils::appendColumns(std::string& json, const std::vector<ColumnInfo>& 
         if (i > 0)
             json += ',';
         json += R"({"name":")";
-        json += escapeString(columns[i].name);
+        appendEscapedString(json, columns[i].name);
         json += R"(","type":")";
         json += columns[i].type;  // Type names don't need escaping (SQL types are safe)
         json += R"("})";
