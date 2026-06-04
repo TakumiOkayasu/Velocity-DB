@@ -39,6 +39,10 @@ public:
     /// Use when embedding ResultSet data into a larger JSON object.
     static void appendResultSetFields(std::string& json, const ResultSet& result);
 
+private:
+    static void appendEscapedString(std::string& json, std::string_view str);
+
+public:
     /// 任意のコレクションから JSON 配列を構築
     template <typename Items, typename Formatter>
     [[nodiscard]] static std::string buildArray(const Items& items, Formatter&& fmt) {

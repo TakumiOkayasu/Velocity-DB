@@ -31,7 +31,16 @@ ResultSet QueryResultFormatter::buildUseStatementResult(std::string_view dbName)
 }
 
 std::string QueryResultFormatter::buildMultipleResultsJson(std::span<const NamedResult> results) {
-    std::string json = R"({"multipleResults":true,"results":[)";
+    size_t estimatedSize = 50;
+    for (const auto& r : results) {
+        estimatedSize += r.statement.size() + 50;
+        if (r.result)
+            estimatedSize += std::min(r.result->rows.size(), JsonUtils::QUERY_ROW_LIMIT) * 64;
+    }
+
+    std::string json;
+    json.reserve(estimatedSize);
+    json += R"({"multipleResults":true,"results":[)";
     for (size_t i = 0; i < results.size(); ++i) {
         if (i > 0)
             json += ',';
@@ -46,14 +55,21 @@ std::string QueryResultFormatter::buildMultipleResultsJson(std::span<const Named
 }
 
 std::string QueryResultFormatter::buildFilteredResultJson(const ResultSet& result, std::span<const size_t> matchingIndices) {
-    std::string json = "{";
+    const size_t estimatedSize = 100 + result.columns.size() * 65 + matchingIndices.size() * result.columns.size() * 32;
+
+    std::string json;
+    json.reserve(estimatedSize);
+    json += '{';
     JsonUtils::appendColumns(json, result.columns);
     json += R"(,"rows":[)";
     for (size_t i = 0; i < matchingIndices.size(); ++i) {
         if (i > 0)
             json += ',';
         json += '[';
-        const auto& row = result.rows[matchingIndices[i]];
+        const size_t idx = matchingIndices[i];
+        if (idx >= result.rows.size()) [[unlikely]]
+            continue;
+        const auto& row = result.rows[idx];
         for (size_t colIndex = 0; colIndex < row.values.size(); ++colIndex) {
             if (colIndex > 0)
                 json += ',';
