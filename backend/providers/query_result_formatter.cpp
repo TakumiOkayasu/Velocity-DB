@@ -34,8 +34,7 @@ std::string QueryResultFormatter::buildMultipleResultsJson(std::span<const Named
     size_t estimatedSize = 50;
     for (const auto& r : results) {
         estimatedSize += r.statement.size() + 50;
-        if (r.result)
-            estimatedSize += std::min(r.result->rows.size(), JsonUtils::QUERY_ROW_LIMIT) * 64;
+        estimatedSize += std::min(r.result.get().rows.size(), JsonUtils::QUERY_ROW_LIMIT) * 64;
     }
 
     std::string json;
