@@ -12,7 +12,7 @@
 | # | 目標 | 実装 | 計測機構 | 既存ベンチマーク | 達成判定 |
 | --- | ------ | ------ | ---------- | ------------------ | ---------- |
 | 1 | アプリ起動 < 0.3s | ✅ | ✅ | ✅ | ✅ 191.7ms (Playwright headless, 2026-06-03) |
-| 2 | SQL Server 接続 < 50ms | ✅ | ⚠️ 部分 | ❌ | 🔍 未実測 |
+| 2 | SQL Server 接続 < 50ms | ✅ | ✅ | ✅ | ✅ 12ms (Docker localhost, 2026-06-04) |
 | 3 | SELECT (100万行) < 500ms | ✅ | ✅ | ❌ | 🔍 未実測 |
 | 4 | 結果表示開始 < 100ms | ✅ | ✅ | ✅ | 🔍 161.3ms (最適化前ベースライン, 2026-06-03) |
 | 5 | 仮想スクロール 60fps | ✅ | ❌ | ⚠️ 部分 | 🔍 未実測 |
@@ -26,7 +26,7 @@
 
 **凡例**: ✅ 実装あり / ⚠️ 部分的 / ❌ なし / 🔍 未実測
 
-**結論**: 全 12 項目に該当する実装機構は存在する。#1/#6/#7/#8/#9/#10/#11/#12 は ctest または E2E で継続的な計測が整備済みで目標値を満たすことが確認されている。#2/#3/#4/#5 は実 DB / WebView2 実環境を要するため未実測。
+**結論**: 全 12 項目に該当する実装機構は存在する。#1/#2/#6/#7/#8/#9/#10/#11/#12 は ctest または E2E で継続的な計測が整備済みで目標値を満たすことが確認されている。#3/#4/#5 は実 DB / WebView2 実環境を要するため未実測。
 
 ## 各項目の詳細
 
@@ -46,9 +46,9 @@
 | ------ | ------ |
 | 実装ファイル | `backend/database/connection_registry.h`, `backend/database/sqlserver_driver.cpp`, `backend/database/async_connection_executor.h` |
 | 実装手法 | ODBC Native API 直接利用、`shared_ptr` ベースの接続レジストリ、ThreadPool (MAX_THREADS=8) で非同期化 |
-| 計測機構 | 部分的 (`async_connection_executor` 内部) |
-| 計測手段 | 実 SQL Server 接続を伴う統合テストを追加し、`AsyncConnectionResult` の所要時間を記録 |
-| 達成判定 | **未実測**。サーバー所在地・認証方式・TLS 確立時間で大きく変動 |
+| 計測機構 | `tests/perf/integration/test_sqlserver_connect_bench.cpp` が `VELOCITYDB_PERF_MSSQL_CONNSTR` 経由で実 SQL Server への `connect()` を 5 回計測し mean/median/max を出力 |
+| 計測手段 | `ctest --preset release -L perf -R SqlServerConnect` で実行。`VELOCITYDB_PERF_MSSQL_CONNSTR` が未設定の場合はスキップ。Docker 実行手順は `tests/perf/README.md` を参照 |
+| 達成判定 | **✅ 達成**。mean=11998μs (≈12ms) < 50ms target。Docker SQL Server 2022 + localhost 接続 (11rep median=11675μs max=16517μs, 2026-06-04) |
 
 ### #3. SELECT (100万行) < 500ms
 

@@ -16,6 +16,7 @@ set(PERF_TEST_SOURCES
     test_sql_formatter_bench.cpp
     test_a5er_parser_bench.cpp
     integration/test_select_million_rows_bench.cpp
+    integration/test_sqlserver_connect_bench.cpp
 )
 
 add_executable(VelocityDBPerfTests ${PERF_TEST_SOURCES})

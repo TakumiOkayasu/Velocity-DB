@@ -14,12 +14,12 @@
 // measured end-to-end (driver.execute returns when all 100万行 have been
 // fetched into ResultSet).
 
+#include "bench_helpers.h"
 #include "database/driver_interface.h"
 
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
-#include <cstdlib>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -35,18 +35,16 @@ constexpr size_t kExpectedRows = 1'000'000;
 constexpr auto kSelectTarget = std::chrono::milliseconds(500);
 constexpr std::string_view kSelectSql = "SELECT * FROM perf_million_rows";
 
-[[nodiscard]] std::string env(const char* name) {
-    const char* v = std::getenv(name);
-    return v ? std::string{v} : std::string{};
-}
-
 class SelectMillionRowsBench : public ::testing::TestWithParam<DriverType> {
 protected:
     static std::string connStrFor(DriverType type) {
         switch (type) {
-            case DriverType::PostgreSQL: return env("VELOCITYDB_PERF_PG_CONNSTR");
-            case DriverType::SQLServer:  return env("VELOCITYDB_PERF_MSSQL_CONNSTR");
-            case DriverType::MySQL:      return {};  // not supported by this bench yet
+            case DriverType::PostgreSQL:
+                return perf::env("VELOCITYDB_PERF_PG_CONNSTR");
+            case DriverType::SQLServer:
+                return perf::env("VELOCITYDB_PERF_MSSQL_CONNSTR");
+            case DriverType::MySQL:
+                return {};  // not supported by this bench yet
         }
         return {};
     }
@@ -62,8 +60,7 @@ TEST_P(SelectMillionRowsBench, SelectMillionRowsUnderTarget) {
     auto driver = DriverFactory::createDriver(type);
     ASSERT_NE(driver, nullptr);
 
-    ASSERT_TRUE(driver->connect(connStr))
-        << "connect failed: " << driver->getLastError();
+    ASSERT_TRUE(driver->connect(connStr)) << "connect failed: " << driver->getLastError();
 
     const auto start = std::chrono::steady_clock::now();
     const auto result = driver->execute(kSelectSql);
@@ -71,15 +68,12 @@ TEST_P(SelectMillionRowsBench, SelectMillionRowsUnderTarget) {
 
     driver->disconnect();
 
-    ASSERT_EQ(result.rows.size(), kExpectedRows)
-        << "fixture not loaded? run scripts/perf/setup_million_row_fixture.py";
+    ASSERT_EQ(result.rows.size(), kExpectedRows) << "fixture not loaded? run scripts/perf/setup_million_row_fixture.py";
 
     const auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed);
-    std::cerr << "[bench] SELECT 100万行 (" << driverTypeToString(type) << "): "
-              << elapsedMs.count() << "ms\n";
+    std::cerr << "[bench] SELECT 100万行 (" << driverTypeToString(type) << "): " << elapsedMs.count() << "ms\n";
 
-    EXPECT_LT(elapsedMs, kSelectTarget)
-        << "SELECT 100万行 took " << elapsedMs.count() << "ms (target " << kSelectTarget.count() << "ms)";
+    EXPECT_LT(elapsedMs, kSelectTarget) << "SELECT 100万行 took " << elapsedMs.count() << "ms (target " << kSelectTarget.count() << "ms)";
 }
 
 // Decomposition bench (info-only, no pass/fail assertion). Splits the SELECT *
@@ -100,8 +94,7 @@ TEST_P(SelectMillionRowsBench, DecomposeStages) {
 
     auto driver = DriverFactory::createDriver(type);
     ASSERT_NE(driver, nullptr);
-    ASSERT_TRUE(driver->connect(connStr))
-        << "connect failed: " << driver->getLastError();
+    ASSERT_TRUE(driver->connect(connStr)) << "connect failed: " << driver->getLastError();
 
     constexpr int kIterations = 5;
 
@@ -131,8 +124,7 @@ TEST_P(SelectMillionRowsBench, DecomposeStages) {
               << "  SELECT COUNT(*)                 = " << countMs << "ms\n"
               << "    -> server scan               = " << serverScanMs << "ms\n"
               << "  SELECT *                        = " << fullMs << "ms\n"
-              << "    -> transfer + ResultSet      = " << transferMs << "ms ("
-              << (fullMs > 0 ? (100 * transferMs / fullMs) : 0) << "% of total)\n";
+              << "    -> transfer + ResultSet      = " << transferMs << "ms (" << (fullMs > 0 ? (100 * transferMs / fullMs) : 0) << "% of total)\n";
 
     driver->disconnect();
     SUCCEED();
@@ -143,18 +135,18 @@ TEST_P(SelectMillionRowsBench, DecomposeStages) {
 // so use this no-whitespace variant for INSTANTIATE_TEST_SUITE_P only.
 [[nodiscard]] std::string driverParamName(DriverType type) {
     switch (type) {
-        case DriverType::PostgreSQL: return "PostgreSQL";
-        case DriverType::SQLServer:  return "SQLServer";
-        case DriverType::MySQL:      return "MySQL";
+        case DriverType::PostgreSQL:
+            return "PostgreSQL";
+        case DriverType::SQLServer:
+            return "SQLServer";
+        case DriverType::MySQL:
+            return "MySQL";
     }
     return "Unknown";
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    AllDrivers,
-    SelectMillionRowsBench,
-    ::testing::Values(DriverType::PostgreSQL, DriverType::SQLServer),
-    [](const ::testing::TestParamInfo<DriverType>& info) { return driverParamName(info.param); });
+INSTANTIATE_TEST_SUITE_P(AllDrivers, SelectMillionRowsBench, ::testing::Values(DriverType::PostgreSQL, DriverType::SQLServer),
+                         [](const ::testing::TestParamInfo<DriverType>& info) { return driverParamName(info.param); });
 
 }  // namespace
 }  // namespace velocitydb
