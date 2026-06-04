@@ -198,6 +198,44 @@ uv run scripts/pdg.py test backend
    - 「高速」(#11) のように定量的でない記述を、具体値もしくは相対値 (例: 「非 SIMD 比 N 倍」) に置き換え
    - 計測条件 (CPU、メモリ、DB ロケーション) の前提を README に併記
 
+## バックエンド IPC ハンドラ計測基盤 (#508)
+
+`#479` パフォーマンスリファクタのバックエンド側起点として、全 IPC ハンドラの処理時間を計測する仕組みを整備した (`#508`)。後続の `#510` (async_query_executor) / `#511` (result_cache) / `#512` (schema_inspector) は本セクションのベースライン値を起点に効果を判定する。
+
+### 計測機構
+
+| 項目 | 内容 |
+| ---- | ---- |
+| 差し込み点 | `backend/ipc_handler.cpp` `dispatchRequest()` — 全ハンドラが必ず通る唯一のチョークポイント |
+| 計測方式 | `profile::isEnabledOnce<kIpcProfileEnv>()` で env ゲート (既定 OFF)、`std::chrono::steady_clock` でハンドラ実行時間を計測 |
+| 出力 | `log/backend.log` に `[ipc-prof] method=<name> <ms>ms` を INFO で 1 行出力 (`profile::emit`、例外吸収) |
+| overhead | 既定 OFF 時は bool 1 ロード + 早期 return のみ。公開 IPC レスポンス契約は不変 |
+| 再利用 | `backend/database/profile_gate.h` の既存 env-gated profiler (`[pg-prof]` / `[mssql-prof]` と同方式) |
+
+### ベースライン取得手順
+
+```powershell
+# 1. バックエンドをビルド
+uv run scripts/pdg.py build backend
+
+# 2. プロファイルを有効化して起動
+$env:VELOCITYDB_IPC_PROFILE = "1"
+.\build\Release\VelocityDB.exe
+
+# 3. 計測したい操作を実施 (接続 / クエリ実行 / スキーマ取得 等)
+
+# 4. ハンドラ別処理時間を抽出
+Select-String -Path log\backend.log -Pattern '\[ipc-prof\]'
+```
+
+`[ipc-prof]` 行が `method` ごとに出力されるため、主要ハンドラ (`executeQuery` / `getSchema` / `connectAsync` 等) の処理時間ベースラインが取得できる。`VELOCITYDB_IPC_PROFILE` 未設定時はログ出力されず計装オーバーヘッドもゼロ。
+
+### ベースライン値
+
+| ハンドラ | 代表シナリオ | 処理時間 (ms) | 取得日 |
+| -------- | ------------ | ------------- | ------ |
+| (実機で取得後に記入) | | | |
+
 ## フロントエンド計測ベースライン (#494)
 
 `#479` パフォーマンスリファクタの起点として、フロントエンド主要画面の初回マウント時間と本番 bundle 構成を計測する仕組みを整備した (`#494`)。後続の `#501` (ResultGrid 最適化) / `#505` (selector 最適化) / `#504` (store 分割) は本セクションのベースライン値を起点に効果を判定する。
