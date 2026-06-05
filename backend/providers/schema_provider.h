@@ -3,6 +3,8 @@
 #include "../interfaces/providers/schema_provider.h"
 
 #include <chrono>
+#include <expected>
+#include <functional>
 #include <mutex>
 #include <string>
 #include <string_view>
@@ -45,11 +47,19 @@ private:
     };
 
     static constexpr auto SCHEMA_CACHE_TTL = std::chrono::minutes(5);
+    // キャッシュエントリ数の上限。接続数 × テーブル数 × メソッド数で無制限に増えるのを防ぐ (#512)。
+    static constexpr size_t MAX_SCHEMA_CACHE_ENTRIES = 1024;
     std::unordered_map<std::string, SchemaCacheEntry> m_schemaCache;
     mutable std::mutex m_cacheMutex;
 
     [[nodiscard]] std::optional<std::string> getCached(const std::string& key);
     void putCache(const std::string& key, const std::string& response);
+    void evictIfFullLocked();  // m_cacheMutex を保持した状態で呼ぶ
+
+    // getCached → produce → 成功なら successResponse + putCache、失敗 (unexpected) なら errorResponse で
+    // キャッシュせず返す。produce 内の例外も errorResponse 化する。スキーマ取得メソッドの共通キャッシュ
+    // 制御を集約する (#512)。
+    [[nodiscard]] std::string withCache(const std::string& key, const std::function<std::expected<std::string, std::string>()>& produce);
 };
 
 }  // namespace velocitydb

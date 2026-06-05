@@ -6,6 +6,7 @@ const mockGetConnectResult = vi.fn();
 const mockCancelConnect = vi.fn();
 const mockDisconnect = vi.fn();
 const mockTestConnection = vi.fn();
+const mockGetTables = vi.fn();
 
 vi.mock('../../api/providers', () => ({
   connectionProvider: {
@@ -14,6 +15,9 @@ vi.mock('../../api/providers', () => ({
     cancelConnect: (...args: unknown[]) => mockCancelConnect(...args),
     disconnect: (...args: unknown[]) => mockDisconnect(...args),
     testConnection: (...args: unknown[]) => mockTestConnection(...args),
+  },
+  schemaProvider: {
+    getTables: (...args: unknown[]) => mockGetTables(...args),
   },
 }));
 
@@ -41,6 +45,7 @@ describe('connectionStore', () => {
       error: null,
     });
     vi.clearAllMocks();
+    mockGetTables.mockResolvedValue({ tables: [], loadTimeMs: 0 });
   });
 
   afterEach(() => {
@@ -55,6 +60,16 @@ describe('connectionStore', () => {
   });
 
   describe('addConnection', () => {
+    it('should prefetch getTables into cache after successful connection (#512)', async () => {
+      mockConnectAsync.mockResolvedValue({ requestId: 'conn_1' });
+      mockGetConnectResult.mockResolvedValue({ status: 'connected', connectionId: 'db_1' });
+
+      await useConnectionStore.getState().addConnection(baseConnection);
+
+      // プリフェッチは Promise.resolve().then で次のマイクロタスクに遅延するため待機する
+      await vi.waitFor(() => expect(mockGetTables).toHaveBeenCalledWith('db_1', ''));
+    });
+
     it('should connect successfully via async polling', async () => {
       mockConnectAsync.mockResolvedValue({ requestId: 'conn_1' });
       mockGetConnectResult.mockResolvedValue({

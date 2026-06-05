@@ -12,8 +12,11 @@
 #include "../utils/sql_validation.h"
 #include "simdjson.h"
 
+#include <algorithm>
 #include <charconv>
+#include <expected>
 #include <format>
+#include <functional>
 #include <ranges>
 
 namespace velocitydb {
@@ -61,6 +64,9 @@ struct TableQueryParams {
     auto driverType = connections.getDriverType(connectionId);
     auto formatter = DriverFactory::createSqlFormattable(driverType);
     auto [schema, tbl] = splitSchemaTable(tableName, formatter->defaultSchema());
+    // split 後の schema/tbl はブラケットを剥がした生識別子。ここで isValidIdentifier を再適用すると
+    // [My Table] / [O'Brien] 等の正当な特殊文字名を弾くため行わない。SQL 埋め込み時は各 dialect が
+    // escapeSql ('→'') で文字列リテラルとしてエスケープしインジェクションを防ぐ。
 
     return TableQueryParams{std::move(schema), std::move(tbl), std::move(driver), driverType, std::move(formatter)};
 }
@@ -82,9 +88,42 @@ std::optional<std::string> SchemaProvider::getCached(const std::string& key) {
     return std::nullopt;
 }
 
+void SchemaProvider::evictIfFullLocked() {
+    if (m_schemaCache.size() < MAX_SCHEMA_CACHE_ENTRIES)
+        return;
+    // まず TTL 切れエントリを一掃する。
+    const auto now = std::chrono::steady_clock::now();
+    std::erase_if(m_schemaCache, [now](const auto& entry) { return now - entry.second.timestamp >= SCHEMA_CACHE_TTL; });
+    // それでも上限に達していれば最古エントリを 1 件削除する。
+    if (m_schemaCache.size() >= MAX_SCHEMA_CACHE_ENTRIES) {
+        auto oldest = std::ranges::min_element(m_schemaCache, {}, [](const auto& entry) { return entry.second.timestamp; });
+        if (oldest != m_schemaCache.end())
+            m_schemaCache.erase(oldest);
+    }
+}
+
 void SchemaProvider::putCache(const std::string& key, const std::string& response) {
     std::lock_guard lock(m_cacheMutex);
+    if (!m_schemaCache.contains(key))
+        evictIfFullLocked();
     m_schemaCache[key] = {response, std::chrono::steady_clock::now()};
+}
+
+std::string SchemaProvider::withCache(const std::string& key, const std::function<std::expected<std::string, std::string>()>& produce) {
+    if (auto cached = getCached(key)) {
+        return *cached;
+    }
+    try {
+        auto body = produce();
+        if (!body) {
+            return JsonUtils::errorResponse(body.error());
+        }
+        auto response = JsonUtils::successResponse(*body);
+        putCache(key, response);
+        return response;
+    } catch (const std::exception& e) {
+        return JsonUtils::errorResponse(e.what());
+    }
 }
 
 std::string SchemaProvider::clearSchemaCache(std::string_view) {
@@ -116,49 +155,36 @@ std::string SchemaProvider::getDatabases(std::string_view params) {
 
 std::string SchemaProvider::getTables(std::string_view params) {
     log<LogLevel::DEBUG>(std::format("SchemaProvider::getTables called with params: {}", params));
-    auto cacheKey = "getTables:" + std::string(params);
-    if (auto cached = getCached(cacheKey)) {
-        return *cached;
-    }
-    auto connectionIdResult = extractConnectionId(params);
-    if (!connectionIdResult) {
-        return JsonUtils::errorResponse(connectionIdResult.error());
-    }
-    auto connectionId = *connectionIdResult;
-    try {
+    return withCache("getTables:" + std::string(params), [&]() -> std::expected<std::string, std::string> {
+        auto connectionIdResult = extractConnectionId(params);
+        if (!connectionIdResult) {
+            return std::unexpected(connectionIdResult.error());
+        }
+        auto connectionId = *connectionIdResult;
         auto driver = m_connections.getMetadataDriver(connectionId);
         if (!driver) [[unlikely]] {
-            return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
+            return std::unexpected(std::format("Connection not found: {}", connectionId));
         }
         auto driverType = m_connections.getDriverType(connectionId);
         auto dialect = DriverFactory::createSchemaQueryable(driverType);
         auto sql = dialect->getTablesQuery();
         auto queryResult = driver->execute(sql);
-        auto jsonResponse = JsonUtils::buildRowArray(queryResult.rows, 3, [](std::string& out, const ResultRow& row) {
+        return JsonUtils::buildRowArray(queryResult.rows, 3, [](std::string& out, const ResultRow& row) {
             auto comment = row.values.size() >= 4 ? row.values[3] : std::string{};
             out += std::format(R"({{"schema":"{}","name":"{}","type":"{}","comment":"{}"}})", JsonUtils::escapeString(row.values[0]), JsonUtils::escapeString(row.values[1]),
                                JsonUtils::escapeString(row.values[2]), JsonUtils::escapeString(comment));
         });
-        auto result = JsonUtils::successResponse(jsonResponse);
-        putCache(cacheKey, result);
-        return result;
-    } catch (const std::exception& e) {
-        return JsonUtils::errorResponse(e.what());
-    }
+    });
 }
 
 std::string SchemaProvider::getColumns(std::string_view params) {
-    auto cacheKey = "getColumns:" + std::string(params);
-    if (auto cached = getCached(cacheKey)) {
-        return *cached;
-    }
-    try {
+    return withCache("getColumns:" + std::string(params), [&]() -> std::expected<std::string, std::string> {
         thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
 
         auto extracted = extractTableQueryParams(doc, m_connections);
         if (!extracted) [[unlikely]]
-            return JsonUtils::errorResponse(extracted.error());
+            return std::unexpected(extracted.error());
 
         auto& [schema, tbl, driver, driverType, formatter] = *extracted;
 
@@ -166,7 +192,7 @@ std::string SchemaProvider::getColumns(std::string_view params) {
         auto sql = dialect->getColumnsQuery(schema, tbl);
         auto columnResult = driver->execute(sql);
 
-        auto jsonResponse = JsonUtils::buildRowArray(columnResult.rows, 5, [](std::string& out, const ResultRow& row) {
+        return JsonUtils::buildRowArray(columnResult.rows, 5, [](std::string& out, const ResultRow& row) {
             std::string_view sizeStr = row.values[2];
             int colSize = 0;
             std::from_chars(sizeStr.data(), sizeStr.data() + sizeStr.size(), colSize);
@@ -176,22 +202,17 @@ std::string SchemaProvider::getColumns(std::string_view params) {
             out += std::format(R"({{"name":"{}","type":"{}","size":{},"nullable":{},"isPrimaryKey":{},"comment":"{}"}})", JsonUtils::escapeString(row.values[0]),
                                JsonUtils::escapeString(row.values[1]), colSize, nullable, isPk, JsonUtils::escapeString(comment));
         });
-        auto result = JsonUtils::successResponse(jsonResponse);
-        putCache(cacheKey, result);
-        return result;
-    } catch (const std::exception& e) {
-        return JsonUtils::errorResponse(e.what());
-    }
+    });
 }
 
 std::string SchemaProvider::getIndexes(std::string_view params) {
-    try {
+    return withCache("getIndexes:" + std::string(params), [&]() -> std::expected<std::string, std::string> {
         thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
 
         auto extracted = extractTableQueryParams(doc, m_connections);
         if (!extracted) [[unlikely]]
-            return JsonUtils::errorResponse(extracted.error());
+            return std::unexpected(extracted.error());
 
         auto& [schema, tbl, driver, driverType, formatter] = *extracted;
 
@@ -199,7 +220,7 @@ std::string SchemaProvider::getIndexes(std::string_view params) {
         auto sql = dialect->getIndexesQuery(schema, tbl);
         auto queryResult = driver->execute(sql);
 
-        auto json = JsonUtils::buildRowArray(queryResult.rows, 5, [](std::string& out, const ResultRow& row) {
+        return JsonUtils::buildRowArray(queryResult.rows, 5, [](std::string& out, const ResultRow& row) {
             out += "{";
             out += std::format("\"name\":\"{}\",", JsonUtils::escapeString(row.values[0]));
             out += std::format("\"type\":\"{}\",", JsonUtils::escapeString(row.values[1]));
@@ -209,20 +230,17 @@ std::string SchemaProvider::getIndexes(std::string_view params) {
             out += splitCsvToJsonArray(row.values[4]);
             out += "}";
         });
-        return JsonUtils::successResponse(json);
-    } catch (const std::exception& e) {
-        return JsonUtils::errorResponse(e.what());
-    }
+    });
 }
 
 std::string SchemaProvider::getConstraints(std::string_view params) {
-    try {
+    return withCache("getConstraints:" + std::string(params), [&]() -> std::expected<std::string, std::string> {
         thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
 
         auto extracted = extractTableQueryParams(doc, m_connections);
         if (!extracted) [[unlikely]]
-            return JsonUtils::errorResponse(extracted.error());
+            return std::unexpected(extracted.error());
 
         auto& [schema, tbl, driver, driverType, formatter] = *extracted;
 
@@ -230,7 +248,7 @@ std::string SchemaProvider::getConstraints(std::string_view params) {
         auto sql = dialect->getConstraintsQuery(schema, tbl);
         auto queryResult = driver->execute(sql);
 
-        auto json = JsonUtils::buildRowArray(queryResult.rows, 4, [](std::string& out, const ResultRow& row) {
+        return JsonUtils::buildRowArray(queryResult.rows, 4, [](std::string& out, const ResultRow& row) {
             out += "{";
             out += std::format("\"name\":\"{}\",", JsonUtils::escapeString(row.values[0]));
             out += std::format("\"type\":\"{}\",", JsonUtils::escapeString(row.values[1]));
@@ -240,20 +258,17 @@ std::string SchemaProvider::getConstraints(std::string_view params) {
             out += std::format("\"definition\":\"{}\"", JsonUtils::escapeString(row.values[3]));
             out += "}";
         });
-        return JsonUtils::successResponse(json);
-    } catch (const std::exception& e) {
-        return JsonUtils::errorResponse(e.what());
-    }
+    });
 }
 
 std::string SchemaProvider::getForeignKeys(std::string_view params) {
-    try {
+    return withCache("getForeignKeys:" + std::string(params), [&]() -> std::expected<std::string, std::string> {
         thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
 
         auto extracted = extractTableQueryParams(doc, m_connections);
         if (!extracted) [[unlikely]]
-            return JsonUtils::errorResponse(extracted.error());
+            return std::unexpected(extracted.error());
 
         auto& [schema, tbl, driver, driverType, formatter] = *extracted;
 
@@ -261,7 +276,7 @@ std::string SchemaProvider::getForeignKeys(std::string_view params) {
         auto sql = dialect->getForeignKeysQuery(schema, tbl);
         auto queryResult = driver->execute(sql);
 
-        auto json = JsonUtils::buildRowArray(queryResult.rows, 6, [](std::string& out, const ResultRow& row) {
+        return JsonUtils::buildRowArray(queryResult.rows, 6, [](std::string& out, const ResultRow& row) {
             out += "{";
             out += std::format("\"name\":\"{}\",", JsonUtils::escapeString(row.values[0]));
             out += "\"columns\":";
@@ -275,20 +290,17 @@ std::string SchemaProvider::getForeignKeys(std::string_view params) {
             out += std::format("\"onUpdate\":\"{}\"", JsonUtils::escapeString(row.values[5]));
             out += "}";
         });
-        return JsonUtils::successResponse(json);
-    } catch (const std::exception& e) {
-        return JsonUtils::errorResponse(e.what());
-    }
+    });
 }
 
 std::string SchemaProvider::getReferencingForeignKeys(std::string_view params) {
-    try {
+    return withCache("getReferencingForeignKeys:" + std::string(params), [&]() -> std::expected<std::string, std::string> {
         thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
 
         auto extracted = extractTableQueryParams(doc, m_connections);
         if (!extracted) [[unlikely]]
-            return JsonUtils::errorResponse(extracted.error());
+            return std::unexpected(extracted.error());
 
         auto& [schema, tbl, driver, driverType, formatter] = *extracted;
 
@@ -296,7 +308,7 @@ std::string SchemaProvider::getReferencingForeignKeys(std::string_view params) {
         auto sql = dialect->getReferencingForeignKeysQuery(schema, tbl);
         auto queryResult = driver->execute(sql);
 
-        auto json = JsonUtils::buildRowArray(queryResult.rows, 6, [](std::string& out, const ResultRow& row) {
+        return JsonUtils::buildRowArray(queryResult.rows, 6, [](std::string& out, const ResultRow& row) {
             out += "{";
             out += std::format("\"name\":\"{}\",", JsonUtils::escapeString(row.values[0]));
             out += std::format("\"referencingTable\":\"{}\",", JsonUtils::escapeString(row.values[1]));
@@ -310,20 +322,17 @@ std::string SchemaProvider::getReferencingForeignKeys(std::string_view params) {
             out += std::format("\"onUpdate\":\"{}\"", JsonUtils::escapeString(row.values[5]));
             out += "}";
         });
-        return JsonUtils::successResponse(json);
-    } catch (const std::exception& e) {
-        return JsonUtils::errorResponse(e.what());
-    }
+    });
 }
 
 std::string SchemaProvider::getTriggers(std::string_view params) {
-    try {
+    return withCache("getTriggers:" + std::string(params), [&]() -> std::expected<std::string, std::string> {
         thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
 
         auto extracted = extractTableQueryParams(doc, m_connections);
         if (!extracted) [[unlikely]]
-            return JsonUtils::errorResponse(extracted.error());
+            return std::unexpected(extracted.error());
 
         auto& [schema, tbl, driver, driverType, formatter] = *extracted;
 
@@ -331,7 +340,7 @@ std::string SchemaProvider::getTriggers(std::string_view params) {
         auto sql = dialect->getTriggersQuery(schema, tbl);
         auto queryResult = driver->execute(sql);
 
-        auto json = JsonUtils::buildRowArray(queryResult.rows, 5, [](std::string& out, const ResultRow& row) {
+        return JsonUtils::buildRowArray(queryResult.rows, 5, [](std::string& out, const ResultRow& row) {
             out += "{";
             out += std::format("\"name\":\"{}\",", JsonUtils::escapeString(row.values[0]));
             out += std::format("\"type\":\"{}\",", JsonUtils::escapeString(row.values[1]));
@@ -342,20 +351,17 @@ std::string SchemaProvider::getTriggers(std::string_view params) {
             out += std::format("\"definition\":\"{}\"", JsonUtils::escapeString(row.values[4]));
             out += "}";
         });
-        return JsonUtils::successResponse(json);
-    } catch (const std::exception& e) {
-        return JsonUtils::errorResponse(e.what());
-    }
+    });
 }
 
 std::string SchemaProvider::getTableMetadata(std::string_view params) {
-    try {
+    return withCache("getTableMetadata:" + std::string(params), [&]() -> std::expected<std::string, std::string> {
         thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params).value();
 
         auto extracted = extractTableQueryParams(doc, m_connections);
         if (!extracted) [[unlikely]]
-            return JsonUtils::errorResponse(extracted.error());
+            return std::unexpected(extracted.error());
 
         auto& [schema, tbl, driver, driverType, formatter] = *extracted;
 
@@ -364,12 +370,12 @@ std::string SchemaProvider::getTableMetadata(std::string_view params) {
         auto queryResult = driver->execute(sql);
 
         if (queryResult.rows.empty()) {
-            return JsonUtils::errorResponse("Table not found");
+            return std::unexpected("Table not found");
         }
 
         const auto& row = queryResult.rows[0];
         if (row.values.size() < 8) {
-            return JsonUtils::errorResponse("Unexpected column count in metadata result");
+            return std::unexpected("Unexpected column count in metadata result");
         }
         std::string json = "{";
         json += std::format("\"schema\":\"{}\",", JsonUtils::escapeString(row.values[0]));
@@ -381,10 +387,8 @@ std::string SchemaProvider::getTableMetadata(std::string_view params) {
         json += std::format("\"owner\":\"{}\",", JsonUtils::escapeString(row.values[6]));
         json += std::format("\"comment\":\"{}\"", JsonUtils::escapeString(row.values[7]));
         json += "}";
-        return JsonUtils::successResponse(json);
-    } catch (const std::exception& e) {
-        return JsonUtils::errorResponse(e.what());
-    }
+        return json;
+    });
 }
 
 std::string SchemaProvider::getTableDDL(std::string_view params) {

@@ -26,6 +26,7 @@ FetchContent_MakeAvailable(googletest)
 # Test sources
 set(TEST_SOURCES
     test_main.cpp
+    database/test_sqlserver_dialect.cpp
     database/test_sqlserver_driver.cpp
     database/test_odbc_unicode.cpp
     database/test_query_history.cpp
@@ -43,6 +44,7 @@ set(TEST_SOURCES
     providers/test_query_result_formatter.cpp
     providers/test_settings_provider.cpp
     providers/test_utility_provider.cpp
+    providers/test_schema_provider.cpp
     search/test_simd_filter.cpp
     utils/test_sql_validation.cpp
     database/test_thread_pool.cpp
