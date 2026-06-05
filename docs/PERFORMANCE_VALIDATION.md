@@ -232,9 +232,26 @@ Select-String -Path log\backend.log -Pattern '\[ipc-prof\]'
 
 ### ベースライン値
 
-| ハンドラ | 代表シナリオ | 処理時間 (ms) | 取得日 |
-| -------- | ------------ | ------------- | ------ |
-| (実機で取得後に記入) | | | |
+> **計測環境**: 実機 Windows 11 + production WebView2 + 実 DB 接続。`VELOCITYDB_IPC_PROFILE=1` で起動し `log/backend.log` の `[ipc-prof]` 行を `method` 別に集計 (2026-06-05、接続→ツリー展開→クエリ実行→Lint→履歴 の一連操作)。
+> `[ipc-prof]` は **dispatch 時間 = メインスレッドでのハンドラ処理時間**を測る。**非同期ハンドラ (`executeAsyncQuery` / `getAsyncQueryResult`) はキュー投入・ポーリングのみを測り、実クエリ実行時間 (別スレッド) は含まない** (実クエリ時間は #3 の `AsyncQueryResult.startTime/endTime` で計測)。
+
+| ハンドラ | 代表シナリオ | median (ms) | max (ms) | n |
+| -------- | ------------ | ----------- | -------- | - |
+| `getColumns` | テーブル列取得 (ツリー展開) | 94.3 | 194.4 | 5 |
+| `getTables` | テーブル一覧 (接続直後) | 74.2 | 148.4 | 2 |
+| `getForeignKeys` | 外部キー取得 (初回) | 3.3 | 112.2 | 7 |
+| `lintSql` | SQL Lint (実行前) | 110.5 | 110.5 | 1 |
+| `executeQuery` | 同期 SELECT | 20.1 | 20.1 | 1 |
+| `getAsyncQueryResult` | 非同期結果ポーリング | 0.5 | 1.0 | 6 |
+| `writeFrontendLog` | frontend ログ書き出し | 1.0 | 2.1 | 6 |
+| 他軽量系 (`connectAsync` / `getConnectResult` / `removeAsyncQuery` / `getQueryHistory` / `updateSettings` / `buildDataViewSql` 等) | — | <1 | <2 | — |
+
+**ホットパス所見** (後続 #510/#511/#512 の優先度判断の根拠):
+
+- スキーマ取得系 (`getColumns` / `getTables` / `getForeignKeys`) は **初回 90〜194ms と突出**し、2 回目以降は <4ms に低下する。`schema_inspector` のキャッシュは機能しているが **初回 DB 往復コストが支配的** → **#512 (schema_inspector 並列化・キャッシュ) が最も効果が大きい最適化対象**。
+- `lintSql` がメインスレッドで 110ms — クエリ実行前 Lint のホットスポット。
+- 非同期クエリ経路 (`executeAsyncQuery` → `getAsyncQueryResult`) の dispatch は <1ms。実クエリ時間は別スレッドのため ipc-prof では測れず、**#510 (async_query_executor) の効果測定には `AsyncQueryResult` 計測が別途必要**。
+- `result_cache` 系ハンドラ (`getCacheStats` / `clearCache`) は本計測の操作シナリオで未到達。**#511 (result_cache ヒット率) の検証には専用シナリオ (同一クエリ反復) が必要**。
 
 ## フロントエンド計測ベースライン (#494)
 
