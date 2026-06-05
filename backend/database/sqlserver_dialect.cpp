@@ -73,24 +73,29 @@ std::string SqlServerDialect::getTablesQuery() const {
 }
 
 std::string SqlServerDialect::getColumnsQuery(std::string_view schema, std::string_view table) const {
+    // PK 判定は EXISTS 相関で c.object_id に絞る。LEFT JOIN で全テーブルの PK インデックスを
+    // 集約 (sys.indexes 全スキャン) してから JOIN すると、テーブル数の多い DB で初回スキーマ
+    // 取得が重くなる (#512)。相関で当該列の PK のみ評価する。OBJECT_ID を使わないのは、
+    // ' を含む識別子 ([O'Brien] 等) を OBJECT_ID が NULL 解決し PK 判定を壊すため。
     return std::format(R"(
             SELECT
                 c.name AS column_name,
                 t.name AS data_type,
                 c.max_length,
                 c.is_nullable,
-                CASE WHEN pk.column_id IS NOT NULL THEN 1 ELSE 0 END AS is_primary_key,
+                CASE WHEN EXISTS (
+                    SELECT 1
+                    FROM sys.index_columns ic
+                    INNER JOIN sys.indexes i ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+                    WHERE i.is_primary_key = 1
+                      AND ic.object_id = c.object_id
+                      AND ic.column_id = c.column_id
+                ) THEN 1 ELSE 0 END AS is_primary_key,
                 CAST(ep.value AS NVARCHAR(MAX)) AS comment
             FROM sys.columns c
             INNER JOIN sys.types t ON c.user_type_id = t.user_type_id
             INNER JOIN sys.objects o ON c.object_id = o.object_id
             INNER JOIN sys.schemas s ON o.schema_id = s.schema_id
-            LEFT JOIN (
-                SELECT ic.object_id, ic.column_id
-                FROM sys.index_columns ic
-                INNER JOIN sys.indexes i ON ic.object_id = i.object_id AND ic.index_id = i.index_id
-                WHERE i.is_primary_key = 1
-            ) pk ON c.object_id = pk.object_id AND c.column_id = pk.column_id
             LEFT JOIN sys.extended_properties ep ON ep.major_id = c.object_id
                 AND ep.minor_id = c.column_id
                 AND ep.class = 1

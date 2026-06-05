@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import { connectionProvider } from '../api/providers';
+import { connectionProvider, schemaProvider } from '../api/providers';
 import type { Connection } from '../types';
 import { pollConnection } from './connection/helpers/connectionPolling';
 
@@ -107,6 +107,15 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         connectRequestId: null,
         connectCancelled: false,
       }));
+
+      // 接続直後に getTables を fire-and-forget で先読みし SchemaProvider キャッシュに乗せる。
+      // ツリー初回描画 (loadTables) がキャッシュ命中で即返り、接続→一覧表示の初回 (実測 ~165ms)
+      // を体感ゼロにする (#512)。Promise.resolve().then で包むことで getTables の同期 throw も
+      // reject に変換し .catch で握る (空 catch を避ける)。主フロー (replaced の返却) には影響しない。
+      // loadTables と二重発行になっても劣化しない — putCache 前なら通常取得に戻り、後なら命中するだけ。
+      void Promise.resolve()
+        .then(() => schemaProvider.getTables(result.connectionId, ''))
+        .catch(() => {});
 
       return oldId ? { replaced: { oldId, newId: result.connectionId } } : {};
     } catch (error) {
