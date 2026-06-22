@@ -23,7 +23,7 @@ jobs:
     name: Backend Benchmarks
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
@@ -87,7 +87,7 @@ jobs:
     runs-on: windows-latest
     needs: backend-bench
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1

@@ -21,7 +21,7 @@ jobs:
     name: Lint C++
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
 
       - name: Install LLVM 22 (clang-format)
         run: |
@@ -50,7 +50,7 @@ jobs:
     name: Lint Frontend
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
         with:
           ref: ${{ github.head_ref || github.ref }}
 
@@ -102,7 +102,7 @@ jobs:
     needs: lint-frontend
     if: always() && needs.lint-frontend.result == 'success'
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
         with:
           ref: ${{ github.head_ref || github.ref }}
 
@@ -158,7 +158,7 @@ jobs:
       VCPKG_ROOT: ${{ github.workspace }}\vcpkg
       VCPKG_DISABLE_METRICS: '1'
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
 
       - name: Setup Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
@@ -246,7 +246,7 @@ jobs:
       github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') &&
       needs.build-frontend.result == 'success' && needs.build-backend.result == 'success'
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
 
       - name: Download frontend build
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
