@@ -39,7 +39,7 @@ jobs:
           echo "CMAKE_C_COMPILER_LAUNCHER=ccache" >> $env:GITHUB_ENV
 
       - name: Cache ccache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~\.ccache
           key: ccache-bench-${{ runner.os }}-${{ inputs.build_type }}-${{ hashFiles('**/*.cpp', '**/*.h') }}
@@ -47,7 +47,7 @@ jobs:
             ccache-bench-${{ runner.os }}-${{ inputs.build_type }}-
 
       - name: Cache CMake build
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             build/_deps
@@ -103,7 +103,7 @@ jobs:
           echo "CMAKE_C_COMPILER_LAUNCHER=ccache" >> $env:GITHUB_ENV
 
       - name: Cache ccache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~\.ccache
           key: ccache-bench-${{ runner.os }}-${{ inputs.build_type }}-${{ hashFiles('**/*.cpp', '**/*.h') }}
