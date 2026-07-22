@@ -9,6 +9,9 @@ updates:
       time: "09:00"
       timezone: "Asia/Tokyo"
     open-pull-requests-limit: 10
+    # Wait 7 days before proposing newly published versions (supply-chain mitigation)
+    cooldown:
+      default-days: 7
     reviewers:
       - "TakumiOkayasu"
     labels:
@@ -39,6 +42,9 @@ updates:
       time: "09:00"
       timezone: "Asia/Tokyo"
     open-pull-requests-limit: 5
+    # Wait 7 days before proposing newly published versions (supply-chain mitigation)
+    cooldown:
+      default-days: 7
     reviewers:
       - "TakumiOkayasu"
     labels:
