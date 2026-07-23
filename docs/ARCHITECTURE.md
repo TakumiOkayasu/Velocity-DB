@@ -143,11 +143,23 @@ frontend/src/
 │       ├── search.ts       # オブジェクト検索
 │       ├── io.ts           # ファイル I/O・ブックマーク
 │       └── index.ts        # 集約 export (xxxProvider)
-├── store/                  # 状態管理 (Zustand)
-│   ├── connectionStore.ts
-│   ├── schemaStore.ts
-│   ├── queryStore.ts
-│   └── ...
+├── store/                  # 状態管理 (Zustand, 責務別に分割)
+│   ├── index.ts            # barrel export (selector hooks を公開)
+│   ├── connectionStore.ts  # 接続状態 (connection/ に polling helper・interface)
+│   ├── queryStore.ts       # query/ への再export (後方互換)
+│   ├── query/              # クエリ状態 (slice 分割)
+│   │   ├── queryStore.ts   # slice 合成 + selector hooks
+│   │   ├── slices/         # queryExecute / queryManage / dataView / erDiagram / fileIO / format
+│   │   ├── interfaces/     # ISP準拠インターフェース (Executable, DataViewable, ...)
+│   │   └── helpers/        # asyncPolling, paginationHelper, queriesMap 等
+│   ├── schemaStore.ts      # スキーマツリー状態
+│   ├── editStore.ts        # グリッド編集状態 (DML生成元)
+│   ├── erDiagramStore.ts   # ER図モデル
+│   ├── historyStore.ts     # クエリ履歴
+│   ├── bookmarkStore.ts    # ブックマーク
+│   ├── sessionStore.ts     # セッション復元
+│   ├── scrollPositionStore.ts # グリッドスクロール位置
+│   └── toastStore.ts       # トースト通知
 ├── components/             # UIコンポーネント
 ├── hooks/                  # カスタムフック
 ├── types/                  # 型定義
@@ -173,6 +185,11 @@ frontend/src/
 - **Zustand**: 軽量な状態管理、ボイラープレート最小
 - **Selector Pattern**: 必要な状態のみ購読
 - **Hooks**: ロジックの再利用
+- **Store 分割境界**: 1 store = 1 責務。購読は `store/index.ts` が公開する selector hooks
+  (`useQueryActions`, `useActiveQueryMeta` 等) 経由に限定し、コンポーネントから store 全体を
+  購読しない (不要な再レンダリング防止)。`queryStore` は機能 slice
+  (execute / manage / dataView / erDiagram / fileIO / format) に分割し、slice 間の依存は
+  `query/interfaces/` の ISP インターフェースで表現する
 
 ## 拡張ガイド
 

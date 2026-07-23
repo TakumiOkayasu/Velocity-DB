@@ -17,6 +17,7 @@ void ResultCache::put(std::string_view key, ResultSet&& result) {
     if (resultSize > m_maxSizeBytes) {
         return;
     }
+    ++m_putCount;
 
     if (auto it = m_cache.find(key); it != m_cache.end()) {
         m_currentSizeBytes -= it->second.sizeBytes;
@@ -59,12 +60,19 @@ size_t ResultCache::getCurrentSize() const {
     return m_currentSizeBytes;
 }
 
+CacheStats ResultCache::getStats() const {
+    std::lock_guard lock(m_mutex);
+    return CacheStats{
+        .hitCount = m_hitCount, .missCount = m_missCount, .putCount = m_putCount, .evictionCount = m_evictionCount, .currentSizeBytes = m_currentSizeBytes, .maxSizeBytes = m_maxSizeBytes};
+}
+
 void ResultCache::evictIfNeeded(size_t requiredSize) {
     while (m_currentSizeBytes + requiredSize > m_maxSizeBytes && !m_lruList.empty()) {
         auto& oldestKey = m_lruList.front();
         if (auto it = m_cache.find(oldestKey); it != m_cache.end()) {
             m_currentSizeBytes -= it->second.sizeBytes;
             m_cache.erase(it);
+            ++m_evictionCount;
         }
         m_lruList.pop_front();
     }
