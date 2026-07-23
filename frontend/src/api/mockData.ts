@@ -79,6 +79,21 @@ export const mockData: Record<string, unknown> = {
       isPrimaryKey: false,
     },
   ],
+  getAllColumns: [
+    {
+      schema: 'dbo',
+      table: 'Users',
+      columns: [
+        { name: 'id', type: 'int', size: 4, nullable: false, isPrimaryKey: true },
+        { name: 'name', type: 'nvarchar', size: 255, nullable: false, isPrimaryKey: false },
+      ],
+    },
+    {
+      schema: 'dbo',
+      table: 'Orders',
+      columns: [{ name: 'id', type: 'int', size: 4, nullable: false, isPrimaryKey: true }],
+    },
+  ],
   getQueryHistory: [],
   parseERDiagram: { name: '', databaseType: '', tables: [], relations: [], shapes: [], ddl: '' },
   getExecutionPlan: { plan: 'Mock execution plan text', actual: false },

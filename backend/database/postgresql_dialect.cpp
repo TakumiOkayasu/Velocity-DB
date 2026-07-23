@@ -91,6 +91,34 @@ auto PostgreSqlDialect::getColumnsQuery(std::string_view schema, std::string_vie
                        s, t, s, t);
 }
 
+auto PostgreSqlDialect::getAllColumnsQuery() const -> std::string {
+    // getColumnsQuery の全テーブル版 (#512)。コメント取得は regclass の文字列パースでなく
+    // pg_class JOIN + col_description(oid, ...) を使う (mixed-case 名でも安全)
+    return "SELECT c.table_schema, "
+           "       c.table_name, "
+           "       c.column_name, "
+           "       c.data_type, "
+           "       COALESCE(c.character_maximum_length, c.numeric_precision, 0) AS col_size, "
+           "       CASE WHEN c.is_nullable = 'YES' THEN 1 ELSE 0 END AS is_nullable, "
+           "       CASE WHEN pk.column_name IS NOT NULL THEN 1 ELSE 0 END AS is_primary_key, "
+           "       COALESCE(col_description(pc.oid, c.ordinal_position), '') AS comment "
+           "FROM information_schema.columns c "
+           "LEFT JOIN pg_catalog.pg_namespace pn ON pn.nspname = c.table_schema "
+           "LEFT JOIN pg_catalog.pg_class pc ON pc.relnamespace = pn.oid AND pc.relname = c.table_name "
+           "LEFT JOIN ("
+           "    SELECT kcu.column_name, kcu.table_schema, kcu.table_name "
+           "    FROM information_schema.table_constraints tc "
+           "    JOIN information_schema.key_column_usage kcu "
+           "      ON tc.constraint_name = kcu.constraint_name "
+           "     AND tc.table_schema = kcu.table_schema "
+           "    WHERE tc.constraint_type = 'PRIMARY KEY'"
+           ") pk ON c.column_name = pk.column_name "
+           "    AND c.table_schema = pk.table_schema "
+           "    AND c.table_name = pk.table_name "
+           "WHERE c.table_schema NOT IN ('pg_catalog', 'information_schema') "
+           "ORDER BY c.table_schema, c.table_name, c.ordinal_position";
+}
+
 // Consumer expects: [0]=schema, [1]=name, [2]=type, [3]=rowCount, [4]=createdAt, [5]=modifiedAt, [6]=owner, [7]=comment
 auto PostgreSqlDialect::getTableMetadataQuery(std::string_view schema, std::string_view table) const -> std::string {
     auto s = escapeSql(schema);

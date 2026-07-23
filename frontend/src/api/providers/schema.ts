@@ -112,10 +112,17 @@ export interface GetTablesResult {
   loadTimeMs: number;
 }
 
+export interface TableColumns {
+  schema: string;
+  table: string;
+  columns: ColumnInfo[];
+}
+
 export interface SchemaProvider {
   getDatabases(connectionId: string): Promise<string[]>;
   getTables(connectionId: string, database: string): Promise<GetTablesResult>;
   getColumns(connectionId: string, table: string): Promise<ColumnInfo[]>;
+  getAllColumns(connectionId: string): Promise<TableColumns[]>;
   getIndexes(connectionId: string, table: string): Promise<IndexInfo[]>;
   getConstraints(connectionId: string, table: string): Promise<ConstraintInfo[]>;
   getForeignKeys(connectionId: string, table: string): Promise<ForeignKeyInfo[]>;
@@ -160,6 +167,10 @@ class SchemaProviderImpl extends BaseProvider implements SchemaProvider {
 
   async getColumns(connectionId: string, table: string): Promise<ColumnInfo[]> {
     return this.invokeAndParse('getColumns', { connectionId, table }, S.getColumns);
+  }
+
+  async getAllColumns(connectionId: string): Promise<TableColumns[]> {
+    return this.invokeAndParse('getAllColumns', { connectionId }, S.getAllColumns);
   }
 
   async getIndexes(connectionId: string, table: string): Promise<IndexInfo[]> {
