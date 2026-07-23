@@ -21,6 +21,10 @@ export interface UseDialogStateResult {
   openSettingsDialog: () => void;
   closeSettingsDialog: () => void;
 
+  isSchemaCompareDialogOpen: boolean;
+  openSchemaCompareDialog: () => void;
+  closeSchemaCompareDialog: () => void;
+
   queryConfirm: QueryConfirmState;
   openQueryConfirm: (params: Omit<QueryConfirmState, 'isOpen'>) => void;
   closeQueryConfirm: () => void;
@@ -46,6 +50,7 @@ export function useDialogState(): UseDialogStateResult {
   const [isConnectionDialogOpen, setIsConnectionDialogOpen] = useState(false);
   const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
+  const [isSchemaCompareDialogOpen, setIsSchemaCompareDialogOpen] = useState(false);
   const [queryConfirm, setQueryConfirm] = useState<QueryConfirmState>(QUERY_CONFIRM_INITIAL);
 
   const openConnectionDialog = useCallback(() => setIsConnectionDialogOpen(true), []);
@@ -57,6 +62,9 @@ export function useDialogState(): UseDialogStateResult {
   const openSettingsDialog = useCallback(() => setIsSettingsDialogOpen(true), []);
   const closeSettingsDialog = useCallback(() => setIsSettingsDialogOpen(false), []);
 
+  const openSchemaCompareDialog = useCallback(() => setIsSchemaCompareDialogOpen(true), []);
+  const closeSchemaCompareDialog = useCallback(() => setIsSchemaCompareDialogOpen(false), []);
+
   const openQueryConfirm = useCallback((params: Omit<QueryConfirmState, 'isOpen'>) => {
     setQueryConfirm({ isOpen: true, ...params });
   }, []);
@@ -64,7 +72,11 @@ export function useDialogState(): UseDialogStateResult {
 
   // queryConfirm は意図的に除外: production/read-only 警告ダイアログ open 中も
   // Escape (cancelQuery) を効かせるため、キーボードショートカット抑止対象外とする
-  const hasOpenDialog = isConnectionDialogOpen || isSearchDialogOpen || isSettingsDialogOpen;
+  const hasOpenDialog =
+    isConnectionDialogOpen ||
+    isSearchDialogOpen ||
+    isSettingsDialogOpen ||
+    isSchemaCompareDialogOpen;
 
   return {
     isConnectionDialogOpen,
@@ -76,6 +88,9 @@ export function useDialogState(): UseDialogStateResult {
     isSettingsDialogOpen,
     openSettingsDialog,
     closeSettingsDialog,
+    isSchemaCompareDialogOpen,
+    openSchemaCompareDialog,
+    closeSchemaCompareDialog,
     queryConfirm,
     openQueryConfirm,
     closeQueryConfirm,
