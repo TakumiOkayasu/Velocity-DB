@@ -3,6 +3,7 @@ import Editor, { type OnMount } from '@monaco-editor/react';
 import type * as Monaco from 'monaco-editor';
 import * as monaco from 'monaco-editor';
 import { type MutableRefObject, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useEditorSettings } from '../../hooks/useEditorSettings';
 import { useKeyboardHandler } from '../../hooks/useKeyboardHandler';
 import { useConnections } from '../../store/connectionStore';
 import {
@@ -72,6 +73,7 @@ export function SqlEditor() {
   const inlayHintDisposableRef = useRef<Monaco.IDisposable | null>(null);
   const isFormattingRef = useRef(false);
   const lastEditorValueRef = useRef<string>('');
+  const editorSettings = useEditorSettings();
 
   const handleEditorChange = (value: string | undefined) => {
     if (activeQueryId && value !== undefined) {
@@ -250,6 +252,20 @@ export function SqlEditor() {
   useApplyMarkers(editorRef, lintDiagnostics, 'sqruff');
   useApplyMarkers(editorRef, runtimeDiagnostics, 'runtime');
 
+  // 設定ダイアログ保存 (settings-changed) をマウント済み Monaco へ反映 (#389)
+  // tabSize は model option のため editor.updateOptions とは別に反映する
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.updateOptions({
+      fontSize: editorSettings.fontSize,
+      fontFamily: editorSettings.fontFamily,
+      wordWrap: editorSettings.wordWrap ? 'on' : 'off',
+      minimap: { enabled: editorSettings.minimap },
+    });
+    editor.getModel()?.updateOptions({ tabSize: editorSettings.tabSize });
+  }, [editorSettings]);
+
   // クリーンアップ
   useEffect(() => {
     return () => {
@@ -295,13 +311,14 @@ export function SqlEditor() {
           onChange={handleEditorChange}
           onMount={handleEditorDidMount}
           options={{
-            minimap: { enabled: false },
-            fontSize: 14,
+            minimap: { enabled: editorSettings.minimap },
+            fontSize: editorSettings.fontSize,
+            fontFamily: editorSettings.fontFamily,
             lineNumbers: 'on',
             scrollBeyondLastLine: false,
             automaticLayout: true,
-            tabSize: 4,
-            wordWrap: 'on',
+            tabSize: editorSettings.tabSize,
+            wordWrap: editorSettings.wordWrap ? 'on' : 'off',
             renderLineHighlight: 'line',
             matchBrackets: 'always',
             folding: true,
