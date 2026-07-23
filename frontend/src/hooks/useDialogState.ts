@@ -21,6 +21,10 @@ export interface UseDialogStateResult {
   openSettingsDialog: () => void;
   closeSettingsDialog: () => void;
 
+  isDataCompareDialogOpen: boolean;
+  openDataCompareDialog: () => void;
+  closeDataCompareDialog: () => void;
+
   queryConfirm: QueryConfirmState;
   openQueryConfirm: (params: Omit<QueryConfirmState, 'isOpen'>) => void;
   closeQueryConfirm: () => void;
@@ -36,8 +40,8 @@ const QUERY_CONFIRM_INITIAL: QueryConfirmState = {
 
 /**
  * MainLayout の dialog open/close state を集約する管理層 hook。
- * Connection / Search / Settings / QueryConfirm の 4 系統を保持し、open/close API と
- * keyboard shortcut 抑止用の hasOpenDialog (queryConfirm を除く 3 dialog の OR) を返す。
+ * Connection / Search / Settings / DataCompare / QueryConfirm の 5 系統を保持し、open/close API と
+ * keyboard shortcut 抑止用の hasOpenDialog (queryConfirm を除く 4 dialog の OR) を返す。
  *
  * 運用ルール: callback (e.g. handleConfirmExecute) はビジネスロジックとの結合点のため
  * 本 hook には含めず、呼び出し側 (MainLayout) で組み立てる。
@@ -46,6 +50,7 @@ export function useDialogState(): UseDialogStateResult {
   const [isConnectionDialogOpen, setIsConnectionDialogOpen] = useState(false);
   const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
+  const [isDataCompareDialogOpen, setIsDataCompareDialogOpen] = useState(false);
   const [queryConfirm, setQueryConfirm] = useState<QueryConfirmState>(QUERY_CONFIRM_INITIAL);
 
   const openConnectionDialog = useCallback(() => setIsConnectionDialogOpen(true), []);
@@ -57,6 +62,9 @@ export function useDialogState(): UseDialogStateResult {
   const openSettingsDialog = useCallback(() => setIsSettingsDialogOpen(true), []);
   const closeSettingsDialog = useCallback(() => setIsSettingsDialogOpen(false), []);
 
+  const openDataCompareDialog = useCallback(() => setIsDataCompareDialogOpen(true), []);
+  const closeDataCompareDialog = useCallback(() => setIsDataCompareDialogOpen(false), []);
+
   const openQueryConfirm = useCallback((params: Omit<QueryConfirmState, 'isOpen'>) => {
     setQueryConfirm({ isOpen: true, ...params });
   }, []);
@@ -64,7 +72,8 @@ export function useDialogState(): UseDialogStateResult {
 
   // queryConfirm は意図的に除外: production/read-only 警告ダイアログ open 中も
   // Escape (cancelQuery) を効かせるため、キーボードショートカット抑止対象外とする
-  const hasOpenDialog = isConnectionDialogOpen || isSearchDialogOpen || isSettingsDialogOpen;
+  const hasOpenDialog =
+    isConnectionDialogOpen || isSearchDialogOpen || isSettingsDialogOpen || isDataCompareDialogOpen;
 
   return {
     isConnectionDialogOpen,
@@ -76,6 +85,9 @@ export function useDialogState(): UseDialogStateResult {
     isSettingsDialogOpen,
     openSettingsDialog,
     closeSettingsDialog,
+    isDataCompareDialogOpen,
+    openDataCompareDialog,
+    closeDataCompareDialog,
     queryConfirm,
     openQueryConfirm,
     closeQueryConfirm,
