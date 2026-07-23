@@ -177,11 +177,13 @@ std::string QueryProvider::executeQuery(std::string_view params) {
         if (auto useCacheOpt = doc["useCache"].get_bool(); !useCacheOpt.error()) {
             useCache = useCacheOpt.value();
         }
+        // Normalized so that trailing whitespace / ';' variants share one cache entry (#511)
+        auto cacheSql = SQLParser::normalizeForCacheKey(sqlQuery);
         std::string cacheKey;
-        cacheKey.reserve(connectionId.size() + 1 + sqlQuery.size());
+        cacheKey.reserve(connectionId.size() + 1 + cacheSql.size());
         cacheKey.append(connectionId);
         cacheKey.push_back('\0');
-        cacheKey.append(sqlQuery);
+        cacheKey.append(cacheSql);
         bool selectQuery = SQLParser::isReadOnlyQuery(sqlQuery);
         if (useCache && selectQuery) {
             if (auto cachedJson = m_resultCache->getAndApply(cacheKey, [](const ResultSet& rs) { return JsonUtils::serializeResultSet(rs, true); }); !cachedJson.empty()) {
@@ -363,10 +365,11 @@ std::string QueryProvider::filterResultSet(std::string_view params) {
 }
 
 std::string QueryProvider::getCacheStats(std::string_view) {
-    auto currentSize = m_resultCache->getCurrentSize();
-    auto maxSize = m_resultCache->getMaxSize();
-    std::string jsonResponse = std::format(R"({{"currentSizeBytes":{},"maxSizeBytes":{},"usagePercent":{:.1f}}})", currentSize, maxSize,
-                                           maxSize > 0 ? (static_cast<double>(currentSize) / static_cast<double>(maxSize)) * 100.0 : 0.0);
+    auto stats = m_resultCache->getStats();
+    std::string jsonResponse =
+        std::format(R"({{"currentSizeBytes":{},"maxSizeBytes":{},"usagePercent":{:.1f},"hitCount":{},"missCount":{},"hitRate":{:.1f},"putCount":{},"evictionCount":{}}})", stats.currentSizeBytes,
+                    stats.maxSizeBytes, stats.maxSizeBytes > 0 ? (static_cast<double>(stats.currentSizeBytes) / static_cast<double>(stats.maxSizeBytes)) * 100.0 : 0.0, stats.hitCount, stats.missCount,
+                    stats.hitRate() * 100.0, stats.putCount, stats.evictionCount);
     return JsonUtils::successResponse(jsonResponse);
 }
 
