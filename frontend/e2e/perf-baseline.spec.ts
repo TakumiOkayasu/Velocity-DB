@@ -1,5 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
+import { recordBenchResults } from './helpers/benchRecorder';
+
 /**
  * #494/#597 Frontend 計測基盤 — 初回マウント duration ベースライン取得 (自動化)
  *
@@ -251,6 +253,16 @@ test.describe('#494 perf baseline', () => {
     // stdout に集計可能な形で出力 (docs 転記用)。PERFORMANCE_VALIDATION.md 更新時に参照。
     console.log(`[#494 baseline] ${JSON.stringify(durations)}`);
 
+    // #515: assertion より前に docs/perf/e2e-benchmark.json へ記録 (fail しても実測値を残す)
+    recordBenchResults(
+      durations.map((d) => ({
+        scenario: 'app-mount',
+        metric: d.name,
+        durationMs: d.duration_ms,
+        targetMs: d.name === 'startup' ? STARTUP_TARGET_MS : undefined,
+      }))
+    );
+
     for (const d of durations) {
       expect(d.duration_ms).not.toBeNull();
       // 0.1ms 未満は mark 未記録の可能性がある (getEntriesByName が空を返した場合のフォールバック検出)
@@ -318,6 +330,16 @@ test.describe('#597 ER diagram baseline', () => {
     });
 
     console.log(`[#597 baseline] er-diagram-50=${durationMs}ms`);
+
+    // #515: assertion より前に docs/perf/e2e-benchmark.json へ記録 (fail しても実測値を残す)
+    recordBenchResults([
+      {
+        scenario: 'er-diagram',
+        metric: 'er-diagram-50',
+        durationMs,
+        targetMs: ER_DIAGRAM_TARGET_MS,
+      },
+    ]);
     test
       .info()
       .annotations.push({ type: 'perf-baseline', description: `er-diagram-50=${durationMs}ms` });
@@ -378,6 +400,10 @@ test.describe('#501 ResultGrid baseline', () => {
     });
 
     console.log(`[#501 baseline] result-grid-1k=${durationMs}ms`);
+
+    // #515: assertion より前に docs/perf/e2e-benchmark.json へ記録 (fail しても実測値を残す)
+    // 上限 assertion 未導入のため targetMs は省略 (#501 最適化完了後に追加)
+    recordBenchResults([{ scenario: 'result-grid', metric: 'result-grid-1k', durationMs }]);
     test
       .info()
       .annotations.push({ type: 'perf-baseline', description: `result-grid-1k=${durationMs}ms` });
