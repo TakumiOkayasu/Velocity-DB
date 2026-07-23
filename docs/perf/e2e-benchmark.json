@@ -1,0 +1,38 @@
+{
+  "meta": {
+    "generatedAt": "2026-07-23T04:40:37.942Z",
+    "gitCommit": "d594ad7",
+    "playwrightVersion": "1.58.2",
+    "environment": "docker",
+    "note": "Vite dev server + mocked window.invoke (page.addInitScript) による frontend レンダリングのみのリグレッション基準値。production WebView2 / 実 DB の実測値ではない。"
+  },
+  "results": [
+    {
+      "scenario": "app-mount",
+      "metric": "object-tree",
+      "durationMs": 4.6
+    },
+    {
+      "scenario": "app-mount",
+      "metric": "sql-editor",
+      "durationMs": 6.5
+    },
+    {
+      "scenario": "app-mount",
+      "metric": "startup",
+      "durationMs": 307.3,
+      "targetMs": 230
+    },
+    {
+      "scenario": "er-diagram",
+      "metric": "er-diagram-50",
+      "durationMs": 94.8,
+      "targetMs": 500
+    },
+    {
+      "scenario": "result-grid",
+      "metric": "result-grid-1k",
+      "durationMs": 201.1
+    }
+  ]
+}

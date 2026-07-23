@@ -325,6 +325,10 @@ Remove-Item Env:VELOCITYDB_BUNDLE_REPORT
 
 > **計測環境の注記**: 自動取得値は Docker (Node.js Playwright 公式 image) + Chromium headless + Vite dev server で取得。production WebView2 + 実機値とは異なる (リグレッション検出用途)。
 
+> **自動記録 (#515)**: `perf-baseline.spec.ts` の計測値は `docs/perf/e2e-benchmark.json` に
+> 自動記録されるようになった (手動転記は不要)。実行方法・JSON スキーマ・比較手順は
+> `docs/perf/README.md` を参照。以下のテーブルは記録開始時点のスナップショット。
+
 #### 初回マウント時間
 
 | 対象 | 計測条件 | duration (ms) | 計測日 | 環境 |
