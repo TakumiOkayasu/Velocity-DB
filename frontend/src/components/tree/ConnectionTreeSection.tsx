@@ -8,7 +8,9 @@ import { useConnectionStore } from '../../store/connectionStore';
 import { useToastStore } from '../../store/toastStore';
 import type { Connection, DatabaseObject } from '../../types';
 import { connectionColor } from '../../utils/colorContrast';
+import { flattenVisibleTree } from '../../utils/flattenVisibleTree';
 import { log } from '../../utils/logger';
+import { markTreeExpandStart, useTreeExpandMeasure } from '../../utils/perfMarks';
 import {
   type ExpandableType,
   parseTableNodeId,
@@ -208,6 +210,11 @@ export function ConnectionTreeSection({
     async (id: string, node: DatabaseObject) => {
       const isExpanding = !expandedNodes.has(id);
 
+      // #502: 展開操作の応答時間計測 (可視行数が変化した commit 後に useTreeExpandMeasure が測定)
+      if (isExpanding) {
+        markTreeExpandStart();
+      }
+
       setExpandedNodes((prev) => {
         const next = new Set(prev);
         if (next.has(id)) {
@@ -282,7 +289,15 @@ export function ConnectionTreeSection({
     [filter]
   );
 
-  const filteredData = filterTree(treeData);
+  const filteredData = useMemo(() => filterTree(treeData), [filterTree, treeData]);
+
+  // #502: 展開中ノードのみをフラットな行リストへ変換 (仮想化レンダリングと計測の共通入力)
+  const flatRows = useMemo(
+    () => flattenVisibleTree(filteredData, expandedNodes),
+    [filteredData, expandedNodes]
+  );
+
+  useTreeExpandMeasure(flatRows.length);
 
   const handleTableOpen = useCallback(
     (nodeId: string, tableName: string, tableType: ExpandableType) => {
