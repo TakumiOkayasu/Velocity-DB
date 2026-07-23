@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { connectionProfileProvider } from '../../api/providers';
 import { applyConnectionMigration } from '../../store/connectionMigration';
@@ -9,12 +9,17 @@ import {
   isSshAuthType,
   type SavedConnectionProfile,
 } from '../../types';
-import { groupProfilesByFolder, type ProfileGroup } from '../../utils/groupProfilesByFolder';
+import {
+  collectFolderPaths,
+  countFolderProfiles,
+  type FolderTreeNode,
+  groupProfilesByFolder,
+} from '../../utils/groupProfilesByFolder';
 import { useFirstRenderMark } from '../../utils/perfMarks';
 import { pruneCollapsedFolders } from '../../utils/pruneCollapsedFolders';
 import type { ExpandableType } from '../../utils/treeNode';
 import { DialogOverlay } from '../common/DialogOverlay';
-import { FolderNode } from './FolderNode';
+import { FOLDER_INDENT_PX, FolderNode } from './FolderNode';
 import styles from './ObjectTree.module.css';
 import { ProfileNode } from './ProfileNode';
 
@@ -98,14 +103,14 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
     return map;
   }, [connections]);
 
-  const profileGroups = useMemo(() => groupProfilesByFolder(profiles), [profiles]);
+  const profileTree = useMemo(() => groupProfilesByFolder(profiles), [profiles]);
 
   // Drop collapsed state for folders that no longer exist, so a recreated
   // folder of the same name doesn't inherit a stale "closed" flag.
   useEffect(() => {
-    const existing = new Set(profileGroups.map((g) => g.folderPath));
+    const existing = collectFolderPaths(profileTree.folders);
     setCollapsedFolders((prev) => pruneCollapsedFolders(prev, existing) ?? prev);
-  }, [profileGroups]);
+  }, [profileTree]);
 
   const toggleFolder = useCallback((folderPath: string) => {
     setCollapsedFolders((prev) => {
@@ -123,36 +128,44 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
     setConfirmingProfile(profile);
   }, []);
 
-  const renderGroup = useCallback(
-    (group: ProfileGroup) => {
-      const profileNodes = group.profiles.map((profile) => (
-        <ProfileNode
-          key={profile.id}
-          profile={profile}
-          connection={connectionByProfileId.get(profile.id)}
-          filter={filter}
-          onTableOpen={onTableOpen}
-          onProfileClick={handleProfileClick}
-        />
-      ));
+  const renderProfile = useCallback(
+    (profile: SavedConnectionProfile) => (
+      <ProfileNode
+        key={profile.id}
+        profile={profile}
+        connection={connectionByProfileId.get(profile.id)}
+        filter={filter}
+        onTableOpen={onTableOpen}
+        onProfileClick={handleProfileClick}
+      />
+    ),
+    [connectionByProfileId, filter, onTableOpen, handleProfileClick]
+  );
 
-      if (group.folderPath === '') {
-        return <Fragment key="root">{profileNodes}</Fragment>;
-      }
-
+  // Recursive folder rendering: subfolders first, then direct profiles
+  // (explorer convention). A collapsed ancestor unmounts its whole subtree.
+  const renderFolder = useCallback(
+    function renderFolderNode(node: FolderTreeNode, level: number): ReactNode {
       return (
         <FolderNode
-          key={group.folderPath}
-          folderPath={group.folderPath}
-          expanded={!collapsedFolders.has(group.folderPath)}
-          profileCount={group.profiles.length}
+          key={node.fullPath}
+          name={node.name}
+          fullPath={node.fullPath}
+          level={level}
+          expanded={!collapsedFolders.has(node.fullPath)}
+          profileCount={countFolderProfiles(node)}
           onToggle={toggleFolder}
         >
-          {profileNodes}
+          {node.subfolders.map((child) => renderFolderNode(child, level + 1))}
+          {node.profiles.length > 0 && (
+            <div style={{ paddingLeft: (level + 1) * FOLDER_INDENT_PX }}>
+              {node.profiles.map(renderProfile)}
+            </div>
+          )}
         </FolderNode>
       );
     },
-    [connectionByProfileId, filter, onTableOpen, handleProfileClick, collapsedFolders, toggleFolder]
+    [collapsedFolders, toggleFolder, renderProfile]
   );
 
   const handleConfirm = useCallback(async () => {
@@ -228,7 +241,8 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
 
   return (
     <div className={styles.container}>
-      {profileGroups.map(renderGroup)}
+      {profileTree.folders.map((node) => renderFolder(node, 0))}
+      {profileTree.rootProfiles.map(renderProfile)}
 
       {profiles.length === 0 && <div className={styles.noConnection}>接続なし</div>}
 

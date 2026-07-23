@@ -15,6 +15,7 @@ import {
   type SavedConnectionProfile,
 } from '../../../types';
 import type { ConnectionConfig } from '../../../types/connectionForm';
+import { normalizeFolderPath } from '../../../utils/folderPath';
 import {
   initialProfileFormState,
   type ProfileMode,
@@ -174,7 +175,7 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
   const handleSaveProfile = useCallback(async () => {
     const isNewProfile = mode === 'new';
     const currentEditingId = editingProfileId;
-    const folderPath = config.folderPath.trim();
+    const folderPath = normalizeFolderPath(config.folderPath);
 
     try {
       const result = await connectionProfileProvider.saveConnectionProfile({

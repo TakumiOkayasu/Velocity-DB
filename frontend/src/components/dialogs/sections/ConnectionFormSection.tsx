@@ -48,7 +48,7 @@ export function ConnectionFormSection({
           type="text"
           value={config.folderPath}
           onChange={(e) => onChange('folderPath', e.target.value)}
-          placeholder="例: Work / Personal (空欄でルート)"
+          placeholder="例: ProjectA/Backend (/区切りで最大5階層, 空欄でルート)"
         />
       </div>
 
