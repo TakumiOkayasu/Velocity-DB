@@ -148,4 +148,119 @@ describe('ObjectTree folder grouping', () => {
     const names = screen.getAllByTestId('profile-node').map((el) => el.dataset.profileName ?? '');
     expect(names).toEqual(['Third', 'First', 'Second']);
   });
+
+  it('renders nested folders inside their parent with full data-folder-path', async () => {
+    setProfiles([
+      buildProfile('p1', 'Parent', 'Work'),
+      buildProfile('p2', 'Child', 'Work/ProjectA'),
+    ]);
+
+    render(<ObjectTree filter="" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('profile-node')).toHaveLength(2);
+    });
+
+    expect(getFolderPaths()).toEqual(['Work', 'Work/ProjectA']);
+
+    const work = screen
+      .getAllByTestId('folder-node')
+      .find((el) => el.dataset.folderPath === 'Work');
+    expect(work).toBeDefined();
+    const nested = work?.querySelector('[data-folder-path="Work/ProjectA"]');
+    expect(nested).not.toBeNull();
+  });
+
+  it('shows only the leaf segment as label while title keeps the full path', async () => {
+    setProfiles([buildProfile('p1', 'Child', 'Work/ProjectA')]);
+
+    render(<ObjectTree filter="" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('profile-node')).toHaveLength(1);
+    });
+
+    const nestedHeader = screen.getByTitle('Work/ProjectA');
+    expect(nestedHeader.textContent).toContain('ProjectA');
+    expect(nestedHeader.textContent).not.toContain('Work/ProjectA');
+    expect(screen.getByTitle('Work')).toBeDefined();
+  });
+
+  it('creates intermediate folder nodes for ancestors without direct profiles', async () => {
+    setProfiles([buildProfile('p1', 'Deep', 'A/B/C')]);
+
+    render(<ObjectTree filter="" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('profile-node')).toHaveLength(1);
+    });
+
+    expect(getFolderPaths()).toEqual(['A', 'A/B', 'A/B/C']);
+  });
+
+  it('collapsing a parent hides descendant folders and profiles', async () => {
+    setProfiles([
+      buildProfile('p1', 'Parent', 'Work'),
+      buildProfile('p2', 'Child', 'Work/ProjectA'),
+      buildProfile('p3', 'Root', undefined),
+    ]);
+
+    render(<ObjectTree filter="" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('profile-node')).toHaveLength(3);
+    });
+
+    fireEvent.click(screen.getByTitle('Work'));
+
+    await waitFor(() => {
+      // Only the root profile stays visible.
+      expect(screen.getAllByTestId('profile-node')).toHaveLength(1);
+    });
+    expect(getFolderPaths()).toEqual(['Work']);
+    expect(screen.queryByTitle('Work/ProjectA')).toBeNull();
+  });
+
+  it('shows descendant-inclusive profile count on parent folders', async () => {
+    setProfiles([
+      buildProfile('p1', 'Parent', 'Work'),
+      buildProfile('p2', 'ChildA', 'Work/ProjectA'),
+      buildProfile('p3', 'ChildB', 'Work/ProjectA'),
+    ]);
+
+    render(<ObjectTree filter="" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('profile-node')).toHaveLength(3);
+    });
+
+    expect(screen.getByTitle('Work').textContent).toContain('(3)');
+    expect(screen.getByTitle('Work/ProjectA').textContent).toContain('(2)');
+  });
+
+  it('indents nested folder headers progressively', async () => {
+    setProfiles([buildProfile('p1', 'Deep', 'A/B')]);
+
+    render(<ObjectTree filter="" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('profile-node')).toHaveLength(1);
+    });
+
+    const outer = Number.parseInt(screen.getByTitle('A').style.paddingLeft, 10);
+    const inner = Number.parseInt(screen.getByTitle('A/B').style.paddingLeft, 10);
+    expect(inner).toBeGreaterThan(outer);
+  });
+
+  it('caps rendering depth at 5 folder levels', async () => {
+    setProfiles([buildProfile('p1', 'Deep', 'a/b/c/d/e/f/g')]);
+
+    render(<ObjectTree filter="" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('profile-node')).toHaveLength(1);
+    });
+
+    expect(getFolderPaths()).toEqual(['a', 'a/b', 'a/b/c', 'a/b/c/d', 'a/b/c/d/e']);
+  });
 });
