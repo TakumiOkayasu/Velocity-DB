@@ -184,5 +184,67 @@ TEST_F(ResultCacheTest, FindsWithStringView) {
     EXPECT_EQ(colCount, 1);
 }
 
+// #12 (#511): ヒット/ミスカウンタが getAndApply の find 結果で加算される
+TEST_F(ResultCacheTest, StatsCountHitsAndMisses) {
+    cache.put("key1", makeResultSet(1, 1));
+
+    cache.getAndApply("key1", [](const ResultSet&) { return true; });      // hit
+    cache.getAndApply("key1", [](const ResultSet&) { return true; });      // hit
+    cache.getAndApply("missing", [](const ResultSet&) { return true; });   // miss
+
+    auto stats = cache.getStats();
+    EXPECT_EQ(stats.hitCount, 2u);
+    EXPECT_EQ(stats.missCount, 1u);
+    EXPECT_EQ(stats.putCount, 1u);
+    EXPECT_DOUBLE_EQ(stats.hitRate(), 2.0 / 3.0);
+}
+
+// #13 (#511): 空の結果セットのヒットもヒットとして数える（コールバック戻り値に依存しない）
+TEST_F(ResultCacheTest, StatsCountEmptyResultHitAsHit) {
+    cache.put("empty", makeResultSet(0, 0));
+
+    cache.getAndApply("empty", [](const ResultSet& r) { return r.rows.size(); });
+
+    auto stats = cache.getStats();
+    EXPECT_EQ(stats.hitCount, 1u);
+    EXPECT_EQ(stats.missCount, 0u);
+}
+
+// #14 (#511): evictionCount がサイズ超過による追い出しで加算される
+TEST_F(ResultCacheTest, StatsCountEvictions) {
+    auto itemSize = measureItemSize();
+    ResultCache smallCache{itemSize * 2};
+    auto rs = makeResultSet(1, 1);
+
+    smallCache.put("first", rs);
+    smallCache.put("second", rs);
+    smallCache.put("third", rs);  // "first" を evict
+
+    auto stats = smallCache.getStats();
+    EXPECT_EQ(stats.evictionCount, 1u);
+    EXPECT_EQ(stats.putCount, 3u);
+}
+
+// #15 (#511): clear はカウンタをリセットしない（累積統計）
+TEST_F(ResultCacheTest, ClearKeepsCumulativeStats) {
+    cache.put("key1", makeResultSet(1, 1));
+    cache.getAndApply("key1", [](const ResultSet&) { return true; });
+
+    cache.clear();
+
+    auto stats = cache.getStats();
+    EXPECT_EQ(stats.hitCount, 1u);
+    EXPECT_EQ(stats.putCount, 1u);
+    EXPECT_EQ(stats.currentSizeBytes, 0u);
+}
+
+// #16 (#511): 統計スナップショットにサイズ情報が含まれる
+TEST_F(ResultCacheTest, StatsSnapshotIncludesSizes) {
+    auto stats = cache.getStats();
+    EXPECT_EQ(stats.currentSizeBytes, 0u);
+    EXPECT_EQ(stats.maxSizeBytes, 1024u * 1024u);
+    EXPECT_DOUBLE_EQ(stats.hitRate(), 0.0);  // 0除算なし
+}
+
 }  // namespace test
 }  // namespace velocitydb

@@ -177,6 +177,11 @@ export const getCacheStats = z.object({
   currentSizeBytes: z.number(),
   maxSizeBytes: z.number(),
   usagePercent: z.number(),
+  hitCount: z.number(),
+  missCount: z.number(),
+  hitRate: z.number(),
+  putCount: z.number(),
+  evictionCount: z.number(),
 });
 export const clearCache = z.object({ cleared: z.boolean() });
 
