@@ -36,6 +36,16 @@ struct CacheStats {
     }
 };
 
+/// キャッシュキーのレイアウトは connectionId + '\0' + <payload>。この接頭辞で
+/// invalidatePrefix すると接続単位の一括無効化になる (#511)
+[[nodiscard]] inline std::string makeConnectionCachePrefix(std::string_view connectionId) {
+    std::string prefix;
+    prefix.reserve(connectionId.size() + 1);
+    prefix.append(connectionId);
+    prefix.push_back('\0');
+    return prefix;
+}
+
 class ResultCache {
 public:
     explicit ResultCache(size_t maxSizeBytes = 100 * 1024 * 1024) : m_maxSizeBytes(maxSizeBytes) {}
@@ -61,6 +71,9 @@ public:
 
     [[nodiscard]] bool contains(std::string_view key);
     void invalidate(std::string_view key);
+    /// Remove all entries whose key starts with prefix (#511: 接続単位の DML/USE 無効化用。
+    /// キーは connectionId + '\0' + ... 形式のため、接続プレフィックスで一括無効化できる)
+    void invalidatePrefix(std::string_view prefix);
     void clear();
 
     [[nodiscard]] size_t getCurrentSize() const;

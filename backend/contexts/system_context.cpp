@@ -3,6 +3,7 @@
 #include "../accessors/session_accessor.h"
 #include "../accessors/settings_accessor.h"
 #include "../database/query_history.h"
+#include "../database/result_cache.h"
 #include "../providers/async_query_provider.h"
 #include "../providers/connection_provider.h"
 #include "../providers/export_provider.h"
@@ -41,8 +42,11 @@ SystemContext::SystemContext() {
     m_connections = std::make_unique<ConnectionProvider>();
     m_queryHistory = makeQueryHistory(*settingsAccessor);
     m_settings = std::make_unique<SettingsProvider>(std::move(settingsAccessor), std::move(sessionAccessor), m_connections.get(), *m_queryHistory);
-    m_queries = std::make_unique<QueryProvider>(*m_connections, *m_queryHistory);
-    m_asyncQueries = std::make_unique<AsyncQueryProvider>(*m_connections, *m_queryHistory);
+    // 同期/非同期の両クエリ経路で ResultCache を共有する (#511)。従来は非同期経路 (フロントエンドの
+    // 主経路) がキャッシュに一切触れず、ヒット率が構造的にゼロだった
+    auto sharedResultCache = std::make_shared<ResultCache>();
+    m_queries = std::make_unique<QueryProvider>(*m_connections, *m_queryHistory, sharedResultCache);
+    m_asyncQueries = std::make_unique<AsyncQueryProvider>(*m_connections, *m_queryHistory, std::move(sharedResultCache));
     m_schema = std::make_unique<SchemaProvider>(*m_connections);
     m_transactions = std::make_unique<TransactionProvider>(*m_connections);
     m_exports = std::make_unique<ExportProvider>(*m_connections);
