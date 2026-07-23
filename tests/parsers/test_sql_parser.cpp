@@ -629,5 +629,42 @@ TEST_F(SQLParserSplitTest, CrossDbThreePartNamesSplitsIntoTwo) {
     EXPECT_NE(stmts[1].find("existing_products"), std::string::npos);
 }
 
+// --- normalizeForCacheKey (#511) ---
+
+TEST(NormalizeForCacheKeyTest, TrimsSurroundingWhitespace) {
+    EXPECT_EQ(SQLParser::normalizeForCacheKey("  SELECT 1  "), "SELECT 1");
+    EXPECT_EQ(SQLParser::normalizeForCacheKey("\tSELECT 1\r\n"), "SELECT 1");
+}
+
+TEST(NormalizeForCacheKeyTest, StripsTrailingSemicolons) {
+    EXPECT_EQ(SQLParser::normalizeForCacheKey("SELECT 1;"), "SELECT 1");
+    EXPECT_EQ(SQLParser::normalizeForCacheKey("SELECT 1 ; "), "SELECT 1");
+    EXPECT_EQ(SQLParser::normalizeForCacheKey("SELECT 1 ;\n; "), "SELECT 1");
+}
+
+TEST(NormalizeForCacheKeyTest, PreservesInnerWhitespaceAndCase) {
+    // 文字列リテラル・引用識別子は大小文字/空白が意味を持つため内部は変更しない
+    EXPECT_EQ(SQLParser::normalizeForCacheKey("SELECT 'a  B' FROM \"MyTable\";"), "SELECT 'a  B' FROM \"MyTable\"");
+    EXPECT_EQ(SQLParser::normalizeForCacheKey("select  *  from t"), "select  *  from t");
+}
+
+TEST(NormalizeForCacheKeyTest, PreservesSemicolonInsideStatementText) {
+    // 末尾以外の ';' はそのまま (単文前提の呼び出し元契約)
+    EXPECT_EQ(SQLParser::normalizeForCacheKey("SELECT ';' FROM t;"), "SELECT ';' FROM t");
+}
+
+TEST(NormalizeForCacheKeyTest, EmptyAndSemicolonOnlyInputs) {
+    EXPECT_EQ(SQLParser::normalizeForCacheKey(""), "");
+    EXPECT_EQ(SQLParser::normalizeForCacheKey("   "), "");
+    EXPECT_EQ(SQLParser::normalizeForCacheKey(" ;; "), "");
+}
+
+TEST(NormalizeForCacheKeyTest, EquivalentVariantsProduceSameKey) {
+    auto base = SQLParser::normalizeForCacheKey("SELECT * FROM users");
+    EXPECT_EQ(SQLParser::normalizeForCacheKey("SELECT * FROM users;"), base);
+    EXPECT_EQ(SQLParser::normalizeForCacheKey("  SELECT * FROM users  "), base);
+    EXPECT_EQ(SQLParser::normalizeForCacheKey("SELECT * FROM users ;\r\n"), base);
+}
+
 }  // namespace test
 }  // namespace velocitydb

@@ -41,6 +41,13 @@ public:
     /// Split SQL text with block detection via injected detectors (OCP)
     /// @param detectors  Block detectors for multi-line constructs (e.g. COPY FROM stdin)
     [[nodiscard]] static std::vector<std::string> splitStatements(std::string_view sql, std::span<const IBlockDetector* const> detectors);
+
+    /// Normalize a single SQL statement for use as a result-cache key (#511).
+    /// Strips leading/trailing whitespace and trailing statement terminators (';').
+    /// Deliberately conservative: no case folding or inner-whitespace collapsing,
+    /// since string literals / quoted identifiers are case- and space-sensitive.
+    /// Returns a subview of the input (no allocation).
+    [[nodiscard]] static std::string_view normalizeForCacheKey(std::string_view sql);
 };
 
 }  // namespace velocitydb

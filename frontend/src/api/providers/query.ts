@@ -66,6 +66,11 @@ export interface CacheStats {
   currentSizeBytes: number;
   maxSizeBytes: number;
   usagePercent: number;
+  hitCount: number;
+  missCount: number;
+  hitRate: number;
+  putCount: number;
+  evictionCount: number;
 }
 
 export interface BuildWhereCondition {

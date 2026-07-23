@@ -253,17 +253,31 @@ describe('queryProvider', () => {
     expect(mock.calls[0]?.params).toMatchObject({ isFavorite: false });
   });
 
-  // --- Cache (#520) ---
+  // --- Cache (#520, #511) ---
   it('getCacheStats は CacheStats を返す', async () => {
     mock.setResponse('getCacheStats', {
       currentSizeBytes: 100,
       maxSizeBytes: 1000,
       usagePercent: 10,
+      hitCount: 7,
+      missCount: 3,
+      hitRate: 70,
+      putCount: 5,
+      evictionCount: 1,
     });
 
     const result = await queryProvider.getCacheStats();
 
-    expect(result).toEqual({ currentSizeBytes: 100, maxSizeBytes: 1000, usagePercent: 10 });
+    expect(result).toEqual({
+      currentSizeBytes: 100,
+      maxSizeBytes: 1000,
+      usagePercent: 10,
+      hitCount: 7,
+      missCount: 3,
+      hitRate: 70,
+      putCount: 5,
+      evictionCount: 1,
+    });
   });
 
   it('clearCache は cleared フラグを返す', async () => {
