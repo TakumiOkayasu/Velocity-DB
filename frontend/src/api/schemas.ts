@@ -74,6 +74,13 @@ export const getColumns = z.array(
     comment: z.string().optional(),
   })
 );
+export const getAllColumns = z.array(
+  z.object({
+    schema: z.string(),
+    table: z.string(),
+    columns: getColumns,
+  })
+);
 
 // --- Transaction ---
 export const beginTransaction = zVoidResponse;

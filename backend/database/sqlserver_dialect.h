@@ -26,6 +26,7 @@ public:
     [[nodiscard]] std::string getDatabasesQuery() const override;
     [[nodiscard]] std::string getTablesQuery() const override;
     [[nodiscard]] std::string getColumnsQuery(std::string_view schema, std::string_view table) const override;
+    [[nodiscard]] std::string getAllColumnsQuery() const override;
     [[nodiscard]] std::string getTableMetadataQuery(std::string_view schema, std::string_view table) const override;
 
     // IRelationQueryable
