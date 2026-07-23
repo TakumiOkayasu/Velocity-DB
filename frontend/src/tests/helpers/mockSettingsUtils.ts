@@ -1,9 +1,11 @@
 import { vi } from 'vitest';
 
 const mockSettings = {
-  version: 1,
-  editor: { fontSize: 14, tabSize: 4, wordWrap: true, minimap: false },
+  version: 2,
+  general: { autoConnect: false, confirmOnExit: true, maxQueryHistory: 1000, language: 'en' },
+  editor: { fontSize: 14, fontFamily: 'Consolas', tabSize: 4, wordWrap: true, minimap: false },
   query: { autoCommit: true, timeout: 300000, maxRows: 10000 },
+  grid: { defaultPageSize: 100000, showRowNumbers: true, nullDisplay: '(NULL)' },
   appearance: { theme: 'dark' as const },
   shortcuts: {
     execute: 'F9',
@@ -16,6 +18,7 @@ const mockSettings = {
 const mockModule = {
   defaultSettings: mockSettings,
   getSettings: vi.fn(() => ({ ...mockSettings })),
+  SETTINGS_CHANGED_EVENT: 'settings-changed',
 };
 
 // Mock both the canonical location and the re-export

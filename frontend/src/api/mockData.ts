@@ -108,6 +108,9 @@ export const mockData: Record<string, unknown> = {
       dateFormat: 'yyyy-MM-dd HH:mm:ss',
       nullDisplay: '(NULL)',
     },
+    query: {
+      timeoutSeconds: 300,
+    },
   },
   updateSettings: { saved: true },
   getConnectionProfiles: [],
