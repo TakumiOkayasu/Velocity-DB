@@ -48,6 +48,23 @@ void ResultCache::invalidate(std::string_view key) {
     }
 }
 
+void ResultCache::invalidatePrefix(std::string_view prefix) {
+    std::lock_guard lock(m_mutex);
+
+    if (prefix.empty()) {
+        return;
+    }
+    for (auto it = m_cache.begin(); it != m_cache.end();) {
+        if (it->first.starts_with(prefix)) {
+            m_currentSizeBytes -= it->second.sizeBytes;
+            m_lruList.erase(it->second.lruIt);
+            it = m_cache.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 void ResultCache::clear() {
     std::lock_guard lock(m_mutex);
     m_cache.clear();
