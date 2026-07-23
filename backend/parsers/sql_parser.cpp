@@ -351,4 +351,13 @@ std::vector<std::string> SQLParser::splitStatements(std::string_view sql, std::s
     return result;
 }
 
+std::string_view SQLParser::normalizeForCacheKey(std::string_view sql) {
+    auto normalized = trim(sql);
+    while (!normalized.empty() && normalized.back() == ';') {
+        normalized.remove_suffix(1);
+        normalized = trim(normalized);
+    }
+    return normalized;
+}
+
 }  // namespace velocitydb
