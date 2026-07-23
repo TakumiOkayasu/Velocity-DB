@@ -1,0 +1,290 @@
+/* DataCompareDialog (#256): データ比較ダイアログ */
+
+.overlay {
+  composes: overlay from "./DialogBase.module.css";
+}
+
+.dialog {
+  composes: dialog from "./DialogBase.module.css";
+  width: 960px;
+  max-width: 95vw;
+  height: 85vh;
+}
+
+.header {
+  composes: header from "./DialogBase.module.css";
+}
+
+.closeButton {
+  composes: closeButton from "./DialogBase.module.css";
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.sources {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.sourcePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: var(--bg-secondary);
+}
+
+.sourceTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.label {
+  composes: label from "./DialogBase.module.css";
+}
+
+.select {
+  composes: select from "./DialogBase.module.css";
+}
+
+.input {
+  composes: input from "./DialogBase.module.css";
+}
+
+.textarea {
+  composes: textarea from "./DialogBase.module.css";
+  resize: vertical;
+  min-height: 60px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+}
+
+.modeTabs {
+  display: flex;
+  gap: 4px;
+}
+
+.modeTab {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.modeTabActive {
+  background-color: var(--accent-color);
+  border-color: var(--accent-color);
+  color: #fff;
+}
+
+.actionsRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.button {
+  composes: button from "./DialogBase.module.css";
+}
+
+.buttonPrimary {
+  composes: buttonPrimary from "./DialogBase.module.css";
+}
+
+.error {
+  composes: error from "./DialogBase.module.css";
+}
+
+.keySection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.keySectionLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.keyCheckbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 2px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.summaryRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.summaryBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.badgeAdded {
+  border-color: var(--success-color, #4caf50);
+  color: var(--success-color, #4caf50);
+}
+
+.badgeRemoved {
+  border-color: var(--error-color, #f44336);
+  color: var(--error-color, #f44336);
+}
+
+.badgeModified {
+  border-color: var(--warning-color, #ff9800);
+  color: var(--warning-color, #ff9800);
+}
+
+.warnings {
+  margin: 0;
+  padding: 8px 12px 8px 28px;
+  border: 1px solid var(--warning-color, #ff9800);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.filterToggle {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.gridWrapper {
+  flex: 1;
+  min-height: 120px;
+  overflow: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.grid th {
+  position: sticky;
+  top: 0;
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.grid td {
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+  white-space: nowrap;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rowAdded {
+  background-color: rgba(76, 175, 80, 0.12);
+}
+
+.rowRemoved {
+  background-color: rgba(244, 67, 54, 0.12);
+}
+
+.rowModified {
+  background-color: rgba(255, 152, 0, 0.08);
+}
+
+.statusCell {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.statusAdded {
+  color: var(--success-color, #4caf50);
+}
+
+.statusRemoved {
+  color: var(--error-color, #f44336);
+}
+
+.statusModified {
+  color: var(--warning-color, #ff9800);
+}
+
+.statusIdentical {
+  color: var(--text-secondary);
+}
+
+.changedCell {
+  background-color: rgba(255, 152, 0, 0.25);
+  border-radius: 2px;
+}
+
+.oldValue {
+  color: var(--error-color, #f44336);
+  text-decoration: line-through;
+}
+
+.arrow {
+  color: var(--text-secondary);
+  margin: 0 4px;
+}
+
+.newValue {
+  color: var(--success-color, #4caf50);
+}
+
+.nullValue {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.emptyState {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.noteText {
+  font-size: 12px;
+  color: var(--text-secondary);
+}

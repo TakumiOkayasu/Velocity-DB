@@ -36,6 +36,9 @@ const SearchDialog = lazyWithRetry(() =>
 const SettingsDialog = lazyWithRetry(() =>
   import('../dialogs/SettingsDialog').then((module) => ({ default: module.SettingsDialog }))
 );
+const DataCompareDialog = lazyWithRetry(() =>
+  import('../dialogs/DataCompareDialog').then((module) => ({ default: module.DataCompareDialog }))
+);
 // Simple loading fallback
 function LoadingFallback() {
   return <div style={{ display: 'none' }} />;
@@ -52,6 +55,9 @@ export function MainLayout() {
     isSettingsDialogOpen,
     openSettingsDialog,
     closeSettingsDialog,
+    isDataCompareDialogOpen,
+    openDataCompareDialog,
+    closeDataCompareDialog,
     queryConfirm,
     openQueryConfirm,
     closeQueryConfirm,
@@ -380,6 +386,14 @@ export function MainLayout() {
           <button
             type="button"
             className={styles.iconButton}
+            onClick={openDataCompareDialog}
+            title="データ比較"
+          >
+            <ToolbarIcons.Compare />
+          </button>
+          <button
+            type="button"
+            className={styles.iconButton}
             onClick={openSettingsDialog}
             title="設定 (Ctrl+,)"
           >
@@ -530,6 +544,12 @@ export function MainLayout() {
       {isSettingsDialogOpen && (
         <Suspense fallback={<LoadingFallback />}>
           <SettingsDialog isOpen={isSettingsDialogOpen} onClose={closeSettingsDialog} />
+        </Suspense>
+      )}
+
+      {isDataCompareDialogOpen && (
+        <Suspense fallback={<LoadingFallback />}>
+          <DataCompareDialog isOpen={isDataCompareDialogOpen} onClose={closeDataCompareDialog} />
         </Suspense>
       )}
 
