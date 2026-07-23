@@ -64,6 +64,23 @@ describe('schemaProvider', () => {
     expect(mock.calls[0]?.params).toEqual({ connectionId: 'conn-1', table: 'users' });
   });
 
+  it('getAllColumns は connectionId を渡しテーブル毎の列配列を返す (#512)', async () => {
+    mock.setResponse('getAllColumns', [
+      {
+        schema: 'dbo',
+        table: 'users',
+        columns: [{ name: 'id', type: 'int', size: 4, nullable: false, isPrimaryKey: true }],
+      },
+    ]);
+
+    const result = await schemaProvider.getAllColumns('conn-1');
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ schema: 'dbo', table: 'users' });
+    expect(result[0].columns).toHaveLength(1);
+    expect(mock.calls[0]).toEqual({ method: 'getAllColumns', params: { connectionId: 'conn-1' } });
+  });
+
   it('getIndexes は index 配列を返す', async () => {
     mock.setResponse('getIndexes', [
       { name: 'pk_users', columns: ['id'], isUnique: true, isPrimaryKey: true, type: 'BTREE' },

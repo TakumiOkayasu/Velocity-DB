@@ -94,6 +94,20 @@ export const ToolbarIcons = {
       <path d="M8 1v2M8 13v2M1 8h2M13 8h2M2.93 2.93l1.41 1.41M11.66 11.66l1.41 1.41M2.93 13.07l1.41-1.41M11.66 4.34l1.41-1.41" />
     </svg>
   ),
+  Compare: (props: IconProps) => (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden="true"
+      {...props}
+    >
+      <rect x="1.5" y="2.5" width="5" height="11" rx="1" />
+      <rect x="9.5" y="2.5" width="5" height="11" rx="1" />
+      <path d="M6.5 6h3M9.5 10h-3" />
+    </svg>
+  ),
 };
 
 // ====================================================================

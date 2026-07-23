@@ -139,3 +139,50 @@ TEST_F(SchemaProviderCacheTest, ErrorResponseIsNotCached) {
     EXPECT_NE(firstError.find("Connection not found"), std::string::npos);
     EXPECT_NE(secondOk.find("PK_Users"), std::string::npos);
 }
+
+// --- getAllColumns (#512) ---
+
+// (schema, table) ソート済み行がテーブル毎にグルーピングされる
+TEST_F(SchemaProviderCacheTest, GetAllColumnsGroupsRowsByTable) {
+    resolveDriverByDefault();
+    // 行レイアウト: schema, table, column, type, size, nullable, isPk, comment
+    auto rows = makeResultSet({
+        {"dbo", "orders", "id", "int", "4", "0", "1", ""},
+        {"dbo", "orders", "user_id", "int", "4", "1", "0", "FK"},
+        {"dbo", "users", "id", "int", "4", "0", "1", ""},
+    });
+    EXPECT_CALL(*driver, execute(::testing::_)).Times(1).WillOnce(::testing::Return(rows));
+
+    SchemaProvider provider(connections);
+    const auto json = provider.getAllColumns(R"({"connectionId":"db_1"})");
+
+    EXPECT_NE(json.find(R"("schema":"dbo","table":"orders")"), std::string::npos);
+    EXPECT_NE(json.find(R"("schema":"dbo","table":"users")"), std::string::npos);
+    EXPECT_NE(json.find(R"("name":"user_id","type":"int","size":4,"nullable":true,"isPrimaryKey":false,"comment":"FK")"), std::string::npos);
+    // orders グループが users より先 (ソート順保持)
+    EXPECT_LT(json.find(R"("table":"orders")"), json.find(R"("table":"users")"));
+}
+
+// 2 回目はキャッシュ命中し driver->execute は 1 回
+TEST_F(SchemaProviderCacheTest, GetAllColumnsSecondCallHitsCache) {
+    resolveDriverByDefault();
+    auto rows = makeResultSet({{"dbo", "users", "id", "int", "4", "0", "1", ""}});
+    EXPECT_CALL(*driver, execute(::testing::_)).Times(1).WillOnce(::testing::Return(rows));
+
+    SchemaProvider provider(connections);
+    const auto first = provider.getAllColumns(R"({"connectionId":"db_1"})");
+    const auto second = provider.getAllColumns(R"({"connectionId":"db_1"})");
+
+    EXPECT_EQ(first, second);
+}
+
+// テーブルが 1 件もない場合は空配列
+TEST_F(SchemaProviderCacheTest, GetAllColumnsEmptySchemaYieldsEmptyArray) {
+    resolveDriverByDefault();
+    EXPECT_CALL(*driver, execute(::testing::_)).Times(1).WillOnce(::testing::Return(ResultSet{}));
+
+    SchemaProvider provider(connections);
+    const auto json = provider.getAllColumns(R"({"connectionId":"db_1"})");
+
+    EXPECT_NE(json.find(R"("data":[])"), std::string::npos);
+}

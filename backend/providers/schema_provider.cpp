@@ -205,6 +205,62 @@ std::string SchemaProvider::getColumns(std::string_view params) {
     });
 }
 
+std::string SchemaProvider::getAllColumns(std::string_view params) {
+    return withCache("getAllColumns:" + std::string(params), [&]() -> std::expected<std::string, std::string> {
+        auto connectionIdResult = extractConnectionId(params);
+        if (!connectionIdResult) {
+            return std::unexpected(connectionIdResult.error());
+        }
+        auto connectionId = *connectionIdResult;
+        auto driver = m_connections.getMetadataDriver(connectionId);
+        if (!driver) [[unlikely]] {
+            return std::unexpected(std::format("Connection not found: {}", connectionId));
+        }
+        auto driverType = m_connections.getDriverType(connectionId);
+        auto dialect = DriverFactory::createSchemaQueryable(driverType);
+        auto queryResult = driver->execute(dialect->getAllColumnsQuery());
+
+        // (schema, table) でソート済みの行を走査し、テーブル毎の配列にグルーピングする
+        std::string json = "[";
+        std::string_view currentSchema;
+        std::string_view currentTable;
+        bool firstTable = true;
+        bool firstColumn = true;
+        for (const auto& row : queryResult.rows) {
+            if (row.values.size() < 7)
+                continue;
+            auto schema = row.values[0];
+            auto table = row.values[1];
+            if (firstTable || schema != currentSchema || table != currentTable) {
+                if (!firstTable)
+                    json += "]}";
+                if (!firstTable)
+                    json += ",";
+                json += std::format(R"({{"schema":"{}","table":"{}","columns":[)", JsonUtils::escapeString(schema), JsonUtils::escapeString(table));
+                currentSchema = schema;
+                currentTable = table;
+                firstTable = false;
+                firstColumn = true;
+            }
+            if (!firstColumn)
+                json += ",";
+            firstColumn = false;
+            std::string_view sizeStr = row.values[4];
+            int colSize = 0;
+            std::from_chars(sizeStr.data(), sizeStr.data() + sizeStr.size(), colSize);
+            auto comment = row.values.size() >= 8 ? row.values[7] : std::string_view{};
+            auto nullable = row.values[5] == "1" ? "true" : "false";
+            auto isPk = row.values[6] == "1" ? "true" : "false";
+            json += std::format(R"({{"name":"{}","type":"{}","size":{},"nullable":{},"isPrimaryKey":{},"comment":"{}"}})", JsonUtils::escapeString(row.values[2]),
+                                JsonUtils::escapeString(row.values[3]), colSize, nullable, isPk, JsonUtils::escapeString(comment));
+        }
+        if (!firstTable)
+            json += "]}";
+        json += "]";
+        return json;
+    });
+}
+
 std::string SchemaProvider::getIndexes(std::string_view params) {
     return withCache("getIndexes:" + std::string(params), [&]() -> std::expected<std::string, std::string> {
         thread_local static simdjson::dom::parser parser;
