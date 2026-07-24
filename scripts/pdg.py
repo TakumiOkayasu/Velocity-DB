@@ -342,11 +342,22 @@ def cmd_clean(args: argparse.Namespace) -> bool:
         # Clean log directory
         log_dir = project_root / "log"
         if log_dir.exists():
-            for log_file in log_dir.glob("*.log"):
-                log_file.unlink()
-                cleaned_items.append(f"  [OK] Deleted: {log_file.name}")
-            if not cleaned_items:
+            log_files = list(log_dir.glob("*.log"))
+            if not log_files:
                 cleaned_items.append("  [INFO] No log files found")
+            for log_file in log_files:
+                try:
+                    log_file.unlink()
+                    cleaned_items.append(f"  [OK] Deleted: {log_file.name}")
+                except PermissionError:
+                    # Windows: file is held open by a running VelocityDB / dev
+                    # process. Skip it instead of aborting the whole command.
+                    cleaned_items.append(
+                        f"  [SKIP] In use by another process: {log_file.name} "
+                        "(close the running app, then retry)"
+                    )
+                except OSError as e:
+                    cleaned_items.append(f"  [FAIL] Could not delete {log_file.name}: {e}")
         else:
             cleaned_items.append("  [INFO] Log directory does not exist")
 
@@ -354,16 +365,22 @@ def cmd_clean(args: argparse.Namespace) -> bool:
         # Clean WebView2 cache
         webview_cache = project_root / "build" / "Release" / "VelocityDB.exe.WebView2"
         if webview_cache.exists():
-            shutil.rmtree(webview_cache)
-            cleaned_items.append("  [OK] Deleted: WebView2 cache")
+            try:
+                shutil.rmtree(webview_cache)
+                cleaned_items.append("  [OK] Deleted: WebView2 cache")
+            except OSError as e:
+                cleaned_items.append(f"  [SKIP] WebView2 cache in use or locked: {e}")
         else:
             cleaned_items.append("  [INFO] WebView2 cache does not exist")
 
         # Clean frontend node_modules/.cache
         frontend_cache = project_root / "frontend" / "node_modules" / ".cache"
         if frontend_cache.exists():
-            shutil.rmtree(frontend_cache)
-            cleaned_items.append("  [OK] Deleted: Frontend cache")
+            try:
+                shutil.rmtree(frontend_cache)
+                cleaned_items.append("  [OK] Deleted: Frontend cache")
+            except OSError as e:
+                cleaned_items.append(f"  [SKIP] Frontend cache in use or locked: {e}")
 
     for item in cleaned_items:
         print(item)
