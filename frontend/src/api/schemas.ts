@@ -56,31 +56,16 @@ export const cancelQuery = zVoidResponse;
 
 // --- Schema ---
 export const getDatabases = z.array(z.string());
-export const getTables = z.array(
-  z.object({
-    schema: z.string(),
-    name: z.string(),
-    type: z.string(),
-    comment: z.string().optional(),
-  })
-);
+// #514: schema 系の大容量レスポンスはキー重複を排除したタプルのワイヤ形式。
+// api/providers/schema.ts が TableInfo / ColumnInfo オブジェクトへ復元する。
+/** [schema, name, type, comment] */
+export const getTables = z.array(z.tuple([z.string(), z.string(), z.string(), z.string()]));
+/** [name, type, size, nullable, isPrimaryKey, comment] */
 export const getColumns = z.array(
-  z.object({
-    name: z.string(),
-    type: z.string(),
-    size: z.number(),
-    nullable: z.boolean(),
-    isPrimaryKey: z.boolean(),
-    comment: z.string().optional(),
-  })
+  z.tuple([z.string(), z.string(), z.number(), z.boolean(), z.boolean(), z.string()])
 );
-export const getAllColumns = z.array(
-  z.object({
-    schema: z.string(),
-    table: z.string(),
-    columns: getColumns,
-  })
-);
+/** [schema, table, カラムタプル配列] */
+export const getAllColumns = z.array(z.tuple([z.string(), z.string(), getColumns]));
 
 // --- Transaction ---
 export const beginTransaction = zVoidResponse;

@@ -118,6 +118,22 @@ export interface TableColumns {
   columns: ColumnInfo[];
 }
 
+/** #514 ワイヤ形式のカラムタプル [name, type, size, nullable, isPrimaryKey, comment] */
+type ColumnTuple = [string, string, number, boolean, boolean, string];
+
+function decodeColumnTuple([
+  name,
+  type,
+  size,
+  nullable,
+  isPrimaryKey,
+  comment,
+]: ColumnTuple): ColumnInfo {
+  return comment === ''
+    ? { name, type, size, nullable, isPrimaryKey }
+    : { name, type, size, nullable, isPrimaryKey, comment };
+}
+
 export interface SchemaProvider {
   getDatabases(connectionId: string): Promise<string[]>;
   getTables(connectionId: string, database: string): Promise<GetTablesResult>;
@@ -159,18 +175,28 @@ class SchemaProviderImpl extends BaseProvider implements SchemaProvider {
       `[Bridge] Getting tables for connection: ${connectionId}, database: ${database}`
     );
     const startTime = performance.now();
-    const tables = await this.invokeAndParse('getTables', { connectionId, database }, S.getTables);
+    const rows = await this.invokeAndParse('getTables', { connectionId, database }, S.getTables);
+    const tables = rows.map(
+      ([schema, name, type, comment]): TableInfo =>
+        comment === '' ? { schema, name, type } : { schema, name, type, comment }
+    );
     const loadTimeMs = performance.now() - startTime;
     this.logger.info(`[Bridge] Received ${tables.length} tables in ${loadTimeMs.toFixed(2)}ms`);
     return { tables, loadTimeMs };
   }
 
   async getColumns(connectionId: string, table: string): Promise<ColumnInfo[]> {
-    return this.invokeAndParse('getColumns', { connectionId, table }, S.getColumns);
+    const rows = await this.invokeAndParse('getColumns', { connectionId, table }, S.getColumns);
+    return rows.map(decodeColumnTuple);
   }
 
   async getAllColumns(connectionId: string): Promise<TableColumns[]> {
-    return this.invokeAndParse('getAllColumns', { connectionId }, S.getAllColumns);
+    const rows = await this.invokeAndParse('getAllColumns', { connectionId }, S.getAllColumns);
+    return rows.map(([schema, table, columns]) => ({
+      schema,
+      table,
+      columns: columns.map(decodeColumnTuple),
+    }));
   }
 
   async getIndexes(connectionId: string, table: string): Promise<IndexInfo[]> {

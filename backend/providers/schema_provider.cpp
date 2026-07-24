@@ -38,6 +38,16 @@ namespace {
     return result;
 }
 
+/// #514: カラム定義 1 件を [name, type, size, nullable, isPrimaryKey, comment] の
+/// タプルとして出力する。オブジェクト形式のキー重複を排除したワイヤ形式で、
+/// frontend 側は api/providers/schema.ts が ColumnInfo へ復元する。
+void appendColumnTuple(std::string& out, std::string_view name, std::string_view type, std::string_view sizeStr, std::string_view nullableFlag, std::string_view pkFlag, std::string_view comment) {
+    int colSize = 0;
+    std::from_chars(sizeStr.data(), sizeStr.data() + sizeStr.size(), colSize);
+    out += std::format(R"(["{}","{}",{},{},{},"{}"])", JsonUtils::escapeString(name), JsonUtils::escapeString(type), colSize, nullableFlag == "1" ? "true" : "false", pkFlag == "1" ? "true" : "false",
+                       JsonUtils::escapeString(comment));
+}
+
 struct TableQueryParams {
     std::string schema;
     std::string table;
@@ -169,10 +179,11 @@ std::string SchemaProvider::getTables(std::string_view params) {
         auto dialect = DriverFactory::createSchemaQueryable(driverType);
         auto sql = dialect->getTablesQuery();
         auto queryResult = driver->execute(sql);
+        // #514: [schema, name, type, comment] のタプル配列 (キー重複を排除したワイヤ形式)
         return JsonUtils::buildRowArray(queryResult.rows, 3, [](std::string& out, const ResultRow& row) {
             auto comment = row.values.size() >= 4 ? row.values[3] : std::string{};
-            out += std::format(R"({{"schema":"{}","name":"{}","type":"{}","comment":"{}"}})", JsonUtils::escapeString(row.values[0]), JsonUtils::escapeString(row.values[1]),
-                               JsonUtils::escapeString(row.values[2]), JsonUtils::escapeString(comment));
+            out += std::format(R"(["{}","{}","{}","{}"])", JsonUtils::escapeString(row.values[0]), JsonUtils::escapeString(row.values[1]), JsonUtils::escapeString(row.values[2]),
+                               JsonUtils::escapeString(comment));
         });
     });
 }
@@ -192,15 +203,9 @@ std::string SchemaProvider::getColumns(std::string_view params) {
         auto sql = dialect->getColumnsQuery(schema, tbl);
         auto columnResult = driver->execute(sql);
 
+        // #514: [name, type, size, nullable, isPrimaryKey, comment] のタプル配列
         return JsonUtils::buildRowArray(columnResult.rows, 5, [](std::string& out, const ResultRow& row) {
-            std::string_view sizeStr = row.values[2];
-            int colSize = 0;
-            std::from_chars(sizeStr.data(), sizeStr.data() + sizeStr.size(), colSize);
-            auto comment = row.values.size() >= 6 ? row.values[5] : std::string{};
-            auto nullable = row.values[3] == "1" ? "true" : "false";
-            auto isPk = row.values[4] == "1" ? "true" : "false";
-            out += std::format(R"({{"name":"{}","type":"{}","size":{},"nullable":{},"isPrimaryKey":{},"comment":"{}"}})", JsonUtils::escapeString(row.values[0]),
-                               JsonUtils::escapeString(row.values[1]), colSize, nullable, isPk, JsonUtils::escapeString(comment));
+            appendColumnTuple(out, row.values[0], row.values[1], row.values[2], row.values[3], row.values[4], row.values.size() >= 6 ? std::string_view{row.values[5]} : std::string_view{});
         });
     });
 }
@@ -220,7 +225,8 @@ std::string SchemaProvider::getAllColumns(std::string_view params) {
         auto dialect = DriverFactory::createSchemaQueryable(driverType);
         auto queryResult = driver->execute(dialect->getAllColumnsQuery());
 
-        // (schema, table) でソート済みの行を走査し、テーブル毎の配列にグルーピングする
+        // (schema, table) でソート済みの行を走査し、テーブル毎の配列にグルーピングする。
+        // #514: [schema, table, [カラムタプル...]] のタプル配列 (キー重複を排除したワイヤ形式)
         std::string json = "[";
         std::string_view currentSchema;
         std::string_view currentTable;
@@ -233,10 +239,8 @@ std::string SchemaProvider::getAllColumns(std::string_view params) {
             auto table = row.values[1];
             if (firstTable || schema != currentSchema || table != currentTable) {
                 if (!firstTable)
-                    json += "]}";
-                if (!firstTable)
-                    json += ",";
-                json += std::format(R"({{"schema":"{}","table":"{}","columns":[)", JsonUtils::escapeString(schema), JsonUtils::escapeString(table));
+                    json += "]],";
+                json += std::format(R"(["{}","{}",[)", JsonUtils::escapeString(schema), JsonUtils::escapeString(table));
                 currentSchema = schema;
                 currentTable = table;
                 firstTable = false;
@@ -245,17 +249,10 @@ std::string SchemaProvider::getAllColumns(std::string_view params) {
             if (!firstColumn)
                 json += ",";
             firstColumn = false;
-            std::string_view sizeStr = row.values[4];
-            int colSize = 0;
-            std::from_chars(sizeStr.data(), sizeStr.data() + sizeStr.size(), colSize);
-            auto comment = row.values.size() >= 8 ? row.values[7] : std::string_view{};
-            auto nullable = row.values[5] == "1" ? "true" : "false";
-            auto isPk = row.values[6] == "1" ? "true" : "false";
-            json += std::format(R"({{"name":"{}","type":"{}","size":{},"nullable":{},"isPrimaryKey":{},"comment":"{}"}})", JsonUtils::escapeString(row.values[2]),
-                                JsonUtils::escapeString(row.values[3]), colSize, nullable, isPk, JsonUtils::escapeString(comment));
+            appendColumnTuple(json, row.values[2], row.values[3], row.values[4], row.values[5], row.values[6], row.values.size() >= 8 ? std::string_view{row.values[7]} : std::string_view{});
         }
         if (!firstTable)
-            json += "]}";
+            json += "]]";
         json += "]";
         return json;
     });

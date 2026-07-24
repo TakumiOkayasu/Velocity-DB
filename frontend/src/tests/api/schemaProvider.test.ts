@@ -33,16 +33,17 @@ describe('schemaProvider', () => {
     await expect(schemaProvider.getDatabases('conn-1')).rejects.toThrow();
   });
 
-  it('getTables は loadTimeMs を含む結果を返し log.info を 2 回出す', async () => {
+  it('getTables はタプル応答をオブジェクトへ復元し loadTimeMs を含む結果を返す (#514)', async () => {
     mock.setResponse('getTables', [
-      { schema: 'public', name: 't1', type: 'TABLE' },
-      { schema: 'public', name: 't2', type: 'VIEW', comment: 'c' },
+      ['public', 't1', 'TABLE', ''],
+      ['public', 't2', 'VIEW', 'c'],
     ]);
 
     const result = await schemaProvider.getTables('conn-1', 'db1');
 
     expect(result.tables).toHaveLength(2);
-    expect(result.tables[0]).toMatchObject({ schema: 'public', name: 't1', type: 'TABLE' });
+    expect(result.tables[0]).toEqual({ schema: 'public', name: 't1', type: 'TABLE' });
+    expect(result.tables[1]).toEqual({ schema: 'public', name: 't2', type: 'VIEW', comment: 'c' });
     expect(typeof result.loadTimeMs).toBe('number');
     expect(result.loadTimeMs).toBeGreaterThanOrEqual(0);
     expect(mock.calls[0]).toEqual({
@@ -51,10 +52,14 @@ describe('schemaProvider', () => {
     });
   });
 
-  it('getColumns は connectionId と table を渡す', async () => {
-    mock.setResponse('getColumns', [
-      { name: 'id', type: 'int', size: 4, nullable: false, isPrimaryKey: true },
-    ]);
+  it('getTables は旧オブジェクト形式の応答に対して throw する (#514 ワイヤ形式検証)', async () => {
+    mock.setResponse('getTables', [{ schema: 'public', name: 't1', type: 'TABLE' }]);
+
+    await expect(schemaProvider.getTables('conn-1', 'db1')).rejects.toThrow();
+  });
+
+  it('getColumns はタプル応答を ColumnInfo へ復元する (#514)', async () => {
+    mock.setResponse('getColumns', [['id', 'int', 4, false, true, '']]);
 
     const result = await schemaProvider.getColumns('conn-1', 'users');
 
@@ -64,20 +69,24 @@ describe('schemaProvider', () => {
     expect(mock.calls[0]?.params).toEqual({ connectionId: 'conn-1', table: 'users' });
   });
 
-  it('getAllColumns は connectionId を渡しテーブル毎の列配列を返す (#512)', async () => {
-    mock.setResponse('getAllColumns', [
-      {
-        schema: 'dbo',
-        table: 'users',
-        columns: [{ name: 'id', type: 'int', size: 4, nullable: false, isPrimaryKey: true }],
-      },
-    ]);
+  it('getColumns は comment 付きタプルの comment を保持する (#514)', async () => {
+    mock.setResponse('getColumns', [['id', 'int', 4, false, true, '主キー']]);
+
+    const result = await schemaProvider.getColumns('conn-1', 'users');
+
+    expect(result[0]?.comment).toBe('主キー');
+  });
+
+  it('getAllColumns は connectionId を渡しテーブル毎の列配列を返す (#512, #514)', async () => {
+    mock.setResponse('getAllColumns', [['dbo', 'users', [['id', 'int', 4, false, true, '']]]]);
 
     const result = await schemaProvider.getAllColumns('conn-1');
 
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ schema: 'dbo', table: 'users' });
-    expect(result[0].columns).toHaveLength(1);
+    expect(result[0].columns).toEqual([
+      { name: 'id', type: 'int', size: 4, nullable: false, isPrimaryKey: true },
+    ]);
     expect(mock.calls[0]).toEqual({ method: 'getAllColumns', params: { connectionId: 'conn-1' } });
   });
 
