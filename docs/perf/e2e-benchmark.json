@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generatedAt": "2026-07-23T04:40:37.942Z",
-    "gitCommit": "d594ad7",
+    "generatedAt": "2026-07-24T02:48:26.848Z",
+    "gitCommit": "unknown",
     "playwrightVersion": "1.58.2",
     "environment": "docker",
     "note": "Vite dev server + mocked window.invoke (page.addInitScript) による frontend レンダリングのみのリグレッション基準値。production WebView2 / 実 DB の実測値ではない。"
@@ -33,6 +33,16 @@
       "scenario": "result-grid",
       "metric": "result-grid-1k",
       "durationMs": 201.1
+    },
+    {
+      "scenario": "tree-10k",
+      "metric": "tree-expand-columns-50",
+      "durationMs": 161.7
+    },
+    {
+      "scenario": "tree-10k",
+      "metric": "tree-expand-tables-5000",
+      "durationMs": 21.7
     }
   ]
 }

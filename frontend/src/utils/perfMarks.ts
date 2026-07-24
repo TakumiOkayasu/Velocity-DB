@@ -34,6 +34,46 @@ export function useStartupMark(): void {
   useFirstRenderMark('startup');
 }
 
+const TREE_EXPAND_MEASURE = 'tree-expand';
+
+let treeExpandPending = false;
+
+/**
+ * スキーマツリーの展開操作の開始時刻を記録する (#502)。
+ * ConnectionTreeSection.toggleNode の展開分岐から呼ぶ。
+ */
+export function markTreeExpandStart(): void {
+  treeExpandPending = true;
+  performance.mark(`${TREE_EXPAND_MEASURE}:start`);
+}
+
+/**
+ * 展開操作で可視行数が変化した commit の直後に `tree-expand` measure を記録する (#502)。
+ * visibleRowCount には flattenVisibleTree の結果行数を渡す。行数が変化しない再レンダリング
+ * (選択変更など) では effect が発火しないため、直前の markTreeExpandStart とだけ対になる。
+ * 展開のたびに measure entry が追加されるので、計測側は entry の index で識別する。
+ */
+export function useTreeExpandMeasure(visibleRowCount: number): void {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: visibleRowCount の変化自体を commit 検知トリガーとして使う (effect 本体では参照しない)
+  useEffect(() => {
+    if (!treeExpandPending) return;
+    treeExpandPending = false;
+
+    const hasStart =
+      performance.getEntriesByName(`${TREE_EXPAND_MEASURE}:start`, 'mark').length > 0;
+    if (!hasStart) return;
+
+    performance.mark(`${TREE_EXPAND_MEASURE}:end`);
+    performance.measure(
+      TREE_EXPAND_MEASURE,
+      `${TREE_EXPAND_MEASURE}:start`,
+      `${TREE_EXPAND_MEASURE}:end`
+    );
+    performance.clearMarks(`${TREE_EXPAND_MEASURE}:start`);
+    performance.clearMarks(`${TREE_EXPAND_MEASURE}:end`);
+  }, [visibleRowCount]);
+}
+
 /**
  * ER 図のテーブル数が閾値を満たした最初のレンダリングを measure として記録する。
  * 閾値未達のレンダリングでは mark を打たず、達成した時点で start、その直後の effect で end と measure を記録する。
