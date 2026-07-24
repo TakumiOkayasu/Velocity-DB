@@ -8,7 +8,7 @@ import { useConnectionStore } from '../../store/connectionStore';
 import { useToastStore } from '../../store/toastStore';
 import type { Connection, DatabaseObject } from '../../types';
 import { connectionColor } from '../../utils/colorContrast';
-import { flattenVisibleTree } from '../../utils/flattenVisibleTree';
+import { type FlattenedTreeRow, flattenVisibleTree } from '../../utils/flattenVisibleTree';
 import { log } from '../../utils/logger';
 import { markTreeExpandStart, useTreeExpandMeasure } from '../../utils/perfMarks';
 import {
@@ -20,7 +20,8 @@ import {
 import { ContextMenu } from './ContextMenu';
 import styles from './ObjectTree.module.css';
 import { TreeDialogs } from './TreeDialogs';
-import { TreeNode } from './TreeNode';
+import { TreeNodeRow } from './TreeNode';
+import { VirtualTreeList } from './VirtualTreeList';
 
 interface ConnectionTreeSectionProps {
   connection: Connection;
@@ -341,27 +342,42 @@ export function ConnectionTreeSection({
     [connection.server, connection.database]
   );
 
+  // #502: 可視範囲の行のみ DOM 化する (environment クラスは database ノードのみに適用されるため
+  // 全行へ渡しても従来のルートノード限定の挙動と等価)
+  const renderRow = useCallback(
+    ({ node, level }: FlattenedTreeRow) => (
+      <TreeNodeRow
+        node={node}
+        level={level}
+        expandedNodes={expandedNodes}
+        loadingNodes={loadingNodes}
+        selectedNodeId={selectedNodeId}
+        connectionColor={connColor}
+        environment={connection.environment}
+        onToggle={toggleNode}
+        onTableOpen={handleTableOpen}
+        onContextMenu={handleContextMenu}
+      />
+    ),
+    [
+      expandedNodes,
+      loadingNodes,
+      selectedNodeId,
+      connColor,
+      connection.environment,
+      toggleNode,
+      handleTableOpen,
+      handleContextMenu,
+    ]
+  );
+
   if (treeData.length === 0) {
     return <div className={styles.loading}>Loading...</div>;
   }
 
   return (
     <div>
-      {filteredData.map((node) => (
-        <TreeNode
-          key={node.id}
-          node={node}
-          level={0}
-          expandedNodes={expandedNodes}
-          loadingNodes={loadingNodes}
-          selectedNodeId={selectedNodeId}
-          connectionColor={connColor}
-          environment={connection.environment}
-          onToggle={toggleNode}
-          onTableOpen={handleTableOpen}
-          onContextMenu={handleContextMenu}
-        />
-      ))}
+      <VirtualTreeList rows={flatRows} renderRow={renderRow} />
       {contextMenu && (
         <ContextMenu
           x={contextMenu.x}

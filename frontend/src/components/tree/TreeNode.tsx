@@ -63,7 +63,12 @@ const getIconClass = (type: DatabaseObject['type'] | 'folder'): string => {
   }
 };
 
-export const TreeNode = memo(function TreeNode({
+/**
+ * ツリー 1 行分の UI (展開矢印 + アイコン + 名前 + コメント)。
+ * #502: VirtualTreeList のフラットな行レンダリングから直接使えるよう、
+ * 再帰部分 (TreeNode) から分離した。
+ */
+export const TreeNodeRow = memo(function TreeNodeRow({
   node,
   level,
   expandedNodes,
@@ -124,40 +129,76 @@ export const TreeNode = memo(function TreeNode({
   );
 
   return (
-    <div className={styles.container}>
-      <div
-        className={nodeClasses}
-        style={nodeStyle}
-        onClick={handleClick}
-        onContextMenu={handleContextMenu}
-        onKeyDown={handleKeyDown}
-        role="treeitem"
-        aria-expanded={canExpand ? isExpanded : undefined}
-        aria-selected={isSelected}
-        tabIndex={0}
+    <div
+      className={nodeClasses}
+      style={nodeStyle}
+      onClick={handleClick}
+      onContextMenu={handleContextMenu}
+      onKeyDown={handleKeyDown}
+      role="treeitem"
+      aria-expanded={canExpand ? isExpanded : undefined}
+      aria-selected={isSelected}
+      tabIndex={0}
+    >
+      <button
+        type="button"
+        className={styles.expander}
+        onClick={handleExpanderClick}
+        tabIndex={-1}
+        aria-label={isExpanded ? 'Collapse' : 'Expand'}
+        style={canExpand ? EXPANDER_VISIBLE : EXPANDER_HIDDEN}
       >
-        <button
-          type="button"
-          className={styles.expander}
-          onClick={handleExpanderClick}
-          tabIndex={-1}
-          aria-label={isExpanded ? 'Collapse' : 'Expand'}
-          style={canExpand ? EXPANDER_VISIBLE : EXPANDER_HIDDEN}
-        >
-          {isLoading ? (
-            <TreeIcons.Loading className={styles.loadingSpinner} />
-          ) : isExpanded ? (
-            <TreeIcons.ChevronDown />
-          ) : (
-            <TreeIcons.ChevronRight />
-          )}
-        </button>
-        <span className={`${styles.icon} ${getIconClass(node.type)}`}>
-          {getIcon(node.type, isExpanded)}
-        </span>
-        <span className={nameClasses}>{node.name}</span>
-        {node.metadata?.comment && <span className={styles.comment}>{node.metadata.comment}</span>}
-      </div>
+        {isLoading ? (
+          <TreeIcons.Loading className={styles.loadingSpinner} />
+        ) : isExpanded ? (
+          <TreeIcons.ChevronDown />
+        ) : (
+          <TreeIcons.ChevronRight />
+        )}
+      </button>
+      <span className={`${styles.icon} ${getIconClass(node.type)}`}>
+        {getIcon(node.type, isExpanded)}
+      </span>
+      <span className={nameClasses}>{node.name}</span>
+      {node.metadata?.comment && <span className={styles.comment}>{node.metadata.comment}</span>}
+    </div>
+  );
+});
+
+/**
+ * 再帰レンダリング版ツリーノード。
+ * ConnectionTreeSection は #502 で VirtualTreeList + TreeNodeRow のフラット描画に移行済み。
+ * 少数ノードを DOM ネスト構造のまま表示したい場合のために従来 API を維持している。
+ */
+export const TreeNode = memo(function TreeNode({
+  node,
+  level,
+  expandedNodes,
+  loadingNodes,
+  selectedNodeId,
+  connectionColor: connColor,
+  environment,
+  onToggle,
+  onTableOpen,
+  onContextMenu,
+}: TreeNodeProps) {
+  const hasChildren = node.children && node.children.length > 0;
+  const isExpanded = expandedNodes.has(node.id);
+
+  return (
+    <div className={styles.container}>
+      <TreeNodeRow
+        node={node}
+        level={level}
+        expandedNodes={expandedNodes}
+        loadingNodes={loadingNodes}
+        selectedNodeId={selectedNodeId}
+        connectionColor={connColor}
+        environment={environment}
+        onToggle={onToggle}
+        onTableOpen={onTableOpen}
+        onContextMenu={onContextMenu}
+      />
 
       {hasChildren && isExpanded && (
         <div className={styles.children}>
