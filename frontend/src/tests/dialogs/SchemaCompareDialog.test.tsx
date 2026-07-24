@@ -219,4 +219,115 @@ describe('SchemaCompareDialog', () => {
       screen.getByText('比較するには先にデータベースへ接続してください。')
     ).toBeInTheDocument();
   });
+
+  describe('DDLソース', () => {
+    // 移行先 (B) 相当: conn-b のスキーマと同一内容の DDL
+    const DDL_TARGET = `
+      CREATE TABLE [dbo].[users] (
+        [id] int NOT NULL PRIMARY KEY,
+        [name] varchar(100) NOT NULL,
+        [email] varchar(255) NULL
+      );
+      CREATE TABLE [dbo].[orders] (
+        [id] int NOT NULL PRIMARY KEY
+      );
+    `;
+
+    function selectSourceKind(index: number, kind: 'connection' | 'ddl') {
+      const kindSelects = screen.getAllByLabelText('ソース種別');
+      fireEvent.change(kindSelects[index], { target: { value: kind } });
+    }
+
+    function chooseDdlFile(content: string, fileName: string, index = 0) {
+      const inputs = screen.getAllByLabelText('DDL ファイル');
+      const file = new File([content], fileName, { type: 'application/sql' });
+      fireEvent.change(inputs[index], { target: { files: [file] } });
+    }
+
+    it('ソース種別で DDL を選ぶと接続セレクタの代わりにファイル入力を表示する', () => {
+      render(<SchemaCompareDialog {...defaultProps} />);
+      expect(screen.getAllByLabelText('接続')).toHaveLength(2);
+      selectSourceKind(1, 'ddl');
+      expect(screen.getAllByLabelText('接続')).toHaveLength(1);
+      expect(screen.getByLabelText('DDL ファイル')).toBeInTheDocument();
+    });
+
+    it('DDL ファイル読込でファイル名とテーブル数を表示する', async () => {
+      render(<SchemaCompareDialog {...defaultProps} />);
+      selectSourceKind(0, 'ddl');
+      chooseDdlFile('CREATE TABLE a (id int); CREATE TABLE b (id int);', 'schema.sql');
+      expect(await screen.findByText('schema.sql (2 テーブル)')).toBeInTheDocument();
+    });
+
+    it('CREATE TABLE を含まないファイルはエラーを表示し比較できない', async () => {
+      render(<SchemaCompareDialog {...defaultProps} />);
+      selectSourceKind(0, 'ddl');
+      fireEvent.change(screen.getByLabelText('接続'), { target: { value: 'conn-b' } });
+      await waitFor(() => {
+        expect(schemaProvider.getDatabases).toHaveBeenCalledWith('conn-b');
+      });
+      chooseDdlFile('SELECT 1;', 'not_ddl.sql');
+      expect(await screen.findByText('CREATE TABLE 文を検出できませんでした')).toBeInTheDocument();
+      expect(screen.getByText('比較')).toBeDisabled();
+    });
+
+    it('接続 (A) と DDL ファイル (B) の比較で差分と移行DDLを生成する', async () => {
+      render(<SchemaCompareDialog {...defaultProps} />);
+      selectSourceKind(1, 'ddl');
+      fireEvent.change(screen.getByLabelText('接続'), { target: { value: 'conn-a' } });
+      chooseDdlFile(DDL_TARGET, 'target.sql');
+      await screen.findByText('target.sql (2 テーブル)');
+      await waitFor(() => {
+        expect(screen.getByText('比較')).not.toBeDisabled();
+      });
+      fireEvent.click(screen.getByText('比較'));
+      await waitFor(() => {
+        expect(screen.getByText('比較結果')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('dbo.orders')).toBeInTheDocument();
+      expect(screen.getByText('dbo.legacy')).toBeInTheDocument();
+      expect(screen.getByText(/\+ email : varchar\(255\)/)).toBeInTheDocument();
+      expect(screen.getByText(/~ name : varchar\(50\) -> varchar\(100\)/)).toBeInTheDocument();
+
+      const ddl = (screen.getByLabelText('生成された移行DDL') as HTMLTextAreaElement).value;
+      expect(ddl).toContain('-- 移行元 (from): DevServer/AppDb');
+      expect(ddl).toContain('-- 移行先 (to):   DDL: target.sql');
+      expect(ddl).toContain('ALTER TABLE [dbo].[users] ADD [email] varchar(255);');
+      expect(ddl).toContain('CREATE TABLE [dbo].[orders] (');
+    });
+
+    it('DDL ファイル同士の比較は接続不要でスキーマ取得も行わない', async () => {
+      useConnectionStore.setState({ connections: [], activeConnectionId: null });
+      render(<SchemaCompareDialog {...defaultProps} />);
+      selectSourceKind(0, 'ddl');
+      selectSourceKind(1, 'ddl');
+      expect(
+        screen.queryByText('比較するには先にデータベースへ接続してください。')
+      ).not.toBeInTheDocument();
+
+      chooseDdlFile(
+        'CREATE TABLE users (id int NOT NULL PRIMARY KEY, name varchar(50));',
+        'from.sql',
+        0
+      );
+      chooseDdlFile(
+        'CREATE TABLE users (id int NOT NULL PRIMARY KEY, name varchar(100));',
+        'to.sql',
+        1
+      );
+      await screen.findByText('from.sql (1 テーブル)');
+      await screen.findByText('to.sql (1 テーブル)');
+      await waitFor(() => {
+        expect(screen.getByText('比較')).not.toBeDisabled();
+      });
+      fireEvent.click(screen.getByText('比較'));
+      await waitFor(() => {
+        expect(screen.getByText('比較結果')).toBeInTheDocument();
+      });
+
+      expect(schemaProvider.getTables).not.toHaveBeenCalled();
+      expect(screen.getByText(/~ name : varchar\(50\) -> varchar\(100\)/)).toBeInTheDocument();
+    });
+  });
 });

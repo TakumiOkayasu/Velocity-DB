@@ -117,6 +117,23 @@
   margin-bottom: 12px;
 }
 
+.fileInput {
+  width: 100%;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.fileInfo {
+  color: var(--text-secondary);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.fileError {
+  color: var(--error-color, #f75464);
+  font-size: 12px;
+}
+
 /* Compare row */
 .compareRow {
   display: flex;
