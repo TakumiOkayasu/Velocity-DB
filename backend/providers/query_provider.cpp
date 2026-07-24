@@ -43,7 +43,8 @@ template <typename T>
 
 }  // namespace
 
-QueryProvider::QueryProvider(IConnectionProvider& connections, QueryHistory& queryHistory) : m_connections(connections), m_resultCache(std::make_unique<ResultCache>()), m_queryHistory(queryHistory) {}
+QueryProvider::QueryProvider(IConnectionProvider& connections, QueryHistory& queryHistory, std::shared_ptr<ResultCache> resultCache)
+    : m_connections(connections), m_resultCache(resultCache ? std::move(resultCache) : std::make_shared<ResultCache>()), m_queryHistory(queryHistory) {}
 
 QueryProvider::~QueryProvider() = default;
 
@@ -132,6 +133,9 @@ std::string QueryProvider::executeQuery(std::string_view params) {
                 if (wrapTransaction)
                     (void)driver->execute("COMMIT");
 
+                // 複文には DML/DDL が含まれうるため接続単位でキャッシュ無効化 (#511)
+                m_resultCache->invalidatePrefix(makeConnectionCachePrefix(connectionId));
+
                 // Record history
                 double totalExecMs = 0.0;
                 int64_t totalAffected = 0;
@@ -162,6 +166,8 @@ std::string QueryProvider::executeQuery(std::string_view params) {
         if (SQLParser::isUseStatement(sqlQuery)) {
             try {
                 [[maybe_unused]] auto _ = driver->execute(sqlQuery);
+                // DB コンテキストが変わると同一 SQL でも結果が変わるため無効化 (#511)
+                m_resultCache->invalidatePrefix(makeConnectionCachePrefix(connectionId));
                 auto useResult = QueryResultFormatter::buildUseStatementResult(SQLParser::extractDatabaseName(sqlQuery));
                 recordHistory(sqlQuery, connectionId, 0.0, true);
                 return JsonUtils::successResponse(JsonUtils::serializeResultSet(useResult, false));
@@ -201,6 +207,10 @@ std::string QueryProvider::executeQuery(std::string_view params) {
             m_resultCache->put(cacheKey, std::move(queryResult));
             recordHistory(sqlQuery, connectionId, execTimeMs, true, {}, affectedRows);
         } else {
+            if (!selectQuery) {
+                // DML/DDL 成功後は同一接続のキャッシュ済み SELECT が陳腐化するため無効化 (#511)
+                m_resultCache->invalidatePrefix(makeConnectionCachePrefix(connectionId));
+            }
             recordHistory(sqlQuery, connectionId, queryResult.executionTimeMs, true, {}, queryResult.affectedRows);
         }
 
@@ -264,8 +274,28 @@ std::string QueryProvider::executeQueryPaginated(std::string_view params) {
             paginatedQuery = formatter->paginateQuery(std::string(sqlQuery) + orderByClause, startRow, endRow - startRow);
         }
 
+        // グリッドのスクロール往復で同一ページを再取得するため、読み取り専用クエリはページ単位で
+        // キャッシュする。DML/USE 時は接続プレフィックスごと無効化される (#511)
+        bool cacheable = SQLParser::isReadOnlyQuery(sqlQuery);
+        std::string cacheKey;
+        if (cacheable) {
+            cacheKey = makeConnectionCachePrefix(connectionId);
+            cacheKey += "pg:";
+            cacheKey += SQLParser::normalizeForCacheKey(sqlQuery);
+            cacheKey.push_back('\0');
+            cacheKey += orderByClause;
+            cacheKey += std::format("\x01{}-{}", startRow, endRow);
+            if (auto cachedJson = m_resultCache->getAndApply(cacheKey, [](const ResultSet& rs) { return JsonUtils::serializeResultSet(rs, false); }); !cachedJson.empty()) {
+                return JsonUtils::successResponse(cachedJson);
+            }
+        }
+
         auto queryResult = driver->execute(paginatedQuery);
-        return JsonUtils::successResponse(JsonUtils::serializeResultSet(queryResult, false));
+        std::string jsonResponse = JsonUtils::serializeResultSet(queryResult, false);
+        if (cacheable) {
+            m_resultCache->put(cacheKey, std::move(queryResult));
+        }
+        return JsonUtils::successResponse(jsonResponse);
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
     }
@@ -292,6 +322,24 @@ std::string QueryProvider::getRowCount(std::string_view params) {
         auto driverType = m_connections.getDriverType(connectionId);
         auto formatter = DriverFactory::createSqlFormattable(driverType);
         auto countQuery = formatter->rowCountQuery(sqlQuery);
+
+        // COUNT はグリッド初期化毎に呼ばれるためキャッシュする (DML/USE で接続単位無効化) (#511)
+        bool cacheable = SQLParser::isReadOnlyQuery(sqlQuery);
+        std::string cacheKey;
+        if (cacheable) {
+            cacheKey = makeConnectionCachePrefix(connectionId);
+            cacheKey += "cnt:";
+            cacheKey += SQLParser::normalizeForCacheKey(sqlQuery);
+            auto cachedJson = m_resultCache->getAndApply(cacheKey, [](const ResultSet& rs) -> std::string {
+                if (rs.rows.empty() || rs.rows[0].values.empty())
+                    return {};
+                return std::format("{{\"rowCount\":{}}}", rs.rows[0].values[0]);
+            });
+            if (!cachedJson.empty()) {
+                return JsonUtils::successResponse(cachedJson);
+            }
+        }
+
         auto queryResult = driver->execute(countQuery);
 
         if (queryResult.rows.empty() || queryResult.rows[0].values.empty()) {
@@ -299,7 +347,11 @@ std::string QueryProvider::getRowCount(std::string_view params) {
         }
 
         auto rowCount = queryResult.rows[0].values[0];
-        return JsonUtils::successResponse(std::format("{{\"rowCount\":{}}}", rowCount));
+        auto jsonResponse = std::format("{{\"rowCount\":{}}}", rowCount);
+        if (cacheable) {
+            m_resultCache->put(cacheKey, std::move(queryResult));
+        }
+        return JsonUtils::successResponse(jsonResponse);
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
     }

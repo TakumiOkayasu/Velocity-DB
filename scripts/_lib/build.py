@@ -3,6 +3,7 @@
 import io
 import json
 import shutil
+import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TextIO
@@ -152,16 +153,21 @@ def _sync_vcpkg_to_baseline(project_root: Path, vcpkg_dir: Path, out: TextIO | N
     if not baseline:
         return True
 
-    head_ok, head_sha = utils.run_command(
-        ["git", "-C", str(vcpkg_dir), "rev-parse", "HEAD"],
-        "git rev-parse",
-        capture_output=True,
-        out=None,
-    )
-    if not (head_ok and head_sha):
+    # NOTE: utils.run_command returns stderr as its second element, not stdout,
+    # so it cannot be used to read HEAD (git rev-parse prints the SHA to stdout).
+    # Capture stdout directly here instead.
+    try:
+        head_result = subprocess.run(
+            ["git", "-C", str(vcpkg_dir), "rev-parse", "HEAD"],
+            capture_output=True,
+            encoding="utf-8",
+        )
+    except OSError:
+        return True
+    if head_result.returncode != 0 or not head_result.stdout:
         return True
 
-    head = head_sha.strip()
+    head = head_result.stdout.strip()
     if baseline == head:
         return True
 

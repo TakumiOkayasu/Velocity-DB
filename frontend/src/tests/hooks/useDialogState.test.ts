@@ -76,6 +76,23 @@ describe('useDialogState', () => {
     expect(result.current.hasOpenDialog).toBe(false);
   });
 
+  it('openDataCompareDialog / closeDataCompareDialog → isDataCompareDialogOpen が独立に切り替わる', () => {
+    const { result } = renderHook(() => useDialogState());
+
+    act(() => {
+      result.current.openDataCompareDialog();
+    });
+    expect(result.current.isDataCompareDialogOpen).toBe(true);
+    expect(result.current.isSettingsDialogOpen).toBe(false);
+    expect(result.current.hasOpenDialog).toBe(true);
+
+    act(() => {
+      result.current.closeDataCompareDialog();
+    });
+    expect(result.current.isDataCompareDialogOpen).toBe(false);
+    expect(result.current.hasOpenDialog).toBe(false);
+  });
+
   it('openQueryConfirm → 渡した値が反映され isOpen が true', () => {
     const { result } = renderHook(() => useDialogState());
 

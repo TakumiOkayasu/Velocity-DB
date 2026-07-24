@@ -238,6 +238,50 @@ TEST_F(ResultCacheTest, ClearKeepsCumulativeStats) {
     EXPECT_EQ(stats.currentSizeBytes, 0u);
 }
 
+// #17 (#511): invalidatePrefix は接頭辞一致のエントリのみ削除する
+TEST_F(ResultCacheTest, InvalidatePrefixRemovesOnlyMatchingEntries) {
+    auto keyA1 = makeConnectionCachePrefix("connA") + "SELECT 1";
+    auto keyA2 = makeConnectionCachePrefix("connA") + "SELECT 2";
+    auto keyB = makeConnectionCachePrefix("connB") + "SELECT 1";
+    cache.put(keyA1, makeResultSet(1, 1));
+    cache.put(keyA2, makeResultSet(1, 1));
+    cache.put(keyB, makeResultSet(1, 1));
+
+    cache.invalidatePrefix(makeConnectionCachePrefix("connA"));
+
+    EXPECT_FALSE(cache.contains(keyA1));
+    EXPECT_FALSE(cache.contains(keyA2));
+    EXPECT_TRUE(cache.contains(keyB));
+}
+
+// #18 (#511): invalidatePrefix 後もサイズ追跡と LRU が整合する
+TEST_F(ResultCacheTest, InvalidatePrefixKeepsSizeAndLruConsistent) {
+    auto keyA = makeConnectionCachePrefix("connA") + "SELECT 1";
+    auto keyB = makeConnectionCachePrefix("connB") + "SELECT 1";
+    cache.put(keyA, makeResultSet(1, 1));
+    cache.put(keyB, makeResultSet(1, 1));
+    auto sizeBoth = cache.getCurrentSize();
+
+    cache.invalidatePrefix(makeConnectionCachePrefix("connA"));
+
+    EXPECT_LT(cache.getCurrentSize(), sizeBoth);
+    EXPECT_GT(cache.getCurrentSize(), 0u);
+    // 残った B は取得でき、再 put/evict 経路が壊れていない
+    auto colCount = cache.getAndApply(keyB, [](const ResultSet& r) { return r.columns.size(); });
+    EXPECT_EQ(colCount, 1u);
+    cache.put(keyA, makeResultSet(1, 1));
+    EXPECT_TRUE(cache.contains(keyA));
+}
+
+// #19 (#511): 空プレフィックスは全消しにならない (誤用ガード)
+TEST_F(ResultCacheTest, InvalidateEmptyPrefixIsNoop) {
+    cache.put("key1", makeResultSet(1, 1));
+
+    cache.invalidatePrefix("");
+
+    EXPECT_TRUE(cache.contains("key1"));
+}
+
 // #16 (#511): 統計スナップショットにサイズ情報が含まれる
 TEST_F(ResultCacheTest, StatsSnapshotIncludesSizes) {
     auto stats = cache.getStats();

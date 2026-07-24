@@ -62,6 +62,7 @@ void IPCHandler::registerRoutes() {
     m_routes["getDatabases"] = [this](auto p) { return m_ctx.schema().getDatabases(p); };
     m_routes["getTables"] = [this](auto p) { return m_ctx.schema().getTables(p); };
     m_routes["getColumns"] = [this](auto p) { return m_ctx.schema().getColumns(p); };
+    m_routes["getAllColumns"] = [this](auto p) { return m_ctx.schema().getAllColumns(p); };
     m_routes["getIndexes"] = [this](auto p) { return m_ctx.schema().getIndexes(p); };
     m_routes["getConstraints"] = [this](auto p) { return m_ctx.schema().getConstraints(p); };
     m_routes["getForeignKeys"] = [this](auto p) { return m_ctx.schema().getForeignKeys(p); };

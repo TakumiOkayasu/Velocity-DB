@@ -1,0 +1,353 @@
+.overlay {
+  composes: overlay from "./DialogBase.module.css";
+}
+
+.dialog {
+  composes: dialog from "./DialogBase.module.css";
+  background-color: var(--bg-secondary);
+  width: 720px;
+  max-height: 85vh;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+
+.closeButton:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+/* Source pickers */
+.sourceRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.sourcePicker {
+  flex: 1;
+  min-width: 0;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.sourcePicker h3 {
+  margin: 0 0 10px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.sourceArrow {
+  align-self: center;
+  color: var(--text-secondary);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.formGroup:last-child {
+  margin-bottom: 0;
+}
+
+.label {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.select {
+  padding: 6px 10px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 13px;
+  width: 100%;
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.hint {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+/* Compare row */
+.compareRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.compareButton {
+  padding: 8px 24px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  background-color: var(--button-primary-bg);
+  border: none;
+  color: white;
+  transition: background-color 0.15s;
+}
+
+.compareButton:hover:not(:disabled) {
+  background-color: var(--button-primary-hover);
+}
+
+.compareButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.progress {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.error {
+  padding: 10px 12px;
+  background-color: rgba(247, 84, 100, 0.1);
+  border: 1px solid rgba(247, 84, 100, 0.3);
+  border-radius: 8px;
+  color: var(--error-color);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+/* Diff result */
+.resultSection {
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+}
+
+.resultSection h3 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.noDiff {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 0 0 12px 0;
+}
+
+.diffList {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 12px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+
+.diffTable {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.marker {
+  width: 16px;
+  text-align: center;
+  font-weight: bold;
+  font-family: "Consolas", "Monaco", monospace;
+  flex-shrink: 0;
+}
+
+.markerAdded {
+  color: var(--success-color, #4caf50);
+}
+
+.markerRemoved {
+  color: var(--error-color, #f75464);
+}
+
+.markerChanged {
+  color: var(--warning-color, #e0a030);
+}
+
+.diffTableName {
+  color: var(--text-primary);
+  font-family: "Consolas", "Monaco", monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diffMeta {
+  color: var(--text-secondary);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.columnDiffList {
+  list-style: none;
+  margin: 0 0 4px 0;
+  padding: 0 0 0 32px;
+  font-size: 12px;
+  font-family: "Consolas", "Monaco", monospace;
+}
+
+.columnDiffList li {
+  padding: 2px 0;
+}
+
+.colAdded {
+  color: var(--success-color, #4caf50);
+}
+
+.colRemoved {
+  color: var(--error-color, #f75464);
+}
+
+.colChanged {
+  color: var(--warning-color, #e0a030);
+}
+
+/* DDL section */
+.ddlSection {
+  margin-top: 4px;
+}
+
+.ddlHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ddlHeader h3 {
+  margin: 0;
+  flex: 1;
+}
+
+.dialectLabel {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.dialectSelect {
+  padding: 4px 8px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.ddlHeader button {
+  padding: 6px 14px;
+  background-color: var(--bg-tertiary);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s;
+}
+
+.ddlHeader button:hover {
+  border-color: var(--border-color);
+  background-color: var(--bg-hover);
+}
+
+.ddlContent {
+  width: 100%;
+  box-sizing: border-box;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 12px;
+  color: var(--text-primary);
+  min-height: 180px;
+  max-height: 260px;
+  resize: vertical;
+  font-family: "Consolas", "Monaco", monospace;
+  line-height: 1.5;
+  white-space: pre;
+}
+
+.saveMessage {
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* Footer */
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.closeFooterButton {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  transition: background-color 0.15s;
+}
+
+.closeFooterButton:hover {
+  background-color: var(--bg-hover);
+}

@@ -4,17 +4,21 @@
 #include "../database/driver_interface.h"
 #include "../database/psql_subprocess.h"
 #include "../database/query_history.h"
+#include "../database/result_cache.h"
 #include "../interfaces/providers/connection_provider.h"
 #include "../parsers/copy_block_detector.h"
+#include "../parsers/split_utils.h"
+#include "../parsers/sql_parser.h"
 #include "../utils/json_utils.h"
 #include "simdjson.h"
 
 #include <format>
+#include <optional>
 
 namespace velocitydb {
 
-AsyncQueryProvider::AsyncQueryProvider(IConnectionProvider& connections, QueryHistory& queryHistory)
-    : m_connections(connections), m_queryHistory(queryHistory), m_asyncExecutor(std::make_unique<AsyncQueryExecutor>()) {}
+AsyncQueryProvider::AsyncQueryProvider(IConnectionProvider& connections, QueryHistory& queryHistory, std::shared_ptr<ResultCache> resultCache)
+    : m_connections(connections), m_queryHistory(queryHistory), m_resultCache(std::move(resultCache)), m_asyncExecutor(std::make_unique<AsyncQueryExecutor>()) {}
 
 AsyncQueryProvider::~AsyncQueryProvider() = default;
 
@@ -44,6 +48,10 @@ std::string AsyncQueryProvider::executeAsyncQuery(std::string_view params) {
             if (!connParams) {
                 return JsonUtils::errorResponse("Connection parameters not found for psql delegation");
             }
+            if (m_resultCache) {
+                // COPY は書き込みのため接続単位でキャッシュ無効化 (#511)
+                m_resultCache->invalidatePrefix(makeConnectionCachePrefix(connectionId));
+            }
             auto connInfo = toPsqlConnectionInfo(*connParams);
             queryId = m_asyncExecutor->submitTask([connInfo = std::move(connInfo), sqlCopy = std::string(sqlQuery)](const std::atomic<bool>& cancelled) -> QueryResultVariant {
                 auto result = executePsql(connInfo, sqlCopy, cancelled);
@@ -53,10 +61,32 @@ std::string AsyncQueryProvider::executeAsyncQuery(std::string_view params) {
             });
         }
 
+        // 単文の読み取り専用クエリは QueryProvider と共有の ResultCache を利用する (#511)。
+        // ヒット時は DB を叩かず、キャッシュ済み ResultSet を返すタスクを積んで既存の
+        // ポーリング契約 (getAsyncQueryResult) をそのまま満たす。
+        std::string cacheKey;
+        bool fromCache = false;
+        if (queryId.empty() && m_resultCache) {
+            auto statements = splitStatementsForDriver(sqlQuery, driverType);
+            if (statements.size() == 1 && SQLParser::isReadOnlyQuery(sqlQuery)) {
+                cacheKey = makeConnectionCachePrefix(connectionId);
+                cacheKey += SQLParser::normalizeForCacheKey(sqlQuery);
+                auto cached = m_resultCache->getAndApply(cacheKey, [](const ResultSet& rs) { return std::optional<ResultSet>(rs); });
+                if (cached.has_value()) {
+                    fromCache = true;
+                    cacheKey.clear();  // ヒット結果を再 put しない
+                    queryId = m_asyncExecutor->submitTask([rs = std::move(*cached)](const std::atomic<bool>&) -> QueryResultVariant { return rs; });
+                }
+            } else {
+                // 書き込みの可能性がある (複文 or 非 SELECT) ため安全側で接続単位無効化 (#511)
+                m_resultCache->invalidatePrefix(makeConnectionCachePrefix(connectionId));
+            }
+        }
+
         if (queryId.empty())
             queryId = m_asyncExecutor->submitQuery(driver, sqlQuery);
 
-        m_queryMeta[queryId] = {.connectionId = std::string(connectionId), .sql = truncateHistorySql(sqlQuery)};
+        m_queryMeta[queryId] = {.connectionId = std::string(connectionId), .sql = truncateHistorySql(sqlQuery), .cacheKey = std::move(cacheKey), .skipHistory = fromCache};
         return JsonUtils::successResponse(std::format(R"({{"queryId":"{}"}})", queryId));
     } catch (const std::exception& e) {
         return JsonUtils::errorResponse(e.what());
@@ -125,7 +155,11 @@ std::string AsyncQueryProvider::getAsyncQueryResult(std::string_view params) {
         // Record history on completion/failure; erase meta on any terminal status to prevent leaks
         if (auto metaIt = m_queryMeta.find(queryId); metaIt != m_queryMeta.end()) {
             bool terminal = asyncResult.status == QueryStatus::Completed || asyncResult.status == QueryStatus::Failed || asyncResult.status == QueryStatus::Cancelled;
-            if (asyncResult.status == QueryStatus::Completed || asyncResult.status == QueryStatus::Failed) {
+            // 完了した単文 SELECT の結果を共有キャッシュへ格納 (#511)。meta 消去前の一度きり
+            if (asyncResult.status == QueryStatus::Completed && m_resultCache && !metaIt->second.cacheKey.empty() && !asyncResult.multipleResults && asyncResult.result.has_value()) {
+                m_resultCache->put(metaIt->second.cacheKey, ResultSet(*asyncResult.result));
+            }
+            if (!metaIt->second.skipHistory && (asyncResult.status == QueryStatus::Completed || asyncResult.status == QueryStatus::Failed)) {
                 double totalExecMs = 0.0;
                 int64_t totalAffected = 0;
                 if (asyncResult.result.has_value()) {

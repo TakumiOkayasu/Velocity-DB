@@ -45,6 +45,8 @@ set(TEST_SOURCES
     providers/test_settings_provider.cpp
     providers/test_utility_provider.cpp
     providers/test_schema_provider.cpp
+    providers/test_async_query_provider.cpp
+    providers/test_query_provider_cache.cpp
     search/test_simd_filter.cpp
     utils/test_sql_validation.cpp
     database/test_thread_pool.cpp

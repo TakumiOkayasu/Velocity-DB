@@ -76,3 +76,53 @@ describe('erDiagramStore - viewport & focus', () => {
     });
   });
 });
+
+describe('erDiagramStore - loadFromDatabase (#512 一括列取得)', () => {
+  const pk = { name: 'id', type: 'int', size: 4, nullable: false, isPrimaryKey: true };
+
+  beforeEach(() => {
+    useERDiagramStore.setState({ tables: [], relations: [], isLoading: false, error: null });
+  });
+
+  it('getAllColumns を 1 回だけ呼び、テーブル毎の getColumns を呼ばない', async () => {
+    const { schemaProvider } = await import('../../api/providers');
+    const getTables = vi.fn().mockResolvedValue({
+      tables: [
+        { schema: 'dbo', name: 'Users', type: 'TABLE' },
+        { schema: 'dbo', name: 'Orders', type: 'TABLE' },
+      ],
+      loadTimeMs: 1,
+    });
+    const getAllColumns = vi.fn().mockResolvedValue([
+      { schema: 'dbo', table: 'Users', columns: [pk] },
+      { schema: 'dbo', table: 'Orders', columns: [pk] },
+    ]);
+    const getColumns = vi.fn();
+    Object.assign(schemaProvider, { getTables, getAllColumns, getColumns });
+
+    await useERDiagramStore.getState().loadFromDatabase('conn-1', 'db1');
+
+    expect(getAllColumns).toHaveBeenCalledTimes(1);
+    expect(getColumns).not.toHaveBeenCalled();
+    expect(useERDiagramStore.getState().tables).toHaveLength(2);
+  });
+
+  it('getAllColumns 失敗時はテーブル毎の getColumns にフォールバックする', async () => {
+    const { schemaProvider } = await import('../../api/providers');
+    const getTables = vi.fn().mockResolvedValue({
+      tables: [
+        { schema: 'dbo', name: 'Users', type: 'TABLE' },
+        { schema: 'dbo', name: 'Orders', type: 'TABLE' },
+      ],
+      loadTimeMs: 1,
+    });
+    const getAllColumns = vi.fn().mockRejectedValue(new Error('not supported'));
+    const getColumns = vi.fn().mockResolvedValue([pk]);
+    Object.assign(schemaProvider, { getTables, getAllColumns, getColumns });
+
+    await useERDiagramStore.getState().loadFromDatabase('conn-1', 'db1');
+
+    expect(getColumns).toHaveBeenCalledTimes(2);
+    expect(useERDiagramStore.getState().tables).toHaveLength(2);
+  });
+});

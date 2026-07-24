@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { schemaProvider } from '../api/providers';
+import type { ColumnInfo } from '../api/providers/schema';
 import type { ERRelationEdge, ERShapeNode, ERTableNode } from '../types';
 import { DEFAULT_PAGE, GRID_LAYOUT } from '../utils/erDiagramConstants';
 import { type ERDiagramModel, toERDiagramModel } from '../utils/erDiagramParser';
@@ -129,7 +130,18 @@ export const useERDiagramStore = create<ERDiagramState>((set, get) => ({
 
       const { columns: gridColumns, nodeWidth, nodeHeight, gap } = GRID_LAYOUT;
 
-      // Load columns for each table
+      // 全テーブルの列を 1 回の IPC で取得 (#512: テーブル毎の N+1 往復解消)。
+      // 失敗時は従来のテーブル毎取得にフォールバック
+      let bulkColumns: Map<string, ColumnInfo[]> | null = null;
+      try {
+        const allColumns = await schemaProvider.getAllColumns(connectionId);
+        bulkColumns = new Map(
+          allColumns.map((t) => [t.schema ? `${t.schema}.${t.table}` : t.table, t.columns])
+        );
+      } catch (err) {
+        console.warn('getAllColumns failed; falling back to per-table fetch:', err);
+      }
+
       for (let i = 0; i < tablesData.length; i++) {
         const tableInfo = tablesData[i];
         if (tableInfo.type !== 'TABLE' && tableInfo.type !== 'VIEW') continue;
@@ -139,7 +151,9 @@ export const useERDiagramStore = create<ERDiagramState>((set, get) => ({
           : tableInfo.name;
 
         try {
-          const columnsData = await schemaProvider.getColumns(connectionId, fullTableName);
+          const columnsData =
+            bulkColumns?.get(fullTableName) ??
+            (await schemaProvider.getColumns(connectionId, fullTableName));
 
           const col = i % gridColumns;
           const row = Math.floor(i / gridColumns);

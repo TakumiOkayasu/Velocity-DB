@@ -36,6 +36,14 @@ const SearchDialog = lazyWithRetry(() =>
 const SettingsDialog = lazyWithRetry(() =>
   import('../dialogs/SettingsDialog').then((module) => ({ default: module.SettingsDialog }))
 );
+const DataCompareDialog = lazyWithRetry(() =>
+  import('../dialogs/DataCompareDialog').then((module) => ({ default: module.DataCompareDialog }))
+);
+const SchemaCompareDialog = lazyWithRetry(() =>
+  import('../dialogs/SchemaCompareDialog').then((module) => ({
+    default: module.SchemaCompareDialog,
+  }))
+);
 // Simple loading fallback
 function LoadingFallback() {
   return <div style={{ display: 'none' }} />;
@@ -52,6 +60,12 @@ export function MainLayout() {
     isSettingsDialogOpen,
     openSettingsDialog,
     closeSettingsDialog,
+    isDataCompareDialogOpen,
+    openDataCompareDialog,
+    closeDataCompareDialog,
+    isSchemaCompareDialogOpen,
+    openSchemaCompareDialog,
+    closeSchemaCompareDialog,
     queryConfirm,
     openQueryConfirm,
     closeQueryConfirm,
@@ -367,6 +381,13 @@ export function MainLayout() {
 
         <div className={styles.toolbarDivider} />
 
+        {/* Schema Compare */}
+        <div className={styles.toolbarGroup}>
+          <button type="button" onClick={openSchemaCompareDialog} title="スキーマ比較・移行DDL生成">
+            <span>スキーマ比較</span>
+          </button>
+        </div>
+
         {/* Search and Settings */}
         <div className={styles.toolbarGroup}>
           <button
@@ -376,6 +397,14 @@ export function MainLayout() {
             title="検索 (Ctrl+Shift+P)"
           >
             <ToolbarIcons.Search />
+          </button>
+          <button
+            type="button"
+            className={styles.iconButton}
+            onClick={openDataCompareDialog}
+            title="データ比較"
+          >
+            <ToolbarIcons.Compare />
           </button>
           <button
             type="button"
@@ -530,6 +559,21 @@ export function MainLayout() {
       {isSettingsDialogOpen && (
         <Suspense fallback={<LoadingFallback />}>
           <SettingsDialog isOpen={isSettingsDialogOpen} onClose={closeSettingsDialog} />
+        </Suspense>
+      )}
+
+      {isDataCompareDialogOpen && (
+        <Suspense fallback={<LoadingFallback />}>
+          <DataCompareDialog isOpen={isDataCompareDialogOpen} onClose={closeDataCompareDialog} />
+        </Suspense>
+      )}
+
+      {isSchemaCompareDialogOpen && (
+        <Suspense fallback={<LoadingFallback />}>
+          <SchemaCompareDialog
+            isOpen={isSchemaCompareDialogOpen}
+            onClose={closeSchemaCompareDialog}
+          />
         </Suspense>
       )}
 

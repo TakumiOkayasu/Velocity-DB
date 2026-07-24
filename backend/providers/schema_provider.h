@@ -28,6 +28,7 @@ public:
     [[nodiscard]] std::string getDatabases(std::string_view params) override;
     [[nodiscard]] std::string getTables(std::string_view params) override;
     [[nodiscard]] std::string getColumns(std::string_view params) override;
+    [[nodiscard]] std::string getAllColumns(std::string_view params) override;
     [[nodiscard]] std::string getIndexes(std::string_view params) override;
     [[nodiscard]] std::string getConstraints(std::string_view params) override;
     [[nodiscard]] std::string getForeignKeys(std::string_view params) override;
