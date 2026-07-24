@@ -142,7 +142,7 @@ TEST_F(SchemaProviderCacheTest, ErrorResponseIsNotCached) {
 
 // --- getAllColumns (#512) ---
 
-// (schema, table) ソート済み行がテーブル毎にグルーピングされる
+// (schema, table) ソート済み行がテーブル毎にグルーピングされ、#514 のタプル形式で出力される
 TEST_F(SchemaProviderCacheTest, GetAllColumnsGroupsRowsByTable) {
     resolveDriverByDefault();
     // 行レイアウト: schema, table, column, type, size, nullable, isPk, comment
@@ -156,11 +156,85 @@ TEST_F(SchemaProviderCacheTest, GetAllColumnsGroupsRowsByTable) {
     SchemaProvider provider(connections);
     const auto json = provider.getAllColumns(R"({"connectionId":"db_1"})");
 
-    EXPECT_NE(json.find(R"("schema":"dbo","table":"orders")"), std::string::npos);
-    EXPECT_NE(json.find(R"("schema":"dbo","table":"users")"), std::string::npos);
-    EXPECT_NE(json.find(R"("name":"user_id","type":"int","size":4,"nullable":true,"isPrimaryKey":false,"comment":"FK")"), std::string::npos);
+    EXPECT_NE(json.find(R"(["dbo","orders",[)"), std::string::npos);
+    EXPECT_NE(json.find(R"(["dbo","users",[)"), std::string::npos);
+    EXPECT_NE(json.find(R"(["user_id","int",4,true,false,"FK"])"), std::string::npos);
     // orders グループが users より先 (ソート順保持)
-    EXPECT_LT(json.find(R"("table":"orders")"), json.find(R"("table":"users")"));
+    EXPECT_LT(json.find(R"("orders")"), json.find(R"("users")"));
+}
+
+// --- ワイヤ形式のタプル化 (#514) ---
+
+// getTables は [schema, name, type, comment] のタプル配列を返す
+TEST_F(SchemaProviderCacheTest, GetTablesReturnsTupleRows) {
+    resolveDriverByDefault();
+    auto rows = makeResultSet({
+        {"dbo", "Users", "TABLE", ""},
+        {"dbo", "ActiveUsers", "VIEW", "抽出ビュー"},
+    });
+    EXPECT_CALL(*driver, execute(::testing::_)).Times(1).WillOnce(::testing::Return(rows));
+
+    SchemaProvider provider(connections);
+    const auto json = provider.getTables(R"({"connectionId":"db_1"})");
+
+    EXPECT_NE(json.find(R"(["dbo","Users","TABLE",""])"), std::string::npos);
+    EXPECT_NE(json.find(R"(["dbo","ActiveUsers","VIEW","抽出ビュー"])"), std::string::npos);
+    EXPECT_EQ(json.find(R"("schema":)"), std::string::npos);
+}
+
+// getColumns は [name, type, size, nullable, isPrimaryKey, comment] のタプル配列を返す
+TEST_F(SchemaProviderCacheTest, GetColumnsReturnsTupleRows) {
+    resolveDriverByDefault();
+    // 行レイアウト: name, type, size, nullable, isPk, comment
+    auto rows = makeResultSet({
+        {"id", "int", "4", "0", "1", ""},
+        {"name", "nvarchar", "255", "1", "0", "表示名"},
+    });
+    EXPECT_CALL(*driver, execute(::testing::_)).Times(1).WillOnce(::testing::Return(rows));
+
+    SchemaProvider provider(connections);
+    const auto json = provider.getColumns(R"({"connectionId":"db_1","table":"Users"})");
+
+    EXPECT_NE(json.find(R"(["id","int",4,false,true,""])"), std::string::npos);
+    EXPECT_NE(json.find(R"(["name","nvarchar",255,true,false,"表示名"])"), std::string::npos);
+    EXPECT_EQ(json.find(R"("isPrimaryKey":)"), std::string::npos);
+}
+
+// タプル形式は旧オブジェクト形式 (キーを全行で重複) と比べ 30% 以上小さい (#514 完了条件)
+TEST_F(SchemaProviderCacheTest, TupleFormatReducesPayloadOverLegacyByThirtyPercent) {
+    resolveDriverByDefault();
+    // 現実的なカラム名/型で 40 テーブル x 25 カラムを生成
+    std::vector<std::vector<std::string>> cells;
+    for (int t = 0; t < 40; ++t) {
+        for (int c = 0; c < 25; ++c) {
+            cells.push_back({"dbo", std::format("table_{:02}", t), std::format("column_{:02}", c), c % 2 == 0 ? "int" : "nvarchar", c % 2 == 0 ? "4" : "255",
+                             c % 3 == 0 ? "0" : "1", c == 0 ? "1" : "0", ""});
+        }
+    }
+    auto rows = makeResultSet(cells);
+    EXPECT_CALL(*driver, execute(::testing::_)).Times(1).WillOnce(::testing::Return(rows));
+
+    SchemaProvider provider(connections);
+    const auto json = provider.getAllColumns(R"({"connectionId":"db_1"})");
+
+    // 旧形式 ({"schema":..,"table":..,"columns":[{"name":..,...},...]}) を同一データから構築
+    std::string legacy = "[";
+    for (int t = 0; t < 40; ++t) {
+        if (t > 0)
+            legacy += ",";
+        legacy += std::format(R"({{"schema":"dbo","table":"table_{:02}","columns":[)", t);
+        for (int c = 0; c < 25; ++c) {
+            if (c > 0)
+                legacy += ",";
+            legacy += std::format(R"({{"name":"column_{:02}","type":"{}","size":{},"nullable":{},"isPrimaryKey":{},"comment":""}})", c, c % 2 == 0 ? "int" : "nvarchar",
+                                  c % 2 == 0 ? 4 : 255, c % 3 == 0 ? "false" : "true", c == 0 ? "true" : "false");
+        }
+        legacy += "]}";
+    }
+    legacy += "]";
+
+    EXPECT_LT(static_cast<double>(json.size()), static_cast<double>(legacy.size()) * 0.7)
+        << "tuple=" << json.size() << " bytes, legacy=" << legacy.size() << " bytes";
 }
 
 // 2 回目はキャッシュ命中し driver->execute は 1 回

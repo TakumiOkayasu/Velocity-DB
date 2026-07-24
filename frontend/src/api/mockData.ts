@@ -57,42 +57,27 @@ export const mockData: Record<string, unknown> = {
     simdAvailable: true,
   },
   getDatabases: ['master', 'tempdb', 'model', 'msdb'],
+  // #514 ワイヤ形式: getTables=[schema,name,type,comment], getColumns=[name,type,size,nullable,isPK,comment]
   getTables: [
-    { schema: 'dbo', name: 'Users', type: 'TABLE' },
-    { schema: 'dbo', name: 'Orders', type: 'TABLE' },
-    { schema: 'dbo', name: 'Products', type: 'TABLE' },
+    ['dbo', 'Users', 'TABLE', ''],
+    ['dbo', 'Orders', 'TABLE', ''],
+    ['dbo', 'Products', 'TABLE', ''],
   ],
   getColumns: [
-    { name: 'id', type: 'int', size: 4, nullable: false, isPrimaryKey: true },
-    {
-      name: 'name',
-      type: 'nvarchar',
-      size: 255,
-      nullable: false,
-      isPrimaryKey: false,
-    },
-    {
-      name: 'created_at',
-      type: 'datetime',
-      size: 8,
-      nullable: true,
-      isPrimaryKey: false,
-    },
+    ['id', 'int', 4, false, true, ''],
+    ['name', 'nvarchar', 255, false, false, ''],
+    ['created_at', 'datetime', 8, true, false, ''],
   ],
   getAllColumns: [
-    {
-      schema: 'dbo',
-      table: 'Users',
-      columns: [
-        { name: 'id', type: 'int', size: 4, nullable: false, isPrimaryKey: true },
-        { name: 'name', type: 'nvarchar', size: 255, nullable: false, isPrimaryKey: false },
+    [
+      'dbo',
+      'Users',
+      [
+        ['id', 'int', 4, false, true, ''],
+        ['name', 'nvarchar', 255, false, false, ''],
       ],
-    },
-    {
-      schema: 'dbo',
-      table: 'Orders',
-      columns: [{ name: 'id', type: 'int', size: 4, nullable: false, isPrimaryKey: true }],
-    },
+    ],
+    ['dbo', 'Orders', [['id', 'int', 4, false, true, '']]],
   ],
   getQueryHistory: [],
   parseERDiagram: { name: '', databaseType: '', tables: [], relations: [], shapes: [], ddl: '' },

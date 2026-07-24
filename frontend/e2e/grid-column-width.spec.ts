@@ -33,11 +33,12 @@ function makeMockInvoke(): string {
       },
       getDatabases: ['testdb'],
       getSchemas: ['dbo'],
-      getTables: [{ schema: 'dbo', name: 'TestTable', type: 'TABLE' }],
+      // #514 ワイヤ形式: getTables=[schema,name,type,comment], getColumns=[name,type,size,nullable,isPK,comment]
+      getTables: [['dbo', 'TestTable', 'TABLE', '']],
       getColumns: [
-        { name: 'id', type: 'int', size: 4, nullable: false, isPrimaryKey: true },
-        { name: 'name', type: 'nvarchar', size: 255, nullable: true, isPrimaryKey: false },
-        { name: 'created_at', type: 'datetime', size: 8, nullable: true, isPrimaryKey: false },
+        ['id', 'int', 4, false, true, ''],
+        ['name', 'nvarchar', 255, true, false, ''],
+        ['created_at', 'datetime', 8, true, false, ''],
       ],
       getSettings: {},
       writeFrontendLog: {},
