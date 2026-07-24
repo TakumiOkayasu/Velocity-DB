@@ -3,6 +3,7 @@ import { ioProvider, schemaProvider } from '../../api/providers';
 import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
 import { useConnections } from '../../store/connectionStore';
 import type { Connection } from '../../types';
+import { normalizeTablesForDdlComparison, parseDdl } from '../../utils/ddlParser';
 import {
   generateMigrationDdl,
   type MigrationDialect,
@@ -30,6 +31,18 @@ interface CompareResult {
   targetLabel: string;
   generatedAt: string;
 }
+
+/** 比較ソースの種別: 接続中の DB か、DDL ファイル (.sql) か */
+type SourceKind = 'connection' | 'ddl';
+
+/** DDL ファイルソースの読み込み状態 */
+interface DdlSource {
+  fileName: string;
+  tables: SchemaTable[];
+  error: string | null;
+}
+
+const EMPTY_DDL_SOURCE: DdlSource = { fileName: '', tables: [], error: null };
 
 /** getColumns 同時実行数の上限 (バックエンド ODBC 接続への負荷を抑制) */
 const COLUMN_FETCH_CONCURRENCY = 4;
@@ -71,6 +84,26 @@ async function fetchSchemaTables(
   return results;
 }
 
+/** FileReader でテキストファイルを読み込む (backend IPC 不要) */
+function readFileAsText(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+    reader.onerror = () => reject(reader.error ?? new Error('ファイルの読み込みに失敗しました'));
+    reader.readAsText(file);
+  });
+}
+
+function isSourceReady(
+  kind: SourceKind,
+  connectionId: string,
+  database: string,
+  ddl: DdlSource
+): boolean {
+  if (kind === 'connection') return connectionId !== '' && database !== '';
+  return ddl.error === null && ddl.tables.length > 0;
+}
+
 function describeColumnChange(change: ColumnChange): string {
   const parts: string[] = [];
   if (change.changes.includes('type') || change.changes.includes('size')) {
@@ -89,11 +122,15 @@ interface SourcePickerProps {
   title: string;
   idPrefix: string;
   connections: Connection[];
+  sourceKind: SourceKind;
+  onSourceKindChange: (kind: SourceKind) => void;
   connectionId: string;
   database: string;
   databases: string[];
   onConnectionChange: (connectionId: string) => void;
   onDatabaseChange: (database: string) => void;
+  ddl: DdlSource;
+  onDdlFileSelect: (file: File) => void;
   disabled: boolean;
 }
 
@@ -101,53 +138,102 @@ function SourcePicker({
   title,
   idPrefix,
   connections,
+  sourceKind,
+  onSourceKindChange,
   connectionId,
   database,
   databases,
   onConnectionChange,
   onDatabaseChange,
+  ddl,
+  onDdlFileSelect,
   disabled,
 }: SourcePickerProps) {
   return (
     <div className={styles.sourcePicker}>
       <h3>{title}</h3>
       <div className={styles.formGroup}>
-        <label className={styles.label} htmlFor={`${idPrefix}-connection`}>
-          接続
+        <label className={styles.label} htmlFor={`${idPrefix}-source-kind`}>
+          ソース種別
         </label>
         <select
-          id={`${idPrefix}-connection`}
+          id={`${idPrefix}-source-kind`}
           className={styles.select}
-          value={connectionId}
-          onChange={(e) => onConnectionChange(e.target.value)}
+          value={sourceKind}
+          onChange={(e) => onSourceKindChange(e.target.value as SourceKind)}
           disabled={disabled}
         >
-          <option value="">選択してください</option>
-          {connections.map((conn) => (
-            <option key={conn.id} value={conn.id}>
-              {conn.name} ({conn.server})
-            </option>
-          ))}
+          <option value="connection">接続/データベース</option>
+          <option value="ddl">DDL ファイル (.sql)</option>
         </select>
       </div>
-      <div className={styles.formGroup}>
-        <label className={styles.label} htmlFor={`${idPrefix}-database`}>
-          データベース
-        </label>
-        <select
-          id={`${idPrefix}-database`}
-          className={styles.select}
-          value={database}
-          onChange={(e) => onDatabaseChange(e.target.value)}
-          disabled={disabled || connectionId === ''}
-        >
-          {databases.map((db) => (
-            <option key={db} value={db}>
-              {db}
-            </option>
-          ))}
-        </select>
-      </div>
+      {sourceKind === 'connection' ? (
+        <>
+          <div className={styles.formGroup}>
+            <label className={styles.label} htmlFor={`${idPrefix}-connection`}>
+              接続
+            </label>
+            <select
+              id={`${idPrefix}-connection`}
+              className={styles.select}
+              value={connectionId}
+              onChange={(e) => onConnectionChange(e.target.value)}
+              disabled={disabled}
+            >
+              <option value="">選択してください</option>
+              {connections.map((conn) => (
+                <option key={conn.id} value={conn.id}>
+                  {conn.name} ({conn.server})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.formGroup}>
+            <label className={styles.label} htmlFor={`${idPrefix}-database`}>
+              データベース
+            </label>
+            <select
+              id={`${idPrefix}-database`}
+              className={styles.select}
+              value={database}
+              onChange={(e) => onDatabaseChange(e.target.value)}
+              disabled={disabled || connectionId === ''}
+            >
+              {databases.map((db) => (
+                <option key={db} value={db}>
+                  {db}
+                </option>
+              ))}
+            </select>
+          </div>
+        </>
+      ) : (
+        <div className={styles.formGroup}>
+          <label className={styles.label} htmlFor={`${idPrefix}-ddl-file`}>
+            DDL ファイル
+          </label>
+          <input
+            id={`${idPrefix}-ddl-file`}
+            type="file"
+            accept=".sql,.ddl,.txt"
+            className={styles.fileInput}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onDdlFileSelect(file);
+              e.target.value = '';
+            }}
+            disabled={disabled}
+          />
+          {ddl.fileName !== '' && (
+            <div className={styles.fileInfo}>
+              {ddl.error === null
+                ? `${ddl.fileName} (${ddl.tables.length} テーブル)`
+                : ddl.fileName}
+            </div>
+          )}
+          {ddl.error !== null && <div className={styles.fileError}>{ddl.error}</div>}
+        </div>
+      )}
     </div>
   );
 }
@@ -156,12 +242,16 @@ export function SchemaCompareDialog({ isOpen, onClose }: SchemaCompareDialogProp
   useDialogKeyboard({ isOpen, onEscape: onClose });
   const connections = useConnections();
 
+  const [sourceKindA, setSourceKindA] = useState<SourceKind>('connection');
+  const [sourceKindB, setSourceKindB] = useState<SourceKind>('connection');
   const [connectionIdA, setConnectionIdA] = useState('');
   const [databaseA, setDatabaseA] = useState('');
   const [databasesA, setDatabasesA] = useState<string[]>([]);
   const [connectionIdB, setConnectionIdB] = useState('');
   const [databaseB, setDatabaseB] = useState('');
   const [databasesB, setDatabasesB] = useState<string[]>([]);
+  const [ddlA, setDdlA] = useState<DdlSource>(EMPTY_DDL_SOURCE);
+  const [ddlB, setDdlB] = useState<DdlSource>(EMPTY_DDL_SOURCE);
 
   const [dialect, setDialect] = useState<MigrationDialect>('sqlserver');
   const [isComparing, setIsComparing] = useState(false);
@@ -222,26 +312,69 @@ export function SchemaCompareDialog({ isOpen, onClose }: SchemaCompareDialogProp
     [selectConnection, connections]
   );
 
+  const loadDdlFile = useCallback(async (file: File, setDdl: (v: DdlSource) => void) => {
+    try {
+      const text = await readFileAsText(file);
+      const tables = parseDdl(text);
+      if (tables.length === 0) {
+        setDdl({
+          fileName: file.name,
+          tables: [],
+          error: 'CREATE TABLE 文を検出できませんでした',
+        });
+        return;
+      }
+      setDdl({ fileName: file.name, tables, error: null });
+    } catch (err) {
+      setDdl({
+        fileName: file.name,
+        tables: [],
+        error:
+          err instanceof Error
+            ? `DDL ファイルの読み込みに失敗しました: ${err.message}`
+            : 'DDL ファイルの読み込みに失敗しました',
+      });
+    }
+  }, []);
+
   const compare = useCallback(async () => {
     const connA = connections.find((c) => c.id === connectionIdA);
     const connB = connections.find((c) => c.id === connectionIdB);
-    if (!connA || !connB) return;
+    if (sourceKindA === 'connection' && !connA) return;
+    if (sourceKindB === 'connection' && !connB) return;
 
     setIsComparing(true);
     setError(null);
     setResult(null);
     setSaveMessage(null);
     try {
-      const fromTables = await fetchSchemaTables(connA.id, databaseA, (done, total) => {
-        setProgressText(`移行元スキーマ取得中... (${done}/${total})`);
-      });
-      const toTables = await fetchSchemaTables(connB.id, databaseB, (done, total) => {
-        setProgressText(`移行先スキーマ取得中... (${done}/${total})`);
-      });
+      const fromTables =
+        sourceKindA === 'connection' && connA
+          ? await fetchSchemaTables(connA.id, databaseA, (done, total) => {
+              setProgressText(`移行元スキーマ取得中... (${done}/${total})`);
+            })
+          : ddlA.tables;
+      const toTables =
+        sourceKindB === 'connection' && connB
+          ? await fetchSchemaTables(connB.id, databaseB, (done, total) => {
+              setProgressText(`移行先スキーマ取得中... (${done}/${total})`);
+            })
+          : ddlB.tables;
+      // DDL ソースを含む比較では、取得元 (ODBC / DDL) 間で意味の揃わない属性を正規化する
+      const useDdlNormalization = sourceKindA === 'ddl' || sourceKindB === 'ddl';
       setResult({
-        diff: diffSchemas(fromTables, toTables),
-        sourceLabel: `${connA.name}/${databaseA}`,
-        targetLabel: `${connB.name}/${databaseB}`,
+        diff: diffSchemas(
+          useDdlNormalization ? normalizeTablesForDdlComparison(fromTables) : fromTables,
+          useDdlNormalization ? normalizeTablesForDdlComparison(toTables) : toTables
+        ),
+        sourceLabel:
+          sourceKindA === 'connection' && connA
+            ? `${connA.name}/${databaseA}`
+            : `DDL: ${ddlA.fileName}`,
+        targetLabel:
+          sourceKindB === 'connection' && connB
+            ? `${connB.name}/${databaseB}`
+            : `DDL: ${ddlB.fileName}`,
         generatedAt: new Date().toISOString(),
       });
     } catch (err) {
@@ -250,7 +383,17 @@ export function SchemaCompareDialog({ isOpen, onClose }: SchemaCompareDialogProp
       setIsComparing(false);
       setProgressText('');
     }
-  }, [connections, connectionIdA, connectionIdB, databaseA, databaseB]);
+  }, [
+    connections,
+    connectionIdA,
+    connectionIdB,
+    databaseA,
+    databaseB,
+    sourceKindA,
+    sourceKindB,
+    ddlA,
+    ddlB,
+  ]);
 
   const copyDdl = useCallback(async () => {
     try {
@@ -277,10 +420,8 @@ export function SchemaCompareDialog({ isOpen, onClose }: SchemaCompareDialogProp
 
   const canCompare =
     !isComparing &&
-    connectionIdA !== '' &&
-    connectionIdB !== '' &&
-    databaseA !== '' &&
-    databaseB !== '';
+    isSourceReady(sourceKindA, connectionIdA, databaseA, ddlA) &&
+    isSourceReady(sourceKindB, connectionIdB, databaseB, ddlB);
 
   return (
     <DialogOverlay
@@ -302,11 +443,15 @@ export function SchemaCompareDialog({ isOpen, onClose }: SchemaCompareDialogProp
             title="移行元 (A)"
             idPrefix="schema-compare-a"
             connections={connections}
+            sourceKind={sourceKindA}
+            onSourceKindChange={setSourceKindA}
             connectionId={connectionIdA}
             database={databaseA}
             databases={databasesA}
             onConnectionChange={(id) => void selectConnectionA(id)}
             onDatabaseChange={setDatabaseA}
+            ddl={ddlA}
+            onDdlFileSelect={(file) => void loadDdlFile(file, setDdlA)}
             disabled={isComparing}
           />
           <div className={styles.sourceArrow}>{'→'}</div>
@@ -314,18 +459,23 @@ export function SchemaCompareDialog({ isOpen, onClose }: SchemaCompareDialogProp
             title="移行先 (B)"
             idPrefix="schema-compare-b"
             connections={connections}
+            sourceKind={sourceKindB}
+            onSourceKindChange={setSourceKindB}
             connectionId={connectionIdB}
             database={databaseB}
             databases={databasesB}
             onConnectionChange={selectConnectionB}
             onDatabaseChange={setDatabaseB}
+            ddl={ddlB}
+            onDdlFileSelect={(file) => void loadDdlFile(file, setDdlB)}
             disabled={isComparing}
           />
         </div>
 
-        {connections.length === 0 && (
-          <div className={styles.hint}>比較するには先にデータベースへ接続してください。</div>
-        )}
+        {connections.length === 0 &&
+          (sourceKindA === 'connection' || sourceKindB === 'connection') && (
+            <div className={styles.hint}>比較するには先にデータベースへ接続してください。</div>
+          )}
 
         <div className={styles.compareRow}>
           <button
