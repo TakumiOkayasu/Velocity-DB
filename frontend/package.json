@@ -22,7 +22,7 @@
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.18",
     "@xyflow/react": "^12.10.0",
-    "monaco-editor": "^0.55.1",
+    "monaco-editor": "^0.56.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "@sqltools/formatter": "^1.2.5",
