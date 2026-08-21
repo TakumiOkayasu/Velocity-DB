@@ -10,7 +10,7 @@ import { defineConfig, type Plugin, type PluginOption } from 'vite';
  */
 function monacoWorkerExcludePlugin(): Plugin {
   const workerManagerRE =
-    /monaco-editor[\\/]esm[\\/]vs[\\/]language[\\/](css|html|json|typescript)[\\/]workerManager\.js$/;
+    /monaco-editor[\\/]esm[\\/]vs[\\/]languages[\\/]features[\\/](css|html|json|typescript)[\\/]workerManager\.js$/;
   return {
     name: 'monaco-worker-exclude',
     enforce: 'pre',

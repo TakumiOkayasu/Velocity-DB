@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 const workerManagerRE =
-  /monaco-editor[\\/]esm[\\/]vs[\\/]language[\\/](css|html|json|typescript)[\\/]workerManager\.js$/;
+  /monaco-editor[\\/]esm[\\/]vs[\\/]languages[\\/]features[\\/](css|html|json|typescript)[\\/]workerManager\.js$/;
 
 const workerPattern =
   /new Worker\(new URL\('[^']+\.worker\.js',\s*import\.meta\.url\),\s*\{[^}]*\}\)/g;
 
 describe('monacoWorkerExcludePlugin patterns', () => {
   it.each(['css', 'html', 'json', 'typescript'])('%s workerManager matches', (lang) => {
-    const id = `node_modules/monaco-editor/esm/vs/language/${lang}/workerManager.js`;
+    const id = `node_modules/monaco-editor/esm/vs/languages/features/${lang}/workerManager.js`;
     expect(workerManagerRE.test(id)).toBe(true);
   });
 

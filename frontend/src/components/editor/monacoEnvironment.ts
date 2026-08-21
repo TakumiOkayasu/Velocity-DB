@@ -1,4 +1,4 @@
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
+import editorWorker from 'monaco-editor/editor/editor.worker?worker';
 
 // SQL-only editor: load only the base editor worker.
 // Language-specific workers (ts, css, html, json) are not needed for SQL editing.
