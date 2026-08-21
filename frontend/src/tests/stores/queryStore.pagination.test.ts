@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import '../helpers/mockSettingsUtils';
 import { PAGE_SIZE } from '../../store/query/helpers/fetchTable';
 import { useQueryStore } from '../../store/queryStore';

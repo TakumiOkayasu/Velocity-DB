@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vite-plus/test';
 import { MockIpcInvoker } from '../../api/ipc/mock-ipc-invoker';
 import { __setIpcInvokerForTest, sessionProvider } from '../../api/providers';
 import type { SaveSessionStateInput, SessionState } from '../../api/providers/session';

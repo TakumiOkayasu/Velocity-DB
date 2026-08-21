@@ -41,9 +41,9 @@ function mock2dContext() {
     },
   };
 }
-// biome-ignore lint/suspicious/noExplicitAny: overload dispatch
+// oxlint-disable-next-line typescript/no-explicit-any -- overload dispatch
 HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, ...args: any[]): any {
   if (args[0] === '2d') return mock2dContext();
-  // biome-ignore lint/suspicious/noExplicitAny: overload dispatch
+  // oxlint-disable-next-line typescript/no-explicit-any -- overload dispatch
   return (originalGetContext as any).apply(this, args);
 };

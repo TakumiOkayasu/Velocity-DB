@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
 vi.mock('monaco-editor', () => {
   const setModelMarkers = vi.fn();
@@ -68,7 +68,8 @@ describe('editorMarkers', () => {
       'sqruff'
     );
     const call = vi.mocked(monaco.editor.setModelMarkers).mock.calls[0];
-    const marker = (call?.[2] as monaco.editor.IMarkerData[])[0];
+    expect(call).toBeDefined();
+    const marker = (call[2] as monaco.editor.IMarkerData[])[0];
     expect(marker.endColumn).toBeGreaterThan(marker.startColumn);
   });
 

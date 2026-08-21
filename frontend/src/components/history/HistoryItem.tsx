@@ -63,8 +63,8 @@ export const HistoryItem = memo(function HistoryItem({ item }: HistoryItemProps)
     [handleClick, handleDoubleClick]
   );
 
+  /* oxlint-disable jsx-a11y/prefer-tag-over-role -- contains nested favorite/delete buttons; cannot use a real <button> */
   return (
-    // biome-ignore lint/a11y/useSemanticElements: contains nested favorite/delete buttons; cannot use a real <button>
     <div
       className={`${styles.container} ${item.success ? '' : styles.error}`}
       onClick={handleClick}
@@ -106,4 +106,5 @@ export const HistoryItem = memo(function HistoryItem({ item }: HistoryItemProps)
       )}
     </div>
   );
+  /* oxlint-enable jsx-a11y/prefer-tag-over-role */
 });

@@ -77,7 +77,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
     <div ref={menuRef} className={styles.menu} style={{ left: x, top: y }}>
       {items.map((item, index) =>
         item.divider ? (
-          // biome-ignore lint/suspicious/noArrayIndexKey: dividers have no unique ID
+          // oxlint-disable-next-line react/no-array-index-key -- dividers have no unique ID
           <div key={`divider-${index}`} className={styles.divider} />
         ) : (
           <button

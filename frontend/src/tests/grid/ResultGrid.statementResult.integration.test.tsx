@@ -12,7 +12,7 @@
 // 子 hook / 子 component は描画関心がないため最小スタブで切る。
 
 import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 
 const storeState = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,

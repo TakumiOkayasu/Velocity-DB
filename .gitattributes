@@ -13,7 +13,7 @@
 *.hpp text eol=crlf
 *.c text eol=crlf
 
-# Frontend source files - use LF (Biome expects LF)
+# Frontend source files - use LF (Oxfmt expects LF)
 *.ts text eol=lf
 *.tsx text eol=lf
 *.js text eol=lf

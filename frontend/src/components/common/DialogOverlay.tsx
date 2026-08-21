@@ -14,7 +14,7 @@ interface DialogOverlayProps {
 
 // overlay 背景クリックでの閉じるは意図的 UX。ESC は useDialogKeyboard が window レベルで
 // 共通処理するため、a11y/useKeyWithClickEvents は冗長。a11y/noStaticElementInteractions は
-// role="presentation"/"dialog" 付与済だが biome は static 扱いするため抑止。
+// role="presentation"/"dialog" 付与済だが Oxlint は static 扱いするため抑止。
 export function DialogOverlay({
   onClose,
   children,
@@ -38,8 +38,8 @@ export function DialogOverlay({
     e.stopPropagation();
   };
 
+  /* oxlint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/prefer-tag-over-role -- overlay click and div dialog semantics are intentional */
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: overlay backdrop は意図的 click-to-close。ESC は handleOverlayKeyDown と useDialogKeyboard 双方で対応
     <div
       className={overlayClassName}
       style={overlayStyle}
@@ -60,4 +60,5 @@ export function DialogOverlay({
       </div>
     </div>
   );
+  /* oxlint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/prefer-tag-over-role */
 }

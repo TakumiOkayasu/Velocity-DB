@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { COLUMN_RESIZE_MODE } from '../../components/grid/ResultGrid';
 
 // Issue: drag resize 応答性が非常に悪い問題。

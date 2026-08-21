@@ -1,7 +1,7 @@
 import path from 'node:path';
 import react from '@vitejs/plugin-react';
 import { visualizer } from 'rollup-plugin-visualizer';
-import { defineConfig, type Plugin, type PluginOption } from 'vite';
+import { defineConfig, type Plugin, type PluginOption, lazyPlugins } from 'vite-plus';
 
 /**
  * Prevents Vite from bundling unused Monaco language workers (css, html, json, typescript).
@@ -29,7 +29,47 @@ function monacoWorkerExcludePlugin(): Plugin {
 const BUNDLE_REPORT_ENABLED = process.env.VELOCITYDB_BUNDLE_REPORT === '1';
 
 export default defineConfig({
-  plugins: [
+  fmt: {
+    ignorePatterns: ['dist/**', 'node_modules/**', 'coverage/**', '**/*.min.js'],
+    printWidth: 100,
+    tabWidth: 2,
+    useTabs: false,
+    endOfLine: 'lf',
+    singleQuote: true,
+    semi: true,
+    trailingComma: 'es5',
+    arrowParens: 'always',
+    sortPackageJson: false,
+    overrides: [{ files: ['**/*.css'], options: { singleQuote: false } }],
+  },
+  lint: {
+    ignorePatterns: ['dist/**', 'node_modules/**', 'coverage/**', '**/*.min.js'],
+    plugins: ['eslint', 'typescript', 'react', 'jsx-a11y'],
+    categories: { correctness: 'error' },
+    jsPlugins: [{ name: 'vite-plus', specifier: 'vite-plus/oxlint-plugin' }],
+    rules: {
+      'vite-plus/prefer-vite-plus-imports': 'error',
+      'no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+        },
+      ],
+      'react/exhaustive-deps': 'warn',
+      'react/rules-of-hooks': 'error',
+      'typescript/no-explicit-any': 'warn',
+      'react/no-array-index-key': 'warn',
+      'typescript/no-non-null-assertion': 'warn',
+      'prefer-const': 'error',
+      'prefer-template': 'error',
+    },
+    // Keep the existing tsgo contract. Enabling Oxlint type-aware checks here introduces
+    // hundreds of unrelated findings and is intentionally deferred to a follow-up.
+    options: { typeAware: false, typeCheck: false },
+  },
+  plugins: lazyPlugins(() => [
     react(),
     monacoWorkerExcludePlugin(),
     ...(BUNDLE_REPORT_ENABLED
@@ -43,7 +83,13 @@ export default defineConfig({
           }) as PluginOption,
         ]
       : []),
-  ],
+  ]),
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/tests/setup.ts'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+  },
   base: './', // Use relative paths for file:// protocol
   resolve: {
     alias: {

@@ -9,7 +9,7 @@
 // 検出できないため、実 ResultGrid を mount して props 伝達を直接 capture する。
 
 import { cleanup, fireEvent, render } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
 // ===== hoisted spy 群 (vi.mock factory から参照するため) =====
 const spies = vi.hoisted(() => {

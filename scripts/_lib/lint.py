@@ -40,7 +40,7 @@ def _run_subprocess(
 
 
 def lint_frontend(fix: bool = False, unsafe: bool = False, out: TextIO | None = None) -> bool:
-    """Lint frontend code with Biome."""
+    """Check frontend code with Vite+."""
     project_root = utils.get_project_root()
     frontend_dir = project_root / "frontend"
 
@@ -57,15 +57,11 @@ def lint_frontend(fix: bool = False, unsafe: bool = False, out: TextIO | None = 
 
     _, pkg_path = pkg_info
 
-    # Run lint
-    lint_cmd = [str(pkg_path), "run", "lint"]
-    if fix:
-        lint_cmd.append("--")
-        lint_cmd.append("--write")
-        if unsafe:
-            lint_cmd.append("--unsafe")
+    # Run format and lint checks through the package scripts.
+    lint_script = "lint:fix:unsafe" if fix and unsafe else "lint:fix" if fix else "lint"
+    lint_cmd = [str(pkg_path), "run", lint_script]
 
-    success = _run_subprocess(lint_cmd, "Biome lint", cwd=frontend_dir, out=out)
+    success = _run_subprocess(lint_cmd, "Vite+ check", cwd=frontend_dir, out=out)
 
     # Run type check
     print("\n[Type checking...]", file=out)

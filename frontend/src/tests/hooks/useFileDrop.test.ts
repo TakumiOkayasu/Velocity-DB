@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 import { useFileDrop } from '../../hooks/useFileDrop';
 
 function createDragEvent(type: string, files: File[] = []): Event {

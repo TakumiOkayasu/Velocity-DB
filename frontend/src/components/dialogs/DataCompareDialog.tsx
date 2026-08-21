@@ -427,7 +427,7 @@ export function DataCompareDialog({ isOpen, onClose }: DataCompareDialogProps) {
                       <tbody>
                         {visibleRows.map((row, rowIndex) => (
                           <tr
-                            // biome-ignore lint/suspicious/noArrayIndexKey: 重複キー行があり得るため index で一意化
+                            // oxlint-disable-next-line react/no-array-index-key -- 重複キー行があり得るため index で一意化
                             key={`${row.status}-${row.keyDisplay}-${rowIndex}`}
                             className={ROW_CLASSES[row.status] ?? ''}
                           >

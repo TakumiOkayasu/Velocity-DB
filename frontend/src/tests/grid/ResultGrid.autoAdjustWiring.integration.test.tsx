@@ -15,7 +15,7 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useMemo } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 
 vi.mock('../../utils/logger', () => ({
   log: { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn() },

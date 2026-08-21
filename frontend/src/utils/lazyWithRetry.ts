@@ -6,7 +6,7 @@ import { type ComponentType, lazy } from 'react';
  */
 const CHUNK_RELOAD_KEY = 'chunk-reload';
 
-// biome-ignore lint/suspicious/noExplicitAny: React.lazyの型定義に合わせる
+// oxlint-disable-next-line typescript/no-explicit-any -- React.lazyの型定義に合わせる
 export function lazyWithRetry<T extends ComponentType<any>>(
   factory: () => Promise<{ default: T }>
 ) {

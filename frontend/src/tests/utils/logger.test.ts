@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
 // 構造的な「bridge / providers facade を import しない」検査は @types/node 未導入のため
 // 振る舞いテスト群で間接担保 (循環参照が再発すると logger 自体が undefined を経由して下記テストが壊れる)。
-// 永続的な強制は CLAUDE.md 規約 + 将来 biome の useImportRestrictions ルール導入で対応 (別 Issue)。
+// 永続的な強制は CLAUDE.md 規約 + 将来 Oxlint の import 制限ルール導入で対応 (別 Issue)。
 describe('logger', () => {
   const originalInvoke = window.invoke;
 

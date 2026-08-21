@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vite-plus/test';
 import { MockIpcInvoker } from '../../api/ipc/mock-ipc-invoker';
 import { __setIpcInvokerForTest, exportProvider } from '../../api/providers';
 import type { ExportProvider } from '../../api/providers/export';

@@ -10,6 +10,7 @@ interface LeftPanelProps {
 }
 
 // Database icon
+/* oxlint-disable jsx-a11y/prefer-tag-over-role -- SVG is the semantic image element */
 const DatabaseIcon = (
   <svg
     className={styles.headerIcon}
@@ -26,6 +27,7 @@ const DatabaseIcon = (
     <path d="M2 8c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5" />
   </svg>
 );
+/* oxlint-enable jsx-a11y/prefer-tag-over-role */
 
 export function LeftPanel({ width }: LeftPanelProps) {
   const [searchFilter, setSearchFilter] = useState('');

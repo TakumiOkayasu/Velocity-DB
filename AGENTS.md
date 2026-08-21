@@ -9,9 +9,9 @@ Velocity-DB固有の指示。グローバルルール (`~/.Codex/AGENTS.md`) に
 Windows専用RDBMS管理ツール（DataGripライクなUI/UX）。SQL Server / PostgreSQL / MySQL対応（ODBC経由）。
 
 - Backend: C++ + ODBC + WebView2
-- Frontend: React + TypeScript + Vite + TanStack Table + Zustand
+- Frontend: React + TypeScript + Vite+ + TanStack Table + Zustand
 - Build Scripts: Python + uv
-- Lint: Biome (Frontend), clang-format (C++), Ruff (Python)
+- Lint/Format: Vite+ (Oxlint/Oxfmt, Frontend), clang-format (C++), Ruff (Python)
 - Test: Vitest (Frontend unit), Playwright (Frontend E2E), Google Test (C++)
 
 ## ビルドコマンド
@@ -44,19 +44,19 @@ hookが node/npm 直接実行をブロックするため、Docker経由で実行
 docker run --rm -v "C:/prog/Velocity-DB://app" \
   --mount "type=volume,target=//app/frontend/node_modules" \
   -w "//app/frontend" oven/bun:latest \
-  sh -c 'bun install && bunx vitest run --reporter=verbose'
+  sh -c 'bun install && ./node_modules/.bin/vp test --run --reporter=verbose'
 
 # 単一テストファイル
 docker run --rm -v "C:/prog/Velocity-DB://app" \
   --mount "type=volume,target=//app/frontend/node_modules" \
   -w "//app/frontend" oven/bun:latest \
-  sh -c 'bun install && bunx vitest run --reporter=verbose src/tests/hooks/useColumnActions.test.ts'
+  sh -c 'bun install && ./node_modules/.bin/vp test --run --reporter=verbose src/tests/hooks/useColumnActions.test.ts'
 
-# biome lint (変更ファイルのみ)
+# Vite+ check (変更ファイルのみ)
 docker run --rm -v "C:/prog/Velocity-DB://app" \
   --mount "type=volume,target=//app/frontend/node_modules" \
   -w "//app/frontend" oven/bun:latest \
-  sh -c 'bun install && bunx biome check src/path/to/file.ts'
+  sh -c 'bun install && ./node_modules/.bin/vp check src/path/to/file.ts'
 
 # E2Eテスト (Playwright) — Node.js ベースの公式イメージを使用 (bun は worker_threads 非互換)
 # image タグは bun.lock の @playwright/test バージョンに合わせること
@@ -148,7 +148,7 @@ frontend/
 
 - 非nullアサーション (`!`) 禁止 → 明示的nullチェック
 - CSS Modules、Zustand、memo化 (GridToolbar, GridStatusBar, ResultGrid)
-- biome: lineWidth 100, シングルクォート, セミコロンあり
+- Oxfmt: lineWidth 100, シングルクォート, セミコロンあり
 - イベントハンドラ名に `handle` 接頭辞禁止（`deleteRow` ✅ / `handleDeleteRow` ❌）
 - **`utils/logger.ts` は最下層ユーティリティ**: `api/bridge` や `api/providers/*` 等の facade / 上位層を import 禁止。backend への書き出しは `window.invoke` 直叩きで行う (#556: 循環参照解消)。各 Bridge 抽出 (#521-#527) でも同原則を維持する
 

@@ -1,6 +1,6 @@
 import { fireEvent, render } from '@testing-library/react';
 import { type UIEvent, useCallback } from 'react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vite-plus/test';
 import { useScrollPositionStore } from '../../store/scrollPositionStore';
 
 /**

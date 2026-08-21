@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { useHistoryStore } from '../../store/historyStore';
 
 // Mock providers (#520 で queryProvider に移管済み)

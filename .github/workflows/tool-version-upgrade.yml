@@ -49,8 +49,8 @@ jobs:
       - name: Read current versions
         id: current
         run: |
-          # Bun: from ci.yml (strip quotes in case of "latest" or '1.x.y')
-          BUN=$(grep 'bun-version:' .github/workflows/ci.yml | head -1 | awk '{print $2}' | tr -d "\"'")
+          # Bun: Vite+ uses the package manager version declared in package.json
+          BUN=$(jq -r '.devEngines.packageManager.version' frontend/package.json)
           echo "bun=$BUN" >> "$GITHUB_OUTPUT"
           echo "Current Bun: $BUN"
 
@@ -179,32 +179,36 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Update Bun version in workflow files
+      - name: Update Bun version in package.json
         if: steps.check-pr.outputs.skip == 'false'
         env:
           NEW_VERSION: ${{ needs.detect-versions.outputs.bun_latest }}
         run: |
-          sed -i "s/bun-version: .*/bun-version: ${NEW_VERSION}/" \
-            .github/workflows/ci.yml \
-            .github/workflows/test.yml \
-            .github/workflows/release.yml
+          TEMP_FILE=$(mktemp)
+          jq --arg version "$NEW_VERSION" \
+            '.devEngines.packageManager.version = $version' \
+            frontend/package.json > "$TEMP_FILE"
+          mv "$TEMP_FILE" frontend/package.json
+          echo "Updated Bun to ${NEW_VERSION} in frontend/package.json"
+          jq '.devEngines.packageManager' frontend/package.json
 
-          echo "Updated bun-version to ${NEW_VERSION} in workflow files"
-          grep 'bun-version:' .github/workflows/ci.yml .github/workflows/test.yml .github/workflows/release.yml
-
-      - name: Setup Bun (new version)
+      - name: Setup Vite+ and Bun
         if: steps.check-pr.outputs.skip == 'false'
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        uses: voidzero-dev/setup-vp@313600b80b104eadebb9111787d37a2e83e014ca # v1.17.0
         with:
-          bun-version: ${{ needs.detect-versions.outputs.bun_latest }}
+          working-directory: frontend
+          cache: true
+          run-install: false
 
       - name: Validate frontend build
         if: steps.check-pr.outputs.skip == 'false'
         working-directory: frontend
         run: |
-          bun install
-          bun run build
-          bun run test --run
+          vp install
+          vp check
+          vp run typecheck
+          vp run build
+          vp test --run
 
       - name: Create PR
         if: steps.check-pr.outputs.skip == 'false'
@@ -217,7 +221,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          git add .github/workflows/ci.yml .github/workflows/test.yml .github/workflows/release.yml
+          git add frontend/package.json frontend/bun.lock
           git commit -m "chore(deps): upgrade Bun ${OLD_VERSION} -> ${NEW_VERSION}"
           git push origin "$BRANCH"
 
@@ -233,9 +237,11 @@ jobs:
           | New | ${NEW_VERSION} |
 
           ### Validation
-          - [x] \`bun install\` succeeded
-          - [x] \`bun run build\` succeeded
-          - [x] \`bun run test --run\` passed
+          - [x] \`vp install\` succeeded
+          - [x] \`vp check\` succeeded
+          - [x] \`vp run typecheck\` succeeded
+          - [x] \`vp run build\` succeeded
+          - [x] \`vp test --run\` passed
 
           ### Auto-generated
           This PR was automatically created by the tool-version-upgrade workflow.

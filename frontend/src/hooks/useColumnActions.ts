@@ -37,7 +37,7 @@ export type ColumnActionState = RenameInput | RenameConfirm | DropConfirm | null
 /** SQL識別子として不正な入力をバリデーション (null=OK, string=エラーメッセージ) */
 export function validateIdentifier(value: string): string | null {
   if (!value.trim()) return '名前を入力してください';
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional control char detection
+  // oxlint-disable-next-line no-control-regex -- intentional control char detection
   if (/[\x00-\x1f]/.test(value)) return '制御文字は使用できません';
   return null;
 }

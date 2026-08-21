@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type { RowChange } from '../../store/editStore';
 import type { Column } from '../../types';
 import { validateNullConstraints } from '../../utils/validation';

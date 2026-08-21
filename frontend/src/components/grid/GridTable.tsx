@@ -181,7 +181,7 @@ function GridTableInner({
   );
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: scroll/focus container for the inner table; keyboard navigation is handled at table-cell level
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- scroll/focus container for the inner table; keyboard navigation is handled at table-cell level
     <div
       ref={tableContainerRef}
       className={styles.tableContainer}
@@ -263,7 +263,11 @@ function GridTableInner({
           {showColumnFilters && (
             <tr className={styles.filterRow}>
               {table.getHeaderGroups()[0]?.headers.map((header) => (
-                <th key={`filter-${header.id}`} className={styles.filterCell}>
+                <th
+                  key={`filter-${header.id}`}
+                  className={styles.filterCell}
+                  aria-label={`${header.column.id} filter`}
+                >
                   <input
                     type="text"
                     className={styles.columnFilterInput}
@@ -276,7 +280,7 @@ function GridTableInner({
             </tr>
           )}
         </thead>
-        {/* biome-ignore lint/a11y/useKeyWithClickEvents: cell-level keyboard navigation is handled by useKeyboardHandler at the container level */}
+        {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- cell-level keyboard navigation is handled by useKeyboardHandler at the container level */}
         <tbody
           className={styles.tbody}
           onClick={(e) => {
@@ -284,11 +288,11 @@ function GridTableInner({
             if (!info) return;
             const { field, rowIndex } = info;
             if (isSystemColumn(field)) {
-              e.shiftKey ? callbacks.onRowRangeSelect(rowIndex) : callbacks.onRowToggle(rowIndex);
+              if (e.shiftKey) callbacks.onRowRangeSelect(rowIndex);
+              else callbacks.onRowToggle(rowIndex);
             } else {
-              e.shiftKey
-                ? callbacks.onCellRangeSelect(rowIndex, field)
-                : callbacks.onCellClick(rowIndex, field);
+              if (e.shiftKey) callbacks.onCellRangeSelect(rowIndex, field);
+              else callbacks.onCellClick(rowIndex, field);
             }
           }}
           onContextMenu={(e) => {
@@ -310,7 +314,7 @@ function GridTableInner({
         >
           {paddingTop > 0 && (
             <tr>
-              <td style={{ height: `${paddingTop}px` }} />
+              <td aria-hidden="true" style={{ height: `${paddingTop}px` }} />
             </tr>
           )}
           {renderItems.map((virtualRow) => {
@@ -404,7 +408,7 @@ function GridTableInner({
           })}
           {paddingBottom > 0 && (
             <tr>
-              <td style={{ height: `${paddingBottom}px` }} />
+              <td aria-hidden="true" style={{ height: `${paddingBottom}px` }} />
             </tr>
           )}
         </tbody>

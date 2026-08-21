@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 import { defaultSettings, getSettings } from '../../utils/settingsUtils';
 
 const STORAGE_KEY = 'app-settings';

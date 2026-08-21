@@ -1,6 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { useColumnAutoSize } from '../../components/grid/hooks/useColumnAutoSize';
 import type { ResultSet } from '../../types';
 import type { RowData } from '../../types/grid';

@@ -1,7 +1,7 @@
 import { useVirtualizer, type Virtualizer } from '@tanstack/react-virtual';
 import { fireEvent, render } from '@testing-library/react';
 import { type RefObject, useRef } from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { useScrollRestoreHandler } from '../../components/grid/hooks/useScrollRestoreHandler';
 import { useScrollPositionStore } from '../../store/scrollPositionStore';
 

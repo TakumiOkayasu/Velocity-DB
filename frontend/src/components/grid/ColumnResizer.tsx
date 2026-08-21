@@ -84,8 +84,7 @@ function ColumnResizerInner({
   );
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: drag-resize handle; keyboard equivalent is column auto-fit via header double-click
-    // biome-ignore lint/a11y/useKeyWithClickEvents: stopClick only prevents bubbling on mouse drop; no semantic click action
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- drag-resize handle; keyboard equivalent is column auto-fit via header double-click
     <div
       className={styles.columnResizer}
       onMouseDown={handleMouseDown}

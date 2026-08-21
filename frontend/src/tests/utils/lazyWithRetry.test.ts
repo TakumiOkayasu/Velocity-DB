@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
 // lazyWithRetry内部ロジックを直接テストするため、
 // React.lazyをモックしてfactory関数の振る舞いを検証する

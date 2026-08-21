@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { useTableUIState } from '../../components/table/hooks/useTableUIState';
 
 describe('useTableUIState', () => {

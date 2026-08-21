@@ -90,7 +90,7 @@ export function EditorTabs() {
   }, [checkOverflow]);
 
   // タブ数変更時に溢れ再チェック
-  // biome-ignore lint/correctness/useExhaustiveDependencies: queries.length is intentional to recheck overflow on tab count change
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- queries.length is intentional to recheck overflow on tab count change
   useEffect(() => {
     checkOverflow();
   }, [queries.length, checkOverflow]);
