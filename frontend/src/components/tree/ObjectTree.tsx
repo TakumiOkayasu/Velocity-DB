@@ -79,7 +79,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => new Set());
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: profileVersion is an intentional re-fetch trigger
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- profileVersion is an intentional re-fetch trigger
   useEffect(() => {
     const fetchProfiles = async () => {
       try {

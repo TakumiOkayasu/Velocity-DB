@@ -259,9 +259,11 @@ export function useColumnAutoSize({
 
   // unmount 時に進行中の async 計測を無効化する (古い結果による setState を防ぐ)
   useEffect(() => {
+    const fullMeasurementId = fullMeasurementIdRef;
+    const perColMeasurementIds = perColMeasurementIdsRef;
     return () => {
-      fullMeasurementIdRef.current++;
-      const ids = perColMeasurementIdsRef.current;
+      fullMeasurementId.current++;
+      const ids = perColMeasurementIds.current;
       for (const key of Object.keys(ids)) ids[key]++;
     };
   }, []);

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { TransposeView } from '../../components/grid/TransposeView';
 import type { ColumnMeta, RowData } from '../../types/grid';
 

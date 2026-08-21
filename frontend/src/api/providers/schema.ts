@@ -176,9 +176,8 @@ class SchemaProviderImpl extends BaseProvider implements SchemaProvider {
     );
     const startTime = performance.now();
     const rows = await this.invokeAndParse('getTables', { connectionId, database }, S.getTables);
-    const tables = rows.map(
-      ([schema, name, type, comment]): TableInfo =>
-        comment === '' ? { schema, name, type } : { schema, name, type, comment }
+    const tables = rows.map(([schema, name, type, comment]): TableInfo =>
+      comment === '' ? { schema, name, type } : { schema, name, type, comment }
     );
     const loadTimeMs = performance.now() - startTime;
     this.logger.info(`[Bridge] Received ${tables.length} tables in ${loadTimeMs.toFixed(2)}ms`);

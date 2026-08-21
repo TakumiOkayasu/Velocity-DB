@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { queryProvider } from '../../api/providers';
 import type { ExecuteQueryResult } from '../../api/providers/query';
 import { DataCompareDialog } from '../../components/dialogs/DataCompareDialog';

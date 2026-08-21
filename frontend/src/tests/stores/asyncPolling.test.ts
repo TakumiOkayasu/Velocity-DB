@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import {
   DEFAULT_QUERY_TIMEOUT_MS,
   executeAsyncWithPolling,

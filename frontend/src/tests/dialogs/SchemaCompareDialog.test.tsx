@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { ioProvider, schemaProvider } from '../../api/providers';
 import type { ColumnInfo, TableInfo } from '../../api/providers/schema';
 import { SchemaCompareDialog } from '../../components/dialogs/SchemaCompareDialog';

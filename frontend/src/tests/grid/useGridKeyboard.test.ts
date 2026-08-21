@@ -1,6 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { useGridKeyboard } from '../../components/grid/hooks/useGridKeyboard';
 import type { RowData } from '../../types/grid';
 

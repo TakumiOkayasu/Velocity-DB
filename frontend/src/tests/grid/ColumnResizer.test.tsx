@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 import { ColumnResizer } from '../../components/grid/ColumnResizer';
 
 function renderResizer(
@@ -39,7 +39,7 @@ describe('ColumnResizer', () => {
   it('ダブルクリックイベントは親に伝播しない', () => {
     const parentDblClick = vi.fn();
     const { container } = render(
-      // biome-ignore lint/a11y/noStaticElementInteractions: test wrapper to capture event bubbling
+      // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- test wrapper to capture event bubbling
       <div onDoubleClick={parentDblClick}>
         <ColumnResizer columnId="col_a" currentWidth={100} onResizeCommit={vi.fn()} />
       </div>
@@ -55,8 +55,7 @@ describe('ColumnResizer', () => {
   it('クリックイベントは親に伝播しない', () => {
     const parentClick = vi.fn();
     const { container } = render(
-      // biome-ignore lint/a11y/noStaticElementInteractions: test wrapper to capture event bubbling
-      // biome-ignore lint/a11y/useKeyWithClickEvents: test wrapper; only verifies click bubbling
+      // oxlint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- test wrapper; only verifies click bubbling
       <div onClick={parentClick}>
         <ColumnResizer columnId="col_a" currentWidth={100} onResizeCommit={vi.fn()} />
       </div>

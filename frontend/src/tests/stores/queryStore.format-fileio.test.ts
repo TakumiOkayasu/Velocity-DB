@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { useQueryStore } from '../../store/queryStore';
 import { useToastStore } from '../../store/toastStore';
 

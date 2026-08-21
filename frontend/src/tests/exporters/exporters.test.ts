@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { getExporter } from '../../components/export/exporters';
 import { csvExporter } from '../../components/export/exporters/csvExporter';
 import { htmlExporter } from '../../components/export/exporters/htmlExporter';

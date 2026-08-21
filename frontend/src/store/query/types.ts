@@ -18,12 +18,7 @@ export interface PaginationState {
 }
 
 export interface QueryState
-  extends Manageable,
-    Executable,
-    DataViewable,
-    FileIOable,
-    Formattable,
-    ERDiagrammable {
+  extends Manageable, Executable, DataViewable, FileIOable, Formattable, ERDiagrammable {
   queries: Query[];
   queriesById: Record<string, Query>;
   activeQueryId: string | null;

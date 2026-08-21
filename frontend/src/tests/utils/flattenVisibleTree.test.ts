@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type { DatabaseObject } from '../../types';
 import { flattenVisibleTree } from '../../utils/flattenVisibleTree';
 

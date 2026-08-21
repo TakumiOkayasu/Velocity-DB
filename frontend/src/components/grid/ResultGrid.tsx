@@ -417,7 +417,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   // --- Reset per-tab UI state on queryId switch ---
   // sort / filter / selection は per-tab 独立のためリセット。
   // scroll 位置の保存/復元は useScrollRestoreHandler が担当 (Issue #366, #461)。
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally triggered by targetQueryId change
+  /* oxlint-disable react-hooks/exhaustive-deps -- intentionally triggered by targetQueryId change */
   useEffect(() => {
     resetSelection();
     setSorting([]);
@@ -425,6 +425,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     setShowColumnFilters(false);
     setActiveResultIndex(0);
   }, [targetQueryId]);
+  /* oxlint-enable react-hooks/exhaustive-deps */
 
   const { handleScroll } = useScrollRestoreHandler({
     targetQueryId,

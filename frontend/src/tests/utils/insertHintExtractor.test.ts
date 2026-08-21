@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { extractInsertTargets } from '../../utils/insertHintExtractor';
 import { sliceAt as slice } from './_helpers';
 

@@ -1,10 +1,10 @@
 pre-commit:
   parallel: true
   jobs:
-    - name: frontend-format
+    - name: frontend-check
       glob: "frontend/src/**/*.{ts,tsx,js,jsx,json,css}"
       root: frontend
-      run: bunx biome check --write {staged_files}
+      run: bun run lint:fix -- {staged_files}
       stage_fixed: true
     - name: cpp-format
       glob: "backend/**/*.{cpp,h}"
@@ -25,7 +25,7 @@ pre-push:
     - name: frontend-test
       root: frontend
       glob: "frontend/**/*.{ts,tsx,js,jsx,json}"
-      run: bunx vitest run
+      run: bun run test -- --run
     - name: cpp-format
       glob: "backend/**/*.{cpp,h}"
       run: clang-format --style=file --dry-run --Werror {push_files}

@@ -13,7 +13,7 @@ export function useFirstRenderMark(target: string): void {
     startMarked.current = true;
   }
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: initial mount only
+  /* oxlint-disable react-hooks/exhaustive-deps -- initial mount only */
   useEffect(() => {
     if (measured.current) return;
     measured.current = true;
@@ -24,6 +24,7 @@ export function useFirstRenderMark(target: string): void {
     performance.mark(`${target}:end`);
     performance.measure(target, `${target}:start`, `${target}:end`);
   }, []);
+  /* oxlint-enable react-hooks/exhaustive-deps */
 }
 
 /**
@@ -54,7 +55,7 @@ export function markTreeExpandStart(): void {
  * 展開のたびに measure entry が追加されるので、計測側は entry の index で識別する。
  */
 export function useTreeExpandMeasure(visibleRowCount: number): void {
-  // biome-ignore lint/correctness/useExhaustiveDependencies: visibleRowCount の変化自体を commit 検知トリガーとして使う (effect 本体では参照しない)
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- visibleRowCount の変化自体を commit 検知トリガーとして使う (effect 本体では参照しない)
   useEffect(() => {
     if (!treeExpandPending) return;
     treeExpandPending = false;
@@ -91,7 +92,7 @@ export function useERDiagramRenderMark(tableCount: number, threshold = 50): void
 
   // Fire after every commit; the `measured` ref gates the body so end+measure run at most
   // once. The threshold logic lives in the render-phase block above (which reads
-  // tableCount), so this effect intentionally has no deps — biome would flag [tableCount]
+  // tableCount), so this effect intentionally has no deps — Oxlint would flag [tableCount]
   // as unused here.
   useEffect(() => {
     if (measured.current || !startMarked.current) return;

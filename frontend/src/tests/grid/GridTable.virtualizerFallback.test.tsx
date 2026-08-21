@@ -27,7 +27,7 @@ import {
 import type { VirtualItem } from '@tanstack/react-virtual';
 import { cleanup, render, within } from '@testing-library/react';
 import { useRef } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 import {
   type GridEditContext,
   type GridSelectionState,

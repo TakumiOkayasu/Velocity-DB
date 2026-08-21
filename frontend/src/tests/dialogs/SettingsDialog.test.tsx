@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { appSettingsProvider } from '../../api/providers';
 import type { AppSettings as BackendAppSettings } from '../../api/providers/app-settings';
 import { SettingsDialog } from '../../components/dialogs/SettingsDialog';

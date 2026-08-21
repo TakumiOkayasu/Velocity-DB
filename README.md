@@ -44,9 +44,9 @@ uv run scripts/pdg.py build all
 
 ```bash
 uv run scripts/pdg.py dev           # 開発サーバー (localhost:5173)
-uv run scripts/pdg.py test frontend # Vitest
+uv run scripts/pdg.py test frontend # Vitest (Vite+)
 uv run scripts/pdg.py test backend  # Google Test
-uv run scripts/pdg.py lint          # Biome + clang-format
+uv run scripts/pdg.py lint          # Vite+ (Oxlint/Oxfmt) + clang-format
 uv run scripts/pdg.py check Release # lint + test + build 一括
 ```
 
@@ -67,4 +67,5 @@ uv run scripts/pdg.py check Release # lint + test + build 一括
 - [TanStack Table](https://tanstack.com/table)
 - [React Flow](https://reactflow.dev/)
 - [Zustand](https://github.com/pmndrs/zustand)
-- [Biome](https://biomejs.dev/)
+- [Vite+](https://viteplus.dev/)
+- [Oxc](https://oxc.rs/)

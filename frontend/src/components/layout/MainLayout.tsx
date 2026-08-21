@@ -421,7 +421,7 @@ export function MainLayout() {
         {isLeftPanelVisible && (
           <Suspense fallback={<LoadingFallback />}>
             <LeftPanel width={leftPanelWidth} />
-            {/* biome-ignore lint/a11y/noStaticElementInteractions: drag-only resizer; keyboard panel sizing is not required */}
+            {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- drag-only resizer; keyboard panel sizing is not required */}
             <div
               className={styles.verticalResizer}
               onMouseDown={(e) => {
@@ -450,7 +450,7 @@ export function MainLayout() {
 
           {shouldShowBottomPanel && (
             <Suspense fallback={<LoadingFallback />}>
-              {/* biome-ignore lint/a11y/noStaticElementInteractions: drag-only resizer; keyboard panel sizing is not required */}
+              {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- drag-only resizer; keyboard panel sizing is not required */}
               <div
                 className={styles.horizontalResizer}
                 onMouseDown={(e) => {

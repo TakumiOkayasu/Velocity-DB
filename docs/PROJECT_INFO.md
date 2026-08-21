@@ -11,8 +11,8 @@ Windows専用の高性能RDBMS管理ツール（DataGripライクなUI/UX）。S
 | Backend | C++23 + ODBC + WebView2 |
 | Frontend | React + TypeScript + TanStack Table |
 | Build (C++) | CMake + Ninja (MSVC) |
-| Build (Frontend) | Vite |
-| Lint | Biome (Frontend), clang-format (C++), Ruff (Python) |
+| Build (Frontend) | Vite+ |
+| Lint/Format | Vite+ (Oxlint/Oxfmt, Frontend), clang-format (C++), Ruff (Python) |
 | Test | Vitest (Frontend unit), Playwright (Frontend E2E), Google Test (C++) |
 
 ## プロジェクト構造

@@ -61,7 +61,7 @@ export function useScrollRestoreHandler({
   );
 
   // 3. 復元: rows 描画 + container 実サイズ確定後に rAF ループで 1 回だけ実施
-  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll restore is a one-shot per queryId
+  /* oxlint-disable react-hooks/exhaustive-deps -- scroll restore is a one-shot per queryId */
   useEffect(() => {
     if (!targetQueryId) return;
     if (scrollRestoredForQueryRef.current === targetQueryId) return;
@@ -116,11 +116,13 @@ export function useScrollRestoreHandler({
       cancelled = true;
     };
   }, [targetQueryId, rowsLength]);
+  /* oxlint-enable react-hooks/exhaustive-deps */
 
   // 4. unmount (tab が grid 以外に切替) 時に最終保存
   useEffect(() => {
+    const scroller = scrollerRef;
     return () => {
-      const el = scrollerRef.current;
+      const el = scroller.current;
       const qid = prevQueryIdRef.current;
       if (qid && el) {
         useScrollPositionStore

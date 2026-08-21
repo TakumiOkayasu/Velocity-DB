@@ -20,11 +20,12 @@ export function useWhereFilter({
   const [whereClause, setWhereClause] = useState(storedWhereClause);
   const [whereFilterError, setWhereFilterError] = useState<string | null>(null);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally triggered by activeQueryId change
+  /* oxlint-disable react-hooks/exhaustive-deps -- intentionally triggered by activeQueryId change */
   useEffect(() => {
     setWhereClause(storedWhereClause);
     setWhereFilterError(null);
   }, [activeQueryId]);
+  /* oxlint-enable react-hooks/exhaustive-deps */
 
   const whereKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {

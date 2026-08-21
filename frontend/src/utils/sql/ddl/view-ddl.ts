@@ -114,10 +114,9 @@ export function buildAlterViewSql(
 
     const aliasClause = match[3] ?? '';
     const identifierPart = aliasClause ? match[0].slice(0, -aliasClause.length) : match[0];
-    const newSelectPart =
-      selectPart.slice(0, match.index) +
-      `${identifierPart} AS ${q(newCol)}` +
-      selectPart.slice(match.index + match[0].length);
+    const newSelectPart = `${selectPart.slice(0, match.index)}${identifierPart} AS ${q(
+      newCol
+    )}${selectPart.slice(match.index + match[0].length)}`;
     sql = `${selectFromStart}SELECT ${selectPrefix}${newSelectPart}${fromAndRest}`;
     break;
   }

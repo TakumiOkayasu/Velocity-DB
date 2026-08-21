@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { parseDdl } from '../../utils/ddlParser';
 
 /** 先頭テーブルの指定カラムを取得するヘルパー */
