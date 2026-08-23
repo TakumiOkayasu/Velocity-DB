@@ -121,6 +121,8 @@ class Logger {
     this.logQueue = [];
     this.flushTimer = null;
 
+    // The browser cache and backend file are independent sinks. A quota/security error in
+    // localStorage must not prevent the durable backend write.
     try {
       // Save to localStorage in browser environment (max 1MB)
       if (typeof window !== 'undefined' && window.localStorage) {
@@ -138,11 +140,14 @@ class Logger {
           window.localStorage.setItem(storageKey, newLogs);
         }
       }
+    } catch {
+      // Ignore browser storage errors and continue with the backend sink.
+    }
 
+    try {
       await invokeWriteFrontendLog(logs);
-    } catch (_error) {
-      // Ignore log write errors (to avoid infinite loops)
-      // Note: Does not error even in environments without localStorage
+    } catch {
+      // Ignore backend log errors to avoid recursive logging.
     }
   }
 
