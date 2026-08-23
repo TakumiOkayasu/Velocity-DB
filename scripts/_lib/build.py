@@ -162,10 +162,13 @@ def _sync_vcpkg_to_baseline(project_root: Path, vcpkg_dir: Path, out: TextIO | N
             capture_output=True,
             encoding="utf-8",
         )
-    except OSError:
-        return True
+    except OSError as error:
+        print(f"\n[vcpkg] ERROR: failed to inspect clone HEAD: {error}", file=out)
+        return False
     if head_result.returncode != 0 or not head_result.stdout:
-        return True
+        detail = head_result.stderr.strip() or "git rev-parse returned no HEAD"
+        print(f"\n[vcpkg] ERROR: invalid project-local clone: {detail}", file=out)
+        return False
 
     head = head_result.stdout.strip()
     if baseline == head:
@@ -220,7 +223,8 @@ def _ensure_vcpkg(project_root: Path, out: TextIO | None = None) -> Path:
         _clone_vcpkg(vcpkg_dir, out)
     if not vcpkg_exe.exists():
         _bootstrap_vcpkg(vcpkg_dir, out)
-    _sync_vcpkg_to_baseline(project_root, vcpkg_dir, out)
+    if not _sync_vcpkg_to_baseline(project_root, vcpkg_dir, out):
+        raise RuntimeError("Failed to sync project-local vcpkg to builtin-baseline.")
     return vcpkg_dir
 
 
