@@ -37,6 +37,8 @@ uv run scripts/pdg.py build all
 ```
 
 成果物は `build/Release/VelocityDB.exe`。
+frontendとbackendは既定で直列にbuildする。実機で速くなることを確認済みの場合のみ
+`uv run scripts/pdg.py build all --parallel`で同時実行できる。
 
 ## 開発コマンド
 

@@ -13,6 +13,66 @@ from _lib import build as build_mod
 from _lib.build import _ensure_vcpkg, _migrate_to_local_vcpkg, _read_vcpkg_baseline
 
 
+def test_build_all_runs_sequentially_by_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[str] = []
+
+    monkeypatch.setattr(build_mod.utils, "get_project_root", lambda: tmp_path)
+    monkeypatch.setattr(
+        build_mod,
+        "build_frontend",
+        lambda **_kwargs: calls.append("frontend") or True,
+    )
+    monkeypatch.setattr(
+        build_mod,
+        "build_backend",
+        lambda **_kwargs: calls.append("backend") or True,
+    )
+
+    assert build_mod.build_all()
+    assert calls == ["frontend", "backend"]
+
+
+def test_build_all_keeps_parallel_execution_as_opt_in(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[str, bool]] = []
+    copied: list[str] = []
+
+    monkeypatch.setattr(build_mod.utils, "get_project_root", lambda: tmp_path)
+
+    def fake_frontend(*, clean: bool, out: io.StringIO) -> bool:
+        calls.append(("frontend", clean))
+        print("frontend output", file=out)
+        return True
+
+    def fake_backend(
+        *,
+        build_type: str,
+        clean: bool,
+        copy_frontend: bool,
+        out: io.StringIO,
+    ) -> bool:
+        assert build_type == "Debug"
+        assert not copy_frontend
+        calls.append(("backend", clean))
+        print("backend output", file=out)
+        return True
+
+    monkeypatch.setattr(build_mod, "build_frontend", fake_frontend)
+    monkeypatch.setattr(build_mod, "build_backend", fake_backend)
+    monkeypatch.setattr(
+        build_mod,
+        "_copy_frontend_to_build",
+        lambda build_type: copied.append(build_type),
+    )
+
+    assert build_mod.build_all(build_type="Debug", clean=True, parallel=True)
+    assert set(calls) == {("frontend", True), ("backend", True)}
+    assert copied == ["Debug"]
+
+
 def test_read_vcpkg_baseline_returns_sha(tmp_path: Path) -> None:
     sha = "abc123def4567890abc123def4567890abc12345"
     (tmp_path / "vcpkg.json").write_text(f'{{"builtin-baseline": "{sha}"}}')

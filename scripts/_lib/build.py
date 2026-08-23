@@ -573,11 +573,12 @@ def _print_labeled(label: str, content: str) -> None:
         print()
 
 
-def build_all(build_type: str = "Release", clean: bool = False, parallel: bool = True) -> bool:
+def build_all(build_type: str = "Release", clean: bool = False, parallel: bool = False) -> bool:
     """Build both frontend and backend.
 
-    Runs frontend and backend builds in parallel by default. Pass parallel=False
-    for sequential execution (legacy behavior).
+    Runs sequentially by default so the frontend does not compete with the
+    internally parallel CMake build. Pass parallel=True to opt in after
+    measuring on the target machine.
     """
     project_root = utils.get_project_root()
     build_dir = project_root / "build"
@@ -596,7 +597,7 @@ def build_all(build_type: str = "Release", clean: bool = False, parallel: bool =
             print(f"  Run: {exe_path.name}")
         return True
 
-    print("\n[Running frontend + backend build in parallel...]")
+    print("\n[Running frontend + backend build in parallel (--parallel)...]")
     buf_front = io.StringIO()
     buf_back = io.StringIO()
     with ThreadPoolExecutor(max_workers=2) as executor:
