@@ -44,7 +44,7 @@ def cmd_build(args: argparse.Namespace) -> bool:
     target: str = args.target
     clean: bool = args.clean
     build_type: str = args.type
-    parallel: bool = not args.no_async
+    parallel: bool = args.parallel
 
     if target == "backend":
         return build.build_backend(build_type=build_type, clean=clean)
@@ -423,11 +423,19 @@ def main() -> None:
         default="Release",
         help="Build type for backend (default: Release)",
     )
-    build_parser.add_argument(
-        "--no-async",
+    build_execution = build_parser.add_mutually_exclusive_group()
+    build_execution.add_argument(
+        "--parallel",
         action="store_true",
-        help="Disable parallel execution for 'all' target (sequential build)",
+        help="Build frontend and backend concurrently (may be slower under CPU contention)",
     )
+    build_execution.add_argument(
+        "--no-async",
+        dest="parallel",
+        action="store_false",
+        help=argparse.SUPPRESS,
+    )
+    build_parser.set_defaults(parallel=False)
 
     # Debug command (shortcut for build backend --type Debug)
     debug_parser = subparsers.add_parser("debug", help="Backend Debug build (shortcut)")
