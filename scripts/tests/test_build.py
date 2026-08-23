@@ -226,9 +226,28 @@ def test_ensure_vcpkg_reports_error_on_fetch_failure(
     monkeypatch.setattr(build_mod.subprocess, "run", fake_subprocess_run)
 
     buf = io.StringIO()
-    _ensure_vcpkg(tmp_path, out=buf)
+    with pytest.raises(RuntimeError, match="Failed to sync project-local vcpkg"):
+        _ensure_vcpkg(tmp_path, out=buf)
 
     assert "failed to fetch baseline" in buf.getvalue()
+
+
+def test_ensure_vcpkg_rejects_invalid_clone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _make_valid_vcpkg_dir(tmp_path)
+    (tmp_path / "vcpkg.json").write_text('{"builtin-baseline": "deadbeef"}')
+
+    def fake_subprocess_run(cmd, **_kwargs):
+        return build_mod.subprocess.CompletedProcess(cmd, 128, "", "not a git repository")
+
+    monkeypatch.setattr(build_mod.subprocess, "run", fake_subprocess_run)
+
+    buf = io.StringIO()
+    with pytest.raises(RuntimeError, match="Failed to sync project-local vcpkg"):
+        _ensure_vcpkg(tmp_path, out=buf)
+
+    assert "invalid project-local clone" in buf.getvalue()
 
 
 def test_migrate_noop_when_no_install(tmp_path: Path) -> None:
