@@ -62,14 +62,7 @@ describe('executeAsyncWithPolling', () => {
       getAsyncQueryResult: vi.fn().mockReturnValue(new Promise(() => {})),
     });
 
-    const promise = executeAsyncWithPolling(
-      bridge,
-      'conn1',
-      'SELECT 1',
-      undefined,
-      undefined,
-      500
-    );
+    const promise = executeAsyncWithPolling(bridge, 'conn1', 'SELECT 1', undefined, undefined, 500);
     await Promise.resolve();
     const rejection = expect(promise).rejects.toThrow('timed out after 1 seconds');
     await vi.advanceTimersByTimeAsync(500);
