@@ -49,6 +49,22 @@ describe('logger', () => {
     await expect(logger.forceFlush()).resolves.toBeUndefined();
   });
 
+  it('localStorage 書込失敗時も backend log へ書き込む', async () => {
+    const invoke = vi.fn().mockResolvedValue(JSON.stringify({ success: true, data: null }));
+    window.invoke = invoke;
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota exceeded', 'QuotaExceededError');
+    });
+
+    const { logger } = await import('../../utils/logger');
+    logger.error('preserve this message');
+    await expect(logger.forceFlush()).resolves.toBeUndefined();
+
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(invoke.mock.calls[0]?.[0]).toContain('preserve this message');
+    setItemSpy.mockRestore();
+  });
+
   it('backend が success=false を返しても logger は throw せず原本 console.error に出す', async () => {
     window.invoke = vi
       .fn()
