@@ -36,6 +36,7 @@ describe('executeAsyncWithPolling', () => {
     controller.abort();
 
     await expect(promise).rejects.toThrow('Query cancelled');
+    expect(bridge.cancelAsyncQuery).toHaveBeenCalledWith('q1');
     expect(bridge.removeAsyncQuery).toHaveBeenCalledWith('q1');
   });
 
@@ -56,28 +57,26 @@ describe('executeAsyncWithPolling', () => {
     expect(onReady).toHaveBeenCalledWith('q1');
   });
 
-  it('should use custom timeoutMs', async () => {
-    vi.useRealTimers();
-
-    // Mock Date.now to simulate elapsed time
-    let callCount = 0;
-    const originalDateNow = Date.now;
-    vi.spyOn(Date, 'now').mockImplementation(() => {
-      callCount++;
-      // First call returns base time, subsequent calls exceed timeout
-      return callCount <= 1 ? originalDateNow() : originalDateNow() + 600;
-    });
-
+  it('should enforce custom timeoutMs while IPC is blocking', async () => {
     const bridge = createMockBridge({
-      getAsyncQueryResult: vi.fn().mockResolvedValue({ status: 'pending' }),
+      getAsyncQueryResult: vi.fn().mockReturnValue(new Promise(() => {})),
     });
 
-    await expect(
-      executeAsyncWithPolling(bridge, 'conn1', 'SELECT 1', undefined, undefined, 500)
-    ).rejects.toThrow('timed out after 1 seconds');
-    expect(bridge.cancelAsyncQuery).toHaveBeenCalledWith('q1');
+    const promise = executeAsyncWithPolling(
+      bridge,
+      'conn1',
+      'SELECT 1',
+      undefined,
+      undefined,
+      500
+    );
+    await Promise.resolve();
+    const rejection = expect(promise).rejects.toThrow('timed out after 1 seconds');
+    await vi.advanceTimersByTimeAsync(500);
 
-    vi.restoreAllMocks();
+    await rejection;
+    expect(bridge.cancelAsyncQuery).toHaveBeenCalledWith('q1');
+    expect(bridge.removeAsyncQuery).toHaveBeenCalledWith('q1');
   });
 
   it('should use DEFAULT_QUERY_TIMEOUT_MS when timeoutMs is not provided', () => {
