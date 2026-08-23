@@ -112,7 +112,12 @@ def test_ensure_vcpkg_skips_clone_and_bootstrap_when_present(
         invoked.append(list(cmd))
         return True, "deadbeef\n"
 
+    def fake_subprocess_run(cmd, **_kwargs):
+        invoked.append(list(cmd))
+        return build_mod.subprocess.CompletedProcess(cmd, 0, "deadbeef\n", "")
+
     monkeypatch.setattr(build_mod.utils, "run_command", fake_run)
+    monkeypatch.setattr(build_mod.subprocess, "run", fake_subprocess_run)
 
     buf = io.StringIO()
     result = _ensure_vcpkg(tmp_path, out=buf)
@@ -173,11 +178,16 @@ def test_ensure_vcpkg_syncs_on_baseline_drift(
 
     def fake_run(cmd, desc, **_kwargs):
         invoked.append(list(cmd))
-        if "rev-parse" in cmd:
-            return True, "ffffffffffffffffffffffffffffffffffffffff\n"
         return True, ""
 
+    def fake_subprocess_run(cmd, **_kwargs):
+        invoked.append(list(cmd))
+        return build_mod.subprocess.CompletedProcess(
+            cmd, 0, "ffffffffffffffffffffffffffffffffffffffff\n", ""
+        )
+
     monkeypatch.setattr(build_mod.utils, "run_command", fake_run)
+    monkeypatch.setattr(build_mod.subprocess, "run", fake_subprocess_run)
 
     buf = io.StringIO()
     _ensure_vcpkg(tmp_path, out=buf)
@@ -203,13 +213,17 @@ def test_ensure_vcpkg_reports_error_on_fetch_failure(
     (tmp_path / "vcpkg.json").write_text(f'{{"builtin-baseline": "{baseline}"}}')
 
     def fake_run(cmd, desc, **_kwargs):
-        if "rev-parse" in cmd:
-            return True, "ffffffffffffffffffffffffffffffffffffffff\n"
         if "fetch" in cmd:
             return False, "network error"
         return True, ""
 
+    def fake_subprocess_run(cmd, **_kwargs):
+        return build_mod.subprocess.CompletedProcess(
+            cmd, 0, "ffffffffffffffffffffffffffffffffffffffff\n", ""
+        )
+
     monkeypatch.setattr(build_mod.utils, "run_command", fake_run)
+    monkeypatch.setattr(build_mod.subprocess, "run", fake_subprocess_run)
 
     buf = io.StringIO()
     _ensure_vcpkg(tmp_path, out=buf)
