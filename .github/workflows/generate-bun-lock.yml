@@ -19,7 +19,9 @@ jobs:
           fetch-depth: 0
 
       - name: Apply migration patch
-        run: git apply --index .migration/tanstack-v9.patch
+        run: |
+          sed -i 's/\r$//' .migration/tanstack-v9.patch
+          git apply --index .migration/tanstack-v9.patch
 
       - name: Restore generated Bun lockfile
         env:
