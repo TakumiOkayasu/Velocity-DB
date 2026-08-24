@@ -40,27 +40,29 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           ci = Path('.github/workflows/ci.yml')
           text = ci.read_text()
-          old = "\n".join([
-              "      - name: Install dependencies",
-              "        working-directory: frontend",
-              "        run: |",
-              "          if [[ \"${{ github.actor }}\" == \"dependabot[bot]\" ]]; then",
-              "            vp install",
-              "          else",
-              "            vp install --frozen-lockfile",
-              "          fi",
-          ])
-          new = "\n".join([
+          pattern = re.compile(
+              r"      - name: Install dependencies\n"
+              r"        working-directory: frontend\n"
+              r"        run: \|\n"
+              r"          if \[\[ .*? \]\]; then\n"
+              r"            vp install\n"
+              r"          else\n"
+              r"            vp install --frozen-lockfile\n"
+              r"          fi"
+          )
+          replacement = "\n".join([
               "      - name: Install dependencies",
               "        working-directory: frontend",
               "        run: vp install --frozen-lockfile",
           ])
-          if text.count(old) != 2:
-              raise SystemExit(f'expected 2 Dependabot install exceptions, found {text.count(old)}')
-          ci.write_text(text.replace(old, new))
+          text, count = pattern.subn(replacement, text)
+          if count != 2:
+              raise SystemExit(f'expected 2 Dependabot install exceptions, found {count}')
+          ci.write_text(text)
 
           dependabot = Path('.github/dependabot.yml')
           text = dependabot.read_text()
