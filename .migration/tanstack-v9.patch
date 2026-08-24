@@ -1,0 +1,288 @@
+--- a/frontend/src/components/grid/ResultGrid.tsx
++++ b/frontend/src/components/grid/ResultGrid.tsx
+@@ -1,13 +1,4 @@
+-import {
+-  type ColumnDef,
+-  type ColumnFiltersState,
+-  getCoreRowModel,
+-  getFilteredRowModel,
+-  getSortedRowModel,
+-  type Row,
+-  type SortingState,
+-  useReactTable,
+-} from '@tanstack/react-table';
++import { type ColumnFiltersState, type SortingState, useTable } from '@tanstack/react-table';
+ import { useVirtualizer } from '@tanstack/react-virtual';
+ import { memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+ import { useConnectionStore } from '../../store/connectionStore';
+@@ -33,6 +24,7 @@
+ import { GridFilterBar } from './GridFilterBar';
+ import { GridStatusBar } from './GridStatusBar';
+ import { GridTable } from './GridTable';
++import { type GridColumnDef, type GridRow, gridTableFeatures } from './tableFeatures';
+ import { GridToolbar } from './GridToolbar';
+ import { useClampedActiveIndex } from './hooks/useClampedActiveIndex';
+ import { useColumnAutoSize } from './hooks/useColumnAutoSize';
+@@ -105,7 +97,7 @@
+   // --- Local state ---
+   const rowsLengthRef = useRef(0);
+   const columnOrderRef = useRef<string[]>([]);
+-  const viewRowsRef = useRef<Row<RowData>[]>([]);
++  const viewRowsRef = useRef<GridRow[]>([]);
+   const [viewMode, setViewMode] = useState<GridViewMode>('table');
+   const [transposeRowIndex, setTransposeRowIndex] = useState(0);
+   const [sorting, setSorting] = useState<SortingState>([]);
+@@ -215,7 +207,7 @@
+   // resultSet 全体を dep にすると columnDef が毎回新規生成され、TanStack Table の
+   // columnSizing との紐付けがスクロールのたびに揺らぎ、列幅変動に繋がる (#368)。
+   const resultSetColumns = resultSet?.columns;
+-  const columns = useMemo<ColumnDef<RowData>[]>(() => {
++  const columns = useMemo<GridColumnDef[]>(() => {
+     if (!resultSetColumns) return [];
+     return resultSetColumns.map((col) => {
+       const isNumeric = isNumericType(col.type);
+@@ -360,13 +352,10 @@
+     [isPaginated, targetQueryId, resetPaginatedSort]
+   );
+ 
+-  const table = useReactTable({
++  const table = useTable({
++    features: gridTableFeatures,
+     data: rowData,
+     columns,
+-    getCoreRowModel: getCoreRowModel(),
+-    getFilteredRowModel: getFilteredRowModel(),
+-    getSortedRowModel: getSortedRowModel(),
+-    enableRowSelection: true,
+     // 自前 resize 実装 (ColumnResizer 内 overlay indicator) のため TanStack 内蔵 resize は無効化。
+     // `header.column.getCanResize()` 判定維持のため `enableColumnResizing: true`、
+     // ただし columnResizeMode は drag 中の TanStack 内 state 更新を抑止するため未指定 (default 'onEnd')。
+--- a/frontend/src/components/grid/GridTable.tsx
++++ b/frontend/src/components/grid/GridTable.tsx
+@@ -1,10 +1,11 @@
+-import { flexRender, type Row, type Table } from '@tanstack/react-table';
++import { flexRender } from '@tanstack/react-table';
+ import type { VirtualItem } from '@tanstack/react-virtual';
+ import { type MouseEvent, memo, type RefObject, type UIEvent, useCallback, useMemo } from 'react';
+-import { type ColumnMeta, isSystemColumn, type RowData } from '../../types/grid';
++import { type ColumnMeta, isSystemColumn } from '../../types/grid';
+ import type { ValidationError } from '../../utils/validation';
+ import { ContextMenu } from '../common/ContextMenu';
+ import { ColumnResizer } from './ColumnResizer';
++import type { GridRow, GridTableInstance } from './tableFeatures';
+ import { useGridContextMenu } from './hooks/useGridContextMenu';
+ import styles from './ResultGrid.module.css';
+ 
+@@ -45,9 +46,9 @@
+ }
+ 
+ interface GridTableProps {
+-  table: Table<RowData>;
++  table: GridTableInstance;
+   tableContainerRef: RefObject<HTMLDivElement | null>;
+-  rows: Row<RowData>[];
++  rows: GridRow[];
+   virtualRows: VirtualItem[];
+   totalSize: number;
+   showColumnFilters: boolean;
+--- a/frontend/src/components/grid/hooks/useColumnAutoSize.ts
++++ b/frontend/src/components/grid/hooks/useColumnAutoSize.ts
+@@ -1,4 +1,3 @@
+-import type { ColumnDef } from '@tanstack/react-table';
+ import {
+   type Dispatch,
+   type SetStateAction,
+@@ -11,10 +10,11 @@
+ import type { ResultSet } from '../../../types';
+ import { isDateType, isNumericType, type RowData } from '../../../types/grid';
+ import { log } from '../../../utils/logger';
++import type { GridColumnDef } from '../tableFeatures';
+ 
+ interface UseColumnAutoSizeOptions {
+   resultSet: ResultSet | null;
+-  columns: ColumnDef<RowData>[];
++  columns: GridColumnDef[];
+   rowData: RowData[];
+ }
+ 
+@@ -131,7 +131,7 @@
+ }
+ 
+ function calculateColumnSizing(
+-  columns: ColumnDef<RowData>[],
++  columns: GridColumnDef[],
+   rowData: RowData[],
+   resultSet: ResultSet
+ ): Record<string, number> {
+@@ -178,7 +178,7 @@
+ // WebView2 の background/throttled setTimeout 下で列数 N に比例する yield 数 (N × ceil(rows/CHUNK))
+ // が完了不能になる事象を回避するため、列数に依存しない O(rows/CHUNK) に固定する。
+ async function calculateColumnSizingAsync(
+-  columns: ColumnDef<RowData>[],
++  columns: GridColumnDef[],
+   rowData: RowData[],
+   resultSet: ResultSet,
+   shouldAbort: () => boolean
+--- a/frontend/src/components/grid/hooks/useGridKeyboard.ts
++++ b/frontend/src/components/grid/hooks/useGridKeyboard.ts
+@@ -1,8 +1,8 @@
+-import type { ColumnDef } from '@tanstack/react-table';
+ import { type Dispatch, type SetStateAction, useCallback, useState } from 'react';
+ import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard';
+ import { useKeyboardHandler } from '../../../hooks/useKeyboardHandler';
+ import { isSystemColumn, type RowData } from '../../../types/grid';
++import type { GridColumnDef } from '../tableFeatures';
+ 
+ interface EditingCell {
+   rowIndex: number;
+@@ -13,7 +13,7 @@
+   isEditMode: boolean;
+   selectedRows: Set<number>;
+   selectedColumns: Set<string>;
+-  columns: ColumnDef<RowData>[];
++  columns: GridColumnDef[];
+   rowData: RowData[];
+   /** ソート/フィルタ後のビュー順でrowを取得 */
+   getRowByViewIndex: (viewIndex: number) => RowData | undefined;
+--- a/frontend/src/tests/grid/GridTable.virtualizerFallback.test.tsx
++++ b/frontend/src/tests/grid/GridTable.virtualizerFallback.test.tsx
+@@ -16,14 +16,7 @@
+ // → WebView2 の flex layout race で offsetHeight=0 の瞬間に観測されると
+ //   scrollRect={0,0} に固定、rowVirtualizer.measure() でも復旧不能になる。
+ 
+-import {
+-  type ColumnDef,
+-  getCoreRowModel,
+-  getFilteredRowModel,
+-  getSortedRowModel,
+-  type Row,
+-  useReactTable,
+-} from '@tanstack/react-table';
++import { useTable } from '@tanstack/react-table';
+ import type { VirtualItem } from '@tanstack/react-virtual';
+ import { cleanup, render, within } from '@testing-library/react';
+ import { useRef } from 'react';
+@@ -34,6 +27,11 @@
+   GridTable,
+ } from '../../components/grid/GridTable';
+ import type { RowData } from '../../types/grid';
++import {
++  type GridColumnDef,
++  type GridRow,
++  gridTableFeatures,
++} from '../../components/grid/tableFeatures';
+ 
+ afterEach(cleanup);
+ 
+@@ -48,7 +46,7 @@
+   }));
+ }
+ 
+-const COLUMNS: ColumnDef<RowData>[] = [
++const COLUMNS: GridColumnDef[] = [
+   { id: '__rowIndex', header: '#', accessorKey: '__rowIndex', size: 40 },
+   { id: 'name', header: 'name', accessorKey: 'name', size: 120 },
+   { id: 'age', header: 'age', accessorKey: 'age', size: 60 },
+@@ -90,17 +88,15 @@
+   totalSize: number;
+ }
+ 
+-/** 実 useReactTable で table を構築し、virtualRows / totalSize は外部制御する */
++/** 実 useTable で table を構築し、virtualRows / totalSize は外部制御する */
+ function Harness({ data, virtualRows, totalSize }: HarnessProps) {
+   const tableContainerRef = useRef<HTMLDivElement>(null);
+-  const table = useReactTable<RowData>({
++  const table = useTable({
++    features: gridTableFeatures,
+     data,
+     columns: COLUMNS,
+-    getCoreRowModel: getCoreRowModel(),
+-    getFilteredRowModel: getFilteredRowModel(),
+-    getSortedRowModel: getSortedRowModel(),
+   });
+-  const rows: Row<RowData>[] = table.getRowModel().rows;
++  const rows: GridRow[] = table.getRowModel().rows;
+   return (
+     <GridTable
+       table={table}
+--- a/frontend/src/tests/grid/ResultGrid.autoAdjustWiring.integration.test.tsx
++++ b/frontend/src/tests/grid/ResultGrid.autoAdjustWiring.integration.test.tsx
+@@ -12,7 +12,6 @@
+ //   3. 各経路から trigger → runFullMeasurement が新 rowData で再計算するはず
+ //   4. 300px (varchar clamp) への変化を検証
+ 
+-import type { ColumnDef } from '@tanstack/react-table';
+ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+ import { useMemo } from 'react';
+ import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
+@@ -26,6 +25,7 @@
+ import { useGridContextMenu } from '../../components/grid/hooks/useGridContextMenu';
+ import type { ResultSet } from '../../types';
+ import type { ColumnMeta, RowData } from '../../types/grid';
++import type { GridColumnDef } from '../../components/grid/tableFeatures';
+ 
+ const CONTEXT_MENU_ALL_COLUMNS = '全列をオートアジャスト';
+ const CONTEXT_MENU_SINGLE_COLUMN = 'この列をオートアジャスト';
+@@ -67,7 +67,7 @@
+     [descriptionText, rowCount]
+   );
+ 
+-  const columns = useMemo<ColumnDef<RowData>[]>(
++  const columns = useMemo<GridColumnDef[]>(
+     () => [
+       {
+         id: 'description',
+--- a/frontend/src/tests/grid/useColumnAutoSize.test.ts
++++ b/frontend/src/tests/grid/useColumnAutoSize.test.ts
+@@ -1,9 +1,9 @@
+-import type { ColumnDef } from '@tanstack/react-table';
+ import { act, renderHook, waitFor } from '@testing-library/react';
+ import { describe, expect, it } from 'vite-plus/test';
+ import { useColumnAutoSize } from '../../components/grid/hooks/useColumnAutoSize';
+ import type { ResultSet } from '../../types';
+ import type { RowData } from '../../types/grid';
++import type { GridColumnDef } from '../../components/grid/tableFeatures';
+ 
+ function makeResultSet(cols: Array<{ name: string; type: string }>, rows: string[][]): ResultSet {
+   return {
+@@ -33,7 +33,7 @@
+   });
+ }
+ 
+-function makeColumns(cols: string[]): ColumnDef<RowData>[] {
++function makeColumns(cols: string[]): GridColumnDef[] {
+   return cols.map((name) => ({
+     id: name,
+     header: name,
+--- a/frontend/src/tests/grid/useGridKeyboard.test.ts
++++ b/frontend/src/tests/grid/useGridKeyboard.test.ts
+@@ -1,8 +1,8 @@
+-import type { ColumnDef } from '@tanstack/react-table';
+ import { act, renderHook } from '@testing-library/react';
+ import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
+ import { useGridKeyboard } from '../../components/grid/hooks/useGridKeyboard';
+ import type { RowData } from '../../types/grid';
++import type { GridColumnDef } from '../../components/grid/tableFeatures';
+ 
+ // --- Mocks ---
+ const mockCopyToClipboard = vi.fn();
+@@ -23,7 +23,7 @@
+ }));
+ 
+ // --- Test data ---
+-const testColumns: ColumnDef<RowData>[] = [
++const testColumns: GridColumnDef[] = [
+   { id: 'col_a', header: 'Column A', accessorKey: 'col_a' },
+   { id: 'col_b', header: 'Column B', accessorKey: 'col_b' },
+ ];
+--- a/frontend/src/types/tanstack-table.d.ts
++++ /dev/null
+@@ -1,8 +0,0 @@
+-import '@tanstack/react-table';
+-
+-declare module '@tanstack/react-table' {
+-  interface ColumnMeta<TData extends RowData, TValue> {
+-    type?: string;
+-    align?: 'left' | 'right' | 'center';
+-  }
+-}
