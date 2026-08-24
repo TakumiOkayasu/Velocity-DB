@@ -110,21 +110,16 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          # git apply --index already staged every source/test migration change.
+          # Only stage changes made after patch application plus scaffold deletions.
           git add -- \
             .github/dependabot.yml \
             .github/workflows/ci.yml \
-            frontend/bun.lock \
-            frontend/src/components/grid/GridTable.tsx \
-            frontend/src/components/grid/ResultGrid.tsx \
-            frontend/src/components/grid/hooks/useColumnAutoSize.ts \
-            frontend/src/components/grid/hooks/useGridKeyboard.ts \
-            frontend/src/tests/grid/GridTable.virtualizerFallback.test.tsx \
-            frontend/src/tests/grid/ResultGrid.autoAdjustWiring.integration.test.tsx \
-            frontend/src/tests/grid/useColumnAutoSize.test.ts \
-            frontend/src/tests/grid/useGridKeyboard.test.ts
+            frontend/bun.lock
           git add -u -- \
             .github/workflows/generate-bun-lock.yml \
-            .migration/tanstack-v9.patch \
-            frontend/src/types/tanstack-table.d.ts
+            .migration/tanstack-v9.patch
+          git diff --cached --check
+          git status --short
           git commit -m 'fix(frontend): complete TanStack Table v9 migration'
           git push origin HEAD:fix/tanstack-table-v9-migration
