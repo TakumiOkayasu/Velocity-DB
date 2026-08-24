@@ -1,0 +1,34 @@
+name: Generate Bun Lock
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    if: github.head_ref == 'fix/tanstack-table-v9-migration'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@313600b80b104eadebb9111787d37a2e83e014ca # v1.17.0
+        with:
+          working-directory: frontend
+          cache: false
+          run-install: false
+
+      - name: Regenerate Bun lockfile
+        working-directory: frontend
+        run: vp install
+
+      - name: Upload generated lockfile
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: generated-bun-lock
+          path: frontend/bun.lock
+          if-no-files-found: error
+          retention-days: 1
