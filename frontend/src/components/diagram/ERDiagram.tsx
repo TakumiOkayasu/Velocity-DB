@@ -5,6 +5,7 @@ import {
   type Edge,
   MarkerType,
   type Node,
+  type OnNodeDrag,
   ReactFlow,
   ReactFlowProvider,
   useNodesState,
@@ -180,18 +181,15 @@ function ERDiagramFlow({
 
   const edges: Edge[] = useMemo(() => buildEdges(relations, edgePosMap), [relations, edgePosMap]);
 
-  const nodeDragStop = useCallback(
-    (_event: React.MouseEvent, _node: Node, draggedNodes: Node[]) => {
-      setEdgePosMap((prev) => {
-        const next = new Map(prev);
-        for (const n of draggedNodes) {
-          next.set(n.id, n.position);
-        }
-        return next;
-      });
-    },
-    []
-  );
+  const nodeDragStop: OnNodeDrag<Node> = useCallback((_event, _node, draggedNodes) => {
+    setEdgePosMap((prev) => {
+      const next = new Map(prev);
+      for (const n of draggedNodes) {
+        next.set(n.id, n.position);
+      }
+      return next;
+    });
+  }, []);
 
   const nodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
