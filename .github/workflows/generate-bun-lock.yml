@@ -6,6 +6,7 @@ on:
       - fix/tanstack-table-v9-migration
 
 permissions:
+  actions: read
   contents: write
 
 jobs:
@@ -41,19 +42,21 @@ jobs:
 
           ci = Path('.github/workflows/ci.yml')
           text = ci.read_text()
-          old = '''      - name: Install dependencies
-                working-directory: frontend
-                run: |
-                  if [[ "${{ github.actor }}" == "dependabot[bot]" ]]; then
-                    vp install
-                  else
-                    vp install --frozen-lockfile
-                  fi
-          '''
-          new = '''      - name: Install dependencies
-                working-directory: frontend
-                run: vp install --frozen-lockfile
-          '''
+          old = "\n".join([
+              "      - name: Install dependencies",
+              "        working-directory: frontend",
+              "        run: |",
+              "          if [[ \"${{ github.actor }}\" == \"dependabot[bot]\" ]]; then",
+              "            vp install",
+              "          else",
+              "            vp install --frozen-lockfile",
+              "          fi",
+          ])
+          new = "\n".join([
+              "      - name: Install dependencies",
+              "        working-directory: frontend",
+              "        run: vp install --frozen-lockfile",
+          ])
           if text.count(old) != 2:
               raise SystemExit(f'expected 2 Dependabot install exceptions, found {text.count(old)}')
           ci.write_text(text.replace(old, new))
