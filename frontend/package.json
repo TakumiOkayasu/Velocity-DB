@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
-    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-table": "^9.1.2",
     "@tanstack/react-virtual": "^3.13.18",
     "@xyflow/react": "^12.10.0",
     "monaco-editor": "^0.56.0",
