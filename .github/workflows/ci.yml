@@ -63,12 +63,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: |
-          if [[ "${{ github.actor }}" == "dependabot[bot]" ]]; then
-            vp install
-          else
-            vp install --frozen-lockfile
-          fi
+        run: vp install --frozen-lockfile
 
       - name: Lint and Type Check (parallel)
         working-directory: frontend
@@ -109,12 +104,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: |
-          if [[ "${{ github.actor }}" == "dependabot[bot]" ]]; then
-            vp install
-          else
-            vp install --frozen-lockfile
-          fi
+        run: vp install --frozen-lockfile
 
       - name: Build and Test (parallel)
         working-directory: frontend
