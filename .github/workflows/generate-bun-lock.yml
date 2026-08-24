@@ -113,8 +113,6 @@ jobs:
           git add -- \
             .github/dependabot.yml \
             .github/workflows/ci.yml \
-            .github/workflows/generate-bun-lock.yml \
-            .migration/tanstack-v9.patch \
             frontend/bun.lock \
             frontend/src/components/grid/GridTable.tsx \
             frontend/src/components/grid/ResultGrid.tsx \
@@ -123,7 +121,10 @@ jobs:
             frontend/src/tests/grid/GridTable.virtualizerFallback.test.tsx \
             frontend/src/tests/grid/ResultGrid.autoAdjustWiring.integration.test.tsx \
             frontend/src/tests/grid/useColumnAutoSize.test.ts \
-            frontend/src/tests/grid/useGridKeyboard.test.ts \
+            frontend/src/tests/grid/useGridKeyboard.test.ts
+          git add -u -- \
+            .github/workflows/generate-bun-lock.yml \
+            .migration/tanstack-v9.patch \
             frontend/src/types/tanstack-table.d.ts
           git commit -m 'fix(frontend): complete TanStack Table v9 migration'
           git push origin HEAD:fix/tanstack-table-v9-migration
