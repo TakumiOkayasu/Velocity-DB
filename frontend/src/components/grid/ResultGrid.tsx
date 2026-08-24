@@ -1,13 +1,4 @@
-import {
-  type ColumnDef,
-  type ColumnFiltersState,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  type Row,
-  type SortingState,
-  useReactTable,
-} from '@tanstack/react-table';
+import { type ColumnFiltersState, type SortingState, useTable } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useConnectionStore } from '../../store/connectionStore';
@@ -33,6 +24,7 @@ import { QueryConfirmDialog } from '../dialogs/QueryConfirmDialog';
 import { GridFilterBar } from './GridFilterBar';
 import { GridStatusBar } from './GridStatusBar';
 import { GridTable } from './GridTable';
+import { type GridColumnDef, type GridRow, gridTableFeatures } from './tableFeatures';
 import { GridToolbar } from './GridToolbar';
 import { useClampedActiveIndex } from './hooks/useClampedActiveIndex';
 import { useColumnAutoSize } from './hooks/useColumnAutoSize';
@@ -105,7 +97,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   // --- Local state ---
   const rowsLengthRef = useRef(0);
   const columnOrderRef = useRef<string[]>([]);
-  const viewRowsRef = useRef<Row<RowData>[]>([]);
+  const viewRowsRef = useRef<GridRow[]>([]);
   const [viewMode, setViewMode] = useState<GridViewMode>('table');
   const [transposeRowIndex, setTransposeRowIndex] = useState(0);
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -215,7 +207,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   // resultSet 全体を dep にすると columnDef が毎回新規生成され、TanStack Table の
   // columnSizing との紐付けがスクロールのたびに揺らぎ、列幅変動に繋がる (#368)。
   const resultSetColumns = resultSet?.columns;
-  const columns = useMemo<ColumnDef<RowData>[]>(() => {
+  const columns = useMemo<GridColumnDef[]>(() => {
     if (!resultSetColumns) return [];
     return resultSetColumns.map((col) => {
       const isNumeric = isNumericType(col.type);
@@ -360,13 +352,10 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     [isPaginated, targetQueryId, resetPaginatedSort]
   );
 
-  const table = useReactTable({
+  const table = useTable({
+    features: gridTableFeatures,
     data: rowData,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    enableRowSelection: true,
     // 自前 resize 実装 (ColumnResizer 内 overlay indicator) のため TanStack 内蔵 resize は無効化。
     // `header.column.getCanResize()` 判定維持のため `enableColumnResizing: true`、
     // ただし columnResizeMode は drag 中の TanStack 内 state 更新を抑止するため未指定 (default 'onEnd')。

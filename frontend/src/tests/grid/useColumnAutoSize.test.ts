@@ -1,9 +1,9 @@
-import type { ColumnDef } from '@tanstack/react-table';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vite-plus/test';
 import { useColumnAutoSize } from '../../components/grid/hooks/useColumnAutoSize';
 import type { ResultSet } from '../../types';
 import type { RowData } from '../../types/grid';
+import type { GridColumnDef } from '../../components/grid/tableFeatures';
 
 function makeResultSet(cols: Array<{ name: string; type: string }>, rows: string[][]): ResultSet {
   return {
@@ -33,7 +33,7 @@ function makeRowData(cols: string[], rows: string[][]): RowData[] {
   });
 }
 
-function makeColumns(cols: string[]): ColumnDef<RowData>[] {
+function makeColumns(cols: string[]): GridColumnDef[] {
   return cols.map((name) => ({
     id: name,
     header: name,

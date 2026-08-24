@@ -16,14 +16,7 @@
 // → WebView2 の flex layout race で offsetHeight=0 の瞬間に観測されると
 //   scrollRect={0,0} に固定、rowVirtualizer.measure() でも復旧不能になる。
 
-import {
-  type ColumnDef,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  type Row,
-  useReactTable,
-} from '@tanstack/react-table';
+import { useTable } from '@tanstack/react-table';
 import type { VirtualItem } from '@tanstack/react-virtual';
 import { cleanup, render, within } from '@testing-library/react';
 import { useRef } from 'react';
@@ -34,6 +27,11 @@ import {
   GridTable,
 } from '../../components/grid/GridTable';
 import type { RowData } from '../../types/grid';
+import {
+  type GridColumnDef,
+  type GridRow,
+  gridTableFeatures,
+} from '../../components/grid/tableFeatures';
 
 afterEach(cleanup);
 
@@ -48,7 +46,7 @@ function makeRowData(count: number): RowData[] {
   }));
 }
 
-const COLUMNS: ColumnDef<RowData>[] = [
+const COLUMNS: GridColumnDef[] = [
   { id: '__rowIndex', header: '#', accessorKey: '__rowIndex', size: 40 },
   { id: 'name', header: 'name', accessorKey: 'name', size: 120 },
   { id: 'age', header: 'age', accessorKey: 'age', size: 60 },
@@ -90,17 +88,15 @@ interface HarnessProps {
   totalSize: number;
 }
 
-/** 実 useReactTable で table を構築し、virtualRows / totalSize は外部制御する */
+/** 実 useTable で table を構築し、virtualRows / totalSize は外部制御する */
 function Harness({ data, virtualRows, totalSize }: HarnessProps) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const table = useReactTable<RowData>({
+  const table = useTable({
+    features: gridTableFeatures,
     data,
     columns: COLUMNS,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
-  const rows: Row<RowData>[] = table.getRowModel().rows;
+  const rows: GridRow[] = table.getRowModel().rows;
   return (
     <GridTable
       table={table}

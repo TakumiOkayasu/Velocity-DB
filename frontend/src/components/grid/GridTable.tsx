@@ -1,10 +1,11 @@
-import { flexRender, type Row, type Table } from '@tanstack/react-table';
+import { flexRender } from '@tanstack/react-table';
 import type { VirtualItem } from '@tanstack/react-virtual';
 import { type MouseEvent, memo, type RefObject, type UIEvent, useCallback, useMemo } from 'react';
-import { type ColumnMeta, isSystemColumn, type RowData } from '../../types/grid';
+import { type ColumnMeta, isSystemColumn } from '../../types/grid';
 import type { ValidationError } from '../../utils/validation';
 import { ContextMenu } from '../common/ContextMenu';
 import { ColumnResizer } from './ColumnResizer';
+import type { GridRow, GridTableInstance } from './tableFeatures';
 import { useGridContextMenu } from './hooks/useGridContextMenu';
 import styles from './ResultGrid.module.css';
 
@@ -45,9 +46,9 @@ interface GridTableCallbacks {
 }
 
 interface GridTableProps {
-  table: Table<RowData>;
+  table: GridTableInstance;
   tableContainerRef: RefObject<HTMLDivElement | null>;
-  rows: Row<RowData>[];
+  rows: GridRow[];
   virtualRows: VirtualItem[];
   totalSize: number;
   showColumnFilters: boolean;
