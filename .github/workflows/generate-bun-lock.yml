@@ -36,33 +36,10 @@ jobs:
           unzip -q /tmp/generated-bun-lock.zip -d /tmp/generated-bun-lock
           cp /tmp/generated-bun-lock/bun.lock frontend/bun.lock
 
-      - name: Harden dependency update validation
+      - name: Configure Bun Dependabot ecosystem
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
-
-          ci = Path('.github/workflows/ci.yml')
-          text = ci.read_text()
-          pattern = re.compile(
-              r"      - name: Install dependencies\n"
-              r"        working-directory: frontend\n"
-              r"        run: \|\n"
-              r"          if \[\[ .*? \]\]; then\n"
-              r"            vp install\n"
-              r"          else\n"
-              r"            vp install --frozen-lockfile\n"
-              r"          fi"
-          )
-          replacement = "\n".join([
-              "      - name: Install dependencies",
-              "        working-directory: frontend",
-              "        run: vp install --frozen-lockfile",
-          ])
-          text, count = pattern.subn(replacement, text)
-          if count != 2:
-              raise SystemExit(f'expected 2 Dependabot install exceptions, found {count}')
-          ci.write_text(text)
 
           dependabot = Path('.github/dependabot.yml')
           text = dependabot.read_text()
@@ -73,11 +50,10 @@ jobs:
           dependabot.write_text(text.replace(old, new, 1))
           PY
 
-      - name: Remove migration scaffolding
+      - name: Remove migration patch
         run: |
           rm .migration/tanstack-v9.patch
           rmdir .migration
-          rm .github/workflows/generate-bun-lock.yml
 
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@313600b80b104eadebb9111787d37a2e83e014ca # v1.17.0
@@ -104,21 +80,14 @@ jobs:
           ! grep -R --line-number --fixed-strings 'useReactTable' frontend/src
           ! grep -R --line-number --fixed-strings 'getCoreRowModel' frontend/src
           ! grep -R --line-number --fixed-strings 'package-ecosystem: "npm"' .github/dependabot.yml
-          test "$(grep -c --fixed-strings 'vp install --frozen-lockfile' .github/workflows/ci.yml)" -eq 2
 
-      - name: Commit validated migration
+      - name: Commit validated non-workflow migration
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          # git apply --index already staged every source/test migration change.
-          # Only stage changes made after patch application plus scaffold deletions.
-          git add -- \
-            .github/dependabot.yml \
-            .github/workflows/ci.yml \
-            frontend/bun.lock
-          git add -u -- \
-            .github/workflows/generate-bun-lock.yml \
-            .migration/tanstack-v9.patch
+          # Source/test changes are already staged by git apply --index.
+          git add -- .github/dependabot.yml frontend/bun.lock
+          git add -u -- .migration/tanstack-v9.patch
           git diff --cached --check
           git status --short
           git commit -m 'fix(frontend): complete TanStack Table v9 migration'
