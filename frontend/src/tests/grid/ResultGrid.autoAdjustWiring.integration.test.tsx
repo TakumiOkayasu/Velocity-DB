@@ -12,7 +12,6 @@
 //   3. 各経路から trigger → runFullMeasurement が新 rowData で再計算するはず
 //   4. 300px (varchar clamp) への変化を検証
 
-import type { ColumnDef } from '@tanstack/react-table';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useMemo } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
@@ -26,6 +25,7 @@ import { useColumnAutoSize } from '../../components/grid/hooks/useColumnAutoSize
 import { useGridContextMenu } from '../../components/grid/hooks/useGridContextMenu';
 import type { ResultSet } from '../../types';
 import type { ColumnMeta, RowData } from '../../types/grid';
+import type { GridColumnDef } from '../../components/grid/tableFeatures';
 
 const CONTEXT_MENU_ALL_COLUMNS = '全列をオートアジャスト';
 const CONTEXT_MENU_SINGLE_COLUMN = 'この列をオートアジャスト';
@@ -67,7 +67,7 @@ function Harness({
     [descriptionText, rowCount]
   );
 
-  const columns = useMemo<ColumnDef<RowData>[]>(
+  const columns = useMemo<GridColumnDef[]>(
     () => [
       {
         id: 'description',

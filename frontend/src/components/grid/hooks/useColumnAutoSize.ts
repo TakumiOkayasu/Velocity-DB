@@ -1,4 +1,3 @@
-import type { ColumnDef } from '@tanstack/react-table';
 import {
   type Dispatch,
   type SetStateAction,
@@ -11,10 +10,11 @@ import {
 import type { ResultSet } from '../../../types';
 import { isDateType, isNumericType, type RowData } from '../../../types/grid';
 import { log } from '../../../utils/logger';
+import type { GridColumnDef } from '../tableFeatures';
 
 interface UseColumnAutoSizeOptions {
   resultSet: ResultSet | null;
-  columns: ColumnDef<RowData>[];
+  columns: GridColumnDef[];
   rowData: RowData[];
 }
 
@@ -131,7 +131,7 @@ function measureColumnWidth(
 }
 
 function calculateColumnSizing(
-  columns: ColumnDef<RowData>[],
+  columns: GridColumnDef[],
   rowData: RowData[],
   resultSet: ResultSet
 ): Record<string, number> {
@@ -178,7 +178,7 @@ async function measureColumnWidthAsync(
 // WebView2 の background/throttled setTimeout 下で列数 N に比例する yield 数 (N × ceil(rows/CHUNK))
 // が完了不能になる事象を回避するため、列数に依存しない O(rows/CHUNK) に固定する。
 async function calculateColumnSizingAsync(
-  columns: ColumnDef<RowData>[],
+  columns: GridColumnDef[],
   rowData: RowData[],
   resultSet: ResultSet,
   shouldAbort: () => boolean

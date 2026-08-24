@@ -1,8 +1,8 @@
-import type { ColumnDef } from '@tanstack/react-table';
 import { type Dispatch, type SetStateAction, useCallback, useState } from 'react';
 import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard';
 import { useKeyboardHandler } from '../../../hooks/useKeyboardHandler';
 import { isSystemColumn, type RowData } from '../../../types/grid';
+import type { GridColumnDef } from '../tableFeatures';
 
 interface EditingCell {
   rowIndex: number;
@@ -13,7 +13,7 @@ interface UseGridKeyboardOptions {
   isEditMode: boolean;
   selectedRows: Set<number>;
   selectedColumns: Set<string>;
-  columns: ColumnDef<RowData>[];
+  columns: GridColumnDef[];
   rowData: RowData[];
   /** ソート/フィルタ後のビュー順でrowを取得 */
   getRowByViewIndex: (viewIndex: number) => RowData | undefined;

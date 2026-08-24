@@ -1,8 +1,8 @@
-import type { ColumnDef } from '@tanstack/react-table';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { useGridKeyboard } from '../../components/grid/hooks/useGridKeyboard';
 import type { RowData } from '../../types/grid';
+import type { GridColumnDef } from '../../components/grid/tableFeatures';
 
 // --- Mocks ---
 const mockCopyToClipboard = vi.fn();
@@ -23,7 +23,7 @@ vi.mock('../../utils/logger', () => ({
 }));
 
 // --- Test data ---
-const testColumns: ColumnDef<RowData>[] = [
+const testColumns: GridColumnDef[] = [
   { id: 'col_a', header: 'Column A', accessorKey: 'col_a' },
   { id: 'col_b', header: 'Column B', accessorKey: 'col_b' },
 ];
