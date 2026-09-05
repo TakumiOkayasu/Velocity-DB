@@ -112,7 +112,7 @@ describe('saved-profile connection through ConnectionDialog (#689)', () => {
       await screen.findByDisplayValue('stage-server');
     }
 
-    fireEvent.click(screen.getByRole('button', { name: 'テスト', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'テスト' }));
     await screen.findByText('Connection successful');
     expect(useConnectionStore.getState().connections).toHaveLength(0);
 
@@ -138,11 +138,11 @@ describe('saved-profile connection through ConnectionDialog (#689)', () => {
   it.each(['new', 'copy'])('keeps %s connections ad hoc', async (mode) => {
     await openDialog();
     if (mode === 'new') {
-      fireEvent.click(screen.getByRole('button', { name: '+', exact: true }));
+      fireEvent.click(screen.getByRole('button', { name: '+' }));
     } else {
       fireEvent.click(screen.getByTitle('接続プロファイルをコピー'));
     }
-    await screen.findByRole('button', { name: '新規保存', exact: true });
+    await screen.findByRole('button', { name: '新規保存' });
     fireEvent.click(screen.getByTestId('conn-submit'));
 
     await waitFor(() => expect(useConnectionStore.getState().connections).toHaveLength(1));
