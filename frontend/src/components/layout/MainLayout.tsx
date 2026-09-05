@@ -120,9 +120,10 @@ export function MainLayout() {
     isDataView,
   });
 
-  const connectToDatabase = async (config: ConnectionConfig) => {
+  const connectToDatabase = async (config: ConnectionConfig, profileId?: string) => {
     try {
       const result = await addConnection({
+        profileId,
         name: config.name,
         server: config.server,
         port: config.port,
