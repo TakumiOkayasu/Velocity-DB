@@ -105,7 +105,7 @@ describe('saved-profile connection through ConnectionDialog (#689)', () => {
 
   afterEach(cleanup);
 
-  it.each(['dev', 'stage'])('connects only the selected %s profile and displays its tables', async (selected) => {
+  it.each(['dev', 'stage'])('shows tables for the selected %s profile', async (selected) => {
     await openDialog();
     if (selected === 'stage') {
       fireEvent.click(screen.getByText('stage-server/test_db'));
@@ -135,7 +135,7 @@ describe('saved-profile connection through ConnectionDialog (#689)', () => {
     expect(schemaProvider.getTables).toHaveBeenCalledWith('connection-689', '');
   });
 
-  it.each(['new', 'copy'])('does not inherit a saved profile ID for a %s connection', async (mode) => {
+  it.each(['new', 'copy'])('keeps %s connections ad hoc', async (mode) => {
     await openDialog();
     if (mode === 'new') {
       fireEvent.click(screen.getByRole('button', { name: '+', exact: true }));
