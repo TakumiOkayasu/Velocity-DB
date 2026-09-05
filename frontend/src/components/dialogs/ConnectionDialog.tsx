@@ -14,7 +14,7 @@ import { SshTunnelSection } from './sections/SshTunnelSection';
 interface ConnectionDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onConnect: (config: ConnectionConfig) => void;
+  onConnect: (config: ConnectionConfig, profileId?: string) => void;
   isConnecting?: boolean;
   onCancelConnect?: () => void;
 }
@@ -116,7 +116,7 @@ export function ConnectionDialog({
   };
 
   const handleConnect = () => {
-    onConnect(config);
+    onConnect(config, mode === 'edit' ? (editingProfileId ?? undefined) : undefined);
   };
 
   return (
