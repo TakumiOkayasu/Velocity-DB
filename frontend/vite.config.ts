@@ -59,12 +59,28 @@ export default defineConfig({
       ],
       'react/exhaustive-deps': 'warn',
       'react/rules-of-hooks': 'error',
+      // Keep the React Compiler diagnostics surfaced by Vite+ 0.3 non-blocking
+      // until they are reviewed separately from the tooling upgrade (#697).
+      'react/immutability': 'warn',
+      'react/incompatible-library': 'warn',
+      'react/preserve-manual-memoization': 'warn',
+      'react/refs': 'warn',
+      'react/set-state-in-effect': 'warn',
       'typescript/no-explicit-any': 'warn',
       'react/no-array-index-key': 'warn',
       'typescript/no-non-null-assertion': 'warn',
       'prefer-const': 'error',
       'prefer-template': 'error',
     },
+    overrides: [
+      {
+        files: ['src/utils/ddlParser.ts'],
+        rules: {
+          // The JSDoc block-comment example separates its closing delimiter with U+200B.
+          'no-irregular-whitespace': ['error', { skipComments: true }],
+        },
+      },
+    ],
     // Keep the existing tsgo contract. Enabling Oxlint type-aware checks here introduces
     // hundreds of unrelated findings and is intentionally deferred to a follow-up.
     options: { typeAware: false, typeCheck: false },
