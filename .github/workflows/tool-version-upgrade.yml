@@ -59,8 +59,8 @@ jobs:
           echo "vcpkg=$VCPKG" >> "$GITHUB_OUTPUT"
           echo "Current vcpkg baseline: $VCPKG"
 
-          # clang-format: LLVM major version from ci.yml
-          CLANG=$(grep 'clang-format-' .github/workflows/ci.yml | head -1 | grep -oP 'clang-format-\K\d+')
+          # clang-format: exact LLVM release from the shared project config
+          CLANG=$(python3 -c 'import tomllib; print(tomllib.load(open("mise.toml", "rb"))["tools"]["github:llvm/llvm-project"]["version"])')
           echo "clang=$CLANG" >> "$GITHUB_OUTPUT"
           echo "Current clang-format: $CLANG"
 
@@ -87,10 +87,10 @@ jobs:
           echo "vcpkg_current_date=$VCPKG_CURRENT_DATE" >> "$GITHUB_OUTPUT"
           echo "Current vcpkg commit date: $VCPKG_CURRENT_DATE"
 
-          # clang-format: latest stable LLVM major version
+          # clang-format: latest stable LLVM release
           CLANG=$(gh api repos/llvm/llvm-project/releases --jq '
             [.[] | select(.tag_name | startswith("llvmorg-")) | select(.prerelease == false)]
-            | first | .tag_name' | sed 's/llvmorg-//' | cut -d. -f1)
+            | first | .tag_name' | sed 's/llvmorg-//')
           echo "clang=$CLANG" >> "$GITHUB_OUTPUT"
           echo "Latest clang-format: $CLANG"
 
@@ -406,8 +406,7 @@ jobs:
     if: needs.detect-versions.outputs.clang_needs_update == 'true'
     runs-on: ubuntu-latest
     steps:
-      # `.github/workflows/*` の変更を含む push は GITHUB_TOKEN では拒否されるため
-      # GitHub App の installation token を使う (1時間で自動失効する短命トークン)
+      # Use the existing short-lived App token so the update PR triggers CI.
       - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         id: app-token
         with:
@@ -431,43 +430,47 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Update LLVM version in ci.yml
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         if: steps.check-pr.outputs.skip == 'false'
-        env:
-          OLD_VERSION: ${{ needs.detect-versions.outputs.clang_current }}
-          NEW_VERSION: ${{ needs.detect-versions.outputs.clang_latest }}
-        run: |
-          # Update APT repo reference
-          sed -i "s/llvm-toolchain-noble-${OLD_VERSION}/llvm-toolchain-noble-${NEW_VERSION}/g" .github/workflows/ci.yml
 
-          # Update clang-format package and binary references
-          sed -i "s/clang-format-${OLD_VERSION}/clang-format-${NEW_VERSION}/g" .github/workflows/ci.yml
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
+        if: steps.check-pr.outputs.skip == 'false'
+        with:
+          version: 2026.9.1
+          install: false
+          export_path: false
+          env: false
 
-          # Update step name
-          sed -i "s/Install LLVM ${OLD_VERSION}/Install LLVM ${NEW_VERSION}/g" .github/workflows/ci.yml
-
-          echo "Updated clang-format ${OLD_VERSION} -> ${NEW_VERSION} in ci.yml"
-          grep -n 'llvm\|clang-format' .github/workflows/ci.yml
-
-      - name: Install new clang-format
+      - name: Update LLVM version and both platform locks
         if: steps.check-pr.outputs.skip == 'false'
         env:
           NEW_VERSION: ${{ needs.detect-versions.outputs.clang_latest }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
-          echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-${NEW_VERSION} main" | sudo tee /etc/apt/sources.list.d/llvm.list
-          sudo apt-get update
-          sudo apt-get install -y "clang-format-${NEW_VERSION}"
-          sudo update-alternatives --install /usr/bin/clang-format clang-format "/usr/bin/clang-format-${NEW_VERSION}" 100
-          clang-format --version
+          python3 - <<'PYTHON'
+          import os
+          import re
+          import tomllib
+          from pathlib import Path
+          path = Path("mise.toml")
+          source = path.read_text()
+          old = tomllib.loads(source)["tools"]["github:llvm/llvm-project"]["version"]
+          new = os.environ["NEW_VERSION"]
+          if not re.fullmatch(r"\d+\.\d+\.\d+", new):
+              raise SystemExit("Expected an exact LLVM release")
+          before = f'\nversion = "{old}"\n'
+          if source.count(before) != 1:
+              raise SystemExit("Expected one LLVM version entry")
+          path.write_text(source.replace(before, f'\nversion = "{new}"\n'))
+          PYTHON
+          mise lock --platform linux-x64,windows-x64
+          mise install --locked
 
-      - name: Validate formatting
+      - name: Validate resolver and formatting
         if: steps.check-pr.outputs.skip == 'false'
-        run: |
-          find backend -name '*.cpp' -o -name '*.h' | while read file; do
-            clang-format --style=file --dry-run --Werror "$file" || exit 1
-          done
-          echo "All files pass clang-format check"
+        env:
+          VELOCITYDB_TEST_LLVM: '1'
+        run: uv run --with pytest python -m pytest scripts/tests/test_llvm.py scripts/tests/test_llvm_integration.py -q
 
       - name: Create PR
         if: steps.check-pr.outputs.skip == 'false'
@@ -480,31 +483,24 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          git add .github/workflows/ci.yml
+          git add mise.toml mise.lock
           git commit -m "chore(deps): upgrade clang-format ${OLD_VERSION} -> ${NEW_VERSION}"
           git push origin "$BRANCH"
 
-          gh pr create \
-            --title "chore(deps): upgrade clang-format to ${NEW_VERSION}" \
-            --body "$(cat <<EOF
+          cat > "$RUNNER_TEMP/llvm-pr.md" <<EOF
           ## Tool Version Upgrade
 
-          | Field | Value |
-          |-------|-------|
-          | Tool | clang-format (LLVM) |
-          | Previous | ${OLD_VERSION} |
-          | New | ${NEW_VERSION} |
+          LLVM ${OLD_VERSION} -> ${NEW_VERSION}. Both platform artifacts are locked in mise.lock.
 
-          ### Validation
-          - [x] clang-format ${NEW_VERSION} installed successfully
-          - [x] All backend sources pass \`--dry-run --Werror\`
+          - [x] Linux installation, resolver regression tests and formatting passed
+          - [ ] Windows installation and formatting (required PR CI)
+          - [ ] Windows/Linux output comparison (required PR CI)
 
-          > **Note**: clang-format major version upgrades may change formatting rules.
-          > If this PR changes formatting, review the diffs carefully before merging.
-
-          ### Auto-generated
-          This PR was automatically created by the tool-version-upgrade workflow.
+          Application sources are unchanged. This PR was created by the tool-version-upgrade workflow.
           EOF
-          )" \
+
+          gh pr create \
+            --title "chore(deps): upgrade clang-format to ${NEW_VERSION}" \
+            --body-file "$RUNNER_TEMP/llvm-pr.md" \
             --label "dependencies" \
             --reviewer "TakumiOkayasu"

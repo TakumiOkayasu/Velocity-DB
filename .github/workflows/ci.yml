@@ -16,34 +16,52 @@ permissions:
   contents: read
 
 jobs:
-  # C++ lint (parallel with frontend lint)
-  lint-cpp:
-    name: Lint C++
-    runs-on: ubuntu-latest
+  # Test the same pinned release and resolver on both supported platforms.
+  lint-cpp-platform:
+    name: Lint C++ (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
 
-      - name: Install LLVM 23 (clang-format)
-        run: |
-          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
-          echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-23 main" | sudo tee /etc/apt/sources.list.d/llvm.list
-          sudo apt-get update
-          sudo apt-get install -y clang-format-23
-          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-23 100
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
 
-      - name: Normalize line endings to LF
-        run: |
-          find backend -name '*.cpp' -o -name '*.h' | xargs sed -i 's/\r$//'
+      - name: Install locked LLVM
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
+        with:
+          version: 2026.9.1
+          # Exercise script-side resolution, without activating LLVM in the shell.
+          export_path: false
+          env: false
 
-      - name: Remove BOM from files
-        run: |
-          find backend -name '*.cpp' -o -name '*.h' | while read file; do
-            sed -i '1s/^\xEF\xBB\xBF//' "$file"
-          done
+      - name: Test resolver and check C++ formatting
+        env:
+          VELOCITYDB_TEST_LLVM: '1'
+          VELOCITYDB_FORMAT_MANIFEST: ${{ runner.temp }}/format-manifest.json
+        run: uv run --with pytest python -m pytest scripts/tests/test_llvm.py scripts/tests/test_llvm_integration.py -q
 
-      - name: Check C++ formatting
-        run: |
-          find backend -name '*.cpp' -o -name '*.h' | xargs -P 4 -I {} clang-format --style=file --dry-run --Werror {}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: cpp-format-${{ matrix.os }}
+          path: ${{ runner.temp }}/format-manifest.json
+          retention-days: 1
+          if-no-files-found: error
+
+  # Preserve the existing check name and require identical formatting on both OSes.
+  lint-cpp:
+    name: Lint C++
+    runs-on: ubuntu-latest
+    needs: lint-cpp-platform
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: cpp-format-*
+          path: format-results
+      - name: Compare Windows and Linux formatting
+        run: diff -u format-results/cpp-format-ubuntu-latest/format-manifest.json format-results/cpp-format-windows-latest/format-manifest.json
 
   # Frontend lint (parallel with C++ lint)
   lint-frontend:

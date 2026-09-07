@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import TextIO
 
 from . import utils
+from .llvm import resolve_clang_format
 
 
 def _run_subprocess(
@@ -88,19 +89,12 @@ def lint_cpp(fix: bool = False, out: TextIO | None = None) -> bool:
     subtitles = ("Mode: Auto-fix",) if fix else ()
     utils.print_header("Linting C++", *subtitles, file=out)
 
-    # Check for clang-format
-    clang_format = shutil.which("clang-format")
-    if not clang_format:
-        print("\nERROR: clang-format not found", file=out)
-        print("Install: winget install LLVM.LLVM", file=out)
-        return False
-
-    # Get version
     try:
-        result = subprocess.run([clang_format, "--version"], capture_output=True, text=True)
-        print(f"\n{result.stdout.strip()}", file=out)
-    except Exception:
-        pass
+        clang_format = str(resolve_clang_format(project_root))
+    except RuntimeError as exc:
+        print(f"\nERROR: {exc}", file=out)
+        return False
+    print(f"\nclang-format: {clang_format}", file=out)
 
     # Find all C++ files
     cpp_files: list[Path] = []
