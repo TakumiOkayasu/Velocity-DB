@@ -52,6 +52,26 @@ uv run scripts/pdg.py lint          # Vite+ (Oxlint/Oxfmt) + clang-format
 uv run scripts/pdg.py check Release # lint + test + build 一括
 ```
 
+C++ lint用のLLVMは、初回およびバージョン更新後にリポジトリルートで準備する。
+[mise](https://mise.jdx.dev/installing-mise.html)をインストールし、`mise`自体をPATHに追加してから実行する。
+
+```powershell
+mise trust
+mise install --locked
+```
+
+以降の操作は上記の`uv run scripts/pdg.py ...`のまま。PowerShellのmise activationやLLVMのPATH追加は不要。
+ビルドスクリプトが`mise.toml`の完全固定バージョンを読み、mise管理の`clang-format`を絶対パスで実行する。
+未導入・バージョン不一致では整形前に失敗する。lint中の自動インストールやwinget版へのフォールバックは行わない。
+
+Windows x64とLinux x64は同じLLVM公式リリースを使用し、OS別のURL・チェックサムを`mise.lock`で固定する。
+公式アーカイブにはLLVM一式が含まれるため、初回は大きなダウンロードと展開領域が必要。
+他OS・CPUアーキテクチャはこの設定の検証対象外。
+
+更新時は`mise.toml`のLLVMバージョンを変更し、`mise lock --platform linux-x64,windows-x64`で両OSのlockを更新する。
+設定とlockは同じPRに含め、Windows/Linuxの実行・整形結果比較CIを通す。週次Tool Version Upgradeもこの正本を使用する。
+Frontendのツール・依存関係は引き続き`frontend/package.json`と`frontend/bun.lock`を正本とする。
+
 ## ドキュメント
 
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) — レイヤー構造とコンポーネント

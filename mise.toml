@@ -1,0 +1,12 @@
+min_version = "2026.9.1"
+
+[tools."github:llvm/llvm-project"]
+version = "23.1.0"
+version_prefix = "llvmorg-"
+strip_components = 1
+bin_path = "bin"
+
+[tools."github:llvm/llvm-project".platforms]
+linux-x64 = { asset_pattern = "LLVM-{{ version }}-Linux-X64.tar.zst" }
+# mise's asset matcher interprets '+' as a regex quantifier; match it literally.
+windows-x64 = { asset_pattern = "clang[+]llvm-{{ version }}-x86_64-pc-windows-msvc.tar.zst" }
