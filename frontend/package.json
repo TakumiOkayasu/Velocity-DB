@@ -21,14 +21,14 @@
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
-    "@tanstack/react-table": "^9.1.2",
+    "@tanstack/react-table": "^9.2.4",
     "@tanstack/react-virtual": "^3.14.10",
-    "@xyflow/react": "^12.11.3",
+    "@xyflow/react": "^12.11.5",
     "monaco-editor": "^0.56.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "@sqltools/formatter": "^1.2.5",
-    "zod": "^4.4.3",
+    "zod": "^4.5.4",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
