@@ -3,6 +3,7 @@
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -12,6 +13,29 @@ from _lib import lint, llvm, utils
 pytestmark = pytest.mark.skipif(
     os.environ.get("VELOCITYDB_TEST_LLVM") != "1", reason="requires mise install"
 )
+
+
+@pytest.mark.parametrize("directory", ["LLVM & echo injected", "LLVM ; $(echo injected)"])
+def test_executes_official_binary_in_metacharacter_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, directory: str
+) -> None:
+    root = utils.get_project_root()
+    installed = llvm.resolve_clang_format(root)
+    copied = tmp_path / directory / installed.name
+    copied.parent.mkdir()
+    shutil.copy2(installed, copied)
+    # Simulate mise returning a custom install path, but execute the real binary.
+    real_run = subprocess.run
+
+    def run_with_custom_lookup(args: list[str], **kwargs: object) -> subprocess.CompletedProcess:
+        if args[1:3] == ["which", "clang-format"]:
+            return subprocess.CompletedProcess(args, 0, f"{copied}\n")
+        assert args == [str(copied), "--version"]
+        assert kwargs.get("shell", False) is False
+        return real_run(args, **kwargs)
+
+    monkeypatch.setattr(llvm.subprocess, "run", run_with_custom_lookup)
+    assert llvm.resolve_clang_format(root) == copied
 
 
 def test_official_llvm_without_activation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
