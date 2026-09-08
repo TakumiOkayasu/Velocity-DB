@@ -39,9 +39,9 @@ def project(tmp_path: Path) -> Path:
     return tmp_path
 
 
-@pytest.fixture
-def binary(project: Path) -> Path:
-    path = project / "LLVM with spaces" / "bin" / "clang-format.exe"
+@pytest.fixture(params=["LLVM with spaces", "LLVM & echo injected", "LLVM ; $(echo injected)"])
+def binary(project: Path, request: pytest.FixtureRequest) -> Path:
+    path = project / request.param / "bin" / "clang-format.exe"
     path.parent.mkdir(parents=True)
     path.touch()
     return path
@@ -76,6 +76,20 @@ def test_resolves_exact_tool_from_repo_without_activation(
     assert lookup.kwargs["env"]["MISE_NOT_FOUND_SYSTEM_FALLBACK"] == "false"
     assert lookup.kwargs["stdin"] == subprocess.DEVNULL
     assert version.args[0] == [str(binary), "--version"]
+    assert lookup.kwargs.get("shell", False) is False
+    assert version.kwargs.get("shell", False) is False
+
+
+@pytest.mark.parametrize("suffix", [" --version", "; echo injected", " & echo injected"])
+def test_rejects_command_text_after_existing_path(
+    project: Path, binary: Path, monkeypatch: pytest.MonkeyPatch, suffix: str
+) -> None:
+    run = Mock(return_value=subprocess.CompletedProcess([], 0, f"{binary}{suffix}"))
+    monkeypatch.setattr(llvm.shutil, "which", lambda _name: "mise")
+    monkeypatch.setattr(llvm.subprocess, "run", run)
+    with pytest.raises(RuntimeError, match="unavailable"):
+        llvm.resolve_clang_format(project)
+    assert run.call_count == 1
 
 
 @pytest.mark.parametrize("version", ["22.1.8", "23.1.0git", "23.1.0-rc3", "unknown"])
@@ -138,13 +152,29 @@ def test_rejects_missing_or_relative_binary(
     assert run.call_count == 1
 
 
-@pytest.mark.parametrize("pin", ['"latest"', '"23"', '"23.1"', "23", "[]"])
-def test_rejects_non_exact_pin(project: Path, pin: str) -> None:
+@pytest.mark.parametrize(
+    "pin",
+    [
+        '"latest"',
+        '"23"',
+        '"23.1"',
+        "23",
+        "[]",
+        '"23.1.0; echo injected"',
+        '"23.1.0 & echo injected"',
+        '"23.1.0$(echo injected)"',
+        '"23.1.0 --help"',
+    ],
+)
+def test_rejects_non_exact_pin(project: Path, pin: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    run = Mock()
+    monkeypatch.setattr(llvm.subprocess, "run", run)
     (project / "mise.toml").write_text(
         f'[tools."github:llvm/llvm-project"]\nversion = {pin}\n', encoding="utf-8"
     )
     with pytest.raises(RuntimeError, match="Cannot read the LLVM version"):
         llvm.resolve_clang_format(project)
+    run.assert_not_called()
 
 
 def test_lint_propagates_resolution_failure_before_fixing(monkeypatch: pytest.MonkeyPatch) -> None:
