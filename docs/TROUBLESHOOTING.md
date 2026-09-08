@@ -2,6 +2,29 @@
 
 ## ビルドエラー
 
+### miseのLLVMセットアップ
+
+`mise trust`で`No untrusted config files found`と表示される場合、未信頼の設定がないという意味で、
+それ自体はインストール失敗ではない。まず`mise.toml`と`mise.lock`があるリポジトリルートに移動する。
+
+`mise install --locked`で`uv@latest is not in the lockfile`などが出る場合は、
+個人のグローバル設定（例: `~/.config/mise/config.toml`）のツールまでインストール対象になっている。
+このリポジトリのlockfileが管理するLLVMだけを指定して再実行する。
+
+```powershell
+mise trust
+mise install --locked github:llvm/llvm-project
+```
+
+バージョンを省略したツール指定は、リポジトリの`mise.toml`の固定バージョンを使用する。
+`--locked`を維持することで、`mise.lock`のURL・チェックサムによる固定も継続する。
+個人用ツールをこのリポジトリのlockfileに追加したり、グローバル設定を削除したりする必要はない。
+mise 2026.9.2では、対象を限定してもグローバル設定のツールについて同じ警告が残る場合がある。
+LLVMのインストール結果と終了コードを確認する（PowerShellでは直後に`$LASTEXITCODE`、成功は`0`）。
+それでもLLVM自体のlockエラーが出る場合は、`mise.toml`と`mise.lock`を同じコミットの内容に揃える。
+
+参考: [mise installのツール指定](https://mise.jdx.dev/cli/install.html)。
+
 ### Ninja Permission Error
 
 ```text
