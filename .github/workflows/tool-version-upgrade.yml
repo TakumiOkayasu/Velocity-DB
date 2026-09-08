@@ -464,7 +464,7 @@ jobs:
           path.write_text(source.replace(before, f'\nversion = "{new}"\n'))
           PYTHON
           mise lock --platform linux-x64,windows-x64
-          mise install --locked
+          mise install --locked github:llvm/llvm-project
 
       - name: Validate resolver and formatting
         if: steps.check-pr.outputs.skip == 'false'

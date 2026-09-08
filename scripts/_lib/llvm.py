@@ -23,7 +23,8 @@ def resolve_clang_format(project_root: Path) -> Path:
     mise = shutil.which("mise")
     if not mise:
         raise RuntimeError(
-            "mise not found. Install mise, then run `mise trust` and `mise install`."
+            "mise not found. Install mise, then run `mise trust` and "
+            f"`mise install --locked {LLVM_TOOL}`."
         )
 
     # Scope lookup to this repository and this tool, never an unrelated PATH binary.
@@ -55,7 +56,8 @@ def resolve_clang_format(project_root: Path) -> Path:
         )
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
         raise RuntimeError(
-            f"LLVM {version} is unavailable. Run `mise trust` and `mise install` "
+            f"LLVM {version} is unavailable. Run `mise trust` and "
+            f"`mise install --locked {LLVM_TOOL}` "
             "in the repository root, then retry."
         ) from exc
 

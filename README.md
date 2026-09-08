@@ -57,8 +57,14 @@ C++ lint用のLLVMは、初回およびバージョン更新後にリポジト�
 
 ```powershell
 mise trust
-mise install --locked
+mise install --locked github:llvm/llvm-project
 ```
+
+ツール名を指定することで、`mise.toml`で固定したLLVMだけをインストールする。
+引数なしの`mise install --locked`は個人のグローバル設定のツールも対象にするため、
+それらがlockされていないと失敗する。`--locked`を外す必要はない。
+`mise trust`の`No untrusted config files found`は未信頼の設定がないという警告で、
+インストール失敗ではない。詳細は[トラブルシューティング](./docs/TROUBLESHOOTING.md#miseのllvmセットアップ)を参照。
 
 以降の操作は上記の`uv run scripts/pdg.py ...`のまま。PowerShellのmise activationやLLVMのPATH追加は不要。
 ビルドスクリプトが`mise.toml`の完全固定バージョンを読み、mise管理の`clang-format`を絶対パスで実行する。
