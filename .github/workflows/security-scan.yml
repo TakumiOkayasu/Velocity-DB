@@ -6,6 +6,12 @@ on:
     - cron: '0 15 * * *'
   # Manual trigger for on-demand scans
   workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/security-scan.yml'
+      - 'scripts/verify_semgrep_suppression.py'
+      - 'scripts/tests/test_semgrep_suppression.py'
+      - 'scripts/_lib/llvm.py'
 
 # Cancel in-progress runs for the same branch
 concurrency:
@@ -37,34 +43,38 @@ jobs:
       - name: Install Semgrep
         run: pip install semgrep
 
-      - name: Run Semgrep Scan
-        run: |
-          semgrep scan \
-            --config=auto \
-            --config=p/security-audit \
-            --config=p/owasp-top-ten \
-            --json \
-            --output=semgrep-results.json \
-            --exclude='node_modules' \
-            --exclude='build' \
-            --exclude='dist' \
-            --exclude='third_party' \
-            . || true
+      - name: Test suppression verification
+        run: python -m unittest discover -s scripts/tests -p test_semgrep_suppression.py
+
+      - name: Verify Semgrep suppression
+        env:
+          SEMGREP_ENABLE_VERSION_CHECK: '0'
+        run: python scripts/verify_semgrep_suppression.py "$RUNNER_TEMP/semgrep-evidence"
+
+      - name: Save Semgrep evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: semgrep-evidence
+          path: ${{ runner.temp }}/semgrep-evidence/
+          retention-days: 14
+          if-no-files-found: error
 
       - name: Create Issues from Semgrep Results
+        if: github.event_name != 'pull_request'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const fs = require('fs');
 
             // Check if results file exists
-            if (!fs.existsSync('semgrep-results.json')) {
+            if (!fs.existsSync(`${process.env.RUNNER_TEMP}/semgrep-evidence/annotated.json`)) {
               console.log('No Semgrep results file found');
               return;
             }
 
-            const results = JSON.parse(fs.readFileSync('semgrep-results.json', 'utf8'));
-            const findings = results.results || [];
+            const results = JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/semgrep-evidence/annotated.json`, 'utf8'));
+            const findings = results.results.filter(f => f.extra?.is_ignored !== true);
 
             console.log(`Found ${findings.length} issues`);
 

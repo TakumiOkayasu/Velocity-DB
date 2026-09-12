@@ -49,8 +49,8 @@ def resolve_clang_format(project_root: Path) -> Path:
         # Trusted local mise selects the executable; this is not application input.
         # argv + shell=False (the default) preserves path metacharacters as data.
         # File/version checks are not authentication of a compromised local toolchain.
-        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args
         result = subprocess.run(
+            # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args
             [str(binary), "--version"],
             cwd=project_root,
             capture_output=True,
