@@ -10,7 +10,9 @@ export function ToastContainer() {
     <div className={styles.container}>
       {toasts.map((toast) => (
         <output key={toast.id} className={`${styles.toast} ${styles[toast.type]}`}>
-          <span className={styles.icon}>{toast.type === 'success' ? '\u2713' : toast.type === 'error' ? '\u2717' : '−'}</span>
+          <span className={styles.icon}>
+            {toast.type === 'success' ? '\u2713' : toast.type === 'error' ? '\u2717' : '−'}
+          </span>
           <span>{toast.message}</span>
         </output>
       ))}

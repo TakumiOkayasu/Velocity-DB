@@ -122,7 +122,12 @@ export function MainLayout() {
     isDataView,
   });
 
-  const { error: connectionError, dismissError, reportError, reportResult } = useConnectionFeedback();
+  const {
+    error: connectionError,
+    dismissError,
+    reportError,
+    reportResult,
+  } = useConnectionFeedback();
 
   const connectToDatabase = async (config: ConnectionConfig, profileId?: string) => {
     try {
@@ -317,8 +322,12 @@ export function MainLayout() {
 
   return (
     <div className={styles.container}>
-      <ErrorDetailDialog isOpen={connectionError !== null} title="接続できませんでした"
-        errorMessage={connectionError ?? ''} onClose={dismissError} />
+      <ErrorDetailDialog
+        isOpen={connectionError !== null}
+        title="接続できませんでした"
+        errorMessage={connectionError ?? ''}
+        onClose={dismissError}
+      />
       {/* Production Environment Warning Banner */}
       {isProduction && (
         <div className={styles.productionBanner}>

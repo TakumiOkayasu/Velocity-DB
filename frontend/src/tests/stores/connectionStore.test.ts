@@ -188,7 +188,7 @@ describe('connectionStore', () => {
       const result = await useConnectionStore.getState().addConnection(baseConnection);
 
       if (result.status !== 'connected') throw new Error('Expected connected');
-    expect(result.replaced).toEqual({ oldId: 'db_old', newId: 'db_new' });
+      expect(result.replaced).toEqual({ oldId: 'db_old', newId: 'db_new' });
     });
 
     it('新規接続では replaced が undefined', async () => {
@@ -201,7 +201,7 @@ describe('connectionStore', () => {
       const result = await useConnectionStore.getState().addConnection(baseConnection);
 
       if (result.status !== 'connected') throw new Error('Expected connected');
-    expect(result.replaced).toBeUndefined();
+      expect(result.replaced).toBeUndefined();
     });
   });
 

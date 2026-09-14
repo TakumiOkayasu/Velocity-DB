@@ -76,7 +76,12 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
     }))
   );
   const { addConnection, cancelConnection } = useConnectionActions();
-  const { error: connectionError, dismissError, reportError, reportResult } = useConnectionFeedback();
+  const {
+    error: connectionError,
+    dismissError,
+    reportError,
+    reportResult,
+  } = useConnectionFeedback();
   const attemptRef = useRef(0);
   const [profiles, setProfiles] = useState<SavedConnectionProfile[]>([]);
   const [confirmingProfile, setConfirmingProfile] = useState<SavedConnectionProfile | null>(null);
@@ -253,8 +258,12 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
 
   return (
     <div className={styles.container}>
-      <ErrorDetailDialog isOpen={connectionError !== null} title="接続できませんでした"
-        errorMessage={connectionError ?? ''} onClose={dismissError} />
+      <ErrorDetailDialog
+        isOpen={connectionError !== null}
+        title="接続できませんでした"
+        errorMessage={connectionError ?? ''}
+        onClose={dismissError}
+      />
       {profileTree.folders.map((node) => renderFolder(node, 0))}
       {profileTree.rootProfiles.map(renderProfile)}
 

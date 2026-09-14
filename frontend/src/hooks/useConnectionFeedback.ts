@@ -12,10 +12,12 @@ export function useConnectionFeedback() {
     if (result.status === 'failed') {
       setError(result.error);
     } else {
-      useToastStore.getState().addToast(
-        result.status === 'connected' ? '接続できました' : '接続を中止しました',
-        result.status === 'connected' ? 'success' : 'info'
-      );
+      useToastStore
+        .getState()
+        .addToast(
+          result.status === 'connected' ? '接続できました' : '接続を中止しました',
+          result.status === 'connected' ? 'success' : 'info'
+        );
     }
   }, []);
   return { error, dismissError, reportError, reportResult };

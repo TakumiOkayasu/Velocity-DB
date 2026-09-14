@@ -58,11 +58,11 @@ describe('ErrorDetailDialog', () => {
       render(<ErrorDetailDialog {...defaultProps} />);
       fireEvent.click(screen.getByText('コピー'));
       expect(writeText).toHaveBeenCalledWith(defaultProps.errorMessage);
+      await screen.findByText('コピーしました');
     } finally {
       Object.assign(navigator, { clipboard: original });
     }
   });
-
 
   it('native Ctrl+C copy event copies full error without selection', () => {
     render(<ErrorDetailDialog {...defaultProps} title="接続できませんでした" />);
@@ -79,12 +79,15 @@ describe('ErrorDetailDialog', () => {
     const selection = window.getSelection();
     const range = document.createRange();
     range.selectNodeContents(detail);
+    selection?.removeAllRanges();
     selection?.addRange(range);
     try {
       const setData = vi.fn();
       fireEvent.copy(detail, { clipboardData: { setData } });
       expect(setData).not.toHaveBeenCalled();
-    } finally { selection?.removeAllRanges(); }
+    } finally {
+      selection?.removeAllRanges();
+    }
   });
 
   it('オーバーレイクリックでonClose発火', () => {

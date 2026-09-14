@@ -11,7 +11,12 @@ interface ErrorDetailDialogProps {
   title?: string;
 }
 
-export function ErrorDetailDialog({ isOpen, errorMessage, onClose, title = 'クエリエラー' }: ErrorDetailDialogProps) {
+export function ErrorDetailDialog({
+  isOpen,
+  errorMessage,
+  onClose,
+  title = 'クエリエラー',
+}: ErrorDetailDialogProps) {
   const titleId = useId();
   const detailRef = useRef<HTMLPreElement>(null);
   const [copyStatus, setCopyStatus] = useState('');
@@ -40,28 +45,42 @@ export function ErrorDetailDialog({ isOpen, errorMessage, onClose, title = 'ク�
       overlayClassName={styles.overlay}
       dialogClassName={styles.dialog}
     >
-      <div onCopy={(event) => {
-        if (window.getSelection()?.toString()) return;
-        event.clipboardData.setData('text/plain', errorMessage);
-        event.preventDefault();
-      }}>
-      <div className={styles.header}>
-        <span className={styles.icon}>!</span>
-        <h3 id={titleId}>{title}</h3>
-      </div>
-      <div className={styles.content}>
-        <p className={styles.summary}>{parsed.summary}</p>
-        <pre ref={detailRef} tabIndex={-1} aria-label="エラー詳細 (Ctrl+Cで全文コピー)" className={styles.detail}>{parsed.detail}</pre>
-      </div>
-      <output>{copyStatus}</output>
-      <div className={styles.footer}>
-        <button type="button" className={styles.copyButton} onClick={copyToClipboard}>
-          コピー
-        </button>
-        <button type="button" className={styles.closeButton} onClick={onClose}>
-          閉じる
-        </button>
-      </div>
+      <div
+        onCopy={(event) => {
+          const selection = window.getSelection();
+          if (
+            selection?.toString() &&
+            event.currentTarget.contains(selection.anchorNode) &&
+            event.currentTarget.contains(selection.focusNode)
+          ) return;
+          event.clipboardData.setData('text/plain', errorMessage);
+          event.preventDefault();
+        }}
+      >
+        <div className={styles.header}>
+          <span className={styles.icon}>!</span>
+          <h3 id={titleId}>{title}</h3>
+        </div>
+        <div className={styles.content}>
+          <p className={styles.summary}>{parsed.summary}</p>
+          <pre
+            ref={detailRef}
+            tabIndex={-1}
+            aria-label="エラー詳細 (Ctrl+Cで全文コピー)"
+            className={styles.detail}
+          >
+            {parsed.detail}
+          </pre>
+        </div>
+        <output>{copyStatus}</output>
+        <div className={styles.footer}>
+          <button type="button" className={styles.copyButton} onClick={copyToClipboard}>
+            コピー
+          </button>
+          <button type="button" className={styles.closeButton} onClick={onClose}>
+            閉じる
+          </button>
+        </div>
       </div>
     </DialogOverlay>
   );

@@ -17,9 +17,7 @@ interface ConnectionState {
   connectCancelled: boolean;
   error: string | null;
 
-  addConnection: (
-    connection: Omit<Connection, 'id' | 'isActive'>
-  ) => Promise<ConnectionResult>;
+  addConnection: (connection: Omit<Connection, 'id' | 'isActive'>) => Promise<ConnectionResult>;
   cancelConnection: () => Promise<void>;
   removeConnection: (id: string) => Promise<void>;
   setActive: (id: string | null) => void;
@@ -127,7 +125,10 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         .then(() => schemaProvider.getTables(result.connectionId, ''))
         .catch(() => {});
 
-      return { status: 'connected', ...(oldId ? { replaced: { oldId, newId: result.connectionId } } : {}) };
+      return {
+        status: 'connected',
+        ...(oldId ? { replaced: { oldId, newId: result.connectionId } } : {}),
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Connection failed';
       // If already cancelled by cancelConnection(), don't overwrite state

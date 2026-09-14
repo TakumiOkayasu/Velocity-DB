@@ -89,7 +89,9 @@ describe('saved-profile connection through ConnectionDialog (#689)', () => {
     vi.clearAllMocks();
     useConnectionStore.setState(useConnectionStore.getInitialState());
     useToastStore.setState({ toasts: [] });
-    vi.mocked(connectionProfileProvider.getProfilePassword).mockResolvedValue({ password: 'saved-secret' });
+    vi.mocked(connectionProfileProvider.getProfilePassword).mockResolvedValue({
+      password: 'saved-secret',
+    });
     vi.mocked(connectionProfileProvider.getConnectionProfiles).mockResolvedValue({ profiles });
     vi.mocked(connectionProvider.testConnection).mockResolvedValue({
       success: true,
@@ -138,14 +140,13 @@ describe('saved-profile connection through ConnectionDialog (#689)', () => {
     expect(schemaProvider.getTables).toHaveBeenCalledWith('connection-689', '');
   });
 
-
   it('tree connection sends the same saved credentials as the successful connection test', async () => {
     await openDialog();
     fireEvent.click(screen.getByRole('button', { name: 'テスト' }));
     await screen.findByText('Connection successful');
     fireEvent.keyDown(window, { key: 'Escape' });
     fireEvent.click(profileNode('profile-dev'));
-    fireEvent.click(await screen.findByRole('button', { name: '接続' }));
+    fireEvent.click(await within(screen.getByRole('dialog')).findByRole('button', { name: '接続' }));
     await waitFor(() => expect(useConnectionStore.getState().connections).toHaveLength(1));
     expect(connectionProvider.connectAsync).toHaveBeenCalledWith(
       vi.mocked(connectionProvider.testConnection).mock.calls[0][0]
@@ -158,39 +159,49 @@ describe('saved-profile connection through ConnectionDialog (#689)', () => {
     ]);
   });
 
-  it.each(['dialog', 'tree'])('reports actual connection failure after a successful test through %s', async (route) => {
-    vi.mocked(connectionProvider.getConnectResult).mockResolvedValue({
-      status: 'failed', error: 'Metadata connection failed: test failure',
-    });
-    await openDialog();
-    fireEvent.click(screen.getByRole('button', { name: 'テスト' }));
-    await screen.findByText('Connection successful');
-    if (route === 'tree') {
-      fireEvent.keyDown(window, { key: 'Escape' });
-      fireEvent.click(profileNode('profile-dev'));
-      fireEvent.click(await screen.findByRole('button', { name: '接続' }));
-    } else {
-      fireEvent.click(screen.getByTestId('conn-submit'));
+  it.each(['dialog', 'tree'])(
+    'reports actual connection failure after a successful test through %s',
+    async (route) => {
+      vi.mocked(connectionProvider.getConnectResult).mockResolvedValue({
+        status: 'failed',
+        error: 'Metadata connection failed: test failure',
+      });
+      await openDialog();
+      fireEvent.click(screen.getByRole('button', { name: 'テスト' }));
+      await screen.findByText('Connection successful');
+      if (route === 'tree') {
+        fireEvent.keyDown(window, { key: 'Escape' });
+        fireEvent.click(profileNode('profile-dev'));
+        fireEvent.click(await within(screen.getByRole('dialog')).findByRole('button', { name: '接続' }));
+      } else {
+        fireEvent.click(screen.getByTestId('conn-submit'));
+      }
+      const failure = await screen.findByRole('dialog', { name: '接続できませんでした' });
+      expect(within(failure).getByLabelText('エラー詳細 (Ctrl+Cで全文コピー)')).toHaveTextContent(
+        'Metadata connection failed: test failure'
+      );
+      expect(useConnectionStore.getState().connections).toHaveLength(0);
+      expect(within(profileNode('profile-dev')).getByText('未接続')).toBeInTheDocument();
+      expect(useToastStore.getState().toasts).toHaveLength(0);
+      expect(schemaProvider.getTables).not.toHaveBeenCalled();
     }
-    const failure = await screen.findByRole('dialog', { name: '接続できませんでした' });
-    expect(within(failure).getByLabelText('エラー詳細 (Ctrl+Cで全文コピー)')).toHaveTextContent('Metadata connection failed: test failure');
-    expect(useConnectionStore.getState().connections).toHaveLength(0);
-    expect(within(profileNode('profile-dev')).getByText('未接続')).toBeInTheDocument();
-    expect(useToastStore.getState().toasts).toHaveLength(0);
-    expect(schemaProvider.getTables).not.toHaveBeenCalled();
-  });
+  );
 
   it('cancel during credential retrieval does not start a connection or report success', async () => {
     let resolvePassword: (value: { password: string }) => void = () => {};
     vi.mocked(connectionProfileProvider.getProfilePassword).mockReturnValue(
-      new Promise((resolve) => { resolvePassword = resolve; })
+      new Promise((resolve) => {
+        resolvePassword = resolve;
+      })
     );
     render(<ObjectTree filter="" />);
     await screen.findAllByTestId('profile-node');
     fireEvent.click(profileNode('profile-dev'));
-    fireEvent.click(await screen.findByRole('button', { name: '接続' }));
+    fireEvent.click(await within(screen.getByRole('dialog')).findByRole('button', { name: '接続' }));
     fireEvent.click(await screen.findByRole('button', { name: '接続中止' }));
-    await act(async () => { resolvePassword({ password: 'saved-secret' }); });
+    await act(async () => {
+      resolvePassword({ password: 'saved-secret' });
+    });
     expect(connectionProvider.connectAsync).not.toHaveBeenCalled();
     expect(useConnectionStore.getState().connections).toHaveLength(0);
     expect(useToastStore.getState().toasts).toEqual([
@@ -199,11 +210,13 @@ describe('saved-profile connection through ConnectionDialog (#689)', () => {
   });
 
   it('credential retrieval failure opens a copyable error dialog without connecting', async () => {
-    vi.mocked(connectionProfileProvider.getProfilePassword).mockRejectedValue(new Error('Credential read failed'));
+    vi.mocked(connectionProfileProvider.getProfilePassword).mockRejectedValue(
+      new Error('Credential read failed')
+    );
     render(<ObjectTree filter="" />);
     await screen.findAllByTestId('profile-node');
     fireEvent.click(profileNode('profile-dev'));
-    fireEvent.click(await screen.findByRole('button', { name: '接続' }));
+    fireEvent.click(await within(screen.getByRole('dialog')).findByRole('button', { name: '接続' }));
     await screen.findByRole('dialog', { name: '接続できませんでした' });
     expect(connectionProvider.connectAsync).not.toHaveBeenCalled();
   });
