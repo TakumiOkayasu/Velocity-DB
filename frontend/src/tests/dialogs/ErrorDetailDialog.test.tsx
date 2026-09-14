@@ -63,6 +63,30 @@ describe('ErrorDetailDialog', () => {
     }
   });
 
+
+  it('native Ctrl+C copy event copies full error without selection', () => {
+    render(<ErrorDetailDialog {...defaultProps} title="接続できませんでした" />);
+    const detail = screen.getByLabelText('エラー詳細 (Ctrl+Cで全文コピー)');
+    expect(detail).toHaveFocus();
+    const setData = vi.fn();
+    fireEvent.copy(detail, { clipboardData: { setData } });
+    expect(setData).toHaveBeenCalledWith('text/plain', defaultProps.errorMessage);
+  });
+
+  it('preserves native copying when text is selected', () => {
+    render(<ErrorDetailDialog {...defaultProps} />);
+    const detail = screen.getByLabelText('エラー詳細 (Ctrl+Cで全文コピー)');
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(detail);
+    selection?.addRange(range);
+    try {
+      const setData = vi.fn();
+      fireEvent.copy(detail, { clipboardData: { setData } });
+      expect(setData).not.toHaveBeenCalled();
+    } finally { selection?.removeAllRanges(); }
+  });
+
   it('オーバーレイクリックでonClose発火', () => {
     const onClose = vi.fn();
     const { container } = render(<ErrorDetailDialog {...defaultProps} onClose={onClose} />);
