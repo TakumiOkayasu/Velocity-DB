@@ -30,9 +30,7 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
 
       - name: Check Python build scripts
-        run: |
-          uvx ruff check scripts/
-          uvx ruff format --check scripts/
+        run: uvx ruff check scripts/ && uvx ruff format --check scripts/
 
       - name: Install locked LLVM
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
