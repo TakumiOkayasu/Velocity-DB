@@ -4,6 +4,11 @@ import { connectionProvider, schemaProvider } from '../api/providers';
 import type { Connection } from '../types';
 import { pollConnection } from './connection/helpers/connectionPolling';
 
+export type ConnectionResult =
+  | { status: 'connected'; replaced?: { oldId: string; newId: string } }
+  | { status: 'failed'; error: string }
+  | { status: 'cancelled' };
+
 interface ConnectionState {
   connections: Connection[];
   activeConnectionId: string | null;
@@ -12,9 +17,7 @@ interface ConnectionState {
   connectCancelled: boolean;
   error: string | null;
 
-  addConnection: (
-    connection: Omit<Connection, 'id' | 'isActive'>
-  ) => Promise<{ replaced?: { oldId: string; newId: string } }>;
+  addConnection: (connection: Omit<Connection, 'id' | 'isActive'>) => Promise<ConnectionResult>;
   cancelConnection: () => Promise<void>;
   removeConnection: (id: string) => Promise<void>;
   setActive: (id: string | null) => void;
@@ -38,8 +41,9 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
   addConnection: async (connection) => {
     set({ isConnecting: true, error: null, connectRequestId: null, connectCancelled: false });
 
+    let requestId: string | null = null;
     try {
-      const { requestId } = await connectionProvider.connectAsync({
+      const response = await connectionProvider.connectAsync({
         server: connection.server,
         port: connection.port,
         database: connection.database,
@@ -61,11 +65,13 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
           : undefined,
       });
 
+      requestId = response.requestId;
+
       // Check if cancelled while waiting for connectAsync IPC response
       if (get().connectCancelled) {
         await connectionProvider.cancelConnect(requestId).catch(() => {});
         set({ isConnecting: false, connectRequestId: null, connectCancelled: false });
-        return {};
+        return { status: 'cancelled' };
       }
 
       set({ connectRequestId: requestId });
@@ -75,6 +81,11 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         requestId,
         () => get().connectRequestId !== requestId
       );
+
+      if (get().connectRequestId !== requestId) {
+        await connectionProvider.disconnect(result.connectionId).catch(() => {});
+        return { status: 'cancelled' };
+      }
 
       const newConnection: Connection = {
         ...connection,
@@ -117,12 +128,18 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         .then(() => schemaProvider.getTables(result.connectionId, ''))
         .catch(() => {});
 
-      return oldId ? { replaced: { oldId, newId: result.connectionId } } : {};
+      return {
+        status: 'connected',
+        ...(oldId ? { replaced: { oldId, newId: result.connectionId } } : {}),
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Connection failed';
       // If already cancelled by cancelConnection(), don't overwrite state
       if (message === 'Connection cancelled' || get().connectCancelled || !get().isConnecting) {
-        return {};
+        if (requestId !== null && get().connectRequestId === requestId) {
+          set({ isConnecting: false, connectRequestId: null, connectCancelled: false });
+        }
+        return { status: 'cancelled' };
       }
       set({
         isConnecting: false,
@@ -130,7 +147,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         connectCancelled: false,
         error: message,
       });
-      return {};
+      return { status: 'failed', error: message };
     }
   },
 

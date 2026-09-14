@@ -30,6 +30,7 @@
 }
 
 .detail {
+  user-select: text;
   margin: 12px 0 0;
   padding: 10px 12px;
   background: var(--bg-primary, #1e1e1e);

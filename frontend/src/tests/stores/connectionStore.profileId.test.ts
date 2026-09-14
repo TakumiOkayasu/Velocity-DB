@@ -116,6 +116,7 @@ describe('connectionStore profileId-based identification (#414)', () => {
     expect(state.connections).toHaveLength(1);
     expect(state.connections[0].id).toBe('db_new');
     expect(mockDisconnect).toHaveBeenCalledWith('db_old');
+    if (result.status !== 'connected') throw new Error('Expected connected');
     expect(result.replaced).toEqual({ oldId: 'db_old', newId: 'db_new' });
   });
 

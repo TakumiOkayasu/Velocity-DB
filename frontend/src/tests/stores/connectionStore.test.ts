@@ -132,10 +132,8 @@ describe('connectionStore', () => {
         error: 'Connection refused',
       });
 
-      await useConnectionStore
-        .getState()
-        .addConnection(baseConnection)
-        .catch(() => {});
+      const outcome = await useConnectionStore.getState().addConnection(baseConnection);
+      expect(outcome.status).toBe('failed');
 
       const state = useConnectionStore.getState();
       expect(state.isConnecting).toBe(false);
@@ -143,13 +141,24 @@ describe('connectionStore', () => {
       expect(state.connections).toHaveLength(0);
     });
 
+    it('backend cancellation finishes connecting state without a failure', async () => {
+      mockConnectAsync.mockResolvedValue({ requestId: 'cancelled-request' });
+      mockGetConnectResult.mockResolvedValue({ status: 'cancelled' });
+
+      const result = await useConnectionStore.getState().addConnection(baseConnection);
+
+      expect(result).toEqual({ status: 'cancelled' });
+      expect(useConnectionStore.getState().isConnecting).toBe(false);
+      expect(useConnectionStore.getState().connectRequestId).toBeNull();
+      expect(useConnectionStore.getState().connections).toHaveLength(0);
+      expect(useConnectionStore.getState().error).toBeNull();
+    });
+
     it('should handle connectAsync IPC rejection', async () => {
       mockConnectAsync.mockRejectedValue(new Error('IPC timeout'));
 
-      await useConnectionStore
-        .getState()
-        .addConnection(baseConnection)
-        .catch(() => {});
+      const outcome = await useConnectionStore.getState().addConnection(baseConnection);
+      expect(outcome.status).toBe('failed');
 
       const state = useConnectionStore.getState();
       expect(state.isConnecting).toBe(false);
@@ -191,6 +200,7 @@ describe('connectionStore', () => {
 
       const result = await useConnectionStore.getState().addConnection(baseConnection);
 
+      if (result.status !== 'connected') throw new Error('Expected connected');
       expect(result.replaced).toEqual({ oldId: 'db_old', newId: 'db_new' });
     });
 
@@ -203,6 +213,7 @@ describe('connectionStore', () => {
 
       const result = await useConnectionStore.getState().addConnection(baseConnection);
 
+      if (result.status !== 'connected') throw new Error('Expected connected');
       expect(result.replaced).toBeUndefined();
     });
   });

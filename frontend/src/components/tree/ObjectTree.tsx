@@ -1,6 +1,8 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { connectionProfileProvider } from '../../api/providers';
+import { useConnectionFeedback } from '../../hooks/useConnectionFeedback';
+import { ErrorDetailDialog } from '../dialogs/ErrorDetailDialog';
 import { applyConnectionMigration } from '../../store/connectionMigration';
 import { useConnectionActions, useConnectionStore } from '../../store/connectionStore';
 import {
@@ -74,6 +76,13 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
     }))
   );
   const { addConnection, cancelConnection } = useConnectionActions();
+  const {
+    error: connectionError,
+    dismissError,
+    reportError,
+    reportResult,
+  } = useConnectionFeedback();
+  const attemptRef = useRef(0);
   const [profiles, setProfiles] = useState<SavedConnectionProfile[]>([]);
   const [confirmingProfile, setConfirmingProfile] = useState<SavedConnectionProfile | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -171,6 +180,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
   const handleConfirm = useCallback(async () => {
     if (!confirmingProfile) return;
 
+    const attempt = ++attemptRef.current;
     setIsConnecting(true);
     try {
       let password = '';
@@ -194,6 +204,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
         }
       }
 
+      if (attempt !== attemptRef.current) return;
       const result = await addConnection({
         profileId: confirmingProfile.id,
         name: confirmingProfile.name,
@@ -222,25 +233,37 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
             }
           : undefined,
       });
-      applyConnectionMigration(result.replaced);
+      if (attempt !== attemptRef.current) return;
+      if (result.status === 'connected') applyConnectionMigration(result.replaced);
+      reportResult(result);
       setConfirmingProfile(null);
     } catch (error) {
-      console.error('Failed to connect:', error);
+      if (attempt !== attemptRef.current) return;
+      setConfirmingProfile(null);
+      reportError(error);
     } finally {
-      setIsConnecting(false);
+      if (attempt === attemptRef.current) setIsConnecting(false);
     }
-  }, [confirmingProfile, addConnection]);
+  }, [confirmingProfile, addConnection, reportResult, reportError]);
 
   const handleCancel = useCallback(() => {
+    ++attemptRef.current;
     if (isConnecting) {
+      reportResult({ status: 'cancelled' });
       cancelConnection();
       setIsConnecting(false);
     }
     setConfirmingProfile(null);
-  }, [isConnecting, cancelConnection]);
+  }, [isConnecting, cancelConnection, reportResult]);
 
   return (
     <div className={styles.container}>
+      <ErrorDetailDialog
+        isOpen={connectionError !== null}
+        title="接続できませんでした"
+        errorMessage={connectionError ?? ''}
+        onClose={dismissError}
+      />
       {profileTree.folders.map((node) => renderFolder(node, 0))}
       {profileTree.rootProfiles.map(renderProfile)}
 

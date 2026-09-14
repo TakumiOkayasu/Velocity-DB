@@ -1,5 +1,7 @@
 import { Suspense, useCallback, useEffect, useRef } from 'react';
 import { appSettingsProvider } from '../../api/providers';
+import { useConnectionFeedback } from '../../hooks/useConnectionFeedback';
+import { ErrorDetailDialog } from '../dialogs/ErrorDetailDialog';
 import { useDialogState } from '../../hooks/useDialogState';
 import { useFileDrop } from '../../hooks/useFileDrop';
 import { useKeyboardShortcutHandler } from '../../hooks/useKeyboardShortcutHandler';
@@ -120,6 +122,13 @@ export function MainLayout() {
     isDataView,
   });
 
+  const {
+    error: connectionError,
+    dismissError,
+    reportError,
+    reportResult,
+  } = useConnectionFeedback();
+
   const connectToDatabase = async (config: ConnectionConfig, profileId?: string) => {
     try {
       const result = await addConnection({
@@ -148,10 +157,12 @@ export function MainLayout() {
             }
           : undefined,
       });
-      applyConnectionMigration(result.replaced);
+      if (result.status === 'connected') applyConnectionMigration(result.replaced);
+      reportResult(result);
       closeConnectionDialog();
-    } catch {
-      // Error is displayed in ConnectionDialog via connectionStore.error
+    } catch (error) {
+      closeConnectionDialog();
+      reportError(error);
     }
   };
 
@@ -257,7 +268,7 @@ export function MainLayout() {
     onOpenSettings: openSettingsDialog,
     onCancel: handleCancel,
     isExecuting,
-    hasOpenDialog,
+    hasOpenDialog: hasOpenDialog || connectionError !== null,
   });
 
   // Track and save window size/position
@@ -311,6 +322,12 @@ export function MainLayout() {
 
   return (
     <div className={styles.container}>
+      <ErrorDetailDialog
+        isOpen={connectionError !== null}
+        title="接続できませんでした"
+        errorMessage={connectionError ?? ''}
+        onClose={dismissError}
+      />
       {/* Production Environment Warning Banner */}
       {isProduction && (
         <div className={styles.productionBanner}>
