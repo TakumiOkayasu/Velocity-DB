@@ -65,6 +65,33 @@ ninja: error: build.ninja:35: loading 'CMakeFiles\rules.ninja': The system canno
 1. `Remove-Item -Recurse -Force .\build, .\vcpkg` で完全リセット
 2. `uv run scripts/pdg.py build backend --clean` で再 build (vcpkg 再 clone + 全 port 再 build、+5-15 分)
 
+### MSVC更新後のC1853 (古いPCHの再利用)
+
+`fatal error C1853`で`cmake_pch.cxx.pch`が拒否される場合、以前のコンパイラで作成したPCHが残っている可能性がある。
+Issue #711ではC++の`/TP`指定でC++用PCHを使用しており、frontend lint・テスト・buildは成功した後、backendの差分ビルドで停止していた。
+
+`pdg.py build backend` / `build all`はMSVCの`cl.exe`、`c1xx.dll`、`c2.dll`のパスとSHA-256を
+`build/msvc-fingerprint.json`に記録する。同じパスでのバイナリ更新も検知し、コンパイラが変わった場合は
+PCH・object・生成済み依存ライブラリを含む`build/`全体を再生成する。
+記録のない既存buildも初回だけ再生成するため、その回は依存関係の復元を含め通常より時間がかかる。
+`frontend/dist/`、ソース、project-local `vcpkg/`は保持される。コンパイラが同一なら差分ビルドを継続する。
+
+```powershell
+uv run scripts/pdg.py build all
+```
+
+コンパイラの読み取りに失敗した場合はbuildを削除する前に停止する。
+configure成功後に記録するため、コンパイル失敗後の再試行でも同じコンパイラの成果物は再利用できる。
+この検知は統合CLI経由のビルドに適用される。CMakeを直接実行して作った成果物やPCH破損を手動で再生成する場合は
+`uv run scripts/pdg.py build backend --clean`を使う。
+
+冒頭の`mise install --locked`で出る個人用ツールのlockエラーは別問題であり、上記「miseのLLVMセットアップ」を参照する。
+PCHを無効化したりコンパイラを旧版に戻したりする必要はない。
+
+参考: [Microsoft C1853](https://learn.microsoft.com/en-us/cpp/error-messages/compiler-errors-1/fatal-error-c1853)、
+[CMake --fresh](https://cmake.org/cmake/help/latest/manual/cmake.1.html#cmdoption-cmake-fresh)。
+`--fresh`によるCMakeCache/CMakeFilesの再生成だけでは、下位ディレクトリの古いコンパイラ成果物の破棄を保証できない。
+
 ### MSVC Not Found
 
 - Developer Command Prompt for VS 2022 から実行
