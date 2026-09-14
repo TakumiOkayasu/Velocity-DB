@@ -41,8 +41,9 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
   addConnection: async (connection) => {
     set({ isConnecting: true, error: null, connectRequestId: null, connectCancelled: false });
 
+    let requestId: string | null = null;
     try {
-      const { requestId } = await connectionProvider.connectAsync({
+      const response = await connectionProvider.connectAsync({
         server: connection.server,
         port: connection.port,
         database: connection.database,
@@ -63,6 +64,8 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
             }
           : undefined,
       });
+
+      requestId = response.requestId;
 
       // Check if cancelled while waiting for connectAsync IPC response
       if (get().connectCancelled) {
@@ -133,6 +136,9 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
       const message = error instanceof Error ? error.message : 'Connection failed';
       // If already cancelled by cancelConnection(), don't overwrite state
       if (message === 'Connection cancelled' || get().connectCancelled || !get().isConnecting) {
+        if (requestId !== null && get().connectRequestId === requestId) {
+          set({ isConnecting: false, connectRequestId: null, connectCancelled: false });
+        }
         return { status: 'cancelled' };
       }
       set({
