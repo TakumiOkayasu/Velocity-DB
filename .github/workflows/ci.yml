@@ -29,6 +29,9 @@ jobs:
 
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
 
+      - name: Check Python build scripts
+        run: uvx ruff check scripts/ && uvx ruff format --check scripts/
+
       - name: Install locked LLVM
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
         with:
@@ -41,7 +44,7 @@ jobs:
         env:
           VELOCITYDB_TEST_LLVM: '1'
           VELOCITYDB_FORMAT_MANIFEST: ${{ runner.temp }}/format-manifest.json
-        run: uv run --with pytest python -m pytest scripts/tests/test_llvm.py scripts/tests/test_llvm_integration.py -q
+        run: uv run --with pytest python -m pytest scripts/tests/test_llvm.py scripts/tests/test_llvm_integration.py scripts/tests/test_build.py scripts/tests/test_msvc_build.py -q
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:

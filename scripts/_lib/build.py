@@ -1,5 +1,6 @@
 """Build commands for Velocity-DB."""
 
+import hashlib
 import io
 import json
 import shutil
@@ -438,6 +439,7 @@ def _clear_stale_cmake_cache(
     current_cl = shutil.which("cl", path=env_path)
     current_linker = shutil.which("link", path=env_path)
     cached_tools = {
+        "CMAKE_CXX_COMPILER": current_cl,
         "Z_VCPKG_CL": current_cl,
         "CMAKE_LINKER": current_linker,
     }
@@ -467,8 +469,44 @@ def _clear_stale_cmake_cache(
         file=out,
     )
     print(f"  Stale entries: {', '.join(stale_entries)}", file=out)
+    if any(name in stale_entries for name in ("CMAKE_CXX_COMPILER", "Z_VCPKG_CL", "CMAKE_LINKER")):
+        _remove_path_within(build_dir, project_root)
+        return
     _remove_path_within(cache_path, project_root)
     _remove_path_within(build_dir / "CMakeFiles", project_root)
+
+
+def _msvc_fingerprint(env: dict[str, str]) -> str:
+    """Identify the actual compiler binaries, including in-place toolset updates."""
+    compiler = shutil.which("cl", path=_get_env_path(env))
+    if compiler is None:
+        raise RuntimeError("MSVC compiler cl.exe was not found in the build environment")
+    compiler_path = Path(compiler).resolve(strict=True)
+    binaries = [
+        compiler_path,
+        compiler_path.with_name("c1xx.dll"),
+        compiler_path.with_name("c2.dll"),
+    ]
+    fingerprints = {}
+    for binary in binaries:
+        with binary.open("rb") as stream:
+            fingerprints[str(binary)] = hashlib.file_digest(stream, "sha256").hexdigest()
+    return json.dumps(fingerprints, sort_keys=True)
+
+
+def _prepare_msvc_build(
+    project_root: Path, build_dir: Path, fingerprint: str, out: TextIO | None = None
+) -> None:
+    """Discard all compiler outputs when their producer changed or is unknown."""
+    stamp = build_dir / "msvc-fingerprint.json"
+    if stamp.exists() and stamp.read_text(encoding="utf-8") == fingerprint:
+        return
+    if build_dir.exists():
+        print(
+            "\n[MSVC] Compiler changed or unrecorded; rebuilding generated build directory.",
+            file=out,
+        )
+        _remove_path_within(build_dir, project_root)
 
 
 def build_backend(
@@ -512,13 +550,19 @@ def build_backend(
     ninja_path = _find_ninja(env)
     if ninja_path:
         _prioritize_ninja_in_path(env, ninja_path)
-    # 選定した ninja と食い違う / 毒化したキャッシュを検知してクリアする。
-    _clear_stale_cmake_cache(project_root, build_dir, env, ninja_path, out=out)
-    _clear_cmake_scratch(project_root, build_dir, out=out)
-
     print("\n[2/4] Checking build tools...", file=out)
     if not utils.check_build_tools(env, out=out):
         return False
+
+    try:
+        fingerprint = _msvc_fingerprint(env)
+        _prepare_msvc_build(project_root, build_dir, fingerprint, out=out)
+    except (OSError, RuntimeError) as error:
+        print(f"\nERROR: Cannot prepare MSVC build: {error}", file=out)
+        return False
+    # 選定した ninja と食い違う / 毒化したキャッシュを検知してクリアする。
+    _clear_stale_cmake_cache(project_root, build_dir, env, ninja_path, out=out)
+    _clear_cmake_scratch(project_root, build_dir, out=out)
 
     print(f"\n[3/4] Configuring with CMake (preset: {preset})...", file=out)
     cmake_cmd = ["cmake", "--preset", preset]
@@ -534,6 +578,14 @@ def build_backend(
         _print_vcpkg_antivirus_diagnosis(project_root, out=out)
         if stderr and out is None:
             print(f"\n{stderr}")
+        return False
+
+    # Configure has succeeded in a tree with no incompatible compiler outputs.
+    # Keep this identity even if compilation fails, so retry remains incremental.
+    try:
+        (build_dir / "msvc-fingerprint.json").write_text(fingerprint, encoding="utf-8")
+    except OSError as error:
+        print(f"\nERROR: Cannot record MSVC compiler identity: {error}", file=out)
         return False
 
     print("\n[4/4] Building...", file=out)
