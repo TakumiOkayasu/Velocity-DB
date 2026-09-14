@@ -52,7 +52,8 @@ export function ErrorDetailDialog({
             selection?.toString() &&
             event.currentTarget.contains(selection.anchorNode) &&
             event.currentTarget.contains(selection.focusNode)
-          ) return;
+          )
+            return;
           event.clipboardData.setData('text/plain', errorMessage);
           event.preventDefault();
         }}

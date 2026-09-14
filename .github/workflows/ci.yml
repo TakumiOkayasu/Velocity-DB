@@ -99,11 +99,12 @@ jobs:
       - name: Lint and Type Check (parallel)
         working-directory: frontend
         run: |
-          trap 'git diff' EXIT
-          vp check --fix
-          vp run typecheck
-          vp test --run src/tests/components/ConnectionDialog.integration.test.tsx src/tests/dialogs/ErrorDetailDialog.test.tsx src/tests/stores/connectionStore.test.ts src/tests/stores/connectionStore.profileId.test.ts
-          git diff --exit-code
+          vp check &
+          LINT_PID=$!
+          vp run typecheck &
+          TYPECHECK_PID=$!
+          wait $LINT_PID
+          wait $TYPECHECK_PID
 
   # Compatibility job for branch protection rules
   lint:

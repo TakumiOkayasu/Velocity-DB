@@ -146,7 +146,9 @@ describe('saved-profile connection through ConnectionDialog (#689)', () => {
     await screen.findByText('Connection successful');
     fireEvent.keyDown(window, { key: 'Escape' });
     fireEvent.click(profileNode('profile-dev'));
-    fireEvent.click(await within(screen.getByRole('dialog')).findByRole('button', { name: '接続' }));
+    fireEvent.click(
+      await within(screen.getByRole('dialog')).findByRole('button', { name: '接続' })
+    );
     await waitFor(() => expect(useConnectionStore.getState().connections).toHaveLength(1));
     expect(connectionProvider.connectAsync).toHaveBeenCalledWith(
       vi.mocked(connectionProvider.testConnection).mock.calls[0][0]
@@ -172,7 +174,9 @@ describe('saved-profile connection through ConnectionDialog (#689)', () => {
       if (route === 'tree') {
         fireEvent.keyDown(window, { key: 'Escape' });
         fireEvent.click(profileNode('profile-dev'));
-        fireEvent.click(await within(screen.getByRole('dialog')).findByRole('button', { name: '接続' }));
+        fireEvent.click(
+          await within(screen.getByRole('dialog')).findByRole('button', { name: '接続' })
+        );
       } else {
         fireEvent.click(screen.getByTestId('conn-submit'));
       }
@@ -197,7 +201,9 @@ describe('saved-profile connection through ConnectionDialog (#689)', () => {
     render(<ObjectTree filter="" />);
     await screen.findAllByTestId('profile-node');
     fireEvent.click(profileNode('profile-dev'));
-    fireEvent.click(await within(screen.getByRole('dialog')).findByRole('button', { name: '接続' }));
+    fireEvent.click(
+      await within(screen.getByRole('dialog')).findByRole('button', { name: '接続' })
+    );
     fireEvent.click(await screen.findByRole('button', { name: '接続中止' }));
     await act(async () => {
       resolvePassword({ password: 'saved-secret' });
@@ -216,7 +222,9 @@ describe('saved-profile connection through ConnectionDialog (#689)', () => {
     render(<ObjectTree filter="" />);
     await screen.findAllByTestId('profile-node');
     fireEvent.click(profileNode('profile-dev'));
-    fireEvent.click(await within(screen.getByRole('dialog')).findByRole('button', { name: '接続' }));
+    fireEvent.click(
+      await within(screen.getByRole('dialog')).findByRole('button', { name: '接続' })
+    );
     await screen.findByRole('dialog', { name: '接続できませんでした' });
     expect(connectionProvider.connectAsync).not.toHaveBeenCalled();
   });
