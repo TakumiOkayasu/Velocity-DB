@@ -1,5 +1,6 @@
 """Common utility functions for Velocity-DB build system."""
 
+import ctypes
 import json
 import os
 import shutil
@@ -7,6 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import TextIO
+from uuid import UUID
 
 PackageManager = tuple[str, Path]
 
@@ -99,9 +101,44 @@ def find_package_manager() -> PackageManager | None:
     return None
 
 
+def program_files_x86() -> Path:
+    """Resolve the machine folder through Windows, never process environment or PATH."""
+    # LOAD_LIBRARY_SEARCH_SYSTEM32 also keeps DLL lookup independent of cwd/PATH.
+    shell32 = ctypes.WinDLL("shell32.dll", winmode=0x00000800)
+    ole32 = ctypes.WinDLL("ole32.dll", winmode=0x00000800)
+    get_path = shell32.SHGetKnownFolderPath
+    get_path.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_uint32,
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_wchar_p),
+    ]
+    get_path.restype = ctypes.c_int32  # HRESULT is signed 32-bit, including on x64.
+    free = ole32.CoTaskMemFree
+    free.argtypes = [ctypes.c_void_p]
+    free.restype = None
+    # FOLDERID_ProgramFilesX86 (machine-wide, including non-default system drives).
+    folder_id = (ctypes.c_ubyte * 16).from_buffer_copy(
+        UUID("7c5a40ef-a0fb-4bfc-874a-c0f2e0b9fa8e").bytes_le
+    )
+    value = ctypes.c_wchar_p()
+    try:
+        result = get_path(ctypes.byref(folder_id), 0, None, ctypes.byref(value))
+        if result != 0 or not value.value:
+            raise OSError(
+                f"Cannot resolve Program Files (x86): HRESULT 0x{result & 0xFFFFFFFF:08X}"
+            )
+        path = Path(value.value)
+        if not path.is_absolute():
+            raise OSError("Windows returned a non-absolute Program Files (x86) path")
+        return path
+    finally:
+        free(value)
+
+
 def find_vcvars(out: TextIO | None = None) -> Path | None:
     """Find the latest stable VS 2026 installation with the x64 C++ tools."""
-    installer = Path(os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)"))
+    installer = program_files_x86()
     vswhere = installer / "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
     if not vswhere.is_file():
         return None
