@@ -175,4 +175,5 @@ def test_batch_path_with_shell_characters(tmp_path: Path) -> None:
         "@echo off\nset VisualStudioVersion=18.0\nset VCToolsVersion=14.51\n", encoding="ascii"
     )
     with patch.object(utils, "find_vcvars", return_value=batch):
-        assert utils.get_msvc_env()["VCToolsVersion"] == "14.51"
+        env = {key.upper(): value for key, value in utils.get_msvc_env().items()}
+        assert env["VCTOOLSVERSION"] == "14.51"
