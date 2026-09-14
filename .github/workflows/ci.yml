@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-2025-vs2026]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
@@ -36,6 +36,16 @@ jobs:
           # Exercise script-side resolution, without activating LLVM in the shell.
           export_path: false
           env: false
+
+      - name: Set up stable VS 2026
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/setup-msvc
+
+      - name: Check Python build scripts
+        run: uvx ruff check scripts/ && uvx ruff format --check scripts/
+
+      - name: Test Visual Studio selection
+        run: uv run --with pytest python -m pytest scripts/tests/test_vs2026.py -q
 
       - name: Test resolver and check C++ formatting
         env:
@@ -61,7 +71,7 @@ jobs:
           pattern: cpp-format-*
           path: format-results
       - name: Compare Windows and Linux formatting
-        run: diff -u format-results/cpp-format-ubuntu-latest/format-manifest.json format-results/cpp-format-windows-latest/format-manifest.json
+        run: diff -u format-results/cpp-format-ubuntu-latest/format-manifest.json format-results/cpp-format-windows-2025-vs2026/format-manifest.json
 
   # Frontend lint (parallel with C++ lint)
   lint-frontend:
@@ -145,7 +155,7 @@ jobs:
   # Runs on: main branch push OR PR with 'test-backend' label
   build-backend:
     name: Build & Test Backend
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     needs: lint-cpp
     if: |
       (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) ||
@@ -166,7 +176,7 @@ jobs:
         run: python scripts/convert_eol.py crlf
 
       - name: Setup MSVC Developer Environment
-        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
+        uses: ./.github/actions/setup-msvc
 
       # VS18 同梱 vcpkg-tool は古い detect_compiler portfile を持ち CMake 4.x で永続失敗するため、
       # project-local の vcpkg を vcpkg.json の builtin-baseline SHA で checkout して bootstrap する
@@ -206,9 +216,9 @@ jobs:
             build/CMakeCache.txt
             build/CMakeFiles
             build/**/*.dir
-          key: cmake-v3-ninja-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'backend/CMakeLists.txt', 'third_party/CMakeLists.txt', 'vcpkg.json') }}
+          key: cmake-v3-ninja-${{ runner.os }}-${{ env.VELOCITYDB_TOOLCHAIN_KEY }}-${{ hashFiles('CMakeLists.txt', 'backend/CMakeLists.txt', 'third_party/CMakeLists.txt', 'vcpkg.json') }}
           restore-keys: |
-            cmake-v3-ninja-${{ runner.os }}-
+            cmake-v3-ninja-${{ runner.os }}-${{ env.VELOCITYDB_TOOLCHAIN_KEY }}-
 
       - name: Configure CMake
         run: |
@@ -235,7 +245,7 @@ jobs:
   # Package - only when backend is built (main branch only)
   package:
     name: Package Application
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     needs: [build-frontend, build-backend]
     if: >-
       always() &&
@@ -284,3 +294,4 @@ jobs:
               exit 1
           fi
           echo "All required jobs passed!"
+

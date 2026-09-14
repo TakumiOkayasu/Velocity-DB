@@ -40,7 +40,7 @@ jobs:
   # Build backend in parallel
   build-backend:
     name: Build Backend
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -51,7 +51,7 @@ jobs:
           allow-prereleases: true
 
       - name: Setup MSVC Developer Environment
-        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
+        uses: ./.github/actions/setup-msvc
 
       - name: Install Ninja
         run: choco install ninja -y
@@ -62,9 +62,9 @@ jobs:
           path: |
             build/_deps
             build/third_party
-          key: cmake-ninja-release-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'backend/CMakeLists.txt', 'third_party/CMakeLists.txt') }}
+          key: cmake-ninja-release-${{ runner.os }}-${{ env.VELOCITYDB_TOOLCHAIN_KEY }}-${{ hashFiles('CMakeLists.txt', 'backend/CMakeLists.txt', 'third_party/CMakeLists.txt') }}
           restore-keys: |
-            cmake-ninja-release-${{ runner.os }}-
+            cmake-ninja-release-${{ runner.os }}-${{ env.VELOCITYDB_TOOLCHAIN_KEY }}-
 
       - name: Configure and Build
         run: |
@@ -112,3 +112,4 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

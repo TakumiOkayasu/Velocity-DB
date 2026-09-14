@@ -21,12 +21,12 @@ permissions:
 jobs:
   backend-bench:
     name: Backend Benchmarks
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup MSVC
-        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
+        uses: ./.github/actions/setup-msvc
 
       - name: Install Ninja and ccache
         run: choco install ninja ccache -y
@@ -52,9 +52,9 @@ jobs:
           path: |
             build/_deps
             build/third_party
-          key: cmake-bench-${{ runner.os }}-${{ inputs.build_type }}-${{ hashFiles('CMakeLists.txt', 'backend/CMakeLists.txt', 'third_party/CMakeLists.txt') }}
+          key: cmake-bench-${{ runner.os }}-${{ env.VELOCITYDB_TOOLCHAIN_KEY }}-${{ inputs.build_type }}-${{ hashFiles('CMakeLists.txt', 'backend/CMakeLists.txt', 'third_party/CMakeLists.txt') }}
           restore-keys: |
-            cmake-bench-${{ runner.os }}-${{ inputs.build_type }}-
+            cmake-bench-${{ runner.os }}-${{ env.VELOCITYDB_TOOLCHAIN_KEY }}-${{ inputs.build_type }}-
 
       - name: Configure CMake
         # Inline ${{ inputs.build_type }} (workflow-time expansion) instead of
@@ -84,13 +84,13 @@ jobs:
     # local-only for now — set VELOCITYDB_PERF_MSSQL_CONNSTR manually to run
     # the SQLServer leg.
     name: SELECT 100万行 Integration Bench
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     needs: backend-bench
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup MSVC
-        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
+        uses: ./.github/actions/setup-msvc
 
       - name: Install Ninja and ccache
         run: choco install ninja ccache -y

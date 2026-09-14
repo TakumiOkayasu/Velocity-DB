@@ -1,5 +1,6 @@
 """Common utility functions for Velocity-DB build system."""
 
+import json
 import os
 import shutil
 import subprocess
@@ -98,73 +99,78 @@ def find_package_manager() -> PackageManager | None:
     return None
 
 
-def find_vcvars() -> Path | None:
-    """Find vcvars64.bat for MSVC environment setup."""
-    possible_paths = [
-        # VS 2022 (version 17)
-        Path(
-            r"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
-        ),
-        Path(
-            r"C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvars64.bat"
-        ),
-        Path(
-            r"C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        ),
-        Path(
-            r"D:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
-        ),
-        Path(
-            r"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
-        ),
-        # VS Preview / newer versions (version 18+)
-        Path(
-            r"C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvars64.bat"
-        ),
-        Path(
-            r"C:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat"
-        ),
-        Path(
-            r"C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        ),
-    ]
-    for path in possible_paths:
-        if path.exists():
-            return path
-    return None
+def find_vcvars(out: TextIO | None = None) -> Path | None:
+    """Find the latest stable VS 2026 installation with the x64 C++ tools."""
+    installer = Path(os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)"))
+    vswhere = installer / "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
+    if not vswhere.is_file():
+        return None
+    result = subprocess.run(
+        [
+            str(vswhere),
+            "-latest",
+            "-products",
+            "*",
+            "-version",
+            "[18.0,19.0)",
+            "-requires",
+            "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+            "-format",
+            "json",
+            "-utf8",
+        ],
+        capture_output=True,
+        encoding="utf-8-sig",
+        check=True,
+    )
+    installations = json.loads(result.stdout)
+    if not installations:
+        return None
+    installation = installations[0]
+    version = installation["installationVersion"]
+    if version.split(".")[0] != "18" or installation.get("isPrerelease", False):
+        raise RuntimeError("vswhere returned an unsupported Visual Studio installation")
+    vcvars = Path(installation["installationPath"]) / "VC" / "Auxiliary" / "Build" / "vcvars64.bat"
+    if not vcvars.is_file():
+        return None
+    print(f"Visual Studio: {version} (2026 Stable)", file=out)
+    return vcvars
 
 
 def get_msvc_env(out: TextIO | None = None) -> dict[str, str]:
-    """Get environment variables from vcvars64.bat."""
-    vcvars = find_vcvars()
+    """Get the x64 environment from the selected stable VS 2026 installation."""
+    vcvars = find_vcvars(out=out)
     if not vcvars:
-        print("ERROR: Could not find vcvars64.bat", file=out)
-        print("Please install Visual Studio 2022 with C++ workload", file=out)
+        print("ERROR: Visual Studio 2026 Stable with x64 C++ tools was not found", file=out)
+        print("Install or modify VS 2026 / Build Tools using Visual Studio Installer", file=out)
         sys.exit(1)
-
     print(f"Using MSVC from: {vcvars}", file=out)
 
-    # Run vcvars64.bat and capture environment
-    # Security: Using shell=True here is intentional and safe because:
-    # 1. vcvars path comes from find_vcvars() which only returns hardcoded system paths
-    # 2. No user input is involved in command construction
-    cmd = f'"{vcvars}" && set'
+    # Keep the batch path out of shell source. Expansion occurs once, inside quotes;
+    # delayed expansion is disabled, and CALL (which expands a second time) is not used.
+    child_env = os.environ.copy()
+    child_env["VELOCITYDB_VCVARS"] = str(vcvars)
     result = subprocess.run(  # nosemgrep: python.lang.security.audit.subprocess-shell-true
-        cmd,
+        'setlocal DisableDelayedExpansion & "%VELOCITYDB_VCVARS%" && set',
         capture_output=True,
         text=True,
-        shell=True,  # Safe: vcvars path from find_vcvars() - hardcoded paths only
+        shell=True,  # Fixed command; vswhere's file path is passed only via the environment.
+        env=child_env,
     )
-
     if result.returncode != 0:
-        print("ERROR: Failed to run vcvars64.bat")
+        print("ERROR: Failed to run vcvars64.bat", file=out)
         sys.exit(1)
-
     env = {}
     for line in result.stdout.splitlines():
-        if "=" in line:
+        if "=" in line and not line.startswith("="):
             key, _, value = line.partition("=")
             env[key] = value
+    env.pop("VELOCITYDB_VCVARS", None)
+    normalized = {key.upper(): value for key, value in env.items()}
+    if normalized.get("VISUALSTUDIOVERSION", "").split(".")[0] != "18":
+        raise RuntimeError("vcvars64.bat did not activate Visual Studio 2026")
+    print(f"MSVC toolset: {normalized.get('VCTOOLSVERSION', 'unknown')}", file=out)
+    print(f"Windows SDK: {normalized.get('WINDOWSSDKVERSION', 'unknown')}", file=out)
     return env
 
 

@@ -67,7 +67,7 @@ ninja: error: build.ninja:35: loading 'CMakeFiles\rules.ninja': The system canno
 
 ### MSVC Not Found
 
-- Developer Command Prompt for VS 2022 から実行
+- Developer Command Prompt for VS 2026 から実行
 - または `uv run scripts/pdg.py build backend` を使用
 
 ## フロントエンドのデバッグ

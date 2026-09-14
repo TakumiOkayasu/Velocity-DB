@@ -1,0 +1,9 @@
+name: Set up Visual Studio 2026
+description: Select stable VS 2026 using the same resolver as the local build CLI
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+    - name: Select and report MSVC
+      shell: pwsh
+      run: uv run python scripts/setup_msvc_ci.py

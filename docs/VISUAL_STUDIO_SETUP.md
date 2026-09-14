@@ -1,13 +1,33 @@
-# Visual Studio 2022 での開発・デバッグ手順
+# Visual Studio 2026 での開発・デバッグ手順
 
 ## 前提条件
 
-1. Visual Studio 2022 がインストールされていること
+1. Visual Studio 2026 (18.x) の最新Stable版がインストールされていること
 2. 「C++ によるデスクトップ開発」ワークロードがインストールされていること
 3. Bun がインストールされていること（フロントエンドビルド用）
    - インストール: `powershell -c "irm bun.sh/install.ps1 | iex"`
 4. uv がインストールされていること（ビルドスクリプト実行用）
    - インストール: `winget install astral-sh.uv`
+
+## ツールチェーンの選択と更新
+
+統合CLIはVisual Studio Installer同梱の`vswhere.exe`で、C++ x64ツールを備えた
+最新のVS 2026 Stableを選択する。VS 2022・Preview/Insiders・次のメジャー版は対象外。
+Community / Professional / Enterprise / Build Toolsと、カスタムインストール先に対応する。
+IDEを使わずビルドする場合はBuild Toolsでもよい。
+
+Visual Studio InstallerでStable版の更新を適用する。個人環境のVSをスクリプトが自動更新することはない。
+検出できない場合はInstallerで「C++ によるデスクトップ開発」とMSVC x64/x86ツールを確認する。
+固定パスや旧VSへフォールバックせず、必要なインストールがなければビルドを停止する。
+
+CIも同じPython検出処理を使用し、`windows-2025-vs2026`を指定する。
+VSのインストール版・MSVC toolset・Windows SDKをログに出力する。
+CMakeキャッシュはrunner image版とMSVC toolset版で分離し、異なる環境の生成物を復元しない。
+CIイメージの配布タイミングによるパッチ版の差はあり得るため、実行ログで使用版を確認する。
+
+公式資料: [VS 2026更新履歴](https://learn.microsoft.com/en-us/visualstudio/releases/2026/release-history)、
+[vswhereによるC++検出](https://github.com/microsoft/vswhere/wiki/Find-VC)、
+[VS 2026 runner image](https://github.com/actions/runner-images/blob/main/images/windows/Windows2025-VS2026-Readme.md)。
 
 ## セットアップ手順
 
@@ -29,20 +49,12 @@ bun run build
 
 ### 2. ソリューションを開く
 
-以下のいずれかの方法でプロジェクトを開きます：
+本リポジトリはNinja/CMake Presetsを使用するため、`.sln`は生成しない。
 
-#### 方法A: CMakeプロジェクトとして開く（推奨）
-
-1. Visual Studio 2022 を起動
+1. Visual Studio 2026を起動
 2. 「フォルダーを開く」を選択
-3. `D:\prog\Velocity-DB` フォルダを選択
-4. Visual Studio が CMakeLists.txt を自動検出してプロジェクトを構成
-
-#### 方法B: 生成済みソリューションを開く
-
-1. `D:\prog\Velocity-DB\build\VelocityDB.sln` をダブルクリック
-2. ソリューションエクスプローラーで「VelocityDB」プロジェクトを右クリック
-3. 「スタートアッププロジェクトに設定」を選択
+3. このリポジトリのルートフォルダを選択
+4. CMake Presetsの`debug`または`release`を選択
 
 ### 3. デバッグ構成の選択
 
@@ -63,16 +75,12 @@ bun run build
 
 ## プロジェクト構成
 
-```text
-VelocityDB.sln
-├── ALL_BUILD         - 全プロジェクトビルド
-├── VelocityDB        - メインアプリケーション (スタートアップ)
-├── VelocityDBCore    - コアライブラリ
-├── VelocityDBTests   - テストプロジェクト
-├── simdjson          - JSON処理ライブラリ
-├── pugixml           - XML処理ライブラリ
-└── ZERO_CHECK        - CMake再生成チェック
-```
+| CMakeターゲット | 用途 |
+| --- | --- |
+| `VelocityDB` | メインアプリケーション |
+| `VelocityDBCore` | コアライブラリ |
+| `VelocityDBTests` | テスト実行ファイル |
+
 
 ## トラブルシューティング
 
@@ -90,7 +98,7 @@ WebView2 Runtime がインストールされていることを確認してくだ
 ### ビルドエラーが発生する場合
 
 1. Visual Studio のビルドツールが最新か確認
-2. 「ソリューションのクリーン」を実行してからリビルド
+2. CMakeのキャッシュを削除して再構成する
 3. `build` フォルダを削除してCMakeを再実行：
 
    ```text
