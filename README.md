@@ -28,7 +28,8 @@ ODBC ドライバは公式サイトから入手する。
 
 ## ビルド
 
-必要ツール: Visual Studio 2026 Stable (18.x, C++。Build Tools可) / CMake 3.20+ / Ninja / Bun / uv。
+必要ツール: Visual Studio 2026 Stable (18.x, C++。Build Tools可) / CMake 3.25+ / Ninja / Bun / Python 3.14+ / uv。
+バージョンの指定元と更新方針は[開発ツールのバージョン管理](./docs/VISUAL_STUDIO_SETUP.md#開発ツールのバージョン管理)を参照。
 
 ```bash
 git clone https://github.com/TakumiOkayasu/Velocity-DB.git

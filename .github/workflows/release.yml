@@ -40,7 +40,7 @@ jobs:
   # Build backend in parallel
   build-backend:
     name: Build Backend
-    runs-on: windows-2025-vs2026
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 

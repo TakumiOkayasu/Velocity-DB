@@ -21,7 +21,7 @@ permissions:
 jobs:
   backend-bench:
     name: Backend Benchmarks
-    runs-on: windows-2025-vs2026
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -84,7 +84,7 @@ jobs:
     # local-only for now — set VELOCITYDB_PERF_MSSQL_CONNSTR manually to run
     # the SQLServer leg.
     name: SELECT 100万行 Integration Bench
-    runs-on: windows-2025-vs2026
+    runs-on: windows-latest
     needs: backend-bench
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-2025-vs2026]
+        os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
@@ -71,7 +71,7 @@ jobs:
           pattern: cpp-format-*
           path: format-results
       - name: Compare Windows and Linux formatting
-        run: diff -u format-results/cpp-format-ubuntu-latest/format-manifest.json format-results/cpp-format-windows-2025-vs2026/format-manifest.json
+        run: diff -u format-results/cpp-format-ubuntu-latest/format-manifest.json format-results/cpp-format-windows-latest/format-manifest.json
 
   # Frontend lint (parallel with C++ lint)
   lint-frontend:
@@ -155,7 +155,7 @@ jobs:
   # Runs on: main branch push OR PR with 'test-backend' label
   build-backend:
     name: Build & Test Backend
-    runs-on: windows-2025-vs2026
+    runs-on: windows-latest
     needs: lint-cpp
     if: |
       (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) ||
@@ -245,7 +245,7 @@ jobs:
   # Package - only when backend is built (main branch only)
   package:
     name: Package Application
-    runs-on: windows-2025-vs2026
+    runs-on: windows-latest
     needs: [build-frontend, build-backend]
     if: >-
       always() &&

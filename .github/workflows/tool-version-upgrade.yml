@@ -257,7 +257,7 @@ jobs:
     name: Upgrade vcpkg Baseline
     needs: detect-versions
     if: needs.detect-versions.outputs.vcpkg_needs_update == 'true'
-    runs-on: windows-2025-vs2026
+    runs-on: windows-latest
     env:
       VCPKG_ROOT: ${{ github.workspace }}\vcpkg
       VCPKG_DISABLE_METRICS: '1'
