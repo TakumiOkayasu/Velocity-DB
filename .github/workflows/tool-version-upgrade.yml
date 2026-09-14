@@ -290,7 +290,7 @@ jobs:
 
       - name: Setup MSVC
         if: steps.check-pr.outputs.skip == 'false'
-        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
+        uses: ./.github/actions/setup-msvc
 
       - name: Install Ninja
         if: steps.check-pr.outputs.skip == 'false'
@@ -504,3 +504,4 @@ jobs:
             --body-file "$RUNNER_TEMP/llvm-pr.md" \
             --label "dependencies" \
             --reviewer "TakumiOkayasu"
+

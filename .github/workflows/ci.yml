@@ -40,6 +40,16 @@ jobs:
           export_path: false
           env: false
 
+      - name: Set up stable VS 2026
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/setup-msvc
+
+      - name: Check Python build scripts
+        run: uvx ruff check scripts/ && uvx ruff format --check scripts/
+
+      - name: Test Visual Studio selection
+        run: uv run --with pytest python -m pytest scripts/tests/test_vs2026.py -q
+
       - name: Test resolver and check C++ formatting
         env:
           VELOCITYDB_TEST_LLVM: '1'
@@ -169,7 +179,7 @@ jobs:
         run: python scripts/convert_eol.py crlf
 
       - name: Setup MSVC Developer Environment
-        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
+        uses: ./.github/actions/setup-msvc
 
       # VS18 同梱 vcpkg-tool は古い detect_compiler portfile を持ち CMake 4.x で永続失敗するため、
       # project-local の vcpkg を vcpkg.json の builtin-baseline SHA で checkout して bootstrap する
@@ -209,9 +219,9 @@ jobs:
             build/CMakeCache.txt
             build/CMakeFiles
             build/**/*.dir
-          key: cmake-v3-ninja-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'backend/CMakeLists.txt', 'third_party/CMakeLists.txt', 'vcpkg.json') }}
+          key: cmake-v3-ninja-${{ runner.os }}-${{ env.VELOCITYDB_TOOLCHAIN_KEY }}-${{ hashFiles('CMakeLists.txt', 'backend/CMakeLists.txt', 'third_party/CMakeLists.txt', 'vcpkg.json') }}
           restore-keys: |
-            cmake-v3-ninja-${{ runner.os }}-
+            cmake-v3-ninja-${{ runner.os }}-${{ env.VELOCITYDB_TOOLCHAIN_KEY }}-
 
       - name: Configure CMake
         run: |
@@ -287,3 +297,4 @@ jobs:
               exit 1
           fi
           echo "All required jobs passed!"
+

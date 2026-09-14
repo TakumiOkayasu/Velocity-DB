@@ -94,7 +94,7 @@ PCHを無効化したりコンパイラを旧版に戻したりする必要は�
 
 ### MSVC Not Found
 
-- Developer Command Prompt for VS 2022 から実行
+- Developer Command Prompt for VS 2026 から実行
 - または `uv run scripts/pdg.py build backend` を使用
 
 ## フロントエンドのデバッグ

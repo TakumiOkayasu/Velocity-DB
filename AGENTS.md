@@ -14,6 +14,11 @@ Windows専用RDBMS管理ツール（DataGripライクなUI/UX）。SQL Server / 
 - Lint/Format: Vite+ (Oxlint/Oxfmt, Frontend), clang-format (C++), Ruff (Python)
 - Test: Vitest (Frontend unit), Playwright (Frontend E2E), Google Test (C++)
 
+## ビルド環境
+
+VS 2026 Stable (18.x) とC++ x64ツールを使用する。VS 2022互換は対象外。
+ローカル・CIとも`vswhere`による共通検出を使用し、固定インストール先を列挙しない。
+
 ## ビルドコマンド
 
 統合CLI: `uv run scripts/pdg.py` (ショートカット: `b`uild, `t`est, `l`int, `d`ev, `c`heck)
@@ -162,7 +167,7 @@ frontend/
 | ---------- | ------ |
 | `docs/ARCHITECTURE.md` | レイヤー構造、コンポーネント対応表 |
 | `docs/TROUBLESHOOTING.md` | トラブルシューティング |
-| `docs/VISUAL_STUDIO_SETUP.md` | VS2022 でのデバッグ手順 |
+| `docs/VISUAL_STUDIO_SETUP.md` | VS2026 でのデバッグ手順 |
 
 ## Codex責任範囲
 
