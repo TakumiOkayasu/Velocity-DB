@@ -51,9 +51,9 @@ export function ErrorDetailDialog({ isOpen, errorMessage, onClose, title = 'ク�
       </div>
       <div className={styles.content}>
         <p className={styles.summary}>{parsed.summary}</p>
-        <pre ref={detailRef} tabIndex={0} aria-label="エラー詳細 (Ctrl+Cで全文コピー)" className={styles.detail}>{parsed.detail}</pre>
+        <pre ref={detailRef} tabIndex={-1} aria-label="エラー詳細 (Ctrl+Cで全文コピー)" className={styles.detail}>{parsed.detail}</pre>
       </div>
-      <p role="status">{copyStatus}</p>
+      <output>{copyStatus}</output>
       <div className={styles.footer}>
         <button type="button" className={styles.copyButton} onClick={copyToClipboard}>
           コピー

@@ -122,7 +122,7 @@ export function MainLayout() {
     isDataView,
   });
 
-  const feedback = useConnectionFeedback();
+  const { error: connectionError, dismissError, reportError, reportResult } = useConnectionFeedback();
 
   const connectToDatabase = async (config: ConnectionConfig, profileId?: string) => {
     try {
@@ -153,11 +153,11 @@ export function MainLayout() {
           : undefined,
       });
       if (result.status === 'connected') applyConnectionMigration(result.replaced);
-      feedback.reportResult(result);
+      reportResult(result);
       closeConnectionDialog();
     } catch (error) {
       closeConnectionDialog();
-      feedback.reportError(error);
+      reportError(error);
     }
   };
 
@@ -263,7 +263,7 @@ export function MainLayout() {
     onOpenSettings: openSettingsDialog,
     onCancel: handleCancel,
     isExecuting,
-    hasOpenDialog: hasOpenDialog || feedback.error !== null,
+    hasOpenDialog: hasOpenDialog || connectionError !== null,
   });
 
   // Track and save window size/position
@@ -317,8 +317,8 @@ export function MainLayout() {
 
   return (
     <div className={styles.container}>
-      <ErrorDetailDialog isOpen={feedback.error !== null} title="接続できませんでした"
-        errorMessage={feedback.error ?? ''} onClose={feedback.dismissError} />
+      <ErrorDetailDialog isOpen={connectionError !== null} title="接続できませんでした"
+        errorMessage={connectionError ?? ''} onClose={dismissError} />
       {/* Production Environment Warning Banner */}
       {isProduction && (
         <div className={styles.productionBanner}>

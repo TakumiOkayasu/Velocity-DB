@@ -76,7 +76,7 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
     }))
   );
   const { addConnection, cancelConnection } = useConnectionActions();
-  const feedback = useConnectionFeedback();
+  const { error: connectionError, dismissError, reportError, reportResult } = useConnectionFeedback();
   const attemptRef = useRef(0);
   const [profiles, setProfiles] = useState<SavedConnectionProfile[]>([]);
   const [confirmingProfile, setConfirmingProfile] = useState<SavedConnectionProfile | null>(null);
@@ -230,31 +230,31 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
       });
       if (attempt !== attemptRef.current) return;
       if (result.status === 'connected') applyConnectionMigration(result.replaced);
-      feedback.reportResult(result);
+      reportResult(result);
       setConfirmingProfile(null);
     } catch (error) {
       if (attempt !== attemptRef.current) return;
       setConfirmingProfile(null);
-      feedback.reportError(error);
+      reportError(error);
     } finally {
       if (attempt === attemptRef.current) setIsConnecting(false);
     }
-  }, [confirmingProfile, addConnection, feedback.reportResult, feedback.reportError]);
+  }, [confirmingProfile, addConnection, reportResult, reportError]);
 
   const handleCancel = useCallback(() => {
     ++attemptRef.current;
     if (isConnecting) {
-      feedback.reportResult({ status: 'cancelled' });
+      reportResult({ status: 'cancelled' });
       cancelConnection();
       setIsConnecting(false);
     }
     setConfirmingProfile(null);
-  }, [isConnecting, cancelConnection, feedback.reportResult]);
+  }, [isConnecting, cancelConnection, reportResult]);
 
   return (
     <div className={styles.container}>
-      <ErrorDetailDialog isOpen={feedback.error !== null} title="接続できませんでした"
-        errorMessage={feedback.error ?? ''} onClose={feedback.dismissError} />
+      <ErrorDetailDialog isOpen={connectionError !== null} title="接続できませんでした"
+        errorMessage={connectionError ?? ''} onClose={dismissError} />
       {profileTree.folders.map((node) => renderFolder(node, 0))}
       {profileTree.rootProfiles.map(renderProfile)}
 

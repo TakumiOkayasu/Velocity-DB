@@ -99,6 +99,7 @@ jobs:
       - name: Lint and Type Check (parallel)
         working-directory: frontend
         run: |
+          trap 'git diff' EXIT
           vp check --fix
           vp run typecheck
           vp test --run src/tests/components/ConnectionDialog.integration.test.tsx src/tests/dialogs/ErrorDetailDialog.test.tsx src/tests/stores/connectionStore.test.ts src/tests/stores/connectionStore.profileId.test.ts
