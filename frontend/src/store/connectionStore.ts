@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { connectionProvider, schemaProvider } from '../api/providers';
 import type { Connection } from '../types';
+import { log } from '../utils/logger';
 import { pollConnection } from './connection/helpers/connectionPolling';
 
 export type ConnectionResult =
@@ -41,6 +42,10 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
   addConnection: async (connection) => {
     set({ isConnecting: true, error: null, connectRequestId: null, connectCancelled: false });
 
+    log.info(
+      `[Connection] stage=frontend-submit savedProfile=${Boolean(connection.profileId)} ` +
+        `passwordPresent=${Boolean(connection.password)} windowsAuth=${connection.useWindowsAuth}`
+    );
     let requestId: string | null = null;
     try {
       const response = await connectionProvider.connectAsync({
@@ -128,6 +133,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         .then(() => schemaProvider.getTables(result.connectionId, ''))
         .catch(() => {});
 
+      log.info('[Connection] stage=frontend-result outcome=connected');
       return {
         status: 'connected',
         ...(oldId ? { replaced: { oldId, newId: result.connectionId } } : {}),
@@ -147,6 +153,10 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         connectCancelled: false,
         error: message,
       });
+      const reason = message.includes('fe_sendauth: no password supplied')
+        ? 'password-missing'
+        : 'connection-failed';
+      log.error(`[Connection] stage=frontend-result outcome=failed reason=${reason}`);
       return { status: 'failed', error: message };
     }
   },

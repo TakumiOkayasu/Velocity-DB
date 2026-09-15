@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
+import { log } from '../../utils/logger';
 import { useConnectionStore } from '../../store/connectionStore';
+
+vi.mock('../../utils/logger', () => ({ log: { info: vi.fn(), error: vi.fn() } }));
 
 const mockConnectAsync = vi.fn();
 const mockGetConnectResult = vi.fn();
@@ -60,6 +63,37 @@ describe('connectionStore', () => {
   });
 
   describe('addConnection', () => {
+    it('records a missing-password failure without logging credentials or error payloads', async () => {
+      mockConnectAsync.mockResolvedValue({ requestId: 'r-1' });
+      mockGetConnectResult.mockResolvedValue({
+        status: 'failed',
+        error: 'fe_sendauth: no password supplied private-error-data',
+      });
+      const result = await useConnectionStore.getState().addConnection({
+        ...baseConnection,
+        profileId: 'private-profile-id',
+        password: '',
+      });
+      expect(result.status).toBe('failed');
+      expect(log.info).toHaveBeenCalledExactlyOnceWith(
+        '[Connection] stage=frontend-submit savedProfile=true passwordPresent=false windowsAuth=false'
+      );
+      expect(log.error).toHaveBeenCalledExactlyOnceWith(
+        '[Connection] stage=frontend-result outcome=failed reason=password-missing'
+      );
+    });
+
+    it('logs password presence without logging the password on an IPC failure', async () => {
+      mockConnectAsync.mockRejectedValue(new Error('private-error-data'));
+      await useConnectionStore.getState().addConnection(baseConnection);
+      expect(log.info).toHaveBeenCalledExactlyOnceWith(
+        '[Connection] stage=frontend-submit savedProfile=false passwordPresent=true windowsAuth=false'
+      );
+      expect(log.error).toHaveBeenCalledExactlyOnceWith(
+        '[Connection] stage=frontend-result outcome=failed reason=connection-failed'
+      );
+    });
+
     it('should prefetch getTables into cache after successful connection (#512)', async () => {
       mockConnectAsync.mockResolvedValue({ requestId: 'conn_1' });
       mockGetConnectResult.mockResolvedValue({ status: 'connected', connectionId: 'db_1' });

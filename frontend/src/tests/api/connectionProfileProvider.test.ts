@@ -1,10 +1,13 @@
-import { beforeEach, describe, expect, it } from 'vite-plus/test';
+import { log } from '../../utils/logger';
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { MockIpcInvoker } from '../../api/ipc/mock-ipc-invoker';
 import { __setIpcInvokerForTest, connectionProfileProvider } from '../../api/providers';
 import type {
   ConnectionProfile,
   SaveConnectionProfileInput,
 } from '../../api/providers/connection-profile';
+
+vi.mock('../../utils/logger', () => ({ log: { info: vi.fn(), error: vi.fn() } }));
 
 const SAMPLE_PROFILE: ConnectionProfile = {
   id: 'p-1',
@@ -26,6 +29,7 @@ describe('connectionProfileProvider', () => {
   let mock: MockIpcInvoker;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     mock = new MockIpcInvoker();
     __setIpcInvokerForTest(mock);
   });
@@ -77,6 +81,22 @@ describe('connectionProfileProvider', () => {
 
     expect(mock.calls[0]).toEqual({ method: 'getProfilePassword', params: { id: 'p-1' } });
     expect(result).toEqual({ password: 'secret' });
+  });
+
+  it.each(['', 'secret-value'])('logs only password presence (%s)', async (password) => {
+    mock.setResponse('getProfilePassword', { password });
+    await connectionProfileProvider.getProfilePassword('private-profile-id');
+    expect(log.info).toHaveBeenCalledExactlyOnceWith(
+      `[Connection] stage=profile-password-read passwordPresent=${Boolean(password)}`
+    );
+  });
+
+  it('logs lookup failure without copying backend error details', async () => {
+    mock.setResponse('getProfilePassword', { password: 123 });
+    await expect(connectionProfileProvider.getProfilePassword('private-profile-id')).rejects.toThrow();
+    expect(log.error).toHaveBeenCalledExactlyOnceWith(
+      '[Connection] stage=profile-password-read outcome=failed'
+    );
   });
 
   it('getSshPassword: profileId を {id} として渡し password を返す', async () => {
