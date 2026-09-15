@@ -73,7 +73,7 @@ export function ErrorDetailDialog({
             {parsed.detail}
           </pre>
         </div>
-        <output>{copyStatus}</output>
+        <output className={styles.copyStatus}>{copyStatus}</output>
         <div className={styles.footer}>
           <button type="button" className={styles.copyButton} onClick={copyToClipboard}>
             コピー
