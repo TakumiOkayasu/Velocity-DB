@@ -100,6 +100,7 @@ struct AppSettings {
 class SettingsAccessor {
 public:
     SettingsAccessor();
+    explicit SettingsAccessor(std::filesystem::path settingsPath);
     ~SettingsAccessor() = default;
 
     SettingsAccessor(const SettingsAccessor&) = delete;

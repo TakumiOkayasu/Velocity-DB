@@ -321,44 +321,83 @@ std::string SettingsProvider::saveConnectionProfile(std::string_view params) {
             profile.id = std::format("profile_{}", std::chrono::system_clock::now().time_since_epoch().count());
         }
 
-        if (m_settingsAccessor->getConnectionProfile(profile.id).has_value()) {
+        const auto previous = m_settingsAccessor->getConnectionProfile(profile.id);
+        if (previous) {
+            // Metadata requests do not carry encrypted credentials. Preserve them until
+            // a nonempty replacement or an explicit savePassword=false is supplied.
+            profile.encryptedPassword = previous->encryptedPassword;
+            profile.ssh.encryptedPassword = previous->ssh.encryptedPassword;
+            profile.ssh.encryptedKeyPassphrase = previous->ssh.encryptedKeyPassphrase;
             m_settingsAccessor->updateConnectionProfile(profile);
         } else {
             m_settingsAccessor->addConnectionProfile(profile);
         }
 
-        if (profile.savePassword) {
-            if (auto val = doc["password"].get_string(); !val.error()) {
-                auto password = std::string(val.value());
-                if (!password.empty()) {
-                    (void)m_settingsAccessor->setProfilePassword(profile.id, password);
-                }
+        const auto restorePrevious = [&] {
+            if (previous) {
+                m_settingsAccessor->updateConnectionProfile(*previous);
+            } else {
+                m_settingsAccessor->removeConnectionProfile(profile.id);
             }
-        } else {
-            (void)m_settingsAccessor->setProfilePassword(profile.id, "");
-        }
-
-        if (auto ssh = doc["ssh"]; !ssh.error()) {
-            if (auto savePass = ssh["savePassword"].get_bool(); !savePass.error() && savePass.value()) {
-                if (auto val = ssh["password"].get_string(); !val.error()) {
-                    auto sshPassword = std::string(val.value());
-                    if (!sshPassword.empty()) {
-                        (void)m_settingsAccessor->setSshPassword(profile.id, sshPassword);
-                    }
-                }
-                if (auto val = ssh["keyPassphrase"].get_string(); !val.error()) {
-                    auto keyPassphrase = std::string(val.value());
-                    if (!keyPassphrase.empty()) {
-                        (void)m_settingsAccessor->setSshKeyPassphrase(profile.id, keyPassphrase);
+        };
+        const auto saveCredentials = [&]() -> std::expected<void, std::string> {
+            if (profile.savePassword) {
+                if (auto val = doc["password"].get_string(); !val.error()) {
+                    auto password = std::string(val.value());
+                    if (!password.empty()) {
+                        if (auto result = m_settingsAccessor->setProfilePassword(profile.id, password); !result) {
+                            return std::unexpected(result.error());
+                        }
                     }
                 }
             } else {
-                (void)m_settingsAccessor->setSshPassword(profile.id, "");
-                (void)m_settingsAccessor->setSshKeyPassphrase(profile.id, "");
+                if (auto result = m_settingsAccessor->setProfilePassword(profile.id, ""); !result) {
+                    return std::unexpected(result.error());
+                }
             }
-        }
 
-        (void)m_settingsAccessor->save();
+            if (auto ssh = doc["ssh"]; !ssh.error()) {
+                if (auto savePass = ssh["savePassword"].get_bool(); !savePass.error() && savePass.value()) {
+                    if (auto val = ssh["password"].get_string(); !val.error()) {
+                        auto sshPassword = std::string(val.value());
+                        if (!sshPassword.empty()) {
+                            if (auto result = m_settingsAccessor->setSshPassword(profile.id, sshPassword); !result) {
+                                return std::unexpected(result.error());
+                            }
+                        }
+                    }
+                    if (auto val = ssh["keyPassphrase"].get_string(); !val.error()) {
+                        auto keyPassphrase = std::string(val.value());
+                        if (!keyPassphrase.empty()) {
+                            if (auto result = m_settingsAccessor->setSshKeyPassphrase(profile.id, keyPassphrase); !result) {
+                                return std::unexpected(result.error());
+                            }
+                        }
+                    }
+                } else {
+                    if (auto result = m_settingsAccessor->setSshPassword(profile.id, ""); !result) {
+                        return std::unexpected(result.error());
+                    }
+                    if (auto result = m_settingsAccessor->setSshKeyPassphrase(profile.id, ""); !result) {
+                        return std::unexpected(result.error());
+                    }
+                }
+            }
+
+            return m_settingsAccessor->save();
+        };
+        const auto saved = [&]() {
+            try {
+                return saveCredentials();
+            } catch (...) {
+                restorePrevious();
+                throw;
+            }
+        }();
+        if (!saved) {
+            restorePrevious();
+            return JsonUtils::errorResponse(saved.error());
+        }
 
         return JsonUtils::successResponse(std::format(R"({{"id":"{}"}})", JsonUtils::escapeString(profile.id)));
     } catch (const std::exception& e) {
