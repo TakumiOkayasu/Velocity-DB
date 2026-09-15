@@ -30,6 +30,7 @@ type RawProfile = Awaited<
 >['profiles'][number];
 
 function normalizeProfile(p: RawProfile): SavedConnectionProfile {
+  const dbType = isDatabaseType(p.dbType ?? '') ? p.dbType : 'sqlserver';
   return {
     id: p.id,
     name: p.name,
@@ -37,7 +38,7 @@ function normalizeProfile(p: RawProfile): SavedConnectionProfile {
     port: p.port ?? 1433,
     database: p.database,
     username: p.username,
-    useWindowsAuth: p.useWindowsAuth,
+    useWindowsAuth: dbType === 'sqlserver' && p.useWindowsAuth,
     savePassword: p.savePassword ?? false,
     isProduction: p.isProduction ?? false,
     isReadOnly: p.isReadOnly ?? false,
@@ -46,7 +47,7 @@ function normalizeProfile(p: RawProfile): SavedConnectionProfile {
       : p.isProduction
         ? 'production'
         : 'development',
-    dbType: isDatabaseType(p.dbType ?? '') ? p.dbType : 'sqlserver',
+    dbType,
     folderPath: p.folderPath ?? '',
     ssh: p.ssh
       ? {
