@@ -88,7 +88,9 @@ class ConnectionProfileProviderImpl extends BaseProvider implements ConnectionPr
         { id: profileId },
         S.getProfilePassword
       );
-      log.info(`[Connection] stage=profile-password-read passwordPresent=${Boolean(result.password)}`);
+      log.info(
+        `[Connection] stage=profile-password-read passwordPresent=${Boolean(result.password)}`
+      );
       return result;
     } catch (error) {
       log.error('[Connection] stage=profile-password-read outcome=failed');

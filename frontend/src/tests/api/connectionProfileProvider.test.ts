@@ -93,7 +93,9 @@ describe('connectionProfileProvider', () => {
 
   it('logs lookup failure without copying backend error details', async () => {
     mock.setResponse('getProfilePassword', { password: 123 });
-    await expect(connectionProfileProvider.getProfilePassword('private-profile-id')).rejects.toThrow();
+    await expect(
+      connectionProfileProvider.getProfilePassword('private-profile-id')
+    ).rejects.toThrow();
     expect(log.error).toHaveBeenCalledExactlyOnceWith(
       '[Connection] stage=profile-password-read outcome=failed'
     );
