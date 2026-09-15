@@ -184,7 +184,10 @@ export function profileFormReducer(
       const config = resolveSetStateValue(action.payload, state.config);
       return {
         ...state,
-        config: { ...config, useWindowsAuth: config.dbType === 'sqlserver' && config.useWindowsAuth },
+        config: {
+          ...config,
+          useWindowsAuth: config.dbType === 'sqlserver' && config.useWindowsAuth,
+        },
       };
     }
 
