@@ -1,48 +1,45 @@
-#include <gtest/gtest.h>
-
-#include <format>
-#include <memory>
-
+#include "accessors/session_accessor.h"
+#include "accessors/settings_accessor.h"
 #include "database/query_history.h"
 #include "interfaces/providers/app_settings_accessor.h"
 #include "interfaces/providers/connection_profile_accessor.h"
 #include "interfaces/providers/session_state_accessor.h"
 #include "providers/settings_provider.h"
-#include "accessors/session_accessor.h"
-#include "accessors/settings_accessor.h"
+
+#include <filesystem>
+#include <format>
+#include <memory>
+#include <random>
+
+#include <gtest/gtest.h>
 
 namespace velocitydb {
 namespace {
 
 class SettingsProviderTest : public ::testing::Test {
 protected:
-    // settings.json は %LOCALAPPDATA%\Velocity-DB\ に永続化されるため、テスト間および
-    // ユーザー設定との state リークを防ぐ。SetUp で元の maxQueryHistory を退避してから
-    // 1000 にリセット、TearDown で退避値に復元する (ユーザー設定を破壊しない)。
-    // m_queryHistory は provider より先に宣言: SettingsProvider が QueryHistory& を保持するため
-    // (ライフタイム順序保証)。
     void SetUp() override {
-        auto settingsAccessor = std::make_unique<SettingsAccessor>();
-        (void)settingsAccessor->load();
-        m_savedMaxQueryHistory = settingsAccessor->getSettings().general.maxQueryHistory;
+        const auto directory = std::format("velocitydb-settings-{}-{}", std::random_device{}(), std::chrono::steady_clock::now().time_since_epoch().count());
+        m_directory = std::filesystem::temp_directory_path() / directory;
+        m_settingsPath = m_directory / "settings.json";
+        auto settingsAccessor = std::make_unique<SettingsAccessor>(m_settingsPath);
+        ASSERT_TRUE(settingsAccessor->load().has_value());
         auto sessionAccessor = std::make_unique<SessionAccessor>();
-        (void)sessionAccessor->load();
-
         m_queryHistory = std::make_unique<QueryHistory>(1000);
         provider = std::make_unique<SettingsProvider>(std::move(settingsAccessor), std::move(sessionAccessor), nullptr, *m_queryHistory);
-
-        auto resetResult = provider->updateSettings(R"({"general":{"maxQueryHistory":1000}})");
-        ASSERT_NE(resetResult.find("\"saved\""), std::string::npos);
     }
 
     void TearDown() override {
-        const auto restoreJson = std::format(R"({{"general":{{"maxQueryHistory":{}}}}})", m_savedMaxQueryHistory);
-        (void)provider->updateSettings(restoreJson);
+        provider.reset();
+        std::error_code error;
+        std::filesystem::remove_all(m_directory, error);
     }
+
+    std::filesystem::path m_directory;
+    std::filesystem::path m_settingsPath;
 
     std::unique_ptr<QueryHistory> m_queryHistory;
     std::unique_ptr<SettingsProvider> provider;
-    int m_savedMaxQueryHistory = 1000;
 };
 
 TEST_F(SettingsProviderTest, AccessSettingsAccessor) {
@@ -112,10 +109,9 @@ TEST_F(SettingsProviderTest, ConstructionAppliesLoadedMaxToInstance) {
     ASSERT_NE(updateResult.find("\"saved\""), std::string::npos);
 
     // 2) 別の SettingsAccessor を新規 load (disk から maxQueryHistory=3 を取得)。
-    auto freshSettings = std::make_unique<SettingsAccessor>();
+    auto freshSettings = std::make_unique<SettingsAccessor>(m_settingsPath);
     (void)freshSettings->load();
     auto freshSession = std::make_unique<SessionAccessor>();
-    (void)freshSession->load();
     ASSERT_EQ(freshSettings->getSettings().general.maxQueryHistory, 3);
 
     // 3) ローカル QueryHistory は上限 1000 で 10 件保持。
@@ -134,6 +130,75 @@ TEST_F(SettingsProviderTest, ConstructionAppliesLoadedMaxToInstance) {
     SettingsProvider freshProvider{std::move(freshSettings), std::move(freshSession), nullptr, localHistory};
 
     EXPECT_EQ(localHistory.getAll().size(), 3u);
+}
+
+TEST_F(SettingsProviderTest, MissingSavedPasswordAndDecryptionFailureAreDistinct) {
+    ConnectionProfile profile;
+    profile.id = "p";
+    provider->settingsAccessor().addConnectionProfile(profile);
+    EXPECT_EQ(provider->settingsAccessor().getProfilePassword("p"), "");
+    profile.encryptedPassword = "not valid base64!";
+    provider->settingsAccessor().updateConnectionProfile(profile);
+    const auto result = provider->getProfilePassword(R"({"id":"p"})");
+    EXPECT_NE(result.find("\"success\":false"), std::string::npos);
+    EXPECT_EQ(result.find("\"password\""), std::string::npos);
+}
+
+TEST_F(SettingsProviderTest, ProfileMetadataUpdatePreservesSavedPasswords) {
+    const auto created = provider->saveConnectionProfile(
+        R"({"id":"p","name":"before","dbType":"postgresql","useWindowsAuth":false,"savePassword":true,"password":"db-secret","ssh":{"enabled":true,"savePassword":true,"password":"ssh-secret","keyPassphrase":"key-secret"}})");
+    ASSERT_NE(created.find("\"success\":true"), std::string::npos);
+
+    // Both an omitted value and an empty form field mean no replacement.
+    for (
+        const auto request :
+        {R"({"id":"p","name":"renamed","dbType":"postgresql","useWindowsAuth":false,"savePassword":true,"ssh":{"enabled":true,"savePassword":true}})",
+         R"({"id":"p","name":"renamed","dbType":"postgresql","useWindowsAuth":false,"savePassword":true,"password":"","ssh":{"enabled":true,"savePassword":true,"password":"","keyPassphrase":""}})"}) {
+        const auto saved = provider->saveConnectionProfile(request);
+        ASSERT_NE(saved.find("\"success\":true"), std::string::npos);
+        EXPECT_NE(provider->getProfilePassword(R"({"id":"p"})").find("db-secret"), std::string::npos);
+        EXPECT_NE(provider->getSshPassword(R"({"id":"p"})").find("ssh-secret"), std::string::npos);
+        EXPECT_NE(provider->getSshKeyPassphrase(R"({"id":"p"})").find("key-secret"), std::string::npos);
+
+        SettingsAccessor reloaded(m_settingsPath);
+        ASSERT_TRUE(reloaded.load().has_value());
+        EXPECT_EQ(reloaded.getProfilePassword("p"), "db-secret");
+        EXPECT_EQ(reloaded.getSshPassword("p"), "ssh-secret");
+        EXPECT_EQ(reloaded.getSshKeyPassphrase("p"), "key-secret");
+        ASSERT_TRUE(reloaded.getConnectionProfile("p").has_value());
+        EXPECT_EQ(reloaded.getConnectionProfile("p")->name, "renamed");
+    }
+}
+
+TEST_F(SettingsProviderTest, ProfilePasswordsCanBeReplacedAndExplicitlyForgotten) {
+    for (const auto password : {"original", "replacement"}) {
+        const auto request = std::format(R"({{"id":"p","savePassword":true,"password":"{}","ssh":{{"savePassword":true,"password":"{}","keyPassphrase":"{}"}}}})", password, password, password);
+        ASSERT_NE(provider->saveConnectionProfile(request).find("\"success\":true"), std::string::npos);
+        EXPECT_EQ(provider->settingsAccessor().getProfilePassword("p"), password);
+        EXPECT_EQ(provider->settingsAccessor().getSshPassword("p"), password);
+        EXPECT_EQ(provider->settingsAccessor().getSshKeyPassphrase("p"), password);
+    }
+    ASSERT_NE(provider->saveConnectionProfile(R"({"id":"p","savePassword":false,"ssh":{"savePassword":false}})").find("\"success\":true"), std::string::npos);
+    SettingsAccessor reloaded(m_settingsPath);
+    ASSERT_TRUE(reloaded.load().has_value());
+    EXPECT_EQ(reloaded.getProfilePassword("p"), "");
+    EXPECT_EQ(reloaded.getSshPassword("p"), "");
+    EXPECT_EQ(reloaded.getSshKeyPassphrase("p"), "");
+    EXPECT_FALSE(reloaded.getConnectionProfile("p")->savePassword);
+}
+
+TEST_F(SettingsProviderTest, FailedProfileSaveReturnsErrorAndRestoresInMemoryCredentials) {
+    ASSERT_NE(provider->saveConnectionProfile(R"({"id":"p","name":"before","savePassword":true,"password":"original"})").find("\"success\":true"), std::string::npos);
+    // A directory at the file path deterministically prevents opening it for writing.
+    std::filesystem::remove(m_settingsPath);
+    std::filesystem::create_directory(m_settingsPath);
+    const auto result = provider->saveConnectionProfile(R"({"id":"p","name":"after","savePassword":true,"password":"replacement"})");
+    EXPECT_NE(result.find("\"success\":false"), std::string::npos);
+    EXPECT_EQ(provider->settingsAccessor().getProfilePassword("p"), "original");
+    EXPECT_EQ(provider->settingsAccessor().getConnectionProfile("p")->name, "before");
+    const auto newResult = provider->saveConnectionProfile(R"({"id":"new","savePassword":true,"password":"new-secret"})");
+    EXPECT_NE(newResult.find("\"success\":false"), std::string::npos);
+    EXPECT_FALSE(provider->settingsAccessor().getConnectionProfile("new").has_value());
 }
 
 TEST_F(SettingsProviderTest, SubInterfacesAreUsableIndependently) {

@@ -15,20 +15,26 @@
 
 namespace velocitydb {
 
-SettingsAccessor::SettingsAccessor() {
-    // Get AppData\Local path
+namespace {
+
+std::filesystem::path defaultSettingsPath() {
     wchar_t* localAppData = nullptr;
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &localAppData))) {
-        m_settingsPath = std::filesystem::path(localAppData) / "Velocity-DB";
+        const auto path = std::filesystem::path(localAppData) / "Velocity-DB" / "settings.json";
         CoTaskMemFree(localAppData);
-    } else {
-        // Fallback to current directory
-        m_settingsPath = std::filesystem::current_path() / ".velocitydb";
+        return path;
     }
+    return std::filesystem::current_path() / ".velocitydb" / "settings.json";
+}
 
-    // Ensure directory exists
-    std::filesystem::create_directories(m_settingsPath);
-    m_settingsPath /= "settings.json";
+}  // namespace
+
+SettingsAccessor::SettingsAccessor() : SettingsAccessor(defaultSettingsPath()) {}
+
+SettingsAccessor::SettingsAccessor(std::filesystem::path settingsPath) : m_settingsPath(std::move(settingsPath)) {
+    if (m_settingsPath.has_parent_path()) {
+        std::filesystem::create_directories(m_settingsPath.parent_path());
+    }
 }
 
 std::expected<void, std::string> SettingsAccessor::load() {
