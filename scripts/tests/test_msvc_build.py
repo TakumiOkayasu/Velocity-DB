@@ -6,11 +6,13 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from _lib import build
+from _lib.environment import BuildEnvironment
+from _lib.windows_environment import WindowsMsvcEnvironment
 
 
 class MsvcBuildTest(unittest.TestCase):
@@ -103,7 +105,7 @@ class MsvcBuildTest(unittest.TestCase):
     @unittest.skipUnless(os.name == "nt", "Requires a Windows MSVC installation")
     def test_installed_msvc_identity_is_readable(self) -> None:
         self.which.stop()
-        env = build.utils.get_msvc_env(out=io.StringIO())
+        env = WindowsMsvcEnvironment().activate(out=io.StringIO())
         self.assertIn("c1xx.dll", build._msvc_fingerprint(env))
 
     def test_missing_compiler_dll_fails_before_cleanup(self) -> None:
@@ -124,6 +126,8 @@ class MsvcBuildTest(unittest.TestCase):
                 self.build_dir.mkdir(exist_ok=True)
                 self.stamp.write_text(self.fingerprint, encoding="utf-8")
                 calls = []
+                environment = Mock(spec=BuildEnvironment)
+                environment.activate.return_value = self.env.copy()
 
                 def run(
                     cmd: list[str],
@@ -148,7 +152,6 @@ class MsvcBuildTest(unittest.TestCase):
 
                 with (
                     patch.object(build.utils, "get_project_root", return_value=self.root),
-                    patch.object(build.utils, "get_msvc_env", return_value=self.env.copy()),
                     patch.object(build.utils, "check_build_tools", return_value=True),
                     patch.object(build, "_ensure_vcpkg", return_value=self.root / "vcpkg"),
                     patch.object(build, "_find_ninja", return_value=None),
@@ -156,9 +159,12 @@ class MsvcBuildTest(unittest.TestCase):
                     patch.object(build.utils, "clear_webview2_cache"),
                 ):
                     self.assertEqual(
-                        build.build_backend(copy_frontend=False, out=io.StringIO()),
+                        build.build_backend(
+                            environment=environment, copy_frontend=False, out=io.StringIO()
+                        ),
                         configure_ok and compile_ok,
                     )
+                environment.activate.assert_called_once()
                 self.assertEqual(calls, ["configure", "build"] if configure_ok else ["configure"])
                 self.assertEqual(self.stamp.exists(), configure_ok)
 
