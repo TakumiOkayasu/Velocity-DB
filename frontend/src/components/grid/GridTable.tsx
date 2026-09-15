@@ -4,6 +4,7 @@ import { type MouseEvent, memo, type RefObject, type UIEvent, useCallback, useMe
 import { type ColumnMeta, isSystemColumn } from '../../types/grid';
 import type { ValidationError } from '../../utils/validation';
 import { ContextMenu } from '../common/ContextMenu';
+import { BooleanCell, isBooleanType } from './BooleanCell';
 import { ColumnResizer } from './ColumnResizer';
 import type { GridRow, GridTableInstance } from './tableFeatures';
 import { useGridContextMenu } from './hooks/useGridContextMenu';
@@ -17,7 +18,7 @@ export interface GridEditContext {
   isRowDeleted: (index: number) => boolean;
   isRowInserted: (index: number) => boolean;
   /** Cell-level checkers */
-  getCellChange: (index: number, field: string) => unknown;
+  getCellChange: (index: number, field: string) => { newValue: string | null } | null;
   getValidationError: (index: number, field: string) => ValidationError | null;
   isForeignKeyColumn: (field: string) => boolean;
 }
@@ -349,6 +350,7 @@ function GridTableInner({
                   const change = !isSystemColumn(field)
                     ? edit.getCellChange(originalIndex, field)
                     : null;
+                  const displayValue = change ? change.newValue : value;
                   const isChanged = change !== null;
                   const isNull = value === null;
                   const align = cell.column.columnDef.meta?.align ?? 'left';
@@ -395,6 +397,23 @@ function GridTableInner({
                           value={edit.editValue}
                           onChange={(e) => callbacks.onSetEditValue(e.target.value)}
                           onBlur={callbacks.onCommitEdit}
+                        />
+                      ) : !isSystemColumn(field) &&
+                        isBooleanType(cell.column.columnDef.meta?.type ?? '') ? (
+                        <BooleanCell
+                          value={displayValue === null ? null : String(displayValue)}
+                          label={field}
+                          onChange={
+                            edit.isEditMode && !isDeleted && callbacks.onUpdateCell
+                              ? (next) =>
+                                  callbacks.onUpdateCell?.(
+                                    originalIndex,
+                                    field,
+                                    value === null ? null : String(value),
+                                    next
+                                  )
+                              : undefined
+                          }
                         />
                       ) : isNull ? (
                         'NULL'

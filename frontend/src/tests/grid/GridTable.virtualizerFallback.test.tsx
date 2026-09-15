@@ -18,7 +18,7 @@
 
 import { useTable } from '@tanstack/react-table';
 import type { VirtualItem } from '@tanstack/react-virtual';
-import { cleanup, render, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, within } from '@testing-library/react';
 import { useRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 import {
@@ -86,15 +86,23 @@ interface HarnessProps {
   /** virtualRows を強制する。空配列なら "broken state" を再現 */
   virtualRows: VirtualItem[];
   totalSize: number;
+  columns?: GridColumnDef[];
+  edit?: GridEditContext;
 }
 
 /** 実 useTable で table を構築し、virtualRows / totalSize は外部制御する */
-function Harness({ data, virtualRows, totalSize }: HarnessProps) {
+function Harness({
+  data,
+  virtualRows,
+  totalSize,
+  columns = COLUMNS,
+  edit = NOOP_EDIT,
+}: HarnessProps) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const table = useTable({
     features: gridTableFeatures,
     data,
-    columns: COLUMNS,
+    columns,
   });
   const rows: GridRow[] = table.getRowModel().rows;
   return (
@@ -107,7 +115,7 @@ function Harness({ data, virtualRows, totalSize }: HarnessProps) {
       showColumnFilters={false}
       showLogicalNamesInGrid={false}
       columnsMeta={[]}
-      edit={NOOP_EDIT}
+      edit={edit}
       selection={NOOP_SELECTION}
       callbacks={NOOP_CALLBACKS}
       columnSizing={{}}
@@ -209,5 +217,59 @@ describe('GridTable virtualizer broken-state フォールバック (Issue #417)'
     const rows = dataRows(container);
     expect(rows).toHaveLength(1);
     expect(within(rows[0]).getByText('name-0')).toBeInTheDocument();
+  });
+});
+
+describe('GridTable boolean editing (#719)', () => {
+  const columns: GridColumnDef[] = [
+    { id: 'enabled', accessorKey: 'enabled', header: 'enabled', meta: { type: 'boolean' } },
+    { id: 'text', accessorKey: 'text', header: 'text', meta: { type: 'text' } },
+  ];
+  const data: RowData[] = [{ __originalIndex: '7', enabled: 't', text: 'f' }];
+
+  it('uses the original row index and existing update callback', () => {
+    NOOP_CALLBACKS.onUpdateCell.mockClear();
+    const { getByRole, getByText } = render(
+      <Harness
+        data={data}
+        columns={columns}
+        virtualRows={[]}
+        totalSize={32}
+        edit={{ ...NOOP_EDIT, isEditMode: true }}
+      />
+    );
+    fireEvent.click(getByRole('checkbox'));
+    expect(NOOP_CALLBACKS.onUpdateCell).toHaveBeenCalledExactlyOnceWith(7, 'enabled', 't', 'f');
+    expect(getByText('f')).toBeTruthy();
+  });
+
+  it('shows the pending value and uses the original value when toggling back', () => {
+    NOOP_CALLBACKS.onUpdateCell.mockClear();
+    const { getByRole } = render(
+      <Harness
+        data={data}
+        columns={columns}
+        virtualRows={[]}
+        totalSize={32}
+        edit={{ ...NOOP_EDIT, isEditMode: true, getCellChange: () => ({ newValue: 'f' }) }}
+      />
+    );
+    const input = getByRole('checkbox') as HTMLInputElement;
+    expect(input.checked).toBe(false);
+    fireEvent.click(input);
+    expect(NOOP_CALLBACKS.onUpdateCell).toHaveBeenCalledExactlyOnceWith(7, 'enabled', 't', 't');
+  });
+
+  it.each([false, true])('disables changes for read-only/deleted rows (deleted=%s)', (deleted) => {
+    const { getByRole } = render(
+      <Harness
+        data={data}
+        columns={columns}
+        virtualRows={[]}
+        totalSize={32}
+        edit={{ ...NOOP_EDIT, isEditMode: deleted, isRowDeleted: () => deleted }}
+      />
+    );
+    expect((getByRole('checkbox') as HTMLInputElement).disabled).toBe(true);
   });
 });
