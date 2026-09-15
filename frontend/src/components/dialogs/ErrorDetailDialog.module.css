@@ -67,3 +67,10 @@
 .closeButton:hover {
   background: var(--accent-hover, #5a98d7);
 }
+
+.copyStatus {
+  display: block;
+  padding: 0 20px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
