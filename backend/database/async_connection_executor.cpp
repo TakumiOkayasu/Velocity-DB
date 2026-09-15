@@ -30,6 +30,7 @@ AsyncConnectionExecutor::~AsyncConnectionExecutor() {
 }
 
 std::string AsyncConnectionExecutor::submitConnect(DatabaseConnectionParams params) {
+    log<LogLevel::INFO>(std::format("[Connection] stage=backend-submit passwordPresent={} windowsAuth={}", !params.password.empty(), params.useWindowsAuth));
     auto requestId = std::format("creq_{}", m_counter++);
 
     auto task = std::make_shared<ConnectTask>();
@@ -43,6 +44,7 @@ std::string AsyncConnectionExecutor::submitConnect(DatabaseConnectionParams para
             auto prepared = prepareConnection(task->effectiveParams);
             if (!prepared) {
                 task->errorMessage = prepared.error();
+                log<LogLevel::ERROR_LEVEL>("[Connection] stage=prepare outcome=failed");
                 task->status = ConnectStatus::Failed;
                 return;
             }
@@ -68,6 +70,7 @@ std::string AsyncConnectionExecutor::submitConnect(DatabaseConnectionParams para
                 if (task->tunnel)
                     task->tunnel->disconnect();
                 task->errorMessage = std::format("Connection failed: {}", queryDriverPtr->getLastError());
+                log<LogLevel::ERROR_LEVEL>("[Connection] stage=query-connect outcome=failed");
                 task->status = ConnectStatus::Failed;
                 return;
             }
@@ -90,6 +93,7 @@ std::string AsyncConnectionExecutor::submitConnect(DatabaseConnectionParams para
                 if (task->tunnel)
                     task->tunnel->disconnect();
                 task->errorMessage = std::format("Metadata connection failed: {}", metadataDriverPtr->getLastError());
+                log<LogLevel::ERROR_LEVEL>("[Connection] stage=metadata-connect outcome=failed");
                 task->status = ConnectStatus::Failed;
                 return;
             }
@@ -107,11 +111,12 @@ std::string AsyncConnectionExecutor::submitConnect(DatabaseConnectionParams para
             task->metadataDriver = std::move(metadataDriverPtr);
             task->status = ConnectStatus::Connected;
 
-            log<LogLevel::DEBUG>("[DB] Async connection completed successfully");
+            log<LogLevel::INFO>("[Connection] stage=backend-result outcome=connected");
         } catch (const std::exception& e) {
             if (task->tunnel)
                 task->tunnel->disconnect();
             task->errorMessage = e.what();
+            log<LogLevel::ERROR_LEVEL>("[Connection] stage=backend-worker outcome=failed");
             task->status = ConnectStatus::Failed;
         }
     });
