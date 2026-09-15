@@ -1,3 +1,4 @@
+import { log } from '../../utils/logger';
 import * as S from '../schemas';
 import { asIpcParams, BaseProvider, type IpcInvoker, type ResponseValidator } from './types';
 
@@ -81,7 +82,20 @@ class ConnectionProfileProviderImpl extends BaseProvider implements ConnectionPr
   }
 
   async getProfilePassword(profileId: string): Promise<{ password: string }> {
-    return this.invokeAndParse('getProfilePassword', { id: profileId }, S.getProfilePassword);
+    try {
+      const result = await this.invokeAndParse(
+        'getProfilePassword',
+        { id: profileId },
+        S.getProfilePassword
+      );
+      log.info(
+        `[Connection] stage=profile-password-read passwordPresent=${Boolean(result.password)}`
+      );
+      return result;
+    } catch (error) {
+      log.error('[Connection] stage=profile-password-read outcome=failed');
+      throw error;
+    }
   }
 
   async getSshPassword(profileId: string): Promise<{ password: string }> {

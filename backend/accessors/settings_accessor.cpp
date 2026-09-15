@@ -148,13 +148,21 @@ std::expected<std::string, std::string> SettingsAccessor::getProfilePassword(con
 
     auto it = std::ranges::find(m_settings.connectionProfiles, profileId, &ConnectionProfile::id);
     if (it == m_settings.connectionProfiles.end()) {
+        log<LogLevel::ERROR_LEVEL>("[Connection] stage=backend-password-read outcome=profile-not-found");
         return std::unexpected("Profile not found: " + profileId);
     }
 
     if (it->encryptedPassword.empty()) {
+        log<LogLevel::INFO>("[Connection] stage=backend-password-read stored=false passwordPresent=false");
         return std::string{};
     }
-    return CredentialProtector::decrypt(it->encryptedPassword);
+    auto password = CredentialProtector::decrypt(it->encryptedPassword);
+    if (password) {
+        log<LogLevel::INFO>(std::format("[Connection] stage=backend-password-read stored=true passwordPresent={}", !password->empty()));
+    } else {
+        log<LogLevel::ERROR_LEVEL>("[Connection] stage=backend-password-read outcome=decrypt-failed");
+    }
+    return password;
 }
 
 std::filesystem::path SettingsAccessor::getSettingsPath() const {
