@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import TextIO
 
 from . import utils
+from .environment import BuildEnvironment
 
 
 def test_frontend(watch: bool = False, out: TextIO | None = None) -> bool:
@@ -72,6 +73,7 @@ def _run_ctest_preset(
     build_type: str,
     label_args: list[str],
     *,
+    environment: BuildEnvironment,
     header: str,
     cmd_label: str,
     ok_msg: str,
@@ -93,7 +95,7 @@ def _run_ctest_preset(
         print("Run 'uv run scripts/pdg.py build backend' first", file=out)
         return False
 
-    env = utils.get_msvc_env(out=out)
+    env = environment.activate(out=out)
     preset = build_type.lower()
     test_cmd = ["ctest", "--preset", preset, "--output-on-failure", *label_args]
 
@@ -103,11 +105,14 @@ def _run_ctest_preset(
     return success
 
 
-def test_backend(build_type: str = "Release", out: TextIO | None = None) -> bool:
+def test_backend(
+    build_type: str = "Release", out: TextIO | None = None, *, environment: BuildEnvironment
+) -> bool:
     """Run backend unit tests (perf-labeled benchmarks excluded)."""
     return _run_ctest_preset(
         build_type,
         ["--parallel", "-LE", "perf"],
+        environment=environment,
         header="Running Backend Tests",
         cmd_label="CTest",
         ok_msg="All tests passed!",
@@ -116,11 +121,14 @@ def test_backend(build_type: str = "Release", out: TextIO | None = None) -> bool
     )
 
 
-def bench_backend(build_type: str = "Release", out: TextIO | None = None) -> bool:
+def bench_backend(
+    build_type: str = "Release", out: TextIO | None = None, *, environment: BuildEnvironment
+) -> bool:
     """Run backend performance benchmarks (perf-labeled tests only)."""
     return _run_ctest_preset(
         build_type,
         ["-L", "perf"],
+        environment=environment,
         header="Running Backend Benchmarks",
         cmd_label="CTest (perf)",
         ok_msg="All benchmarks passed!",
@@ -138,7 +146,9 @@ def _print_labeled(label: str, content: str) -> None:
         print()
 
 
-def test_all(build_type: str = "Release", parallel: bool = True) -> bool:
+def test_all(
+    build_type: str = "Release", parallel: bool = True, *, environment: BuildEnvironment
+) -> bool:
     """Run frontend and backend tests.
 
     Runs frontend (vitest) and backend (ctest) in parallel by default.
@@ -148,7 +158,7 @@ def test_all(build_type: str = "Release", parallel: bool = True) -> bool:
 
     if not parallel:
         success_front = test_frontend()
-        success_back = test_backend(build_type=build_type)
+        success_back = test_backend(build_type=build_type, environment=environment)
         utils.print_footer(
             "ALL TESTS PASSED" if (success_front and success_back) else "SOME TESTS FAILED"
         )
@@ -159,7 +169,9 @@ def test_all(build_type: str = "Release", parallel: bool = True) -> bool:
     buf_back = io.StringIO()
     with ThreadPoolExecutor(max_workers=2) as executor:
         fut_front = executor.submit(test_frontend, out=buf_front)
-        fut_back = executor.submit(test_backend, build_type=build_type, out=buf_back)
+        fut_back = executor.submit(
+            test_backend, build_type=build_type, out=buf_back, environment=environment
+        )
         success_front = fut_front.result()
         success_back = fut_back.result()
 

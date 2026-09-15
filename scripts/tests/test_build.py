@@ -4,6 +4,7 @@ import io
 import json
 import sys
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
@@ -30,7 +31,7 @@ def test_build_all_runs_sequentially_by_default(
         lambda **_kwargs: calls.append("backend") or True,
     )
 
-    assert build_mod.build_all()
+    assert build_mod.build_all(environment=Mock())
     assert calls == ["frontend", "backend"]
 
 
@@ -51,6 +52,7 @@ def test_build_all_keeps_parallel_execution_as_opt_in(
         *,
         build_type: str,
         clean: bool,
+        environment: object,
         copy_frontend: bool,
         out: io.StringIO,
     ) -> bool:
@@ -68,7 +70,7 @@ def test_build_all_keeps_parallel_execution_as_opt_in(
         lambda build_type: copied.append(build_type),
     )
 
-    assert build_mod.build_all(build_type="Debug", clean=True, parallel=True)
+    assert build_mod.build_all(build_type="Debug", clean=True, parallel=True, environment=Mock())
     assert set(calls) == {("frontend", True), ("backend", True)}
     assert copied == ["Debug"]
 

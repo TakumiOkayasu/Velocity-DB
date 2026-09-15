@@ -13,6 +13,8 @@ on:
       - 'scripts/tests/test_semgrep_suppression.py'
       - 'scripts/_lib/llvm.py'
       - 'scripts/_lib/utils.py'
+      - 'scripts/_lib/environment.py'
+      - 'scripts/_lib/windows_environment.py'
       - 'scripts/tests/test_vs2026.py'
 
 # Cancel in-progress runs for the same branch
@@ -52,21 +54,6 @@ jobs:
         env:
           SEMGREP_ENABLE_VERSION_CHECK: '0'
         run: python scripts/verify_semgrep_suppression.py "$RUNNER_TEMP/semgrep-evidence"
-
-      - name: Verify vswhere has no environment-tainted subprocess (#716)
-        run: |
-          python - <<'PYCODE'
-          import json
-          import os
-          from pathlib import Path
-
-          report = json.loads((Path(os.environ["RUNNER_TEMP"]) / "semgrep-evidence/annotated.json").read_text())
-          target = "scripts/_lib/utils.py"
-          rule = "python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args"
-          assert target in report["paths"]["scanned"], "utils.py was not scanned"
-          assert not any(f["path"] == target and f["check_id"] == rule for f in report["results"]), "Environment-tainted subprocess regression"
-          print("Verified #716: utils.py scanned; no environment-tainted subprocess finding (including ignored findings)")
-          PYCODE
 
       - name: Save Semgrep evidence
         if: always()

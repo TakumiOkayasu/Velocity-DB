@@ -13,7 +13,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import setup_msvc_ci
-from _lib import utils
+from _lib import windows_environment as utils
 
 
 @pytest.fixture
@@ -109,7 +109,7 @@ def test_batch_path_is_data_and_environment_values_keep_equals(installation: Pat
         patch.object(utils, "find_vcvars", return_value=vcvars),
         patch.object(utils.subprocess, "run", return_value=result) as run,
     ):
-        env = utils.get_msvc_env(out=io.StringIO())
+        env = utils.WindowsMsvcEnvironment().activate(out=io.StringIO())
     assert str(vcvars) not in run.call_args.args[0]
     assert run.call_args.kwargs["env"]["VELOCITYDB_VCVARS"] == str(vcvars)
     assert "DisableDelayedExpansion" in run.call_args.args[0]
@@ -124,10 +124,9 @@ def test_failed_batch_stops(installation: Path) -> None:
         patch.object(
             utils.subprocess, "run", return_value=subprocess.CompletedProcess([], 1, "", "")
         ),
-        pytest.raises(SystemExit) as failure,
+        pytest.raises(RuntimeError, match="Failed to activate"),
     ):
-        utils.get_msvc_env(out=io.StringIO())
-    assert failure.value.code == 1
+        utils.WindowsMsvcEnvironment().activate(out=io.StringIO())
 
 
 def test_ci_exports_only_changed_values(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -137,11 +136,11 @@ def test_ci_exports_only_changed_values(tmp_path: Path, monkeypatch: pytest.Monk
     monkeypatch.setenv("IMAGEVERSION", "20260907.1")
     monkeypatch.setenv("VCTOOLSVERSION", "14.51")
     with patch.object(
-        setup_msvc_ci,
-        "get_msvc_env",
+        utils.WindowsMsvcEnvironment,
+        "activate",
         return_value={"UNCHANGED": "keep", "LIB": "x=y", "VCToolsVersion": "14.51"},
     ):
-        setup_msvc_ci.main()
+        setup_msvc_ci.main(utils.WindowsMsvcEnvironment())
     lines = target.read_text().splitlines()
     assert "UNCHANGED" not in target.read_text()
     assert lines[0] == f"LIB<<{lines[2]}"
@@ -151,7 +150,7 @@ def test_ci_exports_only_changed_values(tmp_path: Path, monkeypatch: pytest.Monk
 
 @pytest.mark.skipif(os.name != "nt", reason="Requires Windows and installed VS 2026")
 def test_real_vs2026_compiles_cpp(tmp_path: Path) -> None:
-    env = utils.get_msvc_env()
+    env = utils.WindowsMsvcEnvironment().activate()
     source = tmp_path / "smoke.cpp"
     source.write_text("#include <iostream>\nint main() { std::cout << _MSC_VER; }\n")
     subprocess.run(
@@ -175,7 +174,9 @@ def test_batch_path_with_shell_characters(tmp_path: Path) -> None:
         "@echo off\nset VisualStudioVersion=18.0\nset VCToolsVersion=14.51\n", encoding="ascii"
     )
     with patch.object(utils, "find_vcvars", return_value=batch):
-        env = {key.upper(): value for key, value in utils.get_msvc_env().items()}
+        env = {
+            key.upper(): value for key, value in utils.WindowsMsvcEnvironment().activate().items()
+        }
         assert env["VCTOOLSVERSION"] == "14.51"
 
 
@@ -252,3 +253,36 @@ def test_known_folder_api_releases_memory_and_rejects_invalid_results(
     assert ctypes.cast(ole32.CoTaskMemFree.call_args.args[0], ctypes.c_void_p).value == (
         ctypes.addressof(buffer)
     )
+
+
+@pytest.mark.parametrize("command", ["test_backend", "bench_backend"])
+def test_backend_commands_use_injected_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, command: str
+) -> None:
+    from _lib import test as commands
+
+    class FakeEnvironment:
+        def activate(self, out: object = None) -> dict[str, str]:
+            return {"TEST_TOOLCHAIN": "injected"}
+
+    (tmp_path / "build").mkdir()
+    monkeypatch.setattr(commands.utils, "get_project_root", lambda: tmp_path)
+    with patch.object(commands.utils, "run_command", return_value=(True, "")) as run:
+        assert getattr(commands, command)(environment=FakeEnvironment())
+    assert run.call_args.kwargs["env"] == {"TEST_TOOLCHAIN": "injected"}
+
+
+def test_activation_failure_prevents_test_command(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from _lib import test as commands
+
+    class FailingEnvironment:
+        def activate(self, out: object = None) -> dict[str, str]:
+            raise RuntimeError("activation failed")
+
+    (tmp_path / "build").mkdir()
+    monkeypatch.setattr(commands.utils, "get_project_root", lambda: tmp_path)
+    with patch.object(commands.utils, "run_command") as run, pytest.raises(RuntimeError):
+        commands.test_backend(environment=FailingEnvironment())
+    run.assert_not_called()

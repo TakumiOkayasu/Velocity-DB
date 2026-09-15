@@ -37,6 +37,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from _lib import build, lint, test, utils
+from _lib.windows_environment import WindowsMsvcEnvironment
 
 
 def cmd_build(args: argparse.Namespace) -> bool:
@@ -47,11 +48,18 @@ def cmd_build(args: argparse.Namespace) -> bool:
     parallel: bool = args.parallel
 
     if target == "backend":
-        return build.build_backend(build_type=build_type, clean=clean)
+        return build.build_backend(
+            environment=WindowsMsvcEnvironment(), build_type=build_type, clean=clean
+        )
     elif target == "frontend":
         return build.build_frontend(clean=clean)
     elif target == "all":
-        return build.build_all(build_type=build_type, clean=clean, parallel=parallel)
+        return build.build_all(
+            environment=WindowsMsvcEnvironment(),
+            build_type=build_type,
+            clean=clean,
+            parallel=parallel,
+        )
     else:
         print(f"ERROR: Unknown build target: {target}")
         return False
@@ -60,7 +68,9 @@ def cmd_build(args: argparse.Namespace) -> bool:
 def cmd_debug(args: argparse.Namespace) -> bool:
     """Handle debug command - quick backend debug build."""
     clean: bool = args.clean
-    return build.build_backend(build_type="Debug", clean=clean)
+    return build.build_backend(
+        environment=WindowsMsvcEnvironment(), build_type="Debug", clean=clean
+    )
 
 
 def cmd_test(args: argparse.Namespace) -> bool:
@@ -71,13 +81,15 @@ def cmd_test(args: argparse.Namespace) -> bool:
     parallel: bool = not args.no_async
 
     if target == "backend":
-        return test.test_backend(build_type=build_type)
+        return test.test_backend(environment=WindowsMsvcEnvironment(), build_type=build_type)
     elif target == "frontend":
         return test.test_frontend(watch=watch)
     elif target == "e2e":
         return test.test_e2e()
     elif target == "all":
-        return test.test_all(build_type=build_type, parallel=parallel)
+        return test.test_all(
+            environment=WindowsMsvcEnvironment(), build_type=build_type, parallel=parallel
+        )
     else:
         print(f"ERROR: Unknown test target: {target}")
         return False
@@ -89,7 +101,7 @@ def cmd_bench(args: argparse.Namespace) -> bool:
     build_type: str = args.type
 
     if target == "backend":
-        return test.bench_backend(build_type=build_type)
+        return test.bench_backend(environment=WindowsMsvcEnvironment(), build_type=build_type)
     else:
         print(f"ERROR: Unknown bench target: {target}")
         return False
@@ -135,7 +147,7 @@ def cmd_package(_args: argparse.Namespace) -> bool:
 
     # Build all first
     print("\n[1/2] Building all...")
-    if not build.build_all(build_type="Release", clean=False):
+    if not build.build_all(environment=WindowsMsvcEnvironment(), build_type="Release", clean=False):
         print("\nERROR: Build failed")
         return False
 
@@ -222,7 +234,7 @@ def cmd_release(args: argparse.Namespace) -> bool:
 
     # Step 2: Build Release
     print("\n[2/5] Building Release...")
-    if not build.build_all(build_type="Release", clean=True):
+    if not build.build_all(environment=WindowsMsvcEnvironment(), build_type="Release", clean=True):
         print("\nERROR: Build failed")
         return False
 
@@ -315,7 +327,9 @@ def cmd_check(args: argparse.Namespace) -> bool:
 
     # Build all
     print("\n[3/3] Building all...")
-    if not build.build_all(build_type=build_type, clean=False):
+    if not build.build_all(
+        environment=WindowsMsvcEnvironment(), build_type=build_type, clean=False
+    ):
         errors += 1
 
     # Summary

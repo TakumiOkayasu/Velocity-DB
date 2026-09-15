@@ -109,5 +109,48 @@ class SuppressionTests(unittest.TestCase):
             gate.verify(self.baseline, self.annotated, 54)
 
 
+class EnvironmentScanTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.targets = ["scripts/_lib/utils.py", "scripts/_lib/windows_environment.py"]
+        self.report = {"paths": {"scanned": self.targets.copy()}, "errors": [], "results": []}
+
+    def test_clean_targets_pass_and_keep_unrelated_findings(self) -> None:
+        self.report["results"] = [finding("other-rule"), finding(gate.RULE)]
+        self.assertEqual(gate.verify_environment(self.report), self.targets)
+        self.assertEqual(len(self.report["results"]), 2)
+
+    def test_missing_target_fails(self) -> None:
+        for target in self.targets:
+            report = copy.deepcopy(self.report)
+            report["paths"]["scanned"].remove(target)
+            with self.subTest(target=target), self.assertRaises(ValueError):
+                gate.verify_environment(report)
+
+    def test_active_and_ignored_findings_fail(self) -> None:
+        for target in self.targets:
+            for ignored in (True, False):
+                report = copy.deepcopy(self.report)
+                report["results"] = [
+                    finding(gate.RULE) | {"path": target, "extra": {"is_ignored": ignored}}
+                ]
+                with self.subTest(target=target, ignored=ignored), self.assertRaises(ValueError):
+                    gate.verify_environment(report)
+
+    def test_partial_parse_and_scan_errors_fail(self) -> None:
+        for error in [
+            {"level": "error", "path": "other"},
+            *({"level": "warn", "path": p} for p in self.targets),
+        ]:
+            report = copy.deepcopy(self.report)
+            report["errors"] = [error]
+            with self.subTest(error=error), self.assertRaises(ValueError):
+                gate.verify_environment(report)
+
+    def test_unrelated_warning_remains_visible(self) -> None:
+        self.report["errors"] = [{"level": "warn", "path": "other.yml"}]
+        gate.verify_environment(self.report)
+        self.assertEqual(len(self.report["errors"]), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
