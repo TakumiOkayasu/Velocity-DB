@@ -73,6 +73,12 @@ docker run --rm -v "C:/prog/Velocity-DB://app" \
 
 `--mount type=volume` で node_modules を隔離（Windows/Linux バイナリ非互換対策）。
 
+## CI の実装規約
+
+全CIで、YAMLはトリガー・依存関係・権限・パラメータ・コマンド呼び出しを定義する。
+判定・データ加工・API操作などの処理本体はテスト可能なスクリプトに置き、YAML内へ直接実装しない。
+新規追加・変更時は既存のCLI/検証スクリプトを再利用し、正常系・失敗系を検証する。
+
 ## 作業完了時の必須チェック
 
 ```bash

@@ -66,6 +66,19 @@ def verify(baseline: dict, annotated: dict, match_line: int) -> dict:
     }
 
 
+def verify_environment(report: dict) -> list[str]:
+    """Reject an unscanned/partially parsed target or a tainted executable finding."""
+    targets = ["scripts/_lib/utils.py", "scripts/_lib/windows_environment.py"]
+    for target in targets:
+        if target not in report["paths"]["scanned"]:
+            raise ValueError(f"Environment target was not scanned: {target}")
+        if any(e.get("level") != "warn" or e.get("path") == target for e in report["errors"]):
+            raise ValueError(f"Environment scan has errors: {target}")
+        if any(f["path"] == target and f["check_id"] == RULE for f in report["results"]):
+            raise ValueError(f"Environment-tainted subprocess (including ignored): {target}")
+    return targets
+
+
 def scan(root: Path, output: Path) -> dict:
     subprocess.run(
         [
@@ -111,6 +124,7 @@ def main(output: Path) -> None:
         target.write_bytes(original)
     annotated = scan(root, output / "annotated.json")
     summary = verify(baseline, annotated, index + 2)
+    summary["verified_environment_targets"] = verify_environment(annotated)
     (output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(summary, indent=2))
 

@@ -12,6 +12,10 @@ on:
       - 'scripts/verify_semgrep_suppression.py'
       - 'scripts/tests/test_semgrep_suppression.py'
       - 'scripts/_lib/llvm.py'
+      - 'scripts/_lib/utils.py'
+      - 'scripts/_lib/environment.py'
+      - 'scripts/_lib/windows_environment.py'
+      - 'scripts/tests/test_vs2026.py'
 
 # Cancel in-progress runs for the same branch
 concurrency:

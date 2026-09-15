@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import TextIO
 
 from . import utils
+from .environment import BuildEnvironment
 
 VCPKG_REPO_URL = "https://github.com/microsoft/vcpkg.git"
 _VCPKG_AV_FAILURE_MARKERS = (
@@ -513,6 +514,7 @@ def build_backend(
     build_type: str = "Release",
     clean: bool = False,
     *,
+    environment: BuildEnvironment,
     copy_frontend: bool = True,
     out: TextIO | None = None,
 ) -> bool:
@@ -534,7 +536,7 @@ def build_backend(
         print(f"  Removed: {build_dir}", file=out)
 
     print("\n[1/4] Setting up MSVC environment...", file=out)
-    env = utils.get_msvc_env(out=out)
+    env = environment.activate(out=out)
     # Use installed build tools instead of letting vcpkg fetch newer tool binaries.
     # Without this, vcpkg may try to download CMake during compiler detection.
     # project-local vcpkg を強制使用 (VS 同梱の古い vcpkg-tool を経路から完全排除)。
@@ -629,7 +631,13 @@ def _print_labeled(label: str, content: str) -> None:
         print()
 
 
-def build_all(build_type: str = "Release", clean: bool = False, parallel: bool = False) -> bool:
+def build_all(
+    build_type: str = "Release",
+    clean: bool = False,
+    parallel: bool = False,
+    *,
+    environment: BuildEnvironment,
+) -> bool:
     """Build both frontend and backend.
 
     Runs sequentially by default so the frontend does not compete with the
@@ -644,7 +652,7 @@ def build_all(build_type: str = "Release", clean: bool = False, parallel: bool =
     if not parallel:
         if not build_frontend(clean=clean):
             return False
-        if not build_backend(build_type=build_type, clean=clean):
+        if not build_backend(build_type=build_type, clean=clean, environment=environment):
             return False
         utils.print_footer("ALL BUILDS SUCCESSFUL")
         exe_path = build_dir / build_type / "VelocityDB.exe"
@@ -661,6 +669,7 @@ def build_all(build_type: str = "Release", clean: bool = False, parallel: bool =
         # Skip frontend copy in parallel mode; we do it once after both complete.
         fut_back = executor.submit(
             build_backend,
+            environment=environment,
             build_type=build_type,
             clean=clean,
             copy_frontend=False,
