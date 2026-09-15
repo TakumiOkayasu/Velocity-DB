@@ -1,6 +1,7 @@
 import { memo, useCallback, useState } from 'react';
 import type { ColumnMeta, RowData } from '../../types/grid';
 import { isNumericType } from '../../types/grid';
+import { BooleanCell, isBooleanType } from './BooleanCell';
 import styles from './TransposeView.module.css';
 
 interface TransposeViewProps {
@@ -114,7 +115,13 @@ function TransposeViewInner({
                       .filter(Boolean)
                       .join(' ')}
                   >
-                    {isNull ? 'NULL' : value}
+                    {isBooleanType(col.type) ? (
+                      <BooleanCell value={value} label={col.name} />
+                    ) : isNull ? (
+                      'NULL'
+                    ) : (
+                      value
+                    )}
                   </td>
                 </tr>
               );
