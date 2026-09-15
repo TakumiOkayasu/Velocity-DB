@@ -110,6 +110,9 @@ public:
         } else {
             if (Level >= min_level_ && output_ != nullptr) {
                 output_->write(Level, message);
+                if constexpr (Level >= LogLevel::ERROR_LEVEL) {
+                    output_->flush();
+                }
             }
         }
     }
