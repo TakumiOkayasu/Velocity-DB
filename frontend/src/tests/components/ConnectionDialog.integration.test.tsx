@@ -110,6 +110,91 @@ describe('saved-profile connection through ConnectionDialog (#689)', () => {
 
   afterEach(cleanup);
 
+  it.each([
+    ['postgresql', true, true],
+    ['mysql', true, true],
+    ['sqlserver', false, true],
+    ['sqlserver', true, true],
+    [undefined, true, true],
+    ['postgresql', true, false],
+  ] as const)(
+    'tree credentials for dbType=%s windowsAuth=%s saved=%s (#718)',
+    async (dbType, useWindowsAuth, needsPassword) => {
+      vi.mocked(connectionProfileProvider.getConnectionProfiles).mockResolvedValue({
+        profiles: [{ ...profiles[0], dbType, useWindowsAuth, savePassword: needsPassword }],
+      });
+      render(<ObjectTree filter="" />);
+      await screen.findAllByTestId('profile-node');
+      fireEvent.click(profileNode('profile-dev'));
+      fireEvent.click(
+        await within(screen.getByRole('dialog')).findByRole('button', { name: '接続' })
+      );
+      await waitFor(() => expect(useConnectionStore.getState().connections).toHaveLength(1));
+      if (needsPassword) {
+        expect(connectionProfileProvider.getProfilePassword).toHaveBeenCalledWith('profile-dev');
+      } else {
+        expect(connectionProfileProvider.getProfilePassword).not.toHaveBeenCalled();
+      }
+      expect(connectionProvider.connectAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dbType: dbType ?? 'sqlserver',
+          password: needsPassword ? 'saved-secret' : '',
+          useWindowsAuth,
+        })
+      );
+      const node = profileNode('profile-dev');
+      fireEvent.click(await within(node).findByText('Tables (1)'));
+      await within(node).findByText('regression_table');
+    }
+  );
+
+  it.each(['postgresql', 'mysql'] as const)(
+    '%s dialog and tree use the same credentials with a stale Windows authentication flag',
+    async (dbType) => {
+      vi.mocked(connectionProfileProvider.getConnectionProfiles).mockResolvedValue({
+        profiles: profiles.map((profile) => ({ ...profile, dbType, useWindowsAuth: true })),
+      });
+      await openDialog();
+      fireEvent.click(screen.getByRole('button', { name: 'テスト' }));
+      await screen.findByText('Connection successful');
+      expect(connectionProvider.testConnection).toHaveBeenCalledWith(
+        expect.objectContaining({ dbType, password: 'saved-secret', useWindowsAuth: true })
+      );
+      fireEvent.keyDown(window, { key: 'Escape' });
+      vi.mocked(connectionProfileProvider.getProfilePassword).mockClear();
+      fireEvent.click(profileNode('profile-dev'));
+      fireEvent.click(
+        await within(screen.getByRole('dialog')).findByRole('button', { name: '接続' })
+      );
+      await waitFor(() => expect(useConnectionStore.getState().connections).toHaveLength(1));
+      expect(connectionProfileProvider.getProfilePassword).toHaveBeenCalledWith('profile-dev');
+      expect(connectionProvider.connectAsync).toHaveBeenCalledWith(
+        vi.mocked(connectionProvider.testConnection).mock.calls[0][0]
+      );
+    }
+  );
+
+  it.each(['PostgreSQL', 'MySQL'])(
+    'clears the previous authentication choice when switching database to %s',
+    async (database) => {
+      await openDialog();
+      fireEvent.click(screen.getByRole('button', { name: '+' }));
+      expect(screen.getByRole('checkbox', { name: 'Windows認証を使用' })).toBeChecked();
+      fireEvent.click(screen.getByRole('radio', { name: database }));
+      fireEvent.change(screen.getByLabelText('パスワード'), { target: { value: 'typed-secret' } });
+      fireEvent.click(screen.getByRole('button', { name: 'テスト' }));
+      await screen.findByText('Connection successful');
+      expect(connectionProvider.testConnection).toHaveBeenCalledWith(
+        expect.objectContaining({ password: 'typed-secret', useWindowsAuth: false })
+      );
+      fireEvent.click(screen.getByRole('radio', { name: 'SQL Server' }));
+      const windowsAuth = screen.getByRole('checkbox', { name: 'Windows認証を使用' });
+      expect(windowsAuth).not.toBeChecked();
+      fireEvent.click(windowsAuth);
+      expect(windowsAuth).toBeChecked();
+    }
+  );
+
   it.each(['dev', 'stage'])('shows tables for the selected %s profile', async (selected) => {
     await openDialog();
     if (selected === 'stage') {

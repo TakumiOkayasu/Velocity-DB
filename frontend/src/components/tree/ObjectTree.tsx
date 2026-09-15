@@ -1,6 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { connectionProfileProvider } from '../../api/providers';
+import { createSavedConnection } from '../../connections/createSavedConnection';
 import { useConnectionFeedback } from '../../hooks/useConnectionFeedback';
 import { ErrorDetailDialog } from '../dialogs/ErrorDetailDialog';
 import { applyConnectionMigration } from '../../store/connectionMigration';
@@ -183,56 +184,13 @@ export function ObjectTree({ filter, onTableOpen }: ObjectTreeProps) {
     const attempt = ++attemptRef.current;
     setIsConnecting(true);
     try {
-      let password = '';
-      let sshPassword = '';
-      let sshKeyPassphrase = '';
-
-      if (!confirmingProfile.useWindowsAuth) {
-        const pwResult = await connectionProfileProvider.getProfilePassword(confirmingProfile.id);
-        password = pwResult.password || '';
-      }
-
-      if (confirmingProfile.ssh?.enabled) {
-        if (confirmingProfile.ssh.authType === 'password') {
-          const sshPwResult = await connectionProfileProvider.getSshPassword(confirmingProfile.id);
-          sshPassword = sshPwResult.password || '';
-        } else {
-          const passphraseResult = await connectionProfileProvider.getSshKeyPassphrase(
-            confirmingProfile.id
-          );
-          sshKeyPassphrase = passphraseResult.passphrase || '';
-        }
-      }
-
+      const prepared = await createSavedConnection(
+        confirmingProfile,
+        connectionProfileProvider,
+        addConnection
+      ).prepare();
       if (attempt !== attemptRef.current) return;
-      const result = await addConnection({
-        profileId: confirmingProfile.id,
-        name: confirmingProfile.name,
-        server: confirmingProfile.server,
-        port: confirmingProfile.port,
-        database: confirmingProfile.database,
-        username: confirmingProfile.username,
-        password,
-        useWindowsAuth: confirmingProfile.useWindowsAuth,
-        dbType: confirmingProfile.dbType ?? 'sqlserver',
-        isProduction: confirmingProfile.isProduction,
-        isReadOnly: confirmingProfile.isReadOnly,
-        environment:
-          confirmingProfile.environment ??
-          (confirmingProfile.isProduction ? 'production' : 'development'),
-        ssh: confirmingProfile.ssh?.enabled
-          ? {
-              enabled: true,
-              host: confirmingProfile.ssh.host,
-              port: confirmingProfile.ssh.port,
-              username: confirmingProfile.ssh.username,
-              authType: confirmingProfile.ssh.authType,
-              password: sshPassword,
-              privateKeyPath: confirmingProfile.ssh.privateKeyPath,
-              keyPassphrase: sshKeyPassphrase,
-            }
-          : undefined,
-      });
+      const result = await prepared.connect();
       if (attempt !== attemptRef.current) return;
       if (result.status === 'connected') applyConnectionMigration(result.replaced);
       reportResult(result);
