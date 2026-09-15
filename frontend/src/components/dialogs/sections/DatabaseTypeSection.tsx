@@ -4,7 +4,7 @@ import styles from '../ConnectionDialog.module.css';
 
 interface DatabaseTypeSectionProps {
   dbType: DatabaseType;
-  onChange: (field: keyof ConnectionConfig, value: DatabaseType | number) => void;
+  onChange: (field: keyof ConnectionConfig, value: DatabaseType | number | boolean) => void;
 }
 
 const DB_TYPE_OPTIONS: { value: DatabaseType; label: string; defaultPort: number }[] = [
@@ -16,6 +16,7 @@ const DB_TYPE_OPTIONS: { value: DatabaseType; label: string; defaultPort: number
 export function DatabaseTypeSection({ dbType, onChange }: DatabaseTypeSectionProps) {
   const handleDbTypeChange = (newDbType: DatabaseType) => {
     onChange('dbType', newDbType);
+    onChange('useWindowsAuth', false);
     // デフォルトポートを設定
     const option = DB_TYPE_OPTIONS.find((o) => o.value === newDbType);
     if (option) {

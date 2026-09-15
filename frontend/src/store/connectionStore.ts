@@ -2,13 +2,11 @@ import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { connectionProvider, schemaProvider } from '../api/providers';
 import type { Connection } from '../types';
+import type { ConnectionResult } from '../connections/ConnectionPreparation';
 import { log } from '../utils/logger';
 import { pollConnection } from './connection/helpers/connectionPolling';
 
-export type ConnectionResult =
-  | { status: 'connected'; replaced?: { oldId: string; newId: string } }
-  | { status: 'failed'; error: string }
-  | { status: 'cancelled' };
+export type { ConnectionResult } from '../connections/ConnectionPreparation';
 
 interface ConnectionState {
   connections: Connection[];

@@ -96,7 +96,7 @@ function buildConfigFromProfile(
     database: profile.database,
     username: profile.username,
     password,
-    useWindowsAuth: (profile.dbType ?? 'sqlserver') === 'sqlserver' && profile.useWindowsAuth,
+    useWindowsAuth: profile.useWindowsAuth,
     isProduction: profile.isProduction,
     isReadOnly: profile.isReadOnly,
     environment: inferEnvironment(profile),
@@ -180,16 +180,8 @@ export function profileFormReducer(
         testResult: null,
       };
 
-    case 'SET_CONFIG': {
-      const config = resolveSetStateValue(action.payload, state.config);
-      return {
-        ...state,
-        config: {
-          ...config,
-          useWindowsAuth: config.dbType === 'sqlserver' && config.useWindowsAuth,
-        },
-      };
-    }
+    case 'SET_CONFIG':
+      return { ...state, config: resolveSetStateValue(action.payload, state.config) };
 
     case 'SET_SAVE_PASSWORD':
       return {

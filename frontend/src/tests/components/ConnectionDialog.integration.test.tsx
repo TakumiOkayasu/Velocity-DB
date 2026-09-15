@@ -114,13 +114,14 @@ describe('saved-profile connection through ConnectionDialog (#689)', () => {
     ['postgresql', true, true],
     ['mysql', true, true],
     ['sqlserver', false, true],
-    ['sqlserver', true, false],
-    [undefined, true, false],
+    ['sqlserver', true, true],
+    [undefined, true, true],
+    ['postgresql', true, false],
   ] as const)(
-    'tree credentials for dbType=%s windowsAuth=%s (#718)',
+    'tree credentials for dbType=%s windowsAuth=%s saved=%s (#718)',
     async (dbType, useWindowsAuth, needsPassword) => {
       vi.mocked(connectionProfileProvider.getConnectionProfiles).mockResolvedValue({
-        profiles: [{ ...profiles[0], dbType, useWindowsAuth }],
+        profiles: [{ ...profiles[0], dbType, useWindowsAuth, savePassword: needsPassword }],
       });
       render(<ObjectTree filter="" />);
       await screen.findAllByTestId('profile-node');
@@ -138,7 +139,7 @@ describe('saved-profile connection through ConnectionDialog (#689)', () => {
         expect.objectContaining({
           dbType: dbType ?? 'sqlserver',
           password: needsPassword ? 'saved-secret' : '',
-          useWindowsAuth: !needsPassword,
+          useWindowsAuth,
         })
       );
       const node = profileNode('profile-dev');
@@ -157,7 +158,7 @@ describe('saved-profile connection through ConnectionDialog (#689)', () => {
       fireEvent.click(screen.getByRole('button', { name: 'テスト' }));
       await screen.findByText('Connection successful');
       expect(connectionProvider.testConnection).toHaveBeenCalledWith(
-        expect.objectContaining({ dbType, password: 'saved-secret', useWindowsAuth: false })
+        expect.objectContaining({ dbType, password: 'saved-secret', useWindowsAuth: true })
       );
       fireEvent.keyDown(window, { key: 'Escape' });
       vi.mocked(connectionProfileProvider.getProfilePassword).mockClear();
@@ -170,6 +171,27 @@ describe('saved-profile connection through ConnectionDialog (#689)', () => {
       expect(connectionProvider.connectAsync).toHaveBeenCalledWith(
         vi.mocked(connectionProvider.testConnection).mock.calls[0][0]
       );
+    }
+  );
+
+  it.each(['PostgreSQL', 'MySQL'])(
+    'clears the previous authentication choice when switching database to %s',
+    async (database) => {
+      await openDialog();
+      fireEvent.click(screen.getByRole('button', { name: '+' }));
+      expect(screen.getByRole('checkbox', { name: 'Windows認証を使用' })).toBeChecked();
+      fireEvent.click(screen.getByRole('radio', { name: database }));
+      fireEvent.change(screen.getByLabelText('パスワード'), { target: { value: 'typed-secret' } });
+      fireEvent.click(screen.getByRole('button', { name: 'テスト' }));
+      await screen.findByText('Connection successful');
+      expect(connectionProvider.testConnection).toHaveBeenCalledWith(
+        expect.objectContaining({ password: 'typed-secret', useWindowsAuth: false })
+      );
+      fireEvent.click(screen.getByRole('radio', { name: 'SQL Server' }));
+      const windowsAuth = screen.getByRole('checkbox', { name: 'Windows認証を使用' });
+      expect(windowsAuth).not.toBeChecked();
+      fireEvent.click(windowsAuth);
+      expect(windowsAuth).toBeChecked();
     }
   );
 

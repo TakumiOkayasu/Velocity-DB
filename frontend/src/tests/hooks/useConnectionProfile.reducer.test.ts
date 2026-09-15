@@ -184,7 +184,7 @@ describe('profileFormReducer', () => {
       expect(next.config.database).toBe('mydb');
       expect(next.config.username).toBe('me');
       expect(next.config.password).toBe('pw');
-      expect(next.config.useWindowsAuth).toBe(false);
+      expect(next.config.useWindowsAuth).toBe(true);
       expect(next.config.isProduction).toBe(true);
       expect(next.config.isReadOnly).toBe(true);
       expect(next.config.environment).toBe('production');
@@ -315,30 +315,6 @@ describe('profileFormReducer', () => {
   });
 
   describe('SET_CONFIG', () => {
-    it.each(['postgresql', 'mysql'] as const)(
-      'switching from the default SQL Server config to %s clears Windows authentication',
-      (dbType) => {
-        const next = profileFormReducer(initialProfileFormState, {
-          type: 'SET_CONFIG',
-          payload: (config) => ({ ...config, dbType }),
-        });
-        expect(next.config.useWindowsAuth).toBe(false);
-        const back = profileFormReducer(next, {
-          type: 'SET_CONFIG',
-          payload: (config) => ({ ...config, dbType: 'sqlserver' }),
-        });
-        expect(back.config.useWindowsAuth).toBe(false);
-      }
-    );
-
-    it('SQL Server still permits explicitly selecting Windows authentication', () => {
-      const next = profileFormReducer(initialProfileFormState, {
-        type: 'SET_CONFIG',
-        payload: makeConfig({ useWindowsAuth: true }),
-      });
-      expect(next.config.useWindowsAuth).toBe(true);
-    });
-
     it('値を直接渡すと config がその値になる', () => {
       const newCfg = makeConfig({ name: 'Direct', port: 9999 });
       const next = profileFormReducer(initialProfileFormState, {
