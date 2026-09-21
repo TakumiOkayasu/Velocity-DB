@@ -48,7 +48,7 @@ jobs:
         run: uvx ruff check scripts/ && uvx ruff format --check scripts/
 
       - name: Test Visual Studio selection
-        run: uv run --with pytest python -m pytest scripts/tests/test_vs2026.py -q
+        run: uv run --with pytest python -m pytest scripts/tests/test_vs2026.py scripts/tests/test_ci_results.py -q
 
       - name: Test resolver and check C++ formatting
         env:
@@ -285,16 +285,17 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [lint-cpp, lint-frontend, build-frontend]
+    needs: [lint-cpp, lint-frontend, build-frontend, build-backend]
     if: always()
     steps:
-      - name: Check all jobs passed
-        run: |
-          if [[ "${{ needs.lint-cpp.result }}" != "success" ]] || \
-            [[ "${{ needs.lint-frontend.result }}" != "success" ]] || \
-            [[ "${{ needs.build-frontend.result }}" != "success" ]]; then
-              echo "One or more jobs failed"
-              exit 1
-          fi
-          echo "All required jobs passed!"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
 
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+
+      - name: Check all jobs passed
+        run: >-
+          uv run scripts/check_ci_results.py
+          --lint-cpp "${{ needs.lint-cpp.result }}"
+          --lint-frontend "${{ needs.lint-frontend.result }}"
+          --build-frontend "${{ needs.build-frontend.result }}"
+          --build-backend "${{ needs.build-backend.result }}"
