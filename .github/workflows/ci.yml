@@ -238,6 +238,9 @@ jobs:
         # -LE perf excludes performance benchmarks (run via Benchmarks workflow or `pdg bench backend`)
         run: ctest --test-dir build --output-on-failure --parallel -LE perf
 
+      - name: Repeat parallel CSV exporter tests
+        run: ctest --test-dir build --output-on-failure -R '^CSVExporterTest\.' --parallel 5 --repeat until-fail:20 --no-tests=error
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:

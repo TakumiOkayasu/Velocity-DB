@@ -2,6 +2,8 @@
 #include "exporters/csv_exporter.h"
 #include <fstream>
 #include <filesystem>
+#include <chrono>
+#include <random>
 
 namespace velocitydb {
 namespace test {
@@ -9,10 +11,23 @@ namespace test {
 class CSVExporterTest : public ::testing::Test {
 protected:
     CSVExporter exporter;
-    std::string testFilePath = "test_export.csv";
+    std::filesystem::path testDirectory;
+    std::string testFilePath;
+
+    void SetUp() override {
+        const auto directory = std::filesystem::temp_directory_path() /
+                               ("velocitydb-csv-" + std::to_string(std::random_device{}()) + "-" +
+                                std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+        // Reserve a directory before taking ownership; never reuse another test's files.
+        ASSERT_TRUE(std::filesystem::create_directory(directory));
+        testDirectory = directory;
+        testFilePath = (testDirectory / "test_export.csv").string();
+    }
 
     void TearDown() override {
-        std::filesystem::remove(testFilePath);
+        if (!testDirectory.empty()) {
+            std::filesystem::remove_all(testDirectory);
+        }
     }
 
     /// Read next CSV line, stripping BOM (first line only) and trailing CR
