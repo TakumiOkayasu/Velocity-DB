@@ -1,17 +1,13 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vite-plus/test';
 import App from '../App';
 
 describe('App', () => {
-  it('renders without crashing', () => {
+  it('renders the main database controls', () => {
     render(<App />);
-    // Check that the app renders
-    expect(document.querySelector('#root') || document.body).toBeTruthy();
-  });
 
-  it('contains main layout structure', () => {
-    const { container } = render(<App />);
-    // App should render something
-    expect(container.firstChild).toBeTruthy();
+    expect(screen.getByRole('button', { name: '接続' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '実行' })).toBeDisabled();
+    expect(screen.getByRole('tablist')).toBeInTheDocument();
   });
 });
