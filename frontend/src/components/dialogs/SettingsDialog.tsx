@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { appSettingsProvider } from '../../api/providers';
 import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
 import { DialogOverlay } from '../common/DialogOverlay';
@@ -41,20 +41,31 @@ const SHORTCUT_DISPLAY: ReadonlyArray<{ label: string; keys: string }> = [
 ];
 
 export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
-  useDialogKeyboard({ isOpen, onEscape: onClose });
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [activeTab, setActiveTab] = useState<TabId>('general');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const isDirtyRef = useRef(false);
+  const lifecycleRef = useRef(0);
+  const closeDialog = useCallback(() => {
+    if (!isSaving) onClose();
+  }, [isSaving, onClose]);
+  useDialogKeyboard({ isOpen, onEscape: closeDialog });
 
   // 開いたタイミングで localStorage キャッシュ → backend 永続値 (settings.json) の順に読込。
   // IPC 不通時 (browser/dev 等) は localStorage / defaults のまま表示する
   useEffect(() => {
     if (!isOpen) return;
+    const lifecycle = ++lifecycleRef.current;
+    isDirtyRef.current = false;
+    setIsSaving(false);
+    setSaveError(null);
     setSettings(getSettings());
     let cancelled = false;
     appSettingsProvider
       .getSettings()
       .then((backend) => {
-        if (cancelled) return;
+        if (cancelled || lifecycleRef.current !== lifecycle || isDirtyRef.current) return;
         setSettings((prev) => ({
           ...prev,
           general: {
@@ -86,14 +97,18 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
       });
     return () => {
       cancelled = true;
+      ++lifecycleRef.current;
     };
   }, [isOpen]);
 
-  const saveSettings = useCallback(() => {
-    localStorage.setItem('app-settings', JSON.stringify(settings));
+  const saveSettings = useCallback(async () => {
+    if (isSaving) return;
+    const lifecycle = lifecycleRef.current;
+    setIsSaving(true);
+    setSaveError(null);
     // Backend 対応項目 (general/editor/grid/query) を 1 回の updateSettings で永続化
-    appSettingsProvider
-      .updateSettings({
+    try {
+      await appSettingsProvider.updateSettings({
         general: {
           autoConnect: settings.general.autoConnect,
           confirmOnExit: settings.general.confirmOnExit,
@@ -112,16 +127,23 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
           nullDisplay: settings.grid.nullDisplay,
         },
         query: { timeoutSeconds: Math.round(settings.query.timeout / 1000) },
-      })
-      .catch((err) => {
-        console.error('Failed to sync settings to backend:', err);
       });
-    onClose();
-    // 購読側 (useEditorSettings 等) へ反映を通知
-    window.dispatchEvent(new CustomEvent(SETTINGS_CHANGED_EVENT, { detail: settings }));
-  }, [settings, onClose]);
+      if (lifecycleRef.current !== lifecycle) return;
+      localStorage.setItem('app-settings', JSON.stringify(settings));
+      // 購読側 (useEditorSettings 等) へ反映を通知
+      window.dispatchEvent(new CustomEvent(SETTINGS_CHANGED_EVENT, { detail: settings }));
+      setIsSaving(false);
+      onClose();
+    } catch (err) {
+      if (lifecycleRef.current !== lifecycle) return;
+      console.error('Failed to sync settings to backend:', err);
+      setSaveError('設定を保存できませんでした。もう一度お試しください。');
+      setIsSaving(false);
+    }
+  }, [settings, onClose, isSaving]);
 
   const resetSettings = useCallback(() => {
+    isDirtyRef.current = true;
     setSettings(defaultSettings);
   }, []);
 
@@ -132,6 +154,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
       key: keyof AppSettings[K],
       value: AppSettings[K][keyof AppSettings[K]]
     ) => {
+      isDirtyRef.current = true;
       setSettings((prev) => ({
         ...prev,
         [category]: {
@@ -147,18 +170,23 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
 
   return (
     <DialogOverlay
-      onClose={onClose}
+      onClose={closeDialog}
       overlayClassName={styles.overlay}
       dialogClassName={styles.dialog}
     >
       <div className={styles.header}>
         <h2>設定</h2>
-        <button type="button" className={styles.closeButton} onClick={onClose}>
+        <button
+          type="button"
+          className={styles.closeButton}
+          onClick={closeDialog}
+          disabled={isSaving}
+        >
           {'✕'}
         </button>
       </div>
 
-      <div className={styles.content}>
+      <fieldset className={styles.content} disabled={isSaving} aria-busy={isSaving}>
         <div className={styles.tabs}>
           {TABS.map(({ id, label }) => (
             <button
@@ -412,18 +440,29 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
             </div>
           )}
         </div>
-      </div>
+      </fieldset>
 
       <div className={styles.footer}>
-        <button type="button" onClick={resetSettings} className={styles.resetButton}>
+        {saveError && <div role="alert">{saveError}</div>}
+        <button
+          type="button"
+          onClick={resetSettings}
+          className={styles.resetButton}
+          disabled={isSaving}
+        >
           デフォルトに戻す
         </button>
         <div className={styles.actions}>
-          <button type="button" onClick={onClose}>
+          <button type="button" onClick={closeDialog} disabled={isSaving}>
             キャンセル
           </button>
-          <button type="button" onClick={saveSettings} className={styles.saveButton}>
-            保存
+          <button
+            type="button"
+            onClick={saveSettings}
+            className={styles.saveButton}
+            disabled={isSaving}
+          >
+            {isSaving ? '保存中...' : '保存'}
           </button>
         </div>
       </div>
