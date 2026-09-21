@@ -101,6 +101,31 @@ TEST_F(SettingsProviderTest, UpdateSettingsAppliesMaxQueryHistoryToInstance) {
     EXPECT_EQ(m_queryHistory->getAll().size(), 5u);
 }
 
+TEST_F(SettingsProviderTest, FailedSettingsSaveReturnsErrorAndRestoresInMemorySettings) {
+    const auto before = provider->settingsAccessor().getSettings();
+    for (int i = 0; i < 10; ++i) {
+        HistoryItem item;
+        item.id = generateHistoryId();
+        item.sql = "SELECT " + std::to_string(i);
+        item.timestamp = std::chrono::system_clock::now();
+        item.success = true;
+        m_queryHistory->add(item);
+    }
+    ASSERT_EQ(m_queryHistory->getAll().size(), 10u);
+    // A directory at the file path deterministically prevents opening it for writing.
+    std::filesystem::remove(m_settingsPath);
+    std::filesystem::create_directory(m_settingsPath);
+
+    const auto result = provider->updateSettings(
+        R"({"general":{"maxQueryHistory":5},"query":{"timeoutSeconds":45}})");
+
+    EXPECT_NE(result.find("\"success\":false"), std::string::npos);
+    const auto& after = provider->settingsAccessor().getSettings();
+    EXPECT_EQ(after.general.maxQueryHistory, before.general.maxQueryHistory);
+    EXPECT_EQ(after.query.timeoutSeconds, before.query.timeoutSeconds);
+    EXPECT_EQ(m_queryHistory->getAll().size(), 10u);
+}
+
 TEST_F(SettingsProviderTest, ConstructionAppliesLoadedMaxToInstance) {
     // SettingsProvider 構築時点の settings.maxQueryHistory が wire された QueryHistory に
     // 即時反映されることを検証する (load 済み設定が新規 instance に適用される保証)。
