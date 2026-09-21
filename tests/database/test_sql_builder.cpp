@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <stdexcept>
 
 namespace velocitydb {
 namespace test {
@@ -144,6 +145,32 @@ TEST_F(SqlBuilderTest, BuildDml_Update_MissingOriginalData_Skipped) {
     EXPECT_TRUE(builder.buildDml(input).empty());
 }
 
+TEST_F(SqlBuilderTest, BuildDml_Update_MissingPkValue_Throws) {
+    DmlInput input;
+    input.table = "t";
+    input.pkColumns = {"id"};
+    input.updates = parseArray(R"([{"changes":{"name":"new"},"originalData":{"name":"old"}}])");
+    EXPECT_THROW((void)builder.buildDml(input), std::invalid_argument);
+}
+
+TEST_F(SqlBuilderTest, BuildDml_Update_NullPkValue_UsesIsNull) {
+    DmlInput input;
+    input.table = "t";
+    input.pkColumns = {"id"};
+    input.updates = parseArray(R"([{"changes":{"name":"new"},"originalData":{"id":null,"name":"old"}}])");
+    auto stmts = builder.buildDml(input);
+    ASSERT_EQ(stmts.size(), 1u);
+    EXPECT_EQ(stmts[0], "UPDATE \"t\" SET \"name\" = 'new' WHERE \"id\" IS NULL;");
+}
+
+TEST_F(SqlBuilderTest, BuildDml_Update_MissingOneCompositePkValue_Throws) {
+    DmlInput input;
+    input.table = "t";
+    input.pkColumns = {"tenant_id", "id"};
+    input.updates = parseArray(R"([{"changes":{"name":"new"},"originalData":{"tenant_id":1,"name":"old"}}])");
+    EXPECT_THROW((void)builder.buildDml(input), std::invalid_argument);
+}
+
 // --- buildDml: DELETE ---
 
 TEST_F(SqlBuilderTest, BuildDml_Delete_WithPk_UsesPkOnly) {
@@ -163,6 +190,22 @@ TEST_F(SqlBuilderTest, BuildDml_Delete_NoPk_UsesAllColumns) {
     auto stmts = builder.buildDml(input);
     ASSERT_EQ(stmts.size(), 1u);
     EXPECT_NE(stmts[0].find("WHERE \"a\" = '1' AND \"b\" IS NULL"), std::string::npos);
+}
+
+TEST_F(SqlBuilderTest, BuildDml_Delete_MissingPkValue_Throws) {
+    DmlInput input;
+    input.table = "t";
+    input.pkColumns = {"id"};
+    input.deletes = parseArray(R"([{"name":"old"}])");
+    EXPECT_THROW((void)builder.buildDml(input), std::invalid_argument);
+}
+
+TEST_F(SqlBuilderTest, BuildDml_Delete_LaterRowMissingPkValue_ThrowsInsteadOfReturningPartialBatch) {
+    DmlInput input;
+    input.table = "t";
+    input.pkColumns = {"id"};
+    input.deletes = parseArray(R"([{"id":1},{"name":"missing id"}])");
+    EXPECT_THROW((void)builder.buildDml(input), std::invalid_argument);
 }
 
 // --- buildDml: 統合 ---

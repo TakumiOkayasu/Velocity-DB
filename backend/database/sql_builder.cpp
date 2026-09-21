@@ -2,6 +2,8 @@
 
 #include "../interfaces/sql_formattable.h"
 
+#include <stdexcept>
+
 namespace velocitydb {
 
 namespace {
@@ -28,7 +30,9 @@ void appendEqualityFromLookup(std::string& whereOut, const ISqlFormattable& fmt,
         whereOut += " AND ";
     auto col = fmt.quoteIdentifier(colName);
     auto val = lookup(colName);
-    if (val.error() || val.value().is_null()) {
+    if (val.error())
+        throw std::invalid_argument("Missing value for key column: " + std::string(colName));
+    if (val.value().is_null()) {
         whereOut += col + " IS NULL";
         return;
     }
