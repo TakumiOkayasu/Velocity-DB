@@ -247,8 +247,12 @@ std::string SettingsProvider::updateSettings(std::string_view params) {
                 settings.window.isMaximized = val.value();
         }
 
+        const auto previousSettings = m_settingsAccessor->getSettings();
         m_settingsAccessor->updateSettings(settings);
-        (void)m_settingsAccessor->save();
+        if (auto saved = m_settingsAccessor->save(); !saved) {
+            m_settingsAccessor->updateSettings(previousSettings);
+            return JsonUtils::errorResponse(saved.error());
+        }
 
         applyQueryTimeoutToConnections(settings.query.timeoutSeconds);
         applyMaxQueryHistoryToInstance(settings.general.maxQueryHistory);

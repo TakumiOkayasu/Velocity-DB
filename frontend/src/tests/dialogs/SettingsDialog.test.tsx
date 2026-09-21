@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { appSettingsProvider } from '../../api/providers';
 import type { AppSettings as BackendAppSettings } from '../../api/providers/app-settings';
@@ -51,7 +51,8 @@ describe('SettingsDialog', () => {
 
   beforeEach(() => {
     localStorage.clear();
-    vi.mocked(appSettingsProvider.updateSettings).mockClear();
+    defaultProps.onClose.mockClear();
+    vi.mocked(appSettingsProvider.updateSettings).mockReset().mockResolvedValue({ saved: true });
     // デフォルトは IPC 不通 (browser/dev モック環境相当)。必要なテストで resolve に差し替える
     vi.mocked(appSettingsProvider.getSettings)
       .mockReset()
@@ -160,10 +161,47 @@ describe('SettingsDialog', () => {
       fireEvent.click(screen.getByText('エディタ'));
       expect((screen.getByLabelText('フォントサイズ') as HTMLInputElement).value).toBe('20');
     });
+
+    it('読込中に編集した値を遅れて返った backend 値で上書きしない', async () => {
+      let resolveLoad: ((value: BackendAppSettings) => void) | undefined;
+      vi.mocked(appSettingsProvider.getSettings).mockImplementation(
+        () => new Promise((resolve) => (resolveLoad = resolve))
+      );
+      render(<SettingsDialog {...defaultProps} />);
+
+      fireEvent.change(screen.getByLabelText('言語'), { target: { value: 'ja' } });
+      const loadResolver = resolveLoad;
+      if (!loadResolver) throw new Error('getSettings resolver was not initialized');
+      await act(async () => {
+        loadResolver({
+          ...BACKEND_SETTINGS,
+          general: { ...BACKEND_SETTINGS.general, language: 'en' },
+        });
+      });
+
+      expect((screen.getByLabelText('言語') as HTMLSelectElement).value).toBe('ja');
+    });
   });
 
   describe('保存 (issue #389)', () => {
-    it('保存時に backend 対応の全項目を 1 回の updateSettings で送信する', () => {
+    it('キャンセル時は backend・localStorage・実行中画面へ反映しない', () => {
+      const listener = vi.fn();
+      window.addEventListener('settings-changed', listener);
+      try {
+        render(<SettingsDialog {...defaultProps} />);
+        fireEvent.change(screen.getByLabelText('言語'), { target: { value: 'ja' } });
+        fireEvent.click(screen.getByText('キャンセル'));
+
+        expect(defaultProps.onClose).toHaveBeenCalledOnce();
+        expect(appSettingsProvider.updateSettings).not.toHaveBeenCalled();
+        expect(localStorage.getItem('app-settings')).toBeNull();
+        expect(listener).not.toHaveBeenCalled();
+      } finally {
+        window.removeEventListener('settings-changed', listener);
+      }
+    });
+
+    it('保存時に backend 対応の全項目を 1 回の updateSettings で送信する', async () => {
       render(<SettingsDialog {...defaultProps} />);
       fireEvent.click(screen.getByText('保存'));
 
@@ -174,6 +212,7 @@ describe('SettingsDialog', () => {
         grid: { defaultPageSize: 100000, showRowNumbers: true, nullDisplay: '(NULL)' },
         query: { timeoutSeconds: 300 },
       });
+      await waitFor(() => expect(defaultProps.onClose).toHaveBeenCalled());
     });
 
     it('変更した一般/グリッド項目が payload に反映される', () => {
@@ -196,13 +235,14 @@ describe('SettingsDialog', () => {
       );
     });
 
-    it('保存時に localStorage へ frontend-only 項目含む全体を書き込み settings-changed を発火する', () => {
+    it('保存成功時に localStorage へ frontend-only 項目含む全体を書き込み settings-changed を発火する', async () => {
       const listener = vi.fn();
       window.addEventListener('settings-changed', listener);
       try {
         render(<SettingsDialog {...defaultProps} />);
         fireEvent.click(screen.getByText('保存'));
 
+        await waitFor(() => expect(listener).toHaveBeenCalledOnce());
         const saved = localStorage.getItem('app-settings');
         expect(saved).not.toBeNull();
         const parsed = JSON.parse(saved ?? '{}');
@@ -214,6 +254,52 @@ describe('SettingsDialog', () => {
       } finally {
         window.removeEventListener('settings-changed', listener);
       }
+    });
+
+    it('保存失敗時は閉じず、ローカル反映せず、再試行できる', async () => {
+      const onClose = vi.fn();
+      const listener = vi.fn();
+      vi.mocked(appSettingsProvider.updateSettings)
+        .mockRejectedValueOnce(new Error('disk full'))
+        .mockResolvedValueOnce({ saved: true });
+      window.addEventListener('settings-changed', listener);
+      try {
+        render(<SettingsDialog {...defaultProps} onClose={onClose} />);
+        fireEvent.click(screen.getByText('保存'));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('設定を保存できませんでした');
+        expect(onClose).not.toHaveBeenCalled();
+        expect(localStorage.getItem('app-settings')).toBeNull();
+        expect(listener).not.toHaveBeenCalled();
+
+        fireEvent.click(screen.getByText('保存'));
+        await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+        expect(appSettingsProvider.updateSettings).toHaveBeenCalledTimes(2);
+        expect(listener).toHaveBeenCalledOnce();
+      } finally {
+        window.removeEventListener('settings-changed', listener);
+      }
+    });
+
+    it('保存中は二重送信を防ぐ', async () => {
+      let resolveSave: ((value: { saved: boolean }) => void) | undefined;
+      vi.mocked(appSettingsProvider.updateSettings).mockImplementation(
+        () => new Promise((resolve) => (resolveSave = resolve))
+      );
+      render(<SettingsDialog {...defaultProps} />);
+
+      fireEvent.click(screen.getByText('保存'));
+      const savingButton = screen.getByText('保存中...');
+      expect(savingButton).toBeDisabled();
+      expect(screen.getByLabelText('言語')).toBeDisabled();
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(defaultProps.onClose).not.toHaveBeenCalled();
+      fireEvent.click(savingButton);
+      expect(appSettingsProvider.updateSettings).toHaveBeenCalledOnce();
+
+      if (!resolveSave) throw new Error('updateSettings resolver was not initialized');
+      resolveSave({ saved: true });
+      await waitFor(() => expect(defaultProps.onClose).toHaveBeenCalled());
     });
   });
 
