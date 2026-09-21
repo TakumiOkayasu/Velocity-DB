@@ -17,10 +17,13 @@ function makeMockInvoke(): string {
     }
     const mockResponses = {
       connectAsync: { requestId: 'req-1' },
-      pollConnectAsync: { status: 'completed', connectionId: 'mock-conn' },
+      getConnectResult: { status: 'connected', connectionId: 'mock-conn' },
       disconnect: {},
       testConnection: { success: true, message: 'ok' },
-      executeQuery: {
+      executeAsyncQuery: { queryId: 'mock-query' },
+      getAsyncQueryResult: {
+        queryId: 'mock-query',
+        status: 'completed',
         columns: [
           { name: 'id', type: 'int', size: 4, nullable: false, isPrimaryKey: true },
           { name: 'name', type: 'nvarchar', size: 255, nullable: true, isPrimaryKey: false },
@@ -40,7 +43,35 @@ function makeMockInvoke(): string {
         ['name', 'nvarchar', 255, true, false, ''],
         ['created_at', 'datetime', 8, true, false, ''],
       ],
-      getSettings: {},
+      getConnectionProfiles: { profiles: [] },
+      getSettings: {
+        general: {
+          autoConnect: false,
+          lastConnectionId: '',
+          confirmOnExit: true,
+          maxQueryHistory: 100,
+          maxRecentConnections: 10,
+          language: 'ja',
+        },
+        editor: {
+          fontSize: 14,
+          fontFamily: 'Consolas',
+          wordWrap: false,
+          tabSize: 2,
+          insertSpaces: true,
+          showLineNumbers: true,
+          showMinimap: false,
+          theme: 'dark',
+        },
+        grid: {
+          defaultPageSize: 100,
+          showRowNumbers: true,
+          enableCellEditing: true,
+          dateFormat: 'yyyy-MM-dd',
+          nullDisplay: 'NULL',
+        },
+        query: { timeoutSeconds: 30 },
+      },
       writeFrontendLog: {},
     };
     window.invoke = async (requestStr) => {
@@ -60,35 +91,53 @@ test.describe('#368 列幅スクロール固定', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    // 診断のため、body の最初の table を探す (存在しなければスキップ)
-    const tableCount = await page.locator('table').count();
-    console.log(`[diag] table count on load: ${tableCount}`);
+    await page.click('button[title="新規接続"]');
+    await page.waitForSelector('#conn-server', { timeout: 10_000 });
+    await page.fill('#conn-name', 'Column Width Test');
+    await page.fill('#conn-server', 'localhost');
+    await page.fill('#conn-database', 'master');
+    await page.locator('[data-testid="conn-submit"]').click();
+    await page.waitForSelector('#conn-server', { state: 'detached', timeout: 15_000 });
 
-    // 接続・クエリフロー: UI 操作依存のためここでは store 直接操作が必要になる。
-    // 現状は table が見えたときのみ測定する簡易版。
-    if (tableCount === 0) {
-      test.skip(true, '初期表示で table 無し (接続 UI 経由のセットアップが未実装)');
-      return;
-    }
+    await page.keyboard.press('Control+n');
+    await page.waitForSelector('.monaco-editor', { timeout: 10_000 });
+    await page.click('.monaco-editor');
+    await page.keyboard.type('SELECT * FROM TestTable');
+    await page.waitForSelector('button[title="実行 (F9)"]:not([disabled])', {
+      timeout: 10_000,
+    });
+    await page.keyboard.press('F9');
+
+    const table = page.locator('table');
+    await expect(table).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('name_0_long_suffix_to_trigger_auto_size')).toBeVisible();
 
     const cols = page.locator('colgroup col');
+    await expect(cols).toHaveCount(3);
     const initialWidths = await cols.evaluateAll((els) =>
       els.map((e) => (e as HTMLElement).getBoundingClientRect().width)
     );
+    expect(initialWidths.every((width) => width > 0)).toBe(true);
+    const visibleRowsBefore = await table.locator('tbody tr').allTextContents();
     console.log('[diag] initial col widths:', initialWidths);
 
     // スクロール操作
     const container = page.locator('[class*="tableContainer"]').first();
-    await container.evaluate((el) => {
+    const scrollTop = await container.evaluate((el) => {
       el.scrollTop = 500;
+      return el.scrollTop;
     });
+    expect(scrollTop).toBeGreaterThan(0);
     await page.waitForTimeout(200);
 
     const afterWidths = await cols.evaluateAll((els) =>
       els.map((e) => (e as HTMLElement).getBoundingClientRect().width)
     );
+    const visibleRowsAfter = await table.locator('tbody tr').allTextContents();
     console.log('[diag] after-scroll col widths:', afterWidths);
 
+    expect(visibleRowsAfter).not.toEqual(visibleRowsBefore);
+    expect(afterWidths.every((width) => width > 0)).toBe(true);
     expect(afterWidths).toEqual(initialWidths);
   });
 });
