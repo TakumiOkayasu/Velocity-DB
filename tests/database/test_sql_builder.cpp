@@ -200,6 +200,24 @@ TEST_F(SqlBuilderTest, BuildDml_Delete_MissingPkValue_Throws) {
     EXPECT_THROW((void)builder.buildDml(input), std::invalid_argument);
 }
 
+TEST_F(SqlBuilderTest, BuildDml_Delete_NullPkValue_UsesIsNull) {
+    DmlInput input;
+    input.table = "t";
+    input.pkColumns = {"id"};
+    input.deletes = parseArray(R"([{"id":null,"name":"old"}])");
+    auto stmts = builder.buildDml(input);
+    ASSERT_EQ(stmts.size(), 1u);
+    EXPECT_EQ(stmts[0], "DELETE FROM \"t\" WHERE \"id\" IS NULL;");
+}
+
+TEST_F(SqlBuilderTest, BuildDml_Delete_MissingOneCompositePkValue_Throws) {
+    DmlInput input;
+    input.table = "t";
+    input.pkColumns = {"tenant_id", "id"};
+    input.deletes = parseArray(R"([{"tenant_id":1,"name":"old"}])");
+    EXPECT_THROW((void)builder.buildDml(input), std::invalid_argument);
+}
+
 TEST_F(SqlBuilderTest, BuildDml_Delete_LaterRowMissingPkValue_ThrowsInsteadOfReturningPartialBatch) {
     DmlInput input;
     input.table = "t";
