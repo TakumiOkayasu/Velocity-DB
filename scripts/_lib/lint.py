@@ -1,7 +1,6 @@
 """Lint commands for Velocity-DB."""
 
 import io
-import shutil
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -149,23 +148,9 @@ def lint_python(fix: bool = False, out: TextIO | None = None) -> bool:
     subtitles = ("Mode: Auto-fix",) if fix else ()
     utils.print_header("Linting Python", *subtitles, file=out)
 
-    # Check for ruff
-    ruff = shutil.which("ruff")
-    if not ruff:
-        print("\nERROR: ruff not found", file=out)
-        print("Install: uv pip install ruff", file=out)
-        return False
-
-    # Get version
-    try:
-        result = subprocess.run([ruff, "--version"], capture_output=True, text=True)
-        print(f"\n{result.stdout.strip()}", file=out)
-    except Exception:
-        pass
-
     # Run ruff check (linting)
     print("\n[Linting...]", file=out)
-    check_cmd = [ruff, "check", str(scripts_dir)]
+    check_cmd = [sys.executable, "-m", "ruff", "check", str(scripts_dir)]
     if fix:
         check_cmd.append("--fix")
 
@@ -180,7 +165,7 @@ def lint_python(fix: bool = False, out: TextIO | None = None) -> bool:
     # Run ruff format (formatting)
     print("\n[Formatting...]", file=out)
     if fix:
-        format_cmd = [ruff, "format", str(scripts_dir)]
+        format_cmd = [sys.executable, "-m", "ruff", "format", str(scripts_dir)]
         result_format = subprocess.run(format_cmd, capture_output=True, text=True)
         success_format = result_format.returncode == 0
 
@@ -190,7 +175,7 @@ def lint_python(fix: bool = False, out: TextIO | None = None) -> bool:
             print(result_format.stderr, file=out)
     else:
         # Check formatting without modifying
-        format_cmd = [ruff, "format", "--check", str(scripts_dir)]
+        format_cmd = [sys.executable, "-m", "ruff", "format", "--check", str(scripts_dir)]
         result_format = subprocess.run(format_cmd, capture_output=True, text=True)
         success_format = result_format.returncode == 0
 

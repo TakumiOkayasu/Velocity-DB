@@ -136,8 +136,9 @@ class MsvcBuildTest(unittest.TestCase):
                     calls: list[str] = calls,
                     configure_ok: bool = configure_ok,
                     compile_ok: bool = compile_ok,
-                    **_kwargs: object,
+                    **kwargs: object,
                 ) -> tuple[bool, str]:
+                    self.assertEqual(kwargs["cwd"], self.root)
                     if "--build" not in cmd:
                         self.assertFalse(self.build_dir.exists())
                         self.build_dir.mkdir()

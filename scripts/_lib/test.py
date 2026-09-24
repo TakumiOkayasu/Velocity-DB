@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import TextIO
 
 from . import utils
+from .build import _prioritize_python_build_tools
 from .environment import BuildEnvironment
 
 
@@ -78,6 +79,7 @@ def _run_ctest_preset(
     cmd_label: str,
     ok_msg: str,
     fail_msg: str,
+    repeat_csv: bool = False,
     out: TextIO | None = None,
 ) -> bool:
     """Run ctest under a CMake preset with the given label filter."""
@@ -96,19 +98,43 @@ def _run_ctest_preset(
         return False
 
     env = environment.activate(out=out)
+    _prioritize_python_build_tools(env)
     preset = build_type.lower()
-    test_cmd = ["ctest", "--preset", preset, "--output-on-failure", *label_args]
+    test_cmd = ["ctest", "--preset", preset, "--output-on-failure", *label_args, "--no-tests=error"]
 
-    success, _ = utils.run_command(test_cmd, cmd_label, env=env, out=out)
+    success, _ = utils.run_command(test_cmd, cmd_label, env=env, cwd=project_root, out=out)
 
     print(f"\n[{'OK' if success else 'FAIL'}] {ok_msg if success else fail_msg}", file=out)
+    if not success or not repeat_csv:
+        return success
+
+    # Match the CI stress run locally: concurrency previously exposed intermittent
+    # CSV exporter failures that a single invocation of the suite could miss.
+    print("\n[Repeating parallel CSV exporter tests...]", file=out)
+    repeat_cmd = [
+        "ctest",
+        "--preset",
+        preset,
+        "--output-on-failure",
+        "-R",
+        r"^CSVExporterTest\.",
+        "--parallel",
+        "5",
+        "--repeat",
+        "until-fail:20",
+        "--no-tests=error",
+    ]
+    success, _ = utils.run_command(
+        repeat_cmd, "CTest (CSV exporter repeat)", env=env, cwd=project_root, out=out
+    )
+    print(f"\n[{'OK' if success else 'FAIL'}] CSV exporter repeat", file=out)
     return success
 
 
 def test_backend(
     build_type: str = "Release", out: TextIO | None = None, *, environment: BuildEnvironment
 ) -> bool:
-    """Run backend unit tests (perf-labeled benchmarks excluded)."""
+    """Run backend unit tests and repeat the parallel CSV exporter regression tests."""
     return _run_ctest_preset(
         build_type,
         ["--parallel", "-LE", "perf"],
@@ -117,6 +143,7 @@ def test_backend(
         cmd_label="CTest",
         ok_msg="All tests passed!",
         fail_msg="Tests failed",
+        repeat_csv=True,
         out=out,
     )
 

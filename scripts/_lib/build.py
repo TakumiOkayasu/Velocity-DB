@@ -5,6 +5,7 @@ import io
 import json
 import shutil
 import subprocess
+import sysconfig
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TextIO
@@ -355,6 +356,20 @@ def _strip_vs_cmake_ninja(env: dict[str, str]) -> None:
     env[path_key] = ";".join(dirs)
 
 
+def _prioritize_python_build_tools(env: dict[str, str]) -> None:
+    """Prefer the CMake and Ninja installed by uv over tools from Visual Studio."""
+    scripts_dir = Path(sysconfig.get_path("scripts"))
+    if not (scripts_dir / "cmake.exe").is_file() or not (scripts_dir / "ninja.exe").is_file():
+        return
+    path_key = next((key for key in env if key.upper() == "PATH"), "PATH")
+    dirs = [
+        directory
+        for directory in env.get(path_key, "").split(";")
+        if directory.lower() != str(scripts_dir).lower()
+    ]
+    env[path_key] = ";".join([str(scripts_dir), *dirs])
+
+
 def _prioritize_ninja_in_path(env: dict[str, str], ninja_path: Path) -> None:
     """PATH で指定 ninja のディレクトリを先頭に移動する（VS CMake 内蔵 Ninja は除外済み前提）。"""
     _strip_vs_cmake_ninja(env)
@@ -548,6 +563,7 @@ def build_backend(
 
     # 単独実行不可の VS CMake 内蔵 Ninja を PATH から除外してから選定する。これを
     # CMAKE_MAKE_PROGRAM に固定しないと、それがキャッシュされ compiler test を破壊する。
+    _prioritize_python_build_tools(env)
     _strip_vs_cmake_ninja(env)
     ninja_path = _find_ninja(env)
     if ninja_path:
@@ -573,7 +589,7 @@ def build_backend(
         cmake_cmd.append(f"-DCMAKE_MAKE_PROGRAM:FILEPATH={cmake_ninja_path}")
         print(f"Using Ninja from: {ninja_path}", file=out)
     success, stderr = utils.run_command(
-        cmake_cmd, "CMake Configure", env=env, capture_output=True, out=out
+        cmake_cmd, "CMake Configure", cwd=project_root, env=env, capture_output=True, out=out
     )
     if not success:
         print("\nERROR: CMake configuration failed", file=out)
@@ -592,7 +608,9 @@ def build_backend(
 
     print("\n[4/4] Building...", file=out)
     build_cmd = ["cmake", "--build", "--preset", preset]
-    success, _ = utils.run_command(build_cmd, f"CMake Build ({build_type})", env=env, out=out)
+    success, _ = utils.run_command(
+        build_cmd, f"CMake Build ({build_type})", cwd=project_root, env=env, out=out
+    )
     if not success:
         print("\nERROR: Build failed", file=out)
         return False

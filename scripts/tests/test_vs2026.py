@@ -255,21 +255,34 @@ def test_known_folder_api_releases_memory_and_rejects_invalid_results(
     )
 
 
+@pytest.mark.parametrize("installed", [False, True])
 @pytest.mark.parametrize("command", ["test_backend", "bench_backend"])
 def test_backend_commands_use_injected_environment(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, command: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, command: str, installed: bool
 ) -> None:
+    from _lib import build
     from _lib import test as commands
+
+    scripts_dir = tmp_path / "tools" / "Scripts"
+    scripts_dir.mkdir(parents=True)
+    if installed:
+        (scripts_dir / "cmake.exe").touch()
+        (scripts_dir / "ninja.exe").touch()
+    monkeypatch.setattr(build.sysconfig, "get_path", lambda _name: str(scripts_dir))
 
     class FakeEnvironment:
         def activate(self, out: object = None) -> dict[str, str]:
-            return {"TEST_TOOLCHAIN": "injected"}
+            return {"TEST_TOOLCHAIN": "injected", "Path": "original"}
 
     (tmp_path / "build").mkdir()
     monkeypatch.setattr(commands.utils, "get_project_root", lambda: tmp_path)
     with patch.object(commands.utils, "run_command", return_value=(True, "")) as run:
         assert getattr(commands, command)(environment=FakeEnvironment())
-    assert run.call_args.kwargs["env"] == {"TEST_TOOLCHAIN": "injected"}
+    expected = {"TEST_TOOLCHAIN": "injected", "Path": "original"}
+    if installed:
+        expected["Path"] = f"{scripts_dir};original"
+    for call in run.call_args_list:
+        assert call.kwargs["env"] == expected
 
 
 def test_activation_failure_prevents_test_command(

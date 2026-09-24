@@ -28,7 +28,7 @@ ODBC ドライバは公式サイトから入手する。
 
 ## ビルド
 
-必要ツール: Visual Studio 2026 Stable (18.x, C++。Build Tools可) / CMake 3.25+ / Ninja / Bun / Python 3.14+ / uv。
+必要ツール: Visual Studio 2026 Stable (18.x, C++。Build Tools可) / Vite+ (グローバルCLI、managed mode有効) / uv (`pyproject.toml`の指定版)。
 バージョンの指定元と更新方針は[開発ツールのバージョン管理](./docs/VISUAL_STUDIO_SETUP.md#開発ツールのバージョン管理)を参照。
 
 ```bash
@@ -78,6 +78,40 @@ Windows x64とLinux x64は同じLLVM公式リリースを使用し、OS別のURL
 更新時は`mise.toml`のLLVMバージョンを変更し、`mise lock --platform linux-x64,windows-x64`で両OSのlockを更新する。
 設定とlockは同じPRに含め、Windows/Linuxの実行・整形結果比較CIを通す。週次Tool Version Upgradeもこの正本を使用する。
 Frontendのツール・依存関係は引き続き`frontend/package.json`と`frontend/bun.lock`を正本とする。
+
+## ローカルとCIの検証
+
+通常のPR CIもローカルも`pdg.py`と`CMakePresets.json`を使用する。
+Pythonは`.python-version`、uvは`pyproject.toml`、Ruff/pytest/CMake/Ninjaは`uv.lock`を正本とする。
+`uv run --locked`が同じ開発依存関係を導入し、設定とlockが不一致なら停止する。
+Nodeは`frontend/.node-version`、Bunは`frontend/package.json`をVite+が解決する。
+Frontendは毎回frozen installで`bun.lock`に同期する。依存更新時だけ明示的にlockを更新する。
+
+```powershell
+mise trust
+mise install --locked github:llvm/llvm-project
+uv run --locked scripts/pdg.py check Release
+```
+
+`check`はPython lint、build scriptテスト (両OSのLLVM lock検証を含む)、製品lint、
+frontendテスト、ビルド、backendテストとCSV並列反復を実行する。
+CIの各段階だけ再現する場合:
+
+```powershell
+uv run --locked scripts/pdg.py lint python
+uv run --locked scripts/pdg.py test scripts
+uv run --locked scripts/pdg.py lint frontend
+uv run --locked scripts/pdg.py build frontend
+uv run --locked scripts/pdg.py test frontend
+uv run --locked scripts/pdg.py build backend
+uv run --locked scripts/pdg.py test backend
+```
+
+`test scripts`はインストール済みLLVMの統合検証も実行する。
+LLVMなしでPythonの単体テストだけ実行する場合は`uv run --locked pytest scripts/tests`を使う。
+VS 2026 StableとWindows SDKのインストールは引き続き必要で、選択処理は共通の`vswhere`を使う。
+OS・VS/SDKのパッチ版まで同一にするものではない。選択された版はビルドログに記録する。
+リリース・benchmark専用workflowの実行範囲は通常のPR CIとは異なる。
 
 ## ドキュメント
 

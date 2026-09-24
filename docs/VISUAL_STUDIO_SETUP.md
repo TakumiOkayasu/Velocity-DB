@@ -4,8 +4,8 @@
 
 1. Visual Studio 2026 (18.x) の最新Stable版がインストールされていること
 2. 「C++ によるデスクトップ開発」ワークロードがインストールされていること
-3. `frontend/package.json`の`devEngines.packageManager.version`に指定されたBunが利用できること (フロントエンドビルド用)
-4. uvとPython 3.14以降が利用できること (ビルドスクリプト実行用)
+3. Vite+のグローバルCLIが利用でき、managed modeが有効なこと (フロントエンドビルド用)
+4. `pyproject.toml`で指定したuvが利用できること (Pythonはuvが導入)
    - インストール: `winget install astral-sh.uv`
 
 ## 開発ツールのバージョン管理
@@ -16,11 +16,11 @@ VS以外も更新対象とする。バージョンを複数の設定に重複定
 | ツール | 指定元・現状 | 更新とローカル/CIの関係 |
 | --- | --- | --- |
 | Visual Studio / MSVC / Windows SDK | VS 2026 Stable (18.x)、選択したインストールのtoolset/SDK | Installerで更新。CIはrunner配布版。実行ログで版を確認 |
-| CMake | Presets形式6の読み込みには3.25以上。CMake本体の版は未固定 | ローカルは導入済み版、CIはrunner同梱版。報告ログの4.4.3は使用実績であり固定値ではない |
-| Ninja | 版は未固定 | ローカルは導入済み版、CIはChocolateyで導入。報告ログの1.13.2は固定値ではない |
-| Python | `pyproject.toml`の`requires-python = ">=3.14"`、Ruffは`py314` | uvで要件を満たすPythonを選択。明示的なCI指定は3.14。パッチ版は未固定 |
-| uv / Ruff | 本体の版は未固定 | CIはsetup-uv / uvxで導入。Actionのコミット固定はツール本体の版固定とは別 |
-| Bun | `frontend/package.json`の`devEngines.packageManager.version` (現在1.4.2) | CIはsetup-vp経由で指定版を使用。ローカルで直接`bun`を起動する場合も指定版に揃える |
+| CMake | `uv.lock` | uvの開発依存関係として両環境に同じ版を導入。Presets形式の下限は3.25 |
+| Ninja | `uv.lock` | uvで導入した版をVS同梱版より優先 |
+| Python | `.python-version` | 両環境で同じパッチ版を使用 |
+| uv / Ruff / pytest | uvは`pyproject.toml`、Ruff/pytestは`uv.lock` | setup-uvも同じuv指定を参照。`uvx`による都度の最新版取得は通常CIから除去 |
+| Node / Bun | `frontend/.node-version` / `frontend/package.json` | 両環境でVite+のmanaged modeを使用 |
 | Vite+ / Oxlint / Oxfmt / Vitest / TypeScript等 | `frontend/package.json`と`frontend/bun.lock` | 依存更新時に両方を更新し、frontend lint・型検査・テスト・buildを確認 |
 | LLVM / clang-format | `mise.toml` (現在23.1.1) と`mise.lock` | Windows/Linuxの公式配布物をlockし、両OSの整形結果一致をCIで検証 |
 | mise | `mise.toml`の`min_version` (2026.9.1以上)、CIのmise-action入力は2026.9.1 | ローカルでより新しい版を利用可能。LLVMの固定版とは別に管理 |
@@ -32,8 +32,8 @@ VS 2026との組み合わせを含めた全依存の最低動作版を保証す�
 
 既存の週次`Tool Version Upgrade`はBun・vcpkg・LLVMを対象とする。
 CMake・Ninja・uv・mise・Python本体を一括で最新化する仕組みではない。
-それらの完全固定や更新自動化は未対応であり、導入する場合は既存の管理元を利用して
-ローカルとCIの指定を一緒に変更し、アプリ全体のbackend build/testまで検証する。
+固定版の更新は上表の管理元とlockを同じPRで変更し、backend build/testまで検証する。
+通常PR CIとローカルの共通コマンドは[README](../README.md#ローカルとciの検証)を参照。
 
 ## ツールチェーンの選択と更新
 
@@ -71,10 +71,10 @@ CIイメージの配布タイミングによるパッチ版の差はあり得る
 # ビルドスクリプトを使用（推奨）
 uv run scripts/pdg.py build frontend
 
-# または手動でBunを使用
+# または同じ管理環境で直接実行
 cd frontend
-bun install
-bun run build
+vp install --frozen-lockfile
+vp run build
 ```
 
 ### 2. ソリューションを開く
