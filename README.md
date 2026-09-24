@@ -88,7 +88,7 @@ Windows x64とLinux x64は同じLLVM公式リリースを使用し、OS別のURL
 
 更新時は`mise.toml`のLLVMバージョンを変更し、`mise lock --platform linux-x64,windows-x64`で両OSのlockを更新する。
 設定とlockは同じPRに含め、Windows/Linuxの実行・整形結果比較CIを通す。週次Tool Version Upgradeもこの正本を使用する。
-Frontendのツール・依存関係は引き続き`frontend/package.json`と`frontend/bun.lock`を正本とする。
+FrontendのVite+とnpm依存関係は`frontend/package.json`と`frontend/bun.lock`、Node/Bunは`mise.toml`と`mise.lock`を正本とする。
 
 ## ローカルとCIの検証
 

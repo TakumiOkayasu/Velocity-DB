@@ -24,7 +24,7 @@ def frontend(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     (directory / "bun.lock").write_text("lock", encoding="utf-8")
     local_bin = directory / "node_modules" / ".bin"
     local_bin.mkdir(parents=True)
-    local_vp = local_bin / ("vp.cmd" if os.name == "nt" else "vp")
+    local_vp = local_bin / ("vp.exe" if os.name == "nt" else "vp")
     local_vp.touch(mode=0o755)
     local_vp.chmod(0o755)
     (tmp_path / "mise.toml").write_text(
@@ -146,7 +146,7 @@ def test_failed_frozen_install_prevents_frontend_command(
 
 
 def test_no_global_vp_fallback(frontend: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    (frontend / "node_modules" / ".bin" / ("vp.cmd" if os.name == "nt" else "vp")).unlink()
+    (frontend / "node_modules" / ".bin" / ("vp.exe" if os.name == "nt" else "vp")).unlink()
     runtime = utils.FrontendRuntime(frontend.parent / "bun", {"PATH": "pinned"})
     monkeypatch.setattr(utils, "resolve_frontend_runtime", lambda: runtime)
     monkeypatch.setattr(utils, "run_command", lambda *_args, **_kwargs: (True, ""))
