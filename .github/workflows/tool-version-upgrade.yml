@@ -49,8 +49,8 @@ jobs:
       - name: Read current versions
         id: current
         run: |
-          # Bun: Vite+ uses the package manager version declared in package.json
-          BUN=$(jq -r '.devEngines.packageManager.version' frontend/package.json)
+          # Bun: exact version from the shared tool configuration
+          BUN=$(python3 scripts/update_mise_tool.py current bun)
           echo "bun=$BUN" >> "$GITHUB_OUTPUT"
           echo "Current Bun: $BUN"
 
@@ -101,10 +101,7 @@ jobs:
         run: |
           # Bun
           if [[ "$INPUT_TOOL" == "all" || "$INPUT_TOOL" == "bun" ]]; then
-            if [[ "${{ steps.current.outputs.bun }}" == "latest" ]]; then
-              echo "bun=false" >> "$GITHUB_OUTPUT"
-              echo "Bun uses 'latest' pin - no version update needed"
-            elif [[ "${{ steps.current.outputs.bun }}" != "${{ steps.latest.outputs.bun }}" ]]; then
+            if [[ "${{ steps.current.outputs.bun }}" != "${{ steps.latest.outputs.bun }}" ]]; then
               echo "bun=true" >> "$GITHUB_OUTPUT"
               echo "Bun needs update: ${{ steps.current.outputs.bun }} -> ${{ steps.latest.outputs.bun }}"
             else
@@ -179,36 +176,37 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Update Bun version in package.json
+      - name: Setup mise
+        if: steps.check-pr.outputs.skip == 'false'
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
+        with:
+          version: 2026.9.1
+          install: false
+          export_path: false
+          env: false
+
+      - name: Update Bun version and both platform locks
         if: steps.check-pr.outputs.skip == 'false'
         env:
           NEW_VERSION: ${{ needs.detect-versions.outputs.bun_latest }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          TEMP_FILE=$(mktemp)
-          jq --arg version "$NEW_VERSION" \
-            '.devEngines.packageManager.version = $version' \
-            frontend/package.json > "$TEMP_FILE"
-          mv "$TEMP_FILE" frontend/package.json
-          echo "Updated Bun to ${NEW_VERSION} in frontend/package.json"
-          jq '.devEngines.packageManager' frontend/package.json
-
-      - name: Setup Vite+ and Bun
-        if: steps.check-pr.outputs.skip == 'false'
-        uses: voidzero-dev/setup-vp@9fd26ff49f9b5e6276c2b493da4454ad4527f7f4 # v1.20.0
-        with:
-          working-directory: frontend
-          cache: true
-          run-install: false
+          python3 scripts/update_mise_tool.py update bun "$NEW_VERSION"
+          mise lock --platform linux-x64,windows-x64 bun
+          mise install --locked node bun
 
       - name: Validate frontend build
         if: steps.check-pr.outputs.skip == 'false'
         working-directory: frontend
         run: |
-          vp install
-          vp check
-          vp run typecheck
-          vp run build
-          vp test --run
+          BUN_BIN=$(mise which bun)
+          NODE_BIN=$(mise which node)
+          export PATH="$(dirname "$BUN_BIN"):$(dirname "$NODE_BIN"):$PATH"
+          "$BUN_BIN" install --frozen-lockfile
+          "$BUN_BIN" run lint
+          "$BUN_BIN" run typecheck
+          "$BUN_BIN" run build
+          "$BUN_BIN" run test --run
 
       - name: Create PR
         if: steps.check-pr.outputs.skip == 'false'
@@ -221,7 +219,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          git add frontend/package.json frontend/bun.lock
+          git add mise.toml mise.lock
           git commit -m "chore(deps): upgrade Bun ${OLD_VERSION} -> ${NEW_VERSION}"
           git push origin "$BRANCH"
 
@@ -237,11 +235,12 @@ jobs:
           | New | ${NEW_VERSION} |
 
           ### Validation
-          - [x] \`vp install\` succeeded
-          - [x] \`vp check\` succeeded
-          - [x] \`vp run typecheck\` succeeded
-          - [x] \`vp run build\` succeeded
-          - [x] \`vp test --run\` passed
+          - [x] Linux/Windows Bun artifacts locked in mise.lock
+          - [x] \`bun install --frozen-lockfile\` succeeded
+          - [x] \`bun run lint\` succeeded
+          - [x] \`bun run typecheck\` succeeded
+          - [x] \`bun run build\` succeeded
+          - [x] \`bun run test --run\` passed
 
           ### Auto-generated
           This PR was automatically created by the tool-version-upgrade workflow.
@@ -504,4 +503,3 @@ jobs:
             --body-file "$RUNNER_TEMP/llvm-pr.md" \
             --label "dependencies" \
             --reviewer "TakumiOkayasu"
-

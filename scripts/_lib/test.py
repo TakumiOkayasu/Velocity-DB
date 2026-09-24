@@ -12,9 +12,6 @@ from .environment import BuildEnvironment
 
 def test_frontend(watch: bool = False, out: TextIO | None = None) -> bool:
     """Run frontend tests."""
-    project_root = utils.get_project_root()
-    frontend_dir = project_root / "frontend"
-
     subtitles = ("Mode: Watch",) if watch else ()
     utils.print_header("Running Frontend Tests", *subtitles, file=out)
 
@@ -22,16 +19,8 @@ def test_frontend(watch: bool = False, out: TextIO | None = None) -> bool:
     if not pkg_info:
         return False
 
-    pkg_manager, pkg_path = pkg_info
-    print(f"\nUsing {pkg_manager}: {pkg_path}", file=out)
-
-    test_cmd = [str(pkg_path), "run", "test"]
-    if watch:
-        test_cmd.append("--watch")
-    else:
-        test_cmd.append("--run")
-
-    success, _ = utils.run_command(test_cmd, f"{pkg_manager} run test", cwd=frontend_dir, out=out)
+    print(f"\nUsing bun: {pkg_info.bun}", file=out)
+    success = pkg_info.run("test", "--watch" if watch else "--run", out=out)
 
     if success:
         print("\n[OK] All tests passed!", file=out)
@@ -43,24 +32,14 @@ def test_frontend(watch: bool = False, out: TextIO | None = None) -> bool:
 
 def test_e2e(out: TextIO | None = None) -> bool:
     """Run E2E tests with Playwright."""
-    project_root = utils.get_project_root()
-    frontend_dir = project_root / "frontend"
-
     utils.print_header("Running E2E Tests (Playwright)", file=out)
 
     pkg_info = utils.ensure_frontend_deps(out=out)
     if not pkg_info:
         return False
 
-    pkg_manager, pkg_path = pkg_info
-    print(f"\nUsing {pkg_manager}: {pkg_path}", file=out)
-
-    success, _ = utils.run_command(
-        [str(pkg_path), "run", "test:e2e"],
-        f"{pkg_manager} run test:e2e",
-        cwd=frontend_dir,
-        out=out,
-    )
+    print(f"\nUsing bun: {pkg_info.bun}", file=out)
+    success = pkg_info.run("test:e2e", out=out)
 
     if success:
         print("\n[OK] All E2E tests passed!", file=out)

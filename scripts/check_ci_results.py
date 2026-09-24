@@ -25,13 +25,26 @@ def validate_ci_results(results: Mapping[str, str]) -> list[str]:
 
 def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--frontend-result", help="Validate only the frontend matrix result")
     for job in (*REQUIRED_SUCCESS_JOBS, BACKEND_JOB):
-        parser.add_argument(f"--{job}", required=True)
-    return parser.parse_args(argv)
+        parser.add_argument(f"--{job}")
+    args = parser.parse_args(argv)
+    supplied = [
+        getattr(args, job.replace("-", "_")) for job in (*REQUIRED_SUCCESS_JOBS, BACKEND_JOB)
+    ]
+    if args.frontend_result is not None:
+        if any(value is not None for value in supplied):
+            parser.error("--frontend-result cannot be combined with full CI results")
+    elif any(value is None for value in supplied):
+        parser.error("All CI job results are required")
+    return args
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parse_args(argv)
+    if args.frontend_result is not None:
+        print(f"Frontend matrix: {args.frontend_result} (expected success)")
+        return 0 if args.frontend_result == "success" else 1
     results = {
         job: getattr(args, job.replace("-", "_")) for job in (*REQUIRED_SUCCESS_JOBS, BACKEND_JOB)
     }

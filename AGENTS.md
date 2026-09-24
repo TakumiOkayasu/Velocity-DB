@@ -40,38 +40,23 @@ uv run scripts/pdg.py check Release               # 全チェック (lint + test
 ruff check scripts/ && ruff format scripts/       # Python lint (別途)
 ```
 
-## Frontendテスト (Docker必須)
+## Frontendテスト
 
-hookが node/npm 直接実行をブロックするため、Docker経由で実行:
+Node/Bun/LLVMはmise、プロジェクト内Vite+はfrontendのpackage.json/bun.lockで管理する。
+Dockerやグローバルvpは不要。シェルactivationを前提にせず、統合CLIが固定版の実行環境を選択する。
 
-```bash
-# 全テスト (Vitest)
-docker run --rm -v "C:/prog/Velocity-DB://app" \
-  --mount "type=volume,target=//app/frontend/node_modules" \
-  -w "//app/frontend" oven/bun:latest \
-  sh -c 'bun install && ./node_modules/.bin/vp test --run --reporter=verbose'
-
-# 単一テストファイル
-docker run --rm -v "C:/prog/Velocity-DB://app" \
-  --mount "type=volume,target=//app/frontend/node_modules" \
-  -w "//app/frontend" oven/bun:latest \
-  sh -c 'bun install && ./node_modules/.bin/vp test --run --reporter=verbose src/tests/hooks/useColumnActions.test.ts'
-
-# Vite+ check (変更ファイルのみ)
-docker run --rm -v "C:/prog/Velocity-DB://app" \
-  --mount "type=volume,target=//app/frontend/node_modules" \
-  -w "//app/frontend" oven/bun:latest \
-  sh -c 'bun install && ./node_modules/.bin/vp check src/path/to/file.ts'
-
-# E2Eテスト (Playwright) — Node.js ベースの公式イメージを使用 (bun は worker_threads 非互換)
-# image タグは bun.lock の @playwright/test バージョンに合わせること
-docker run --rm -v "C:/prog/Velocity-DB://app" \
-  --mount "type=volume,target=//app/frontend/node_modules,source=frontend-bun-pw" \
-  -w "//app/frontend" mcr.microsoft.com/playwright:v1.58.2-jammy \
-  bash -c 'npm install -g bun 2>&1 | tail -2 && bun install 2>&1 | tail -3 && npx playwright test'
+```powershell
+mise trust
+mise install --locked node bun github:llvm/llvm-project
+uv run --locked scripts/pdg.py lint frontend
+uv run --locked scripts/pdg.py test frontend
+uv run --locked scripts/pdg.py test e2e
+uv run --locked scripts/pdg.py build frontend
 ```
 
-`--mount type=volume` で node_modules を隔離（Windows/Linux バイナリ非互換対策）。
+ツール更新時はmise.toml/mise.lock、依存更新時はfrontend/package.json/frontend/bun.lockを更新する。
+CIと同じmise版でWindows/Linuxのlockを生成する。未導入・版不一致時の自動インストールや
+システムNode/Bunへのフォールバックは追加しない。
 
 ## CI の実装規約
 

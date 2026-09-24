@@ -35,6 +35,7 @@ jobs:
         with:
           version: 2026.9.1
           # Exercise script-side resolution, without activating LLVM in the shell.
+          install_args: --locked github:llvm/llvm-project
           export_path: false
           env: false
 
@@ -74,18 +75,22 @@ jobs:
   # Frontend lint (parallel with C++ lint)
   lint-frontend:
     name: Lint Frontend
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
 
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
 
-      - name: Setup Vite+
-        uses: voidzero-dev/setup-vp@9fd26ff49f9b5e6276c2b493da4454ad4527f7f4 # v1.20.0
+      - name: Install locked Node and Bun
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
         with:
-          working-directory: frontend
-          cache: true
-          run-install: false
+          version: 2026.9.1
+          install_args: --locked node bun
+          export_path: true
 
       - name: Lint and Type Check
         run: uv run --locked scripts/pdg.py lint frontend
@@ -100,9 +105,13 @@ jobs:
       - run: echo "All lint checks passed"
 
   # Frontend build and test (depends on frontend lint only)
-  build-frontend:
+  build-frontend-platform:
     name: Build & Test Frontend
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     needs: lint-frontend
     if: always() && needs.lint-frontend.result == 'success'
     steps:
@@ -110,12 +119,12 @@ jobs:
 
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
 
-      - name: Setup Vite+
-        uses: voidzero-dev/setup-vp@9fd26ff49f9b5e6276c2b493da4454ad4527f7f4 # v1.20.0
+      - name: Install locked Node and Bun
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
         with:
-          working-directory: frontend
-          cache: true
-          run-install: false
+          version: 2026.9.1
+          install_args: --locked node bun
+          export_path: true
 
       - name: Build frontend
         run: uv run --locked scripts/pdg.py build frontend
@@ -124,11 +133,28 @@ jobs:
         run: uv run --locked scripts/pdg.py test frontend
 
       - name: Upload build artifacts
+        if: runner.os == 'Linux'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: frontend-build
           path: frontend/dist/
           retention-days: 7
+
+  # Preserve the required check name while validating the entire OS matrix.
+  build-frontend:
+    name: Build & Test Frontend
+    runs-on: ubuntu-latest
+    needs: build-frontend-platform
+    if: always()
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+
+      - name: Require all frontend platforms to pass
+        run: >-
+          uv run --locked python scripts/check_ci_results.py
+          --frontend-result "${{ needs.build-frontend-platform.result }}"
 
   # Backend build on Windows (depends on C++ lint only)
   # Runs on: main branch push OR PR with 'test-backend' label

@@ -1,13 +1,32 @@
 """Common utility functions for Velocity-DB build system."""
 
 import os
+import re
 import shutil
 import subprocess
 import threading
+import tomllib
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO
 
-PackageManager = tuple[str, Path]
+
+@dataclass(frozen=True)
+class FrontendRuntime:
+    bun: Path
+    env: dict[str, str]
+
+    def run(self, script: str, *args: str, out: TextIO | None = None) -> bool:
+        """Run a package script with the same pinned Node and Bun as the install."""
+        ok, _ = run_command(
+            [str(self.bun), "run", script, *args],
+            f"bun run {script}",
+            cwd=get_project_root() / "frontend",
+            env=self.env,
+            out=out,
+        )
+        return ok
+
 
 _BANNER_WIDTH = 60
 _FRONTEND_INSTALL_LOCK = threading.Lock()
@@ -118,12 +137,87 @@ def run_command(
         return False, str(e)
 
 
-def find_package_manager() -> PackageManager | None:
-    """Find Vite+, the frontend entry point used locally and in CI."""
-    vp_path = shutil.which("vp")
-    if vp_path:
-        return ("vp", Path(vp_path))
-    return None
+def resolve_frontend_runtime() -> FrontendRuntime:
+    """Resolve installed, exactly pinned frontend tools without installing them."""
+    root = get_project_root()
+    try:
+        with (root / "mise.toml").open("rb") as config_file:
+            tools = tomllib.load(config_file)["tools"]
+        versions = {name: tools[name] for name in ("node", "bun")}
+        if any(
+            not isinstance(version, str) or not re.fullmatch(r"\d+\.\d+\.\d+", version)
+            for version in versions.values()
+        ):
+            raise ValueError("Node and Bun must have exact versions in mise.toml")
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise RuntimeError(f"Cannot read frontend tool versions: {exc}") from exc
+
+    mise = shutil.which("mise")
+    if not mise:
+        raise RuntimeError("mise not found")
+    lookup_env = os.environ | {
+        "MISE_NOT_FOUND_AUTO_INSTALL": "false",
+        "MISE_NOT_FOUND_SYSTEM_FALLBACK": "false",
+    }
+    binaries: dict[str, Path] = {}
+    try:
+        for name, version in versions.items():
+            result = subprocess.run(
+                [mise, "which", name, "--tool", f"{name}@{version}"],
+                cwd=root,
+                env=lookup_env,
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                encoding="utf-8",
+                check=True,
+                timeout=30,
+            )
+            binary = Path(result.stdout.strip())
+            if not binary.is_absolute() or not binary.is_file():
+                raise ValueError(f"mise returned no installed {name} executable")
+            binaries[name] = binary
+
+        child_env = os.environ.copy()
+        existing_path = _environment_path(child_env) or ""
+        child_path = os.pathsep.join(
+            [
+                str(root / "frontend" / "node_modules" / ".bin"),
+                str(binaries["node"].parent),
+                str(binaries["bun"].parent),
+                existing_path,
+            ]
+        )
+        # Windows environment keys are case insensitive; avoid PATH and Path duplicates.
+        for key in list(child_env):
+            if key.upper() == "PATH":
+                del child_env[key]
+        child_env["PATH"] = child_path
+        for name, version in versions.items():
+            # mise selected an installed absolute executable from an exact repo pin.
+            # argv + shell=False treats path metacharacters as data; version checks
+            # verify selection, not authenticity of a compromised local mise install.
+            result = subprocess.run(
+                # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args
+                [str(binaries[name]), "--version"],
+                cwd=root,
+                env=child_env,
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                encoding="utf-8",
+                check=True,
+                timeout=10,
+            )
+            if result.stdout.strip() != ("v" if name == "node" else "") + version:
+                raise ValueError(
+                    f"{name} version mismatch: expected {version}, got {result.stdout.strip()!r}"
+                )
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        raise RuntimeError(
+            "Pinned Node/Bun unavailable. Run `mise trust` and "
+            "`mise install --locked node bun` in the repository root. "
+            f"Detail: {exc}"
+        ) from exc
+    return FrontendRuntime(binaries["bun"], child_env)
 
 
 def check_build_tools(env: dict[str, str], out: TextIO | None = None) -> bool:
@@ -165,40 +259,40 @@ def check_build_tools(env: dict[str, str], out: TextIO | None = None) -> bool:
     return True
 
 
-def ensure_frontend_deps(out: TextIO | None = None) -> PackageManager | None:
-    """Install locked frontend dependencies. Returns PackageManager on success."""
+def ensure_frontend_deps(out: TextIO | None = None) -> FrontendRuntime | None:
+    """Install locked frontend dependencies under the pinned runtime."""
     with _FRONTEND_INSTALL_LOCK:
         return _install_frontend_deps(out)
 
 
-def _install_frontend_deps(out: TextIO | None = None) -> PackageManager | None:
+def _install_frontend_deps(out: TextIO | None = None) -> FrontendRuntime | None:
     """Serialize dependency installs within a process (parallel build and test)."""
     project_root = get_project_root()
     frontend_dir = project_root / "frontend"
-    pkg_info = find_package_manager()
-    if not pkg_info:
-        print("\nERROR: Vite+ (vp) not found on PATH", file=out)
-        print("  Install the global CLI: https://viteplus.dev/guide/", file=out)
-        print("  Windows PowerShell: irm https://vite.plus/ps1 | iex", file=out)
-        print("  Open a new terminal, then verify: vp --version", file=out)
-        print("  See docs/TROUBLESHOOTING.md for PATH checks.", file=out)
+    try:
+        runtime = resolve_frontend_runtime()
+    except RuntimeError as exc:
+        print(f"\nERROR: {exc}", file=out)
         return None
-
-    pkg_manager, pkg_path = pkg_info
 
     # A frozen install is safe to repeat and also reconciles lockfile changes and
     # incomplete or stale node_modules that timestamps cannot detect.
     print("\n[Installing locked frontend dependencies...]", file=out)
     success, _ = run_command(
-        [str(pkg_path), "install", "--frozen-lockfile"],
-        f"{pkg_manager} install",
+        [str(runtime.bun), "install", "--frozen-lockfile"],
+        "bun install",
         cwd=frontend_dir,
+        env=runtime.env,
         out=out,
     )
     if not success:
         print("\nERROR: Failed to install dependencies", file=out)
         return None
-    return pkg_info
+    local_bin = frontend_dir / "node_modules" / ".bin"
+    if not shutil.which("vp", path=str(local_bin)):
+        print("\nERROR: Local Vite+ (frontend/node_modules/.bin/vp) is missing", file=out)
+        return None
+    return runtime
 
 
 def clear_webview2_cache(project_root: Path, out: TextIO | None = None) -> None:

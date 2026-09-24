@@ -49,15 +49,8 @@ def build_frontend(clean: bool = False, out: TextIO | None = None) -> bool:
     if not pkg_info:
         return False
 
-    pkg_manager, pkg_path = pkg_info
-
     print("\n[Building...]", file=out)
-    success, _ = utils.run_command(
-        [str(pkg_path), "run", "build"],
-        f"{pkg_manager} run build",
-        cwd=frontend_dir,
-        out=out,
-    )
+    success = pkg_info.run("build", out=out)
 
     if not success:
         print("\nERROR: Build failed", file=out)
