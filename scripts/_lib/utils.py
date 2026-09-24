@@ -3,12 +3,14 @@
 import os
 import shutil
 import subprocess
+import threading
 from pathlib import Path
 from typing import TextIO
 
 PackageManager = tuple[str, Path]
 
 _BANNER_WIDTH = 60
+_FRONTEND_INSTALL_LOCK = threading.Lock()
 
 
 def print_header(title: str, *subtitles: str, file: TextIO | None = None) -> None:
@@ -84,16 +86,10 @@ def run_command(
 
 
 def find_package_manager() -> PackageManager | None:
-    """Find Bun package manager."""
-    bun_path = shutil.which("bun")
-    if bun_path:
-        try:
-            result = subprocess.run([bun_path, "--version"], capture_output=True, text=True)
-            if result.returncode == 0:
-                return ("bun", Path(bun_path))
-        except Exception:
-            pass
-
+    """Find Vite+, the frontend entry point used locally and in CI."""
+    vp_path = shutil.which("vp")
+    if vp_path:
+        return ("vp", Path(vp_path))
     return None
 
 
@@ -127,36 +123,35 @@ def check_build_tools(env: dict[str, str], out: TextIO | None = None) -> bool:
 
 
 def ensure_frontend_deps(out: TextIO | None = None) -> PackageManager | None:
-    """Ensure frontend dependencies are up-to-date. Returns PackageManager on success."""
+    """Install locked frontend dependencies. Returns PackageManager on success."""
+    with _FRONTEND_INSTALL_LOCK:
+        return _install_frontend_deps(out)
+
+
+def _install_frontend_deps(out: TextIO | None = None) -> PackageManager | None:
+    """Serialize dependency installs within a process (parallel build and test)."""
     project_root = get_project_root()
     frontend_dir = project_root / "frontend"
-    node_modules = frontend_dir / "node_modules"
-    package_json = frontend_dir / "package.json"
-
     pkg_info = find_package_manager()
     if not pkg_info:
-        print("\nERROR: No package manager found", file=out)
-        print("  Install bun: https://bun.sh", file=out)
+        print("\nERROR: Vite+ (vp) not found", file=out)
+        print("  Install Vite+: https://vite.plus", file=out)
         return None
 
     pkg_manager, pkg_path = pkg_info
 
-    needs_install = not node_modules.exists()
-    if not needs_install and package_json.exists():
-        pkg_mtime = package_json.stat().st_mtime
-        nm_mtime = node_modules.stat().st_mtime
-        if pkg_mtime > nm_mtime:
-            print("[package.json updated since last install, reinstalling...]", file=out)
-            needs_install = True
-
-    if needs_install:
-        print("\n[Dependencies outdated, installing...]", file=out)
-        success, _ = run_command(
-            [str(pkg_path), "install"], f"{pkg_manager} install", cwd=frontend_dir, out=out
-        )
-        if not success:
-            print("\nERROR: Failed to install dependencies", file=out)
-            return None
+    # A frozen install is safe to repeat and also reconciles lockfile changes and
+    # incomplete or stale node_modules that timestamps cannot detect.
+    print("\n[Installing locked frontend dependencies...]", file=out)
+    success, _ = run_command(
+        [str(pkg_path), "install", "--frozen-lockfile"],
+        f"{pkg_manager} install",
+        cwd=frontend_dir,
+        out=out,
+    )
+    if not success:
+        print("\nERROR: Failed to install dependencies", file=out)
+        return None
     return pkg_info
 
 

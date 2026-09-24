@@ -29,8 +29,6 @@ jobs:
 
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
 
-      - name: Check Python build scripts
-        run: uvx ruff check scripts/ && uvx ruff format --check scripts/
 
       - name: Install locked LLVM
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
@@ -45,16 +43,13 @@ jobs:
         uses: ./.github/actions/setup-msvc
 
       - name: Check Python build scripts
-        run: uvx ruff check scripts/ && uvx ruff format --check scripts/
+        run: uv run --locked scripts/pdg.py lint python
 
-      - name: Test Visual Studio selection
-        run: uv run --with pytest python -m pytest scripts/tests/test_vs2026.py scripts/tests/test_ci_results.py -q
-
-      - name: Test resolver and check C++ formatting
+      - name: Test build scripts and C++ formatting
         env:
           VELOCITYDB_TEST_LLVM: '1'
           VELOCITYDB_FORMAT_MANIFEST: ${{ runner.temp }}/format-manifest.json
-        run: uv run --with pytest python -m pytest scripts/tests/test_llvm.py scripts/tests/test_llvm_integration.py scripts/tests/test_build.py scripts/tests/test_msvc_build.py -q
+        run: uv run --locked scripts/pdg.py test scripts
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -82,8 +77,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
-        with:
-          ref: ${{ github.head_ref || github.ref }}
+
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
 
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@9fd26ff49f9b5e6276c2b493da4454ad4527f7f4 # v1.20.0
@@ -92,19 +87,8 @@ jobs:
           cache: true
           run-install: false
 
-      - name: Install dependencies
-        working-directory: frontend
-        run: vp install --frozen-lockfile
-
-      - name: Lint and Type Check (parallel)
-        working-directory: frontend
-        run: |
-          vp check &
-          LINT_PID=$!
-          vp run typecheck &
-          TYPECHECK_PID=$!
-          wait $LINT_PID
-          wait $TYPECHECK_PID
+      - name: Lint and Type Check
+        run: uv run --locked scripts/pdg.py lint frontend
 
   # Compatibility job for branch protection rules
   lint:
@@ -123,8 +107,8 @@ jobs:
     if: always() && needs.lint-frontend.result == 'success'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
-        with:
-          ref: ${{ github.head_ref || github.ref }}
+
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
 
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@9fd26ff49f9b5e6276c2b493da4454ad4527f7f4 # v1.20.0
@@ -133,19 +117,11 @@ jobs:
           cache: true
           run-install: false
 
-      - name: Install dependencies
-        working-directory: frontend
-        run: vp install --frozen-lockfile
+      - name: Build frontend
+        run: uv run --locked scripts/pdg.py build frontend
 
-      - name: Build and Test (parallel)
-        working-directory: frontend
-        run: |
-          vp run build &
-          BUILD_PID=$!
-          vp test --run &
-          TEST_PID=$!
-          wait $BUILD_PID
-          wait $TEST_PID
+      - name: Test frontend
+        run: uv run --locked scripts/pdg.py test frontend
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -169,31 +145,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
 
-      - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.14'
-          allow-prereleases: true
-
-      - name: Normalize line endings (CRLF)
-        run: python scripts/convert_eol.py crlf
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
 
       - name: Setup MSVC Developer Environment
         uses: ./.github/actions/setup-msvc
 
-      # VS18 同梱 vcpkg-tool は古い detect_compiler portfile を持ち CMake 4.x で永続失敗するため、
-      # project-local の vcpkg を vcpkg.json の builtin-baseline SHA で checkout して bootstrap する
-      # (ローカル / CI / tool-version-upgrade で同一 snapshot を保証)。
-      - name: Bootstrap project-local vcpkg
-        run: |
-          $baseline = (Get-Content vcpkg.json | ConvertFrom-Json).'builtin-baseline'
-          if (-not $baseline) { throw "vcpkg.json: builtin-baseline missing" }
-          git clone --filter=tree:0 https://github.com/microsoft/vcpkg.git vcpkg
-          git -C vcpkg checkout $baseline
-          .\vcpkg\bootstrap-vcpkg.bat -disableMetrics
-
-      - name: Install Ninja and ccache
-        run: choco install ninja ccache -y
+      - name: Install ccache
+        run: choco install ccache -y
 
       - name: Setup ccache
         run: |
@@ -223,23 +181,11 @@ jobs:
           restore-keys: |
             cmake-v3-ninja-${{ runner.os }}-${{ env.VELOCITYDB_TOOLCHAIN_KEY }}-
 
-      - name: Configure CMake
-        run: |
-          cmake -B build -G Ninja `
-            -DCMAKE_BUILD_TYPE=Release `
-            -DBUILD_TESTS=ON `
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache
+      - name: Configure and build backend
+        run: uv run --locked scripts/pdg.py build backend
 
-      - name: Build (parallel)
-        run: cmake --build build --config Release --parallel
-
-      - name: Run Tests (parallel)
-        # -LE perf excludes performance benchmarks (run via Benchmarks workflow or `pdg bench backend`)
-        run: ctest --test-dir build --output-on-failure --parallel -LE perf
-
-      - name: Repeat parallel CSV exporter tests
-        run: ctest --test-dir build --output-on-failure -R '^CSVExporterTest\.' --parallel 5 --repeat until-fail:20 --no-tests=error
+      - name: Test backend
+        run: uv run --locked scripts/pdg.py test backend
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -297,7 +243,7 @@ jobs:
 
       - name: Check all jobs passed
         run: >-
-          uv run scripts/check_ci_results.py
+          uv run --locked python scripts/check_ci_results.py
           --lint-cpp "${{ needs.lint-cpp.result }}"
           --lint-frontend "${{ needs.lint-frontend.result }}"
           --build-frontend "${{ needs.build-frontend.result }}"

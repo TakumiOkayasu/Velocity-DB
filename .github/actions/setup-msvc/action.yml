@@ -6,4 +6,4 @@ runs:
     - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
     - name: Select and report MSVC
       shell: pwsh
-      run: uv run python scripts/setup_msvc_ci.py
+      run: uv run --locked python scripts/setup_msvc_ci.py

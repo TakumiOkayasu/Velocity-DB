@@ -75,6 +75,40 @@ def test_build_all_keeps_parallel_execution_as_opt_in(
     assert copied == ["Debug"]
 
 
+def test_python_build_tools_precede_visual_studio_tools(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    scripts_dir = tmp_path / "venv" / "Scripts"
+    scripts_dir.mkdir(parents=True)
+    (scripts_dir / "cmake.exe").touch()
+    (scripts_dir / "ninja.exe").touch()
+    monkeypatch.setattr(build_mod.sysconfig, "get_path", lambda _name: str(scripts_dir))
+    env = {"Path": rf"C:\Windows;{scripts_dir};C:\VisualStudio\CMake\bin"}
+
+    build_mod._prioritize_python_build_tools(env)
+
+    assert env["Path"].split(";") == [
+        str(scripts_dir),
+        r"C:\Windows",
+        r"C:\VisualStudio\CMake\bin",
+    ]
+    assert "PATH" not in env
+
+
+def test_python_build_tools_fall_back_when_uv_tools_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    scripts_dir = tmp_path / "venv" / "Scripts"
+    scripts_dir.mkdir(parents=True)
+    (scripts_dir / "cmake.exe").touch()
+    monkeypatch.setattr(build_mod.sysconfig, "get_path", lambda _name: str(scripts_dir))
+    env = {"Path": r"C:\Windows;C:\VisualStudio\CMake\bin"}
+
+    build_mod._prioritize_python_build_tools(env)
+
+    assert env == {"Path": r"C:\Windows;C:\VisualStudio\CMake\bin"}
+
+
 def test_read_vcpkg_baseline_returns_sha(tmp_path: Path) -> None:
     sha = "abc123def4567890abc123def4567890abc12345"
     (tmp_path / "vcpkg.json").write_text(f'{{"builtin-baseline": "{sha}"}}')

@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-# /// script
-# requires-python = ">=3.14"
-# ///
 """
 Velocity-DB CLI - Unified build system interface
 
@@ -80,6 +77,8 @@ def cmd_test(args: argparse.Namespace) -> bool:
     build_type: str = args.type
     parallel: bool = not args.no_async
 
+    if target == "scripts":
+        return test_scripts()
     if target == "backend":
         return test.test_backend(environment=WindowsMsvcEnvironment(), build_type=build_type)
     elif target == "frontend":
@@ -107,11 +106,28 @@ def cmd_bench(args: argparse.Namespace) -> bool:
         return False
 
 
+def test_scripts() -> bool:
+    """Run the same locked script checks locally and in CI."""
+    success, _ = utils.run_command(
+        [sys.executable, "-m", "pytest", "scripts/tests", "-q"],
+        "Build script tests",
+        cwd=utils.get_project_root(),
+        env={"VELOCITYDB_TEST_LLVM": "1"},
+    )
+    return success
+
+
 def cmd_lint(args: argparse.Namespace) -> bool:
     """Handle lint command."""
     fix: bool = args.fix
     unsafe: bool = args.unsafe
     parallel: bool = not args.no_async
+    if args.target == "frontend":
+        return lint.lint_frontend(fix=fix, unsafe=unsafe)
+    if args.target == "cpp":
+        return lint.lint_cpp(fix=fix)
+    if args.target == "python":
+        return lint.lint_python(fix=fix)
     return lint.lint_all(fix=fix, unsafe=unsafe, parallel=parallel)
 
 
@@ -315,21 +331,17 @@ def cmd_check(args: argparse.Namespace) -> bool:
 
     errors = 0
 
-    # Lint
-    print("\n[1/3] Linting...")
+    # Validate build tooling before product checks, including both LLVM locks.
+    if not lint.lint_python() or not test_scripts():
+        return False
+
     if not lint.lint_all(fix=False):
         errors += 1
-
-    # Test frontend
-    print("\n[2/3] Testing frontend...")
     if not test.test_frontend(watch=False):
         errors += 1
-
-    # Build all
-    print("\n[3/3] Building all...")
     if not build.build_all(
         environment=WindowsMsvcEnvironment(), build_type=build_type, clean=False
-    ):
+    ) or not test.test_backend(environment=WindowsMsvcEnvironment(), build_type=build_type):
         errors += 1
 
     # Summary
@@ -461,7 +473,7 @@ def main() -> None:
     test_parser = subparsers.add_parser("test", aliases=["t"], help="Run tests")
     test_parser.add_argument(
         "target",
-        choices=["backend", "frontend", "e2e", "all"],
+        choices=["backend", "frontend", "e2e", "scripts", "all"],
         default="frontend",
         nargs="?",
         help="Test target (default: frontend)",
@@ -501,6 +513,9 @@ def main() -> None:
 
     # Lint command
     lint_parser = subparsers.add_parser("lint", aliases=["l"], help="Lint code")
+    lint_parser.add_argument(
+        "target", choices=["all", "frontend", "cpp", "python"], default="all", nargs="?"
+    )
     lint_parser.add_argument("--fix", "-f", action="store_true", help="Auto-fix issues")
     lint_parser.add_argument(
         "--unsafe", "-u", action="store_true", help="Apply unsafe fixes (requires --fix)"
