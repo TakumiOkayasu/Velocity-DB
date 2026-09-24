@@ -8,6 +8,19 @@ from _lib import build as build_mod
 from _lib import test as test_mod
 
 
+@pytest.fixture(autouse=True, params=[False, True])
+def installed_build_tools(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
+) -> None:
+    """Exercise the Windows tool path branch on every host, without using host tools."""
+    scripts_dir = tmp_path / "tools" / "Scripts"
+    scripts_dir.mkdir(parents=True)
+    if request.param:
+        (scripts_dir / "cmake.exe").touch()
+        (scripts_dir / "ninja.exe").touch()
+    monkeypatch.setattr(build_mod.sysconfig, "get_path", lambda _name: str(scripts_dir))
+
+
 @pytest.mark.parametrize("build_type", ["Debug", "Release"])
 def test_backend_runs_suite_then_csv_repeat_with_same_environment(
     build_type: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -69,7 +82,9 @@ def test_backend_fails_on_suite_or_repeat_failure(
 
     monkeypatch.setattr(test_mod.utils, "run_command", run)
 
-    assert not test_mod.test_backend(environment=Mock())
+    environment = Mock()
+    environment.activate.return_value = {"Path": "msvc"}
+    assert not test_mod.test_backend(environment=environment)
     assert len(commands) == failure_at + 1
 
 
@@ -86,7 +101,9 @@ def test_benchmark_does_not_repeat_csv_tests(
 
     monkeypatch.setattr(test_mod.utils, "run_command", run)
 
-    assert test_mod.bench_backend(environment=Mock())
+    environment = Mock()
+    environment.activate.return_value = {"Path": "msvc"}
+    assert test_mod.bench_backend(environment=environment)
     assert commands == [
         ["ctest", "--preset", "release", "--output-on-failure", "-L", "perf", "--no-tests=error"]
     ]

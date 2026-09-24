@@ -4,7 +4,7 @@ import io
 import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from unittest.mock import Mock
 
 import pytest
@@ -31,11 +31,14 @@ def test_finds_vp_even_when_bun_is_present(monkeypatch: pytest.MonkeyPatch) -> N
     assert utils.find_package_manager() == ("vp", Path("/tools/vp"))
 
 
+@pytest.mark.parametrize(
+    "tool_path", [PurePosixPath("/tools/vp"), PureWindowsPath(r"C:\tools\vp.exe")]
+)
 def test_frozen_install_reconciles_existing_modules_and_lock_changes(
-    frontend: Path, monkeypatch: pytest.MonkeyPatch
+    frontend: Path, monkeypatch: pytest.MonkeyPatch, tool_path: PurePosixPath | PureWindowsPath
 ) -> None:
     (frontend / "node_modules").mkdir()
-    manager = ("vp", Path("/tools/vp"))
+    manager = ("vp", tool_path)
     monkeypatch.setattr(utils, "find_package_manager", lambda: manager)
     install = Mock(return_value=(True, ""))
     monkeypatch.setattr(utils, "run_command", install)
@@ -45,7 +48,7 @@ def test_frozen_install_reconciles_existing_modules_and_lock_changes(
     assert utils.ensure_frontend_deps() == manager
     assert install.call_count == 2
     install.assert_called_with(
-        ["/tools/vp", "install", "--frozen-lockfile"],
+        [str(tool_path), "install", "--frozen-lockfile"],
         "vp install",
         cwd=frontend,
         out=None,
