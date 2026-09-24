@@ -64,7 +64,10 @@ def test_missing_vp_stops_even_when_bun_is_present(
     output = io.StringIO()
 
     assert utils.ensure_frontend_deps(out=output) is None
-    assert "Vite+ (vp) not found" in output.getvalue()
+    assert "Vite+ (vp) not found on PATH" in output.getvalue()
+    assert "irm https://vite.plus/ps1 | iex" in output.getvalue()
+    assert "Open a new terminal" in output.getvalue()
+    assert "vp --version" in output.getvalue()
     install.assert_not_called()
 
 

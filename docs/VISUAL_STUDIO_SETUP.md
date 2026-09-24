@@ -5,6 +5,7 @@
 1. Visual Studio 2026 (18.x) の最新Stable版がインストールされていること
 2. 「C++ によるデスクトップ開発」ワークロードがインストールされていること
 3. Vite+のグローバルCLIが利用でき、managed modeが有効なこと (フロントエンドビルド用)
+   - [初回導入とPATH確認](./TROUBLESHOOTING.md#vite-vp-not-found)。Bunのみ導入済みの環境でも必要。
 4. `pyproject.toml`で指定したuvが利用できること (Pythonはuvが導入)
    - インストール: `winget install astral-sh.uv`
 

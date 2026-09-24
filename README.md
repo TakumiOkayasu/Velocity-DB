@@ -29,6 +29,17 @@ ODBC ドライバは公式サイトから入手する。
 ## ビルド
 
 必要ツール: Visual Studio 2026 Stable (18.x, C++。Build Tools可) / Vite+ (グローバルCLI、managed mode有効) / uv (`pyproject.toml`の指定版)。
+初回・Bunからの移行時は、[Vite+公式手順](https://viteplus.dev/guide/)でグローバルCLIを導入する。
+WindowsではPowerShellで実行する:
+
+```powershell
+irm https://vite.plus/ps1 | iex
+```
+
+インストール後はターミナルを開き直し、`vp --version`を確認する。
+`uv run`や`mise install --locked github:llvm/llvm-project`ではVite+は導入されない。
+見つからない場合は[PATHの確認手順](./docs/TROUBLESHOOTING.md#vite-vp-not-found)を参照。
+
 バージョンの指定元と更新方針は[開発ツールのバージョン管理](./docs/VISUAL_STUDIO_SETUP.md#開発ツールのバージョン管理)を参照。
 
 ```bash
