@@ -1,3 +1,5 @@
+import pytest
+
 from scripts.check_ci_results import main, validate_ci_results
 
 
@@ -52,3 +54,17 @@ def test_cli_returns_failure_for_non_terminal_backend_result() -> None:
         )
         == 1
     )
+
+
+@pytest.mark.parametrize(
+    "result", ["success", "failure", "cancelled", "skipped", "in_progress", ""]
+)
+def test_frontend_matrix_gate_requires_success(result: str) -> None:
+    assert main(["--frontend-result", result]) == (0 if result == "success" else 1)
+
+
+@pytest.mark.parametrize("args", [[], ["--frontend-result", "success", "--lint-cpp", "failure"]])
+def test_gate_rejects_missing_or_mixed_results(args: list[str]) -> None:
+    with pytest.raises(SystemExit) as error:
+        main(args)
+    assert error.value.code == 2
