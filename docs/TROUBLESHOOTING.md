@@ -2,6 +2,43 @@
 
 ## ビルドエラー
 
+### Vite+ (vp) not found
+
+`pdg.py`のfrontend操作はグローバルVite+ CLIを使用する。Bunだけが導入済みでも、
+`vp`がPythonプロセスのPATHから見つからないと停止する。
+このメッセージだけでは、未インストールとPATH未反映を区別できない。
+CIでは`setup-vp`がCLIを導入するため、ローカルだけで起こり得る。
+
+未導入なら[公式インストーラー](https://viteplus.dev/guide/)をPowerShellで実行する:
+
+```powershell
+irm https://vite.plus/ps1 | iex
+```
+
+ターミナルを開き直して確認する。VS Code等の内蔵ターミナルでは、アプリ自体も再起動する。
+
+```powershell
+Get-Command vp -CommandType Application
+vp --version
+uv run --locked python -c "import shutil; print(shutil.which('vp'))"
+```
+
+最後の出力が`None`なら、Pythonから実行できる`vp`がPATHにない。
+PowerShellの関数・エイリアスだけで呼べても、`pdg.py`からは使用できない。
+既に導入済みなら、そのインストール先のbinディレクトリがPATHに含まれるか確認する。
+カスタム導入先は[公式の環境設定](https://viteplus.dev/guide/env)を参照する。
+
+確認できたら元の操作を再実行する:
+
+```powershell
+uv run --locked scripts/pdg.py lint --fix
+uv run --locked scripts/pdg.py check Release
+```
+
+このプロジェクトはNode/Bunの管理にグローバルCLIを使うため、
+`frontend/node_modules`内のCLIだけを起動する構成には切り替えない。
+`pdg.py`は実行中にグローバルCLIを自動インストールしない。
+
 ### miseのLLVMセットアップ
 
 `mise trust`で`No untrusted config files found`と表示される場合、未信頼の設定がないという意味で、

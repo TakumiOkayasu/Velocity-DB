@@ -13,6 +13,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import setup_msvc_ci
+from _lib import utils as command_utils
 from _lib import windows_environment as utils
 
 
@@ -148,17 +149,90 @@ def test_ci_exports_only_changed_values(tmp_path: Path, monkeypatch: pytest.Monk
     assert "vs2026-20260907.1-14.51" in lines
 
 
+def test_commands_resolve_from_child_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    compiler = tmp_path / "cl.exe"
+    compiler.write_text("stub")
+    compiler.chmod(0o755)
+    monkeypatch.setenv("PATH", "")
+    env = {"PATH": str(tmp_path)}
+    with patch.object(command_utils.subprocess, "run") as run:
+        run.return_value = subprocess.CompletedProcess([], 0, "", "")
+        assert command_utils.run_command(["cl.exe", "/nologo"], "Compiler", env=env)[0]
+    assert Path(run.call_args.args[0][0]) == compiler
+    assert run.call_args.kwargs["env"]["PATH"] == str(tmp_path)
+    assert os.environ["PATH"] == ""
+
+
+def test_missing_child_tool_does_not_use_parent_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    compiler = tmp_path / "cl.exe"
+    compiler.write_text("stub")
+    compiler.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path))
+    with patch.object(command_utils.subprocess, "run") as run:
+        success, message = command_utils.run_command(["cl.exe"], "Compiler", env={"PATH": ""})
+    assert not success
+    assert message == "Command not found: cl.exe"
+    run.assert_not_called()
+
+
+def test_windows_environment_merge_keeps_child_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PATH", "parent")
+    merged = command_utils._merge_environment({"Path": str(tmp_path)}, windows=True)
+    assert merged["Path"] == str(tmp_path)
+    assert "PATH" not in merged
+    assert os.environ["PATH"] == "parent"
+
+
+def test_explicit_executable_path_is_preserved(tmp_path: Path) -> None:
+    executable = tmp_path / "tool.exe"
+    assert command_utils._resolve_command([str(executable), "--version"], {"Path": ""}) == [
+        str(executable),
+        "--version",
+    ]
+
+
+def test_build_tool_checks_resolve_from_child_path(tmp_path: Path) -> None:
+    env = {"Path": str(tmp_path)}
+    with (
+        patch.object(
+            command_utils.shutil, "which", side_effect=lambda name, path: str(tmp_path / name)
+        ) as which,
+        patch.object(command_utils.subprocess, "run") as run,
+    ):
+        run.return_value = subprocess.CompletedProcess([], 0, "1.0\n", "")
+        assert command_utils.check_build_tools(env)
+    assert [call.args[0][0] for call in run.call_args_list] == [
+        str(tmp_path / "cmake"),
+        str(tmp_path / "ninja"),
+    ]
+    assert all(call.kwargs["path"] == str(tmp_path) for call in which.call_args_list)
+
+
 @pytest.mark.skipif(os.name != "nt", reason="Requires Windows and installed VS 2026")
-def test_real_vs2026_compiles_cpp(tmp_path: Path) -> None:
+def test_real_vs2026_compiles_cpp(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Ensure the parent cannot resolve cl.exe; only vcvars' child PATH can.
+    original_path = os.environ.get("PATH", "")
+    parent_dirs = [
+        directory
+        for directory in original_path.split(os.pathsep)
+        if not (Path(directory) / "cl.exe").is_file()
+    ]
+    monkeypatch.setenv("PATH", os.pathsep.join(parent_dirs))
+    assert command_utils.shutil.which("cl.exe") is None
     env = utils.WindowsMsvcEnvironment().activate()
     source = tmp_path / "smoke.cpp"
     source.write_text("#include <iostream>\nint main() { std::cout << _MSC_VER; }\n")
-    subprocess.run(
+    success, message = command_utils.run_command(
         ["cl.exe", "/nologo", "/EHsc", str(source), "/Fe:smoke.exe"],
+        "Compile VS 2026 smoke test",
         cwd=tmp_path,
         env=env,
-        check=True,
     )
+    assert success, message
     result = subprocess.run(
         [str(tmp_path / "smoke.exe")], capture_output=True, text=True, check=True
     )

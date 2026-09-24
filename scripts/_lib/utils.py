@@ -35,6 +35,40 @@ def get_project_root() -> Path:
     return script_dir.parent
 
 
+def _environment_path(env: dict[str, str]) -> str | None:
+    """Read PATH from an environment, including Windows' usual `Path` spelling."""
+    return next((value for key, value in env.items() if key.upper() == "PATH"), None)
+
+
+def _resolve_command(cmd: list[str], env: dict[str, str]) -> list[str]:
+    """Resolve a bare executable from the child's PATH before starting it.
+
+    On Windows, CreateProcess does not use the supplied child environment to
+    locate an executable when shell=False.
+    """
+    if os.path.dirname(cmd[0]):
+        return cmd
+    executable = shutil.which(cmd[0], path=_environment_path(env))
+    if executable is None:
+        raise FileNotFoundError(cmd[0])
+    return [str(Path(executable).resolve()), *cmd[1:]]
+
+
+def _merge_environment(
+    env: dict[str, str] | None, *, windows: bool = os.name == "nt"
+) -> dict[str, str]:
+    """Merge overrides without duplicate Windows environment keys such as PATH/Path."""
+    merged = os.environ.copy()
+    if env:
+        if windows:
+            for key in env:
+                for existing in list(merged):
+                    if existing.upper() == key.upper() and existing != key:
+                        del merged[existing]
+        merged.update(env)
+    return merged
+
+
 def run_command(
     cmd: list[str],
     description: str,
@@ -56,17 +90,16 @@ def run_command(
     for e in extras:
         print(f"  {e}", file=out)
 
-    merged_env = os.environ.copy()
-    if env:
-        merged_env.update(env)
+    merged_env = _merge_environment(env)
 
     # Force capture when `out` is set so subprocess output goes to `out`
     do_capture = capture_output or out is not None
 
     try:
+        resolved_cmd = _resolve_command(cmd, merged_env)
         if do_capture:
             result = subprocess.run(
-                cmd, cwd=cwd, env=merged_env, capture_output=True, encoding="utf-8"
+                resolved_cmd, cwd=cwd, env=merged_env, capture_output=True, encoding="utf-8"
             )
             if out is not None:
                 if result.stdout:
@@ -75,7 +108,7 @@ def run_command(
                     print(result.stderr, end="", file=out)
             return result.returncode == 0, result.stderr or ""
         else:
-            result = subprocess.run(cmd, cwd=cwd, env=merged_env)
+            result = subprocess.run(resolved_cmd, cwd=cwd, env=merged_env)
             return result.returncode == 0, ""
     except FileNotFoundError:
         print(f"ERROR: Command not found: {cmd[0]}", file=out)
@@ -97,7 +130,12 @@ def check_build_tools(env: dict[str, str], out: TextIO | None = None) -> bool:
     """Check if required build tools are available."""
     # Check CMake
     try:
-        result = subprocess.run(["cmake", "--version"], capture_output=True, text=True, env=env)
+        result = subprocess.run(
+            _resolve_command(["cmake", "--version"], env),
+            capture_output=True,
+            text=True,
+            env=env,
+        )
         if result.returncode == 0:
             version = result.stdout.split("\n")[0]
             print(f"CMake: {version}", file=out)
@@ -110,7 +148,12 @@ def check_build_tools(env: dict[str, str], out: TextIO | None = None) -> bool:
 
     # Check Ninja
     try:
-        result = subprocess.run(["ninja", "--version"], capture_output=True, text=True, env=env)
+        result = subprocess.run(
+            _resolve_command(["ninja", "--version"], env),
+            capture_output=True,
+            text=True,
+            env=env,
+        )
         if result.returncode == 0:
             version = result.stdout.strip()
             print(f"Ninja: {version}", file=out)
@@ -134,8 +177,11 @@ def _install_frontend_deps(out: TextIO | None = None) -> PackageManager | None:
     frontend_dir = project_root / "frontend"
     pkg_info = find_package_manager()
     if not pkg_info:
-        print("\nERROR: Vite+ (vp) not found", file=out)
-        print("  Install Vite+: https://vite.plus", file=out)
+        print("\nERROR: Vite+ (vp) not found on PATH", file=out)
+        print("  Install the global CLI: https://viteplus.dev/guide/", file=out)
+        print("  Windows PowerShell: irm https://vite.plus/ps1 | iex", file=out)
+        print("  Open a new terminal, then verify: vp --version", file=out)
+        print("  See docs/TROUBLESHOOTING.md for PATH checks.", file=out)
         return None
 
     pkg_manager, pkg_path = pkg_info
