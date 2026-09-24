@@ -28,18 +28,18 @@ ODBC ドライバは公式サイトから入手する。
 
 ## ビルド
 
-必要ツール: Visual Studio 2026 Stable (18.x, C++。Build Tools可) / Vite+ (グローバルCLI、managed mode有効) / uv (`pyproject.toml`の指定版)。
-初回・Bunからの移行時は、[Vite+公式手順](https://viteplus.dev/guide/)でグローバルCLIを導入する。
-WindowsではPowerShellで実行する:
+必要ツール: Visual Studio 2026 Stable (18.x, C++。Build Tools可) / mise / uv (`pyproject.toml`の指定版)。
+Node・Bun・LLVMは`mise.toml`と`mise.lock`、Vite+は`frontend/package.json`と`frontend/bun.lock`で管理する。
+グローバルVite+ CLIやDockerの導入は不要。
+
+初回・ツール更新後はリポジトリルートで実行する:
 
 ```powershell
-irm https://vite.plus/ps1 | iex
+mise trust
+mise install --locked node bun github:llvm/llvm-project
 ```
 
-インストール後はターミナルを開き直し、`vp --version`を確認する。
-`uv run`や`mise install --locked github:llvm/llvm-project`ではVite+は導入されない。
-見つからない場合は[PATHの確認手順](./docs/TROUBLESHOOTING.md#vite-vp-not-found)を参照。
-
+`mise`自体はPATHに追加する。以降の`pdg.py`操作にmiseのシェルactivationは不要。
 バージョンの指定元と更新方針は[開発ツールのバージョン管理](./docs/VISUAL_STUDIO_SETUP.md#開発ツールのバージョン管理)を参照。
 
 ```bash
@@ -95,12 +95,13 @@ Frontendのツール・依存関係は引き続き`frontend/package.json`と`fro
 通常のPR CIもローカルも`pdg.py`と`CMakePresets.json`を使用する。
 Pythonは`.python-version`、uvは`pyproject.toml`、Ruff/pytest/CMake/Ninjaは`uv.lock`を正本とする。
 `uv run --locked`が同じ開発依存関係を導入し、設定とlockが不一致なら停止する。
-Nodeは`frontend/.node-version`、Bunは`frontend/package.json`をVite+が解決する。
+Node/Bunは`mise.toml`の完全固定版を`pdg.py`がmiseから解決し、子プロセスのPATHへ設定する。
+package scripts内の`vp`は`frontend/node_modules`のVite+を使う。
 Frontendは毎回frozen installで`bun.lock`に同期する。依存更新時だけ明示的にlockを更新する。
 
 ```powershell
 mise trust
-mise install --locked github:llvm/llvm-project
+mise install --locked node bun github:llvm/llvm-project
 uv run --locked scripts/pdg.py check Release
 ```
 

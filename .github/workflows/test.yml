@@ -48,20 +48,20 @@ jobs:
         # -LE perf excludes performance benchmarks (run via Benchmarks workflow or `pdg bench backend`)
         run: ctest --test-dir build --output-on-failure --parallel -LE perf
 
-      - name: Setup Vite+
-        uses: voidzero-dev/setup-vp@9fd26ff49f9b5e6276c2b493da4454ad4527f7f4 # v1.20.0
+      - name: Install locked Node and Bun
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
         with:
-          working-directory: frontend
-          cache: true
-          run-install: false
+          version: 2026.9.1
+          install_args: --locked node bun
+          export_path: true
 
       - name: Install Frontend Dependencies
         working-directory: frontend
-        run: vp install --frozen-lockfile
+        run: bun install --frozen-lockfile
 
       - name: Run Frontend Tests
         working-directory: frontend
-        run: vp test --run
+        run: bun run test --run
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -89,4 +89,3 @@ jobs:
       # Uncomment when a test database is available
       # - name: Run Integration Tests
       #   run: ctest --test-dir build -R "DISABLED_" --output-on-failure
-

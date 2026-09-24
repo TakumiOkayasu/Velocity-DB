@@ -17,18 +17,18 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Setup Vite+
-        uses: voidzero-dev/setup-vp@9fd26ff49f9b5e6276c2b493da4454ad4527f7f4 # v1.20.0
+      - name: Install locked Node and Bun
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
         with:
-          working-directory: frontend
-          cache: true
-          run-install: false
+          version: 2026.9.1
+          install_args: --locked node bun
+          export_path: true
 
       - name: Install and Build
         working-directory: frontend
         run: |
-          vp install --frozen-lockfile
-          vp run build
+          bun install --frozen-lockfile
+          bun run build
 
       - name: Upload frontend
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -112,4 +112,3 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

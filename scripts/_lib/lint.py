@@ -11,39 +11,8 @@ from . import utils
 from .llvm import resolve_clang_format
 
 
-def _run_subprocess(
-    cmd: list[str],
-    description: str,
-    cwd: Path | None = None,
-    out: TextIO | None = None,
-) -> bool:
-    """Run a subprocess. Streams live to terminal when `out` is None;
-    captures and writes to `out` otherwise (parallel-safe)."""
-    if out is None:
-        success, _ = utils.run_command(cmd, description, cwd=cwd)
-        return success
-
-    utils.print_footer(description, file=out)
-    print(f"  Command: {' '.join(cmd)}", file=out)
-    if cwd:
-        print(f"  Working directory: {cwd}", file=out)
-    try:
-        result = subprocess.run(cmd, cwd=cwd, capture_output=True, encoding="utf-8")
-    except FileNotFoundError:
-        print(f"ERROR: Command not found: {cmd[0]}", file=out)
-        return False
-    if result.stdout:
-        print(result.stdout, end="", file=out)
-    if result.stderr:
-        print(result.stderr, end="", file=out)
-    return result.returncode == 0
-
-
 def lint_frontend(fix: bool = False, unsafe: bool = False, out: TextIO | None = None) -> bool:
     """Check frontend code with Vite+."""
-    project_root = utils.get_project_root()
-    frontend_dir = project_root / "frontend"
-
     if fix:
         mode = "Auto-fix (safe + unsafe)" if unsafe else "Auto-fix (safe only)"
         utils.print_header("Linting Frontend", f"Mode: {mode}", file=out)
@@ -55,22 +24,13 @@ def lint_frontend(fix: bool = False, unsafe: bool = False, out: TextIO | None = 
     if not pkg_info:
         return False
 
-    _, pkg_path = pkg_info
-
     # Run format and lint checks through the package scripts.
     lint_script = "lint:fix:unsafe" if fix and unsafe else "lint:fix" if fix else "lint"
-    lint_cmd = [str(pkg_path), "run", lint_script]
-
-    success = _run_subprocess(lint_cmd, "Vite+ check", cwd=frontend_dir, out=out)
+    success = pkg_info.run(lint_script, out=out)
 
     # Run type check
     print("\n[Type checking...]", file=out)
-    success2 = _run_subprocess(
-        [str(pkg_path), "run", "typecheck"],
-        "TypeScript check",
-        cwd=frontend_dir,
-        out=out,
-    )
+    success2 = pkg_info.run("typecheck", out=out)
 
     if success and success2:
         print("\n[OK] Lint passed!", file=out)

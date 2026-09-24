@@ -4,8 +4,8 @@
 
 1. Visual Studio 2026 (18.x) の最新Stable版がインストールされていること
 2. 「C++ によるデスクトップ開発」ワークロードがインストールされていること
-3. Vite+のグローバルCLIが利用でき、managed modeが有効なこと (フロントエンドビルド用)
-   - [初回導入とPATH確認](./TROUBLESHOOTING.md#vite-vp-not-found)。Bunのみ導入済みの環境でも必要。
+3. miseがPATHにあり、`mise install --locked node bun github:llvm/llvm-project`で開発ツールを導入済みであること
+   - Node/Bun/LLVMは`mise.toml`と`mise.lock`で管理。グローバル`vp`とDockerは不要。
 4. `pyproject.toml`で指定したuvが利用できること (Pythonはuvが導入)
    - インストール: `winget install astral-sh.uv`
 
@@ -21,7 +21,7 @@ VS以外も更新対象とする。バージョンを複数の設定に重複定
 | Ninja | `uv.lock` | uvで導入した版をVS同梱版より優先 |
 | Python | `.python-version` | 両環境で同じパッチ版を使用 |
 | uv / Ruff / pytest | uvは`pyproject.toml`、Ruff/pytestは`uv.lock` | setup-uvも同じuv指定を参照。`uvx`による都度の最新版取得は通常CIから除去 |
-| Node / Bun | `frontend/.node-version` / `frontend/package.json` | 両環境でVite+のmanaged modeを使用 |
+| Node / Bun | `mise.toml` / `mise.lock` | Windows/Linuxの配布物をlockし、ローカル・CIのpdg.pyが同じ版を選択 |
 | Vite+ / Oxlint / Oxfmt / Vitest / TypeScript等 | `frontend/package.json`と`frontend/bun.lock` | 依存更新時に両方を更新し、frontend lint・型検査・テスト・buildを確認 |
 | LLVM / clang-format | `mise.toml` (現在23.1.1) と`mise.lock` | Windows/Linuxの公式配布物をlockし、両OSの整形結果一致をCIで検証 |
 | mise | `mise.toml`の`min_version` (2026.9.1以上)、CIのmise-action入力は2026.9.1 | ローカルでより新しい版を利用可能。LLVMの固定版とは別に管理 |
@@ -66,16 +66,12 @@ CIイメージの配布タイミングによるパッチ版の差はあり得る
 
 ### 1. フロントエンドのビルド
 
-アプリ実行時にフロントエンドが必要です。初回は以下を実行してください：
+アプリ実行時にフロントエンドが必要です。初回は以下を実行してください:
 
 ```powershell
-# ビルドスクリプトを使用（推奨）
-uv run scripts/pdg.py build frontend
-
-# または同じ管理環境で直接実行
-cd frontend
-vp install --frozen-lockfile
-vp run build
+mise trust
+mise install --locked node bun
+uv run --locked scripts/pdg.py build frontend
 ```
 
 ### 2. ソリューションを開く

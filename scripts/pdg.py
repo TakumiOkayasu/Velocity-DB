@@ -133,9 +133,6 @@ def cmd_lint(args: argparse.Namespace) -> bool:
 
 def cmd_dev(_args: argparse.Namespace) -> bool:
     """Handle dev command - start frontend dev server."""
-    project_root = utils.get_project_root()
-    frontend_dir = project_root / "frontend"
-
     utils.print_header("Starting Development Server")
 
     # Ensure dependencies
@@ -143,15 +140,10 @@ def cmd_dev(_args: argparse.Namespace) -> bool:
     if not pkg_info:
         return False
 
-    pkg_manager, pkg_path = pkg_info
-    print(f"\nUsing {pkg_manager}: {pkg_path}")
+    print(f"\nUsing bun: {pkg_info.bun}")
 
     # Run dev server
-    success, _ = utils.run_command(
-        [str(pkg_path), "run", "dev"], f"{pkg_manager} run dev", cwd=frontend_dir
-    )
-
-    return success
+    return pkg_info.run("dev")
 
 
 def cmd_package(_args: argparse.Namespace) -> bool:
