@@ -193,7 +193,11 @@ def resolve_frontend_runtime() -> FrontendRuntime:
                 del child_env[key]
         child_env["PATH"] = child_path
         for name, version in versions.items():
+            # mise selected an installed absolute executable from an exact repo pin.
+            # argv + shell=False treats path metacharacters as data; version checks
+            # verify selection, not authenticity of a compromised local mise install.
             result = subprocess.run(
+                # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args
                 [str(binaries[name]), "--version"],
                 cwd=root,
                 env=child_env,
