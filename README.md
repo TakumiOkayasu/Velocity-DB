@@ -12,7 +12,7 @@ Windows向けRDBMS管理ツール。SQL Server / PostgreSQL / MySQL に ODBC 経
 
 ## 動作環境
 
-- Windows 10/11 (x64)
+- Windows 11 **HOME** (x64)
 - WebView2 Runtime（Windows 10 1803 以降は標準搭載）
 - 接続先 DB の ODBC ドライバ（SQL Server 18 / psqlODBC / MySQL Connector/ODBC 8.4）
 
