@@ -45,8 +45,12 @@
     "lightningcss": "^1.33.0",
     "rollup-plugin-visualizer": "^7.1.1",
     "typescript": "^7.0.2",
-    "vite": "npm:@voidzero-dev/vite-plus-co…885 tokens truncated…node-v24.21.0-linux-x64.tar.gz"
-
-[tools.node."platforms.windows-x64"]
-checksum = "sha256:158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541"
-url = "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip"
+    "vite": "npm:@voidzero-dev/vite-plus-core@0.3.1",
+    "vite-plus": "0.3.1",
+    "vitest": "4.1.11"
+  },
+  "overrides": {
+    "vite": "npm:@voidzero-dev/vite-plus-core@0.3.1",
+    "vitest": "4.1.11"
+  }
+}
