@@ -31,7 +31,7 @@ set(CMAKE_C_COMPILER_FORCED TRUE)
 # target_compile_features still sees the known cxx_std_* features.
 set(CMAKE_CXX_COMPILER_WORKS TRUE)
 
-project(VelocityDB VERSION 1.4.2 LANGUAGES CXX)
+project(VelocityDB VERSION 1.4.3 LANGUAGES CXX)
 
 # Pre-asserting CMAKE_CXX_COMPILER_WORKS above also skips CMake's compile-feature
 # recording, leaving CMAKE_CXX_COMPILE_FEATURES empty so consumers that call
