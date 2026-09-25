@@ -32,21 +32,38 @@ ODBC ドライバは公式サイトから入手する。
 Node・Bun・LLVMは`mise.toml`と`mise.lock`、Vite+は`frontend/package.json`と`frontend/bun.lock`で管理する。
 グローバルVite+ CLIやDockerの導入は不要。
 
-初回・ツール更新後はリポジトリルートで実行する:
+### 初回セットアップ
+
+未取得の場合は先にcloneする。既存の作業コピーではcloneせず、そのルートで次の手順へ進む。
 
 ```powershell
-mise trust
-mise install --locked node bun github:llvm/llvm-project
-```
-
-`mise`自体はPATHに追加する。以降の`pdg.py`操作にmiseのシェルactivationは不要。
-バージョンの指定元と更新方針は[開発ツールのバージョン管理](./docs/VISUAL_STUDIO_SETUP.md#開発ツールのバージョン管理)を参照。
-
-```bash
 git clone https://github.com/TakumiOkayasu/Velocity-DB.git
 cd Velocity-DB
-uv run scripts/pdg.py build all
 ```
+
+Python環境の準備、Node/Bun/LLVMの導入、ビルドの順に実行する。
+各段階が失敗したらそこで止まり、後続のコマンドは実行しない。
+
+```powershell
+uv sync --locked
+if ($LASTEXITCODE -ne 0) { throw 'Python環境の準備に失敗。トラブルシューティングを確認してください。' }
+mise trust
+if ($LASTEXITCODE -ne 0) { throw 'miseの設定を信頼できませんでした。' }
+mise install --locked node bun github:llvm/llvm-project
+if ($LASTEXITCODE -ne 0) { throw 'Node/Bun/LLVMの導入に失敗しました。' }
+uv run --locked scripts/pdg.py build all
+```
+
+`uv sync --locked`は`.python-version`と`uv.lock`に従ってPython環境を準備する。
+既存の`.venv`で`no Python executable was found`が出た場合は、
+[Python環境の復旧](./docs/TROUBLESHOOTING.md#python環境の復旧)を先に行う。
+`mise trust`の`No untrusted config files found`や、個人用ツールのlock警告は、
+[警告と終了コードの見分け方](./docs/TROUBLESHOOTING.md#miseのllvmセットアップ)を参照する。
+警告文だけで成功・失敗を判断せず、各コマンド直後の`$LASTEXITCODE`を確認する。
+
+`mise`と`uv`自体はPATHに追加する。miseやPython仮想環境のactivationは不要。
+初回準備後は通常の`uv run --locked scripts/pdg.py ...`を使用する。
+ツール更新時だけmiseの導入を再実行する。指定元は[開発ツールのバージョン管理](./docs/VISUAL_STUDIO_SETUP.md#開発ツールのバージョン管理)を参照。
 
 成果物は `build/Release/VelocityDB.exe`。
 frontendとbackendは既定で直列にbuildする。実機で速くなることを確認済みの場合のみ
@@ -74,7 +91,8 @@ mise install --locked github:llvm/llvm-project
 
 ツール名を指定することで、`mise.toml`で固定したLLVMだけをインストールする。
 引数なしの`mise install --locked`は個人のグローバル設定のツールも対象にするため、
-それらがlockされていないと失敗する。`--locked`を外す必要はない。
+それらがlockされていないと失敗する。対象を限定しても個人用ツールの警告が残る場合は、
+コマンド直後の`$LASTEXITCODE`を確認する。`--locked`を外す必要はない。
 `mise trust`の`No untrusted config files found`は未信頼の設定がないという警告で、
 インストール失敗ではない。詳細は[トラブルシューティング](./docs/TROUBLESHOOTING.md#miseのllvmセットアップ)を参照。
 
@@ -99,9 +117,9 @@ Node/Bunは`mise.toml`の完全固定版を`pdg.py`がmiseから解決し、子�
 package scripts内の`vp`は`frontend/node_modules`のVite+を使う。
 Frontendは毎回frozen installで`bun.lock`に同期する。依存更新時だけ明示的にlockを更新する。
 
+[初回セットアップ](#初回セットアップ)を完了してから実行する:
+
 ```powershell
-mise trust
-mise install --locked node bun github:llvm/llvm-project
 uv run --locked scripts/pdg.py check Release
 ```
 

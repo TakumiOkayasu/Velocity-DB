@@ -2,6 +2,35 @@
 
 ## ビルドエラー
 
+### Python環境の復旧
+
+`Project virtual environment directory ... cannot be used ... (no Python executable was found)`は、
+uvが既存の`.venv`に有効なPython実行ファイルを見つけられず停止したことを示す。
+`pdg.py`が起動する前のエラーなので、build/test/lintの引数を変えても復旧しない。
+miseの個人用ツールに関する警告とは別問題。
+
+ログだけでは、作成の中断・移動・別OSとの共有・実行ファイルの削除など、原因までは特定できない。
+Windows/WSL間で`.venv`を共有・コピーせず、それぞれのOSで作成する。
+
+リポジトリルートで、仮想環境を利用中のプロセスを終了し、activation中なら`deactivate`する。
+既存環境を削除せず一意の名前へ退避してから、lockに従って再作成する:
+
+```powershell
+$venvBackup = '.venv.backup-' + [guid]::NewGuid().ToString('N')
+Rename-Item -LiteralPath .\.venv -NewName $venvBackup -ErrorAction Stop
+uv sync --locked
+if ($LASTEXITCODE -ne 0) { throw 'Python環境の再作成に失敗しました。表示されたuvのエラーを確認してください。' }
+uv run --locked python --version
+```
+
+退避先には元の内容が残る。新しい環境で作業できることを確認してから、不要なら退避先だけを削除する。
+`.venv`が存在しない初回セットアップでは退避は不要で、`uv sync --locked`だけでよい。
+`--locked`を外したり、`uv.lock`を削除したりする必要はない。
+再作成が失敗した場合は、Pythonの取得失敗・権限・セキュリティソフトの検疫履歴を、実際のエラーに沿って確認する。
+
+参考: [uvの環境同期](https://docs.astral.sh/uv/concepts/projects/sync/)、
+[uvのPython管理](https://docs.astral.sh/uv/guides/install-python/)。
+
 ### フロントエンドのNode/Bunが見つからない
 
 グローバル`vp`のインストールは不要。統合CLIは`mise.toml`に固定したNode/Bunを使い、
@@ -46,21 +75,34 @@ CIのmise-action指定も更新し、lock形式と両OSの互換性を確認す�
 `mise trust`で`No untrusted config files found`と表示される場合、未信頼の設定がないという意味で、
 それ自体はインストール失敗ではない。まず`mise.toml`と`mise.lock`があるリポジトリルートに移動する。
 
-`mise install --locked`で`uv@latest is not in the lockfile`などが出る場合は、
-個人のグローバル設定（例: `~/.config/mise/config.toml`）のツールまでインストール対象になっている。
-このリポジトリのlockfileが管理するLLVMだけを指定して再実行する。
+`mise install --locked`を引数なしで実行すると、個人のグローバル設定のツールも対象になる。
+Node/Bun/LLVMだけを指定して実行する:
 
 ```powershell
 mise trust
-mise install --locked github:llvm/llvm-project
+mise install --locked node bun github:llvm/llvm-project
+$LASTEXITCODE
 ```
 
+成功は`0`。必ずinstallの直後に確認する。対象を限定していても、
+`C:\Users\...\.config\mise\config.toml`の`uv@latest is not in the lockfile`など、
+個人用ツールについて警告が出る場合がある (#746)。そのWARNだけでは対象ツールの導入失敗とは判断できない。
+
+| 表示 | 判断・次の操作 |
+| --- | --- |
+| `No untrusted config files found` | 新たに信頼する設定がないという意味。導入失敗ではない |
+| 個人用ツールのlock警告 + install終了コード0 | 指定した導入処理は成功。`pdg.py`による固定版確認へ進む |
+| install終了コードが0以外 | 後続を止め、対象ツールのERROR・ダウンロード・checksum等の詳細を確認 |
+| `no Python executable was found` | miseとは別のPython環境の問題。上の復旧手順へ |
+
 バージョンを省略したツール指定は、リポジトリの`mise.toml`の固定バージョンを使用する。
-`--locked`を維持することで、`mise.lock`のURL・チェックサムによる固定も継続する。
-個人用ツールをこのリポジトリのlockfileに追加したり、グローバル設定を削除したりする必要はない。
-mise 2026.9.2では、対象を限定してもグローバル設定のツールについて同じ警告が残る場合がある。
-LLVMのインストール結果と終了コードを確認する（PowerShellでは直後に`$LASTEXITCODE`、成功は`0`）。
-それでもLLVM自体のlockエラーが出る場合は、`mise.toml`と`mise.lock`を同じコミットの内容に揃える。
+`--locked`は維持する。個人用ツールをリポジトリのlockへ追加したり、グローバル設定を削除したりしない。
+リポジトリのNode/Bun/LLVM自体のlockエラーなら、`mise.toml`と`mise.lock`を同じコミットに揃える。
+Python環境が正常になった後、`uv run --locked scripts/pdg.py lint`で
+mise管理のNode/Bun/clang-formatのパス・版確認とlintを実行できる。
+
+警告の発生条件まで切り分ける場合は、
+`mise --version`とinstall直後の`$LASTEXITCODE`を記録する。個人設定全体や秘密情報の提示は不要。
 
 参考: [mise installのツール指定](https://mise.jdx.dev/cli/install.html)。
 
