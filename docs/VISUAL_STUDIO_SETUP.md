@@ -4,7 +4,7 @@
 
 1. Visual Studio 2026 (18.x) の最新Stable版がインストールされていること
 2. 「C++ によるデスクトップ開発」ワークロードがインストールされていること
-3. miseがPATHにあり、`mise install --locked node bun github:llvm/llvm-project`で開発ツールを導入済みであること
+3. miseがPATHにあり、[初回セットアップ](../README.md#初回セットアップ)を完了していること
    - Node/Bun/LLVMは`mise.toml`と`mise.lock`で管理。グローバル`vp`とDockerは不要。
 4. `pyproject.toml`で指定したuvが利用できること (Pythonはuvが導入)
    - インストール: `winget install astral-sh.uv`
@@ -66,11 +66,10 @@ CIイメージの配布タイミングによるパッチ版の差はあり得る
 
 ### 1. フロントエンドのビルド
 
-アプリ実行時にフロントエンドが必要です。初回は以下を実行してください:
+アプリ実行時にフロントエンドが必要です。初回準備は[README](../README.md#初回セットアップ)に従い、
+以降、フロントエンドだけを再ビルドするときは以下を実行してください:
 
 ```powershell
-mise trust
-mise install --locked node bun
 uv run --locked scripts/pdg.py build frontend
 ```
 
