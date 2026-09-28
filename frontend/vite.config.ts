@@ -10,7 +10,7 @@ import { defineConfig, type Plugin, type PluginOption, lazyPlugins } from 'vite-
  */
 function monacoWorkerExcludePlugin(): Plugin {
   const workerManagerRE =
-    /monaco-editor[\\/]esm[\\/]vs[\\/]languages[\\/]features[\\/](css|html|json|typescript)[\\/]workerManager\.js$/;
+    /monaco-editor[\\/]esm[\\/]vs[\\/]languages[\\/](css|html|json|typescript)[\\/]workerManager\.js$/;
   return {
     name: 'monaco-worker-exclude',
     enforce: 'pre',
@@ -103,6 +103,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    // Use jsdom's per-worker storage instead of Node's file-backed Web Storage globals.
+    execArgv: ['--no-experimental-webstorage'],
     setupFiles: ['./src/tests/setup.ts'],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
   },
