@@ -103,6 +103,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    // Use jsdom's per-worker storage instead of Node's file-backed Web Storage globals.
+    execArgv: ['--no-experimental-webstorage'],
     setupFiles: ['./src/tests/setup.ts'],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
   },
