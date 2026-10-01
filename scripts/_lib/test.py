@@ -104,7 +104,7 @@ def _run_ctest_preset(
     # CSV exporter failures that a single invocation of the suite could miss.
     print("\n[Repeating parallel CSV exporter tests...]", file=out)
     repeat_cmd = [
-        "ctest",
+        str(ctest_path),
         "--preset",
         preset,
         "--output-on-failure",
