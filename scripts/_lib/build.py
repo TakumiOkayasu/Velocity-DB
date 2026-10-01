@@ -404,9 +404,7 @@ def _resolve_mise_build_tools(
             )
             actual = version_result.stdout.strip()
             expected = f"cmake version {version}" if name == "cmake" else version
-            mismatch = (
-                not actual.startswith(expected) if name == "cmake" else actual != expected
-            )
+            mismatch = not actual.startswith(expected) if name == "cmake" else actual != expected
             if mismatch:
                 raise ValueError(f"{name} version mismatch: expected {version}, got {actual!r}")
             binaries[name] = binary
@@ -634,9 +632,7 @@ def build_backend(
         return False
     _prioritize_ninja_in_path(env, ninja_path)
     print("\n[2/4] Checking build tools...", file=out)
-    if not utils.check_build_tools(
-        env, cmake=cmake_path, ninja=ninja_path, out=out
-    ):
+    if not utils.check_build_tools(env, cmake=cmake_path, ninja=ninja_path, out=out):
         return False
 
     try:
