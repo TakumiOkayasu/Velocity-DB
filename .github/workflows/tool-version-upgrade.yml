@@ -180,7 +180,7 @@ jobs:
         if: steps.check-pr.outputs.skip == 'false'
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
         with:
-          version: 2026.9.14
+          version: 2026.9.16
           install: false
           export_path: false
           env: false
@@ -435,7 +435,7 @@ jobs:
       - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
         if: steps.check-pr.outputs.skip == 'false'
         with:
-          version: 2026.9.14
+          version: 2026.9.16
           install: false
           export_path: false
           env: false
