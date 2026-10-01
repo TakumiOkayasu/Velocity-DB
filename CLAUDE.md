@@ -38,7 +38,7 @@ ruff check scripts/ && ruff format scripts/       # Python lint (別途)
 ## Frontendテスト
 
 初回準備は[README](README.md#初回セットアップ)に従う。
-Node/Bun/LLVMはmise、Vite+はfrontend/package.jsonとfrontend/bun.lockで管理する。
+Node/Bun/LLVM/CMake/Ninjaはmise、Vite+はfrontend/package.jsonとfrontend/bun.lockで管理する。
 Dockerやグローバルvpは不要。環境固有のhook制約はその環境で別途確認し、
 リポジトリ共通の必須条件とは扱わない。
 

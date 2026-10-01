@@ -329,34 +329,36 @@ def test_known_folder_api_releases_memory_and_rejects_invalid_results(
     )
 
 
-@pytest.mark.parametrize("installed", [False, True])
 @pytest.mark.parametrize("command", ["test_backend", "bench_backend"])
-def test_backend_commands_use_injected_environment(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, command: str, installed: bool
+def test_backend_commands_use_mise_cmake(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, command: str
 ) -> None:
-    from _lib import build
     from _lib import test as commands
 
-    scripts_dir = tmp_path / "tools" / "Scripts"
-    scripts_dir.mkdir(parents=True)
-    if installed:
-        (scripts_dir / "cmake.exe").touch()
-        (scripts_dir / "ninja.exe").touch()
-    monkeypatch.setattr(build.sysconfig, "get_path", lambda _name: str(scripts_dir))
+    cmake = tmp_path / "mise" / ("cmake.exe" if os.name == "nt" else "cmake")
+    ninja = tmp_path / "mise" / ("ninja.exe" if os.name == "nt" else "ninja")
+    cmake.parent.mkdir(parents=True)
+    cmake.touch()
+    ninja.touch()
 
     class FakeEnvironment:
         def activate(self, out: object = None) -> dict[str, str]:
-            return {"TEST_TOOLCHAIN": "injected", "Path": "original"}
+            return {"TEST_TOOLCHAIN": "injected", "PATH": "original"}
 
     (tmp_path / "build").mkdir()
     monkeypatch.setattr(commands.utils, "get_project_root", lambda: tmp_path)
+    monkeypatch.setattr(
+        commands, "_resolve_mise_build_tools", lambda *_args, **_kwargs: (cmake, ninja)
+    )
     with patch.object(commands.utils, "run_command", return_value=(True, "")) as run:
         assert getattr(commands, command)(environment=FakeEnvironment())
-    expected = {"TEST_TOOLCHAIN": "injected", "Path": "original"}
-    if installed:
-        expected["Path"] = f"{scripts_dir};original"
-    for call in run.call_args_list:
-        assert call.kwargs["env"] == expected
+
+    ctest = cmake.with_name("ctest.exe" if cmake.suffix.lower() == ".exe" else "ctest")
+    assert all(Path(call.args[0][0]) == ctest for call in run.call_args_list)
+    assert all(
+        call.kwargs["env"] == {"TEST_TOOLCHAIN": "injected", "PATH": "original"}
+        for call in run.call_args_list
+    )
 
 
 def test_activation_failure_prevents_test_command(

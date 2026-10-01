@@ -34,8 +34,6 @@ pythonpath = [".", "scripts"]
 
 [dependency-groups]
 dev = [
-    "cmake>=4.4.3",
-    "ninja>=1.13.2",
     "pytest>=9.1.1",
     "ruff>=0.16.8",
 ]

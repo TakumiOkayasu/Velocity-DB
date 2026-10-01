@@ -155,7 +155,11 @@ class MsvcBuildTest(unittest.TestCase):
                     patch.object(build.utils, "get_project_root", return_value=self.root),
                     patch.object(build.utils, "check_build_tools", return_value=True),
                     patch.object(build, "_ensure_vcpkg", return_value=self.root / "vcpkg"),
-                    patch.object(build, "_find_ninja", return_value=None),
+                    patch.object(
+                        build,
+                        "_resolve_mise_build_tools",
+                        return_value=(self.root / "cmake.exe", self.root / "ninja.exe"),
+                    ),
                     patch.object(build.utils, "run_command", side_effect=run),
                     patch.object(build.utils, "clear_webview2_cache"),
                 ):

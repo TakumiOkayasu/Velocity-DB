@@ -75,38 +75,59 @@ def test_build_all_keeps_parallel_execution_as_opt_in(
     assert copied == ["Debug"]
 
 
-def test_python_build_tools_precede_visual_studio_tools(
+def test_mise_build_tools_resolve_exact_pins(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    scripts_dir = tmp_path / "venv" / "Scripts"
-    scripts_dir.mkdir(parents=True)
-    (scripts_dir / "cmake.exe").touch()
-    (scripts_dir / "ninja.exe").touch()
-    monkeypatch.setattr(build_mod.sysconfig, "get_path", lambda _name: str(scripts_dir))
-    env = {"Path": rf"C:\Windows;{scripts_dir};C:\VisualStudio\CMake\bin"}
+    (tmp_path / "mise.toml").write_text(
+        '[tools]\ncmake = "4.4.3"\nninja = "1.13.2"\n',
+        encoding="utf-8",
+    )
+    bin_dir = tmp_path / "mise-tools"
+    bin_dir.mkdir()
+    cmake = bin_dir / ("cmake.exe" if build_mod.os.name == "nt" else "cmake")
+    ninja = bin_dir / ("ninja.exe" if build_mod.os.name == "nt" else "ninja")
+    cmake.touch()
+    ninja.touch()
 
-    build_mod._prioritize_python_build_tools(env)
+    monkeypatch.setattr(build_mod.shutil, "which", lambda name: str(tmp_path / "mise"))
+    calls: list[list[str]] = []
 
-    assert env["Path"].split(";") == [
-        str(scripts_dir),
-        r"C:\Windows",
-        r"C:\VisualStudio\CMake\bin",
-    ]
-    assert "PATH" not in env
+    def fake_run(cmd, **_kwargs):
+        calls.append(list(cmd))
+        if "which" in cmd:
+            binary = cmake if cmd[2] == "cmake" else ninja
+            return build_mod.subprocess.CompletedProcess(cmd, 0, f"{binary}\n", "")
+        version = "cmake version 4.4.3\n" if Path(cmd[0]) == cmake else "1.13.2\n"
+        return build_mod.subprocess.CompletedProcess(cmd, 0, version, "")
+
+    monkeypatch.setattr(build_mod.subprocess, "run", fake_run)
+    env = {"PATH": "system-tools"}
+
+    resolved_cmake, resolved_ninja = build_mod._resolve_mise_build_tools(tmp_path, env)
+
+    assert resolved_cmake == cmake
+    assert resolved_ninja == ninja
+    assert any(call[1:] == ["which", "cmake", "--tool", "cmake@4.4.3"] for call in calls)
+    assert any(call[1:] == ["which", "ninja", "--tool", "ninja@1.13.2"] for call in calls)
+    assert env["PATH"].split(build_mod.os.pathsep)[:2] == [str(bin_dir), str(bin_dir)]
 
 
-def test_python_build_tools_fall_back_when_uv_tools_missing(
+def test_mise_build_tools_fail_when_pinned_tool_is_unavailable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    scripts_dir = tmp_path / "venv" / "Scripts"
-    scripts_dir.mkdir(parents=True)
-    (scripts_dir / "cmake.exe").touch()
-    monkeypatch.setattr(build_mod.sysconfig, "get_path", lambda _name: str(scripts_dir))
-    env = {"Path": r"C:\Windows;C:\VisualStudio\CMake\bin"}
+    (tmp_path / "mise.toml").write_text(
+        '[tools]\ncmake = "4.4.3"\nninja = "1.13.2"\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(build_mod.shutil, "which", lambda name: str(tmp_path / "mise"))
 
-    build_mod._prioritize_python_build_tools(env)
+    def fake_run(cmd, **_kwargs):
+        raise build_mod.subprocess.CalledProcessError(1, cmd)
 
-    assert env == {"Path": r"C:\Windows;C:\VisualStudio\CMake\bin"}
+    monkeypatch.setattr(build_mod.subprocess, "run", fake_run)
+
+    with pytest.raises(RuntimeError, match="mise install --locked cmake ninja"):
+        build_mod._resolve_mise_build_tools(tmp_path, {"PATH": ""})
 
 
 def test_read_vcpkg_baseline_returns_sha(tmp_path: Path) -> None:

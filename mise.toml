@@ -1,8 +1,10 @@
-min_version = "2026.9.14"
+min_version = "2026.9.16"
 
 [tools]
 node = "26.10.0"
 bun = "1.4.2"
+cmake = "4.4.3"
+ninja = "1.13.2"
 
 [tools."github:llvm/llvm-project"]
 version = "23.1.1"

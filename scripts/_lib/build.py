@@ -3,9 +3,11 @@
 import hashlib
 import io
 import json
+import os
+import re
 import shutil
 import subprocess
-import sysconfig
+import tomllib
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TextIO
@@ -349,18 +351,84 @@ def _strip_vs_cmake_ninja(env: dict[str, str]) -> None:
     env[path_key] = ";".join(dirs)
 
 
-def _prioritize_python_build_tools(env: dict[str, str]) -> None:
-    """Prefer the CMake and Ninja installed by uv over tools from Visual Studio."""
-    scripts_dir = Path(sysconfig.get_path("scripts"))
-    if not (scripts_dir / "cmake.exe").is_file() or not (scripts_dir / "ninja.exe").is_file():
-        return
+def _resolve_mise_build_tools(
+    project_root: Path, env: dict[str, str], out: TextIO | None = None
+) -> tuple[Path, Path]:
+    """Resolve the repository-pinned CMake and Ninja binaries through mise."""
+    try:
+        with (project_root / "mise.toml").open("rb") as config_file:
+            tools = tomllib.load(config_file)["tools"]
+        versions = {name: tools[name] for name in ("cmake", "ninja")}
+        if any(
+            not isinstance(version, str) or not re.fullmatch(r"\d+\.\d+\.\d+", version)
+            for version in versions.values()
+        ):
+            raise ValueError("CMake and Ninja must have exact versions in mise.toml")
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise RuntimeError(f"Cannot read build-tool versions: {exc}") from exc
+
+    mise = shutil.which("mise")
+    if not mise:
+        raise RuntimeError("mise not found")
+
+    lookup_env = os.environ | {
+        "MISE_NOT_FOUND_AUTO_INSTALL": "false",
+        "MISE_NOT_FOUND_SYSTEM_FALLBACK": "false",
+    }
+    binaries: dict[str, Path] = {}
+    try:
+        for name, version in versions.items():
+            result = subprocess.run(
+                [mise, "which", name, "--tool", f"{name}@{version}"],
+                cwd=project_root,
+                env=lookup_env,
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                encoding="utf-8",
+                check=True,
+                timeout=30,
+            )
+            binary = Path(result.stdout.strip())
+            if not binary.is_absolute() or not binary.is_file():
+                raise ValueError(f"mise returned no installed {name} executable")
+
+            version_result = subprocess.run(
+                [str(binary), "--version"],
+                cwd=project_root,
+                env=env,
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                encoding="utf-8",
+                check=True,
+                timeout=10,
+            )
+            actual = version_result.stdout.strip()
+            expected = f"cmake version {version}" if name == "cmake" else version
+            mismatch = not actual.startswith(expected) if name == "cmake" else actual != expected
+            if mismatch:
+                raise ValueError(f"{name} version mismatch: expected {version}, got {actual!r}")
+            binaries[name] = binary
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        raise RuntimeError(
+            "Pinned CMake/Ninja unavailable. Run `mise trust` and "
+            "`mise install --locked cmake ninja` in the repository root. "
+            f"Detail: {exc}"
+        ) from exc
+
     path_key = next((key for key in env if key.upper() == "PATH"), "PATH")
-    dirs = [
-        directory
-        for directory in env.get(path_key, "").split(";")
-        if directory.lower() != str(scripts_dir).lower()
-    ]
-    env[path_key] = ";".join([str(scripts_dir), *dirs])
+    current_dirs = env.get(path_key, "").split(os.pathsep)
+    pinned_dirs = [str(binaries["cmake"].parent), str(binaries["ninja"].parent)]
+    env[path_key] = os.pathsep.join(
+        pinned_dirs
+        + [
+            directory
+            for directory in current_dirs
+            if directory and directory.lower() not in {item.lower() for item in pinned_dirs}
+        ]
+    )
+    print(f"CMake (mise): {binaries['cmake']}", file=out)
+    print(f"Ninja (mise): {binaries['ninja']}", file=out)
+    return binaries["cmake"], binaries["ninja"]
 
 
 def _prioritize_ninja_in_path(env: dict[str, str], ninja_path: Path) -> None:
@@ -556,13 +624,15 @@ def build_backend(
 
     # 単独実行不可の VS CMake 内蔵 Ninja を PATH から除外してから選定する。これを
     # CMAKE_MAKE_PROGRAM に固定しないと、それがキャッシュされ compiler test を破壊する。
-    _prioritize_python_build_tools(env)
     _strip_vs_cmake_ninja(env)
-    ninja_path = _find_ninja(env)
-    if ninja_path:
-        _prioritize_ninja_in_path(env, ninja_path)
+    try:
+        cmake_path, ninja_path = _resolve_mise_build_tools(project_root, env, out=out)
+    except RuntimeError as error:
+        print(f"\nERROR: {error}", file=out)
+        return False
+    _prioritize_ninja_in_path(env, ninja_path)
     print("\n[2/4] Checking build tools...", file=out)
-    if not utils.check_build_tools(env, out=out):
+    if not utils.check_build_tools(env, cmake=cmake_path, ninja=ninja_path, out=out):
         return False
 
     try:
@@ -576,7 +646,7 @@ def build_backend(
     _clear_cmake_scratch(project_root, build_dir, out=out)
 
     print(f"\n[3/4] Configuring with CMake (preset: {preset})...", file=out)
-    cmake_cmd = ["cmake", "--preset", preset]
+    cmake_cmd = [str(cmake_path), "--preset", preset]
     if ninja_path:
         cmake_ninja_path = _as_cmake_path(ninja_path)
         cmake_cmd.append(f"-DCMAKE_MAKE_PROGRAM:FILEPATH={cmake_ninja_path}")
@@ -600,7 +670,7 @@ def build_backend(
         return False
 
     print("\n[4/4] Building...", file=out)
-    build_cmd = ["cmake", "--build", "--preset", preset]
+    build_cmd = [str(cmake_path), "--build", "--preset", preset]
     success, _ = utils.run_command(
         build_cmd, f"CMake Build ({build_type})", cwd=project_root, env=env, out=out
     )

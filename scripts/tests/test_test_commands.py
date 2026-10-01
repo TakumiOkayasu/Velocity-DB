@@ -4,31 +4,34 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
-from _lib import build as build_mod
 from _lib import test as test_mod
 
 
-@pytest.fixture(autouse=True, params=[False, True])
-def installed_build_tools(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
-) -> None:
-    """Exercise the Windows tool path branch on every host, without using host tools."""
-    scripts_dir = tmp_path / "tools" / "Scripts"
-    scripts_dir.mkdir(parents=True)
-    if request.param:
-        (scripts_dir / "cmake.exe").touch()
-        (scripts_dir / "ninja.exe").touch()
-    monkeypatch.setattr(build_mod.sysconfig, "get_path", lambda _name: str(scripts_dir))
+@pytest.fixture
+def mise_ctest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Resolve backend tests through the repository-pinned mise CMake."""
+    cmake = tmp_path / "mise" / "bin" / "cmake"
+    ninja = tmp_path / "mise" / "bin" / "ninja"
+    cmake.parent.mkdir(parents=True)
+    cmake.touch()
+    ninja.touch()
+    monkeypatch.setattr(
+        test_mod, "_resolve_mise_build_tools", lambda *_args, **_kwargs: (cmake, ninja)
+    )
+    return cmake.with_name("ctest")
 
 
 @pytest.mark.parametrize("build_type", ["Debug", "Release"])
 def test_backend_runs_suite_then_csv_repeat_with_same_environment(
-    build_type: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    build_type: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mise_ctest: Path,
 ) -> None:
     (tmp_path / "build").mkdir()
     monkeypatch.setattr(test_mod.utils, "get_project_root", lambda: tmp_path)
     environment = Mock()
-    environment.activate.return_value = {"Path": "msvc"}
+    environment.activate.return_value = {"PATH": "msvc"}
     commands: list[list[str]] = []
 
     def run(cmd: list[str], _label: str, **kwargs: object) -> tuple[bool, str]:
@@ -43,7 +46,7 @@ def test_backend_runs_suite_then_csv_repeat_with_same_environment(
     environment.activate.assert_called_once()
     assert commands == [
         [
-            "ctest",
+            str(mise_ctest),
             "--preset",
             build_type.lower(),
             "--output-on-failure",
@@ -53,7 +56,7 @@ def test_backend_runs_suite_then_csv_repeat_with_same_environment(
             "--no-tests=error",
         ],
         [
-            "ctest",
+            str(mise_ctest),
             "--preset",
             build_type.lower(),
             "--output-on-failure",
@@ -70,7 +73,10 @@ def test_backend_runs_suite_then_csv_repeat_with_same_environment(
 
 @pytest.mark.parametrize("failure_at", [0, 1])
 def test_backend_fails_on_suite_or_repeat_failure(
-    failure_at: int, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    failure_at: int,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mise_ctest: Path,
 ) -> None:
     (tmp_path / "build").mkdir()
     monkeypatch.setattr(test_mod.utils, "get_project_root", lambda: tmp_path)
@@ -83,13 +89,16 @@ def test_backend_fails_on_suite_or_repeat_failure(
     monkeypatch.setattr(test_mod.utils, "run_command", run)
 
     environment = Mock()
-    environment.activate.return_value = {"Path": "msvc"}
+    environment.activate.return_value = {"PATH": "msvc"}
     assert not test_mod.test_backend(environment=environment)
     assert len(commands) == failure_at + 1
+    assert all(command[0] == str(mise_ctest) for command in commands)
 
 
 def test_benchmark_does_not_repeat_csv_tests(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mise_ctest: Path,
 ) -> None:
     (tmp_path / "build").mkdir()
     monkeypatch.setattr(test_mod.utils, "get_project_root", lambda: tmp_path)
@@ -102,33 +111,38 @@ def test_benchmark_does_not_repeat_csv_tests(
     monkeypatch.setattr(test_mod.utils, "run_command", run)
 
     environment = Mock()
-    environment.activate.return_value = {"Path": "msvc"}
+    environment.activate.return_value = {"PATH": "msvc"}
     assert test_mod.bench_backend(environment=environment)
     assert commands == [
-        ["ctest", "--preset", "release", "--output-on-failure", "-L", "perf", "--no-tests=error"]
+        [
+            str(mise_ctest),
+            "--preset",
+            "release",
+            "--output-on-failure",
+            "-L",
+            "perf",
+            "--no-tests=error",
+        ]
     ]
 
 
-def test_backend_prefers_uv_managed_ctest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_backend_uses_mise_managed_ctest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mise_ctest: Path,
+) -> None:
     (tmp_path / "build").mkdir()
-    scripts_dir = tmp_path / "venv" / "Scripts"
-    scripts_dir.mkdir(parents=True)
-    (scripts_dir / "cmake.exe").touch()
-    (scripts_dir / "ninja.exe").touch()
     monkeypatch.setattr(test_mod.utils, "get_project_root", lambda: tmp_path)
-    monkeypatch.setattr(build_mod.sysconfig, "get_path", lambda _name: str(scripts_dir))
     environment = Mock()
-    environment.activate.return_value = {"Path": r"C:\VS\CMake\bin;C:\Windows"}
-    observed_paths: list[str] = []
+    environment.activate.return_value = {"PATH": "system-tools"}
+    commands: list[list[str]] = []
 
-    def run(_cmd: list[str], _label: str, **kwargs: object) -> tuple[bool, str]:
-        observed_paths.append(kwargs["env"]["Path"])
+    def run(cmd: list[str], _label: str, **kwargs: object) -> tuple[bool, str]:
+        assert kwargs["env"] is environment.activate.return_value
+        commands.append(cmd)
         return True, ""
 
     monkeypatch.setattr(test_mod.utils, "run_command", run)
 
     assert test_mod.test_backend(environment=environment)
-    assert observed_paths == [
-        rf"{scripts_dir};C:\VS\CMake\bin;C:\Windows",
-        rf"{scripts_dir};C:\VS\CMake\bin;C:\Windows",
-    ]
+    assert [command[0] for command in commands] == [str(mise_ctest), str(mise_ctest)]
