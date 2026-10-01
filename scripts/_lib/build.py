@@ -404,7 +404,8 @@ def _resolve_mise_build_tools(
             )
             actual = version_result.stdout.strip()
             expected = f"cmake version {version}" if name == "cmake" else version
-            if not actual.startswith(expected) if name == "cmake" else actual != expected:
+            mismatch = not actual.startswith(expected) if name == "cmake" else actual != expected
+            if mismatch:
                 raise ValueError(
                     f"{name} version mismatch: expected {version}, got {actual!r}"
                 )
