@@ -5,7 +5,7 @@
 1. Visual Studio 2026 (18.x) の最新Stable版がインストールされていること
 2. 「C++ によるデスクトップ開発」ワークロードがインストールされていること
 3. miseがPATHにあり、[初回セットアップ](../README.md#初回セットアップ)を完了していること
-   - Node/Bun/LLVMは`mise.toml`と`mise.lock`で管理。グローバル`vp`とDockerは不要。
+   - Node/Bun/LLVM/CMake/Ninjaは`mise.toml`と`mise.lock`で管理。グローバル`vp`とDockerは不要。
 4. `pyproject.toml`で指定したuvが利用できること (Pythonはuvが導入)
    - インストール: `winget install astral-sh.uv`
 
@@ -17,14 +17,14 @@ VS以外も更新対象とする。バージョンを複数の設定に重複定
 | ツール | 指定元・現状 | 更新とローカル/CIの関係 |
 | --- | --- | --- |
 | Visual Studio / MSVC / Windows SDK | VS 2026 Stable (18.x)、選択したインストールのtoolset/SDK | Installerで更新。CIはrunner配布版。実行ログで版を確認 |
-| CMake | `uv.lock` | uvの開発依存関係として両環境に同じ版を導入。Presets形式の下限は3.25 |
-| Ninja | `uv.lock` | uvで導入した版をVS同梱版より優先 |
+| CMake | `mise.toml` / `mise.lock` | Windows/Linuxの固定版をmiseで導入。`pdg.py`は`mise which`で解決した実体を使用。Presets形式の下限は3.25 |
+| Ninja | `mise.toml` / `mise.lock` | Windows/Linuxの固定版をmiseで導入し、VS同梱版を使用しない |
 | Python | `.python-version` | 両環境で同じパッチ版を使用 |
 | uv / Ruff / pytest | uvは`pyproject.toml`、Ruff/pytestは`uv.lock` | setup-uvも同じuv指定を参照。`uvx`による都度の最新版取得は通常CIから除去 |
 | Node / Bun | `mise.toml` / `mise.lock` | Windows/Linuxの配布物をlockし、ローカル・CIのpdg.pyが同じ版を選択 |
 | Vite+ / Oxlint / Oxfmt / Vitest / TypeScript等 | `frontend/package.json`と`frontend/bun.lock` | 依存更新時に両方を更新し、frontend lint・型検査・テスト・buildを確認 |
 | LLVM / clang-format | `mise.toml` (現在23.1.1) と`mise.lock` | Windows/Linuxの公式配布物をlockし、両OSの整形結果一致をCIで検証 |
-| mise | `mise.toml`の`min_version` (2026.9.14以上)、CIのmise-action入力は2026.9.14 | ローカルでより新しい版を利用可能。LLVMの固定版とは別に管理 |
+| mise | `mise.toml`の`min_version` (2026.9.16以上)、CIのmise-action入力は2026.9.16 | ローカルでより新しい版を利用可能。LLVMの固定版とは別に管理 |
 | vcpkg | `vcpkg.json`の`builtin-baseline` | 同じSHAでproject-local vcpkgをcheckoutしてbootstrap |
 
 [公式CMake仕様](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html#versions)に従い、
@@ -32,7 +32,7 @@ VS以外も更新対象とする。バージョンを複数の設定に重複定
 VS 2026との組み合わせを含めた全依存の最低動作版を保証するものではない。
 
 既存の週次`Tool Version Upgrade`はBun・vcpkg・LLVMを対象とする。
-CMake・Ninja・uv・mise・Python本体を一括で最新化する仕組みではない。
+CMake・Ninjaはmise、Python開発依存はuvで個別に固定し、一括で暗黙更新しない。
 固定版の更新は上表の管理元とlockを同じPRで変更し、backend build/testまで検証する。
 通常PR CIとローカルの共通コマンドは[README](../README.md#ローカルとciの検証)を参照。
 
