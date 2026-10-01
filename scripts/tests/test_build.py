@@ -107,12 +107,8 @@ def test_mise_build_tools_resolve_exact_pins(
 
     assert resolved_cmake == cmake
     assert resolved_ninja == ninja
-    assert any(
-        call[1:] == ["which", "cmake", "--tool", "cmake@4.4.3"] for call in calls
-    )
-    assert any(
-        call[1:] == ["which", "ninja", "--tool", "ninja@1.13.2"] for call in calls
-    )
+    assert any(call[1:] == ["which", "cmake", "--tool", "cmake@4.4.3"] for call in calls)
+    assert any(call[1:] == ["which", "ninja", "--tool", "ninja@1.13.2"] for call in calls)
     assert env["PATH"].split(build_mod.os.pathsep)[:2] == [str(bin_dir), str(bin_dir)]
 
 
