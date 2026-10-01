@@ -24,7 +24,7 @@ VS以外も更新対象とする。バージョンを複数の設定に重複定
 | Node / Bun | `mise.toml` / `mise.lock` | Windows/Linuxの配布物をlockし、ローカル・CIのpdg.pyが同じ版を選択 |
 | Vite+ / Oxlint / Oxfmt / Vitest / TypeScript等 | `frontend/package.json`と`frontend/bun.lock` | 依存更新時に両方を更新し、frontend lint・型検査・テスト・buildを確認 |
 | LLVM / clang-format | `mise.toml` (現在23.1.1) と`mise.lock` | Windows/Linuxの公式配布物をlockし、両OSの整形結果一致をCIで検証 |
-| mise | `mise.toml`の`min_version` (2026.9.16以上)、CIのmise-action入力は2026.9.16 | ローカルでより新しい版を利用可能。LLVMの固定版とは別に管理 |
+| mise | `mise.toml`の`min_version` (2026.9.16以上) | CIはmise-action v5.0.1をSHA固定し、`minimum_release_age: 24h`で安定版を選択。本体の完全固定は行わず、ツールの固定版とは別に管理 |
 | vcpkg | `vcpkg.json`の`builtin-baseline` | 同じSHAでproject-local vcpkgをcheckoutしてbootstrap |
 
 [公式CMake仕様](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html#versions)に従い、
