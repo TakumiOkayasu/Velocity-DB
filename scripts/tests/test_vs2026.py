@@ -353,10 +353,12 @@ def test_backend_commands_use_mise_cmake(
     with patch.object(commands.utils, "run_command", return_value=(True, "")) as run:
         assert getattr(commands, command)(environment=FakeEnvironment())
 
-    assert Path(run.call_args.args[0][0]) == cmake.with_name(
-        "ctest.exe" if cmake.suffix.lower() == ".exe" else "ctest"
+    ctest = cmake.with_name("ctest.exe" if cmake.suffix.lower() == ".exe" else "ctest")
+    assert all(Path(call.args[0][0]) == ctest for call in run.call_args_list)
+    assert all(
+        call.kwargs["env"] == {"TEST_TOOLCHAIN": "injected", "PATH": "original"}
+        for call in run.call_args_list
     )
-    assert run.call_args.kwargs["env"] == {"TEST_TOOLCHAIN": "injected", "PATH": "original"}
 
 
 def test_activation_failure_prevents_test_command(
