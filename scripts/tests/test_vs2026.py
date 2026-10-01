@@ -347,7 +347,9 @@ def test_backend_commands_use_mise_cmake(
 
     (tmp_path / "build").mkdir()
     monkeypatch.setattr(commands.utils, "get_project_root", lambda: tmp_path)
-    monkeypatch.setattr(commands, "_resolve_mise_build_tools", lambda *_args, **_kwargs: (cmake, ninja))
+    monkeypatch.setattr(
+        commands, "_resolve_mise_build_tools", lambda *_args, **_kwargs: (cmake, ninja)
+    )
     with patch.object(commands.utils, "run_command", return_value=(True, "")) as run:
         assert getattr(commands, command)(environment=FakeEnvironment())
 
