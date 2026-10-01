@@ -220,15 +220,23 @@ def resolve_frontend_runtime() -> FrontendRuntime:
     return FrontendRuntime(binaries["bun"], child_env)
 
 
-def check_build_tools(env: dict[str, str], out: TextIO | None = None) -> bool:
-    """Check if required build tools are available."""
+def check_build_tools(
+    env: dict[str, str],
+    *,
+    cmake: Path | None = None,
+    ninja: Path | None = None,
+    out: TextIO | None = None,
+) -> bool:
+    """Check the selected build tools without allowing an unbounded probe."""
     # Check CMake
     try:
+        cmake_cmd = [str(cmake), "--version"] if cmake else ["cmake", "--version"]
         result = subprocess.run(
-            _resolve_command(["cmake", "--version"], env),
+            _resolve_command(cmake_cmd, env),
             capture_output=True,
             text=True,
             env=env,
+            timeout=10,
         )
         if result.returncode == 0:
             version = result.stdout.split("\n")[0]
@@ -236,25 +244,27 @@ def check_build_tools(env: dict[str, str], out: TextIO | None = None) -> bool:
         else:
             print("ERROR: CMake not found", file=out)
             return False
-    except FileNotFoundError:
-        print("ERROR: CMake not found", file=out)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        print("ERROR: CMake not found or did not respond", file=out)
         return False
 
     # Check Ninja
     try:
+        ninja_cmd = [str(ninja), "--version"] if ninja else ["ninja", "--version"]
         result = subprocess.run(
-            _resolve_command(["ninja", "--version"], env),
+            _resolve_command(ninja_cmd, env),
             capture_output=True,
             text=True,
             env=env,
+            timeout=10,
         )
         if result.returncode == 0:
             version = result.stdout.strip()
             print(f"Ninja: {version}", file=out)
         else:
             print("WARNING: Ninja not found, will use slower generator", file=out)
-    except FileNotFoundError:
-        print("WARNING: Ninja not found, will use slower generator", file=out)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        print("WARNING: Ninja not found or did not respond", file=out)
 
     return True
 
