@@ -408,9 +408,7 @@ def _resolve_mise_build_tools(
                 not actual.startswith(expected) if name == "cmake" else actual != expected
             )
             if mismatch:
-                raise ValueError(
-                    f"{name} version mismatch: expected {version}, got {actual!r}"
-                )
+                raise ValueError(f"{name} version mismatch: expected {version}, got {actual!r}")
             binaries[name] = binary
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
         raise RuntimeError(
