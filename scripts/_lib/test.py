@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import TextIO
 
 from . import utils
-from .build import _prioritize_python_build_tools
+from .build import _resolve_mise_build_tools
 from .environment import BuildEnvironment
 
 
@@ -77,9 +77,22 @@ def _run_ctest_preset(
         return False
 
     env = environment.activate(out=out)
-    _prioritize_python_build_tools(env)
+    try:
+        cmake_path, _ = _resolve_mise_build_tools(project_root, env, out=out)
+    except RuntimeError as error:
+        print(f"\nERROR: {error}", file=out)
+        return False
     preset = build_type.lower()
-    test_cmd = ["ctest", "--preset", preset, "--output-on-failure", *label_args, "--no-tests=error"]
+    ctest_name = "ctest.exe" if cmake_path.suffix.lower() == ".exe" else "ctest"
+    ctest_path = cmake_path.with_name(ctest_name)
+    test_cmd = [
+        str(ctest_path),
+        "--preset",
+        preset,
+        "--output-on-failure",
+        *label_args,
+        "--no-tests=error",
+    ]
 
     success, _ = utils.run_command(test_cmd, cmd_label, env=env, cwd=project_root, out=out)
 
