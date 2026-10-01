@@ -76,11 +76,11 @@ CIのmise-action指定も更新し、lock形式と両OSの互換性を確認す�
 それ自体はインストール失敗ではない。まず`mise.toml`と`mise.lock`があるリポジトリルートに移動する。
 
 `mise install --locked`を引数なしで実行すると、個人のグローバル設定のツールも対象になる。
-Node/Bun/LLVMだけを指定して実行する:
+Node/Bun/LLVM/CMake/Ninjaだけを指定して実行する:
 
 ```powershell
 mise trust
-mise install --locked node bun github:llvm/llvm-project
+mise install --locked node bun cmake ninja github:llvm/llvm-project
 $LASTEXITCODE
 ```
 
@@ -97,7 +97,7 @@ $LASTEXITCODE
 
 バージョンを省略したツール指定は、リポジトリの`mise.toml`の固定バージョンを使用する。
 `--locked`は維持する。個人用ツールをリポジトリのlockへ追加したり、グローバル設定を削除したりしない。
-リポジトリのNode/Bun/LLVM自体のlockエラーなら、`mise.toml`と`mise.lock`を同じコミットに揃える。
+リポジトリのNode/Bun/LLVM/CMake/Ninja自体のlockエラーなら、`mise.toml`と`mise.lock`を同じコミットに揃える。
 Python環境が正常になった後、`uv run --locked scripts/pdg.py lint`で
 mise管理のNode/Bun/clang-formatのパス・版確認とlintを実行できる。
 
