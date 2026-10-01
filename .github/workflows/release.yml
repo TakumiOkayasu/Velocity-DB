@@ -20,7 +20,7 @@ jobs:
       - name: Install locked Node and Bun
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
         with:
-          version: 2026.9.14
+          version: 2026.9.16
           install_args: --locked node bun
           export_path: true
 
@@ -53,8 +53,12 @@ jobs:
       - name: Setup MSVC Developer Environment
         uses: ./.github/actions/setup-msvc
 
-      - name: Install Ninja
-        run: choco install ninja -y
+      - name: Install locked CMake and Ninja
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
+        with:
+          version: 2026.9.16
+          install_args: --locked cmake ninja
+          export_path: true
 
       - name: Cache CMake build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
