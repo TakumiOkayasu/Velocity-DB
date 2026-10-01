@@ -41,7 +41,7 @@ git clone https://github.com/TakumiOkayasu/Velocity-DB.git
 cd Velocity-DB
 ```
 
-Python環境の準備、Node/Bun/LLVMの導入、ビルドの順に実行する。
+Python環境の準備、Node/Bun/LLVM/CMake/Ninjaの導入、ビルドの順に実行する。
 各段階が失敗したらそこで止まり、後続のコマンドは実行しない。
 
 ```powershell
@@ -49,8 +49,8 @@ uv sync --locked
 if ($LASTEXITCODE -ne 0) { throw 'Python環境の準備に失敗。トラブルシューティングを確認してください。' }
 mise trust
 if ($LASTEXITCODE -ne 0) { throw 'miseの設定を信頼できませんでした。' }
-mise install --locked node bun github:llvm/llvm-project
-if ($LASTEXITCODE -ne 0) { throw 'Node/Bun/LLVMの導入に失敗しました。' }
+mise install --locked node bun cmake ninja github:llvm/llvm-project
+if ($LASTEXITCODE -ne 0) { throw 'Node/Bun/LLVM/CMake/Ninjaの導入に失敗しました。' }
 uv run --locked scripts/pdg.py build all
 ```
 
@@ -111,9 +111,9 @@ FrontendのVite+とnpm依存関係は`frontend/package.json`と`frontend/bun.loc
 ## ローカルとCIの検証
 
 通常のPR CIもローカルも`pdg.py`と`CMakePresets.json`を使用する。
-Pythonは`.python-version`、uvは`pyproject.toml`、Ruff/pytest/CMake/Ninjaは`uv.lock`を正本とする。
+Pythonは`.python-version`、uvは`pyproject.toml`、Ruff/pytestは`uv.lock`、Node/Bun/LLVM/CMake/Ninjaは`mise.toml`と`mise.lock`を正本とする。
 `uv run --locked`が同じ開発依存関係を導入し、設定とlockが不一致なら停止する。
-Node/Bunは`mise.toml`の完全固定版を`pdg.py`がmiseから解決し、子プロセスのPATHへ設定する。
+Node/Bun/CMake/Ninjaは`mise.toml`の完全固定版を`pdg.py`がmiseから解決し、ビルドツールは解決した実体を直接使用する。
 package scripts内の`vp`は`frontend/node_modules`のVite+を使う。
 Frontendは毎回frozen installで`bun.lock`に同期する。依存更新時だけ明示的にlockを更新する。
 
