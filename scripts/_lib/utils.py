@@ -244,8 +244,11 @@ def check_build_tools(
         else:
             print("ERROR: CMake not found", file=out)
             return False
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        print("ERROR: CMake not found or did not respond", file=out)
+    except FileNotFoundError:
+        print("ERROR: CMake not found", file=out)
+        return False
+    except subprocess.TimeoutExpired:
+        print("ERROR: CMake did not respond within 10 seconds", file=out)
         return False
 
     # Check Ninja
@@ -263,8 +266,10 @@ def check_build_tools(
             print(f"Ninja: {version}", file=out)
         else:
             print("WARNING: Ninja not found, will use slower generator", file=out)
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        print("WARNING: Ninja not found or did not respond", file=out)
+    except FileNotFoundError:
+        print("WARNING: Ninja not found", file=out)
+    except subprocess.TimeoutExpired:
+        print("WARNING: Ninja did not respond within 10 seconds", file=out)
 
     return True
 
