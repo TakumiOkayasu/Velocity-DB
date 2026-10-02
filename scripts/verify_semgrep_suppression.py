@@ -1,4 +1,4 @@
-"""Verify exactly scoped LLVM and frontend tool annotations in a full scan."""
+"""Verify exactly scoped LLVM, frontend and build tool annotations in a full scan."""
 
 import json
 import subprocess
@@ -13,6 +13,7 @@ RULE = (
 TARGET = "scripts/_lib/llvm.py"
 ANNOTATION = f"# nosemgrep: {RULE}"
 FRONTEND_TARGET = "scripts/_lib/utils.py"
+BUILD_TARGET = "scripts/_lib/build.py"
 
 
 def findings(report: dict) -> Counter:
@@ -31,15 +32,19 @@ def findings(report: dict) -> Counter:
     )
 
 
-def verify(baseline: dict, annotated: dict, match_line: int, frontend_line: int) -> dict:
+def verify(
+    baseline: dict, annotated: dict, match_line: int, frontend_line: int, build_line: int
+) -> dict:
+    targets = ((TARGET, match_line), (FRONTEND_TARGET, frontend_line), (BUILD_TARGET, build_line))
     for report in (baseline, annotated):
         if any(
-            error.get("level") != "warn" or error.get("path") == TARGET
+            error.get("level") != "warn" or error.get("path") in {target for target, _ in targets}
             for error in report["errors"]
         ):
             raise ValueError("Semgrep reported scan errors; suppression is unverified")
-        if TARGET not in report["paths"]["scanned"]:
-            raise ValueError("LLVM target was not scanned")
+        for target, _ in targets:
+            if target not in report["paths"]["scanned"]:
+                raise ValueError(f"Suppression target was not scanned: {target}")
     if baseline["version"] != annotated["version"]:
         raise ValueError("Scanner versions differ")
     # Existing unrelated parse warnings stay visible in both saved reports.
@@ -51,7 +56,7 @@ def verify(baseline: dict, annotated: dict, match_line: int, frontend_line: int)
         raise ValueError("Scan coverage differs")
     before, after = findings(baseline), findings(annotated)
     expected = Counter()
-    for target, line in ((TARGET, match_line), (FRONTEND_TARGET, frontend_line)):
+    for target, line in targets:
         matching = Counter(
             {key: count for key, count in before.items() if key[:3] == (RULE, target, line)}
         )
@@ -70,36 +75,25 @@ def verify(baseline: dict, annotated: dict, match_line: int, frontend_line: int)
     }
 
 
-def verify_environment(report: dict, frontend_line: int) -> list[str]:
-    """Reject environment taint other than the separately proven frontend call."""
-    targets = [FRONTEND_TARGET, "scripts/_lib/windows_environment.py"]
-    expected_ignored = 0
+def verify_environment(report: dict, frontend_line: int, build_line: int) -> list[str]:
+    """Reject environment taint other than the separately proven tool calls."""
+    targets = [FRONTEND_TARGET, BUILD_TARGET, "scripts/_lib/windows_environment.py"]
+    allowed_lines = {FRONTEND_TARGET: frontend_line, BUILD_TARGET: build_line}
     for target in targets:
         if target not in report["paths"]["scanned"]:
             raise ValueError(f"Environment target was not scanned: {target}")
         if any(e.get("level") != "warn" or e.get("path") == target for e in report["errors"]):
             raise ValueError(f"Environment scan has errors: {target}")
+        matching = [f for f in report["results"] if f["path"] == target and f["check_id"] == RULE]
         if any(
-            f["path"] == target
-            and f["check_id"] == RULE
-            and not (
-                target == FRONTEND_TARGET
-                and f["start"]["line"] == frontend_line
-                and f.get("extra", {}).get("is_ignored") is True
-            )
-            for f in report["results"]
+            target not in allowed_lines
+            or f["start"]["line"] != allowed_lines[target]
+            or f.get("extra", {}).get("is_ignored") is not True
+            for f in matching
         ):
             raise ValueError(f"Unexpected environment-tainted subprocess: {target}")
-        if target == FRONTEND_TARGET:
-            expected_ignored = sum(
-                f["path"] == target
-                and f["check_id"] == RULE
-                and f["start"]["line"] == frontend_line
-                and f.get("extra", {}).get("is_ignored") is True
-                for f in report["results"]
-            )
-    if expected_ignored > 1:
-        raise ValueError("Duplicate ignored frontend finding")
+        if len(matching) > 1:
+            raise ValueError(f"Duplicate ignored finding: {target}")
     return targets
 
 
@@ -135,7 +129,7 @@ def main(output: Path) -> None:
     originals: dict[Path, bytes] = {}
     baselines: dict[Path, bytes] = {}
     match_lines: dict[str, int] = {}
-    for name in (TARGET, FRONTEND_TARGET):
+    for name in (TARGET, FRONTEND_TARGET, BUILD_TARGET):
         path = root / name
         original = path.read_bytes()
         lines = original.splitlines(keepends=True)
@@ -156,9 +150,15 @@ def main(output: Path) -> None:
         for path, source in originals.items():
             path.write_bytes(source)
     annotated = scan(root, output / "annotated.json")
-    summary = verify(baseline, annotated, match_lines[TARGET], match_lines[FRONTEND_TARGET])
+    summary = verify(
+        baseline,
+        annotated,
+        match_lines[TARGET],
+        match_lines[FRONTEND_TARGET],
+        match_lines[BUILD_TARGET],
+    )
     summary["verified_environment_targets"] = verify_environment(
-        annotated, match_lines[FRONTEND_TARGET]
+        annotated, match_lines[FRONTEND_TARGET], match_lines[BUILD_TARGET]
     )
     (output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(summary, indent=2))

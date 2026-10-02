@@ -392,7 +392,12 @@ def _resolve_mise_build_tools(
             if not binary.is_absolute() or not binary.is_file():
                 raise ValueError(f"mise returned no installed {name} executable")
 
+            # Trust boundary: the developer's PATH/mise, mise.toml and build environment.
+            # Semgrep propagates the inherited environment through `mise which` stdout.
+            # This is a pinned local tool, not request data; argv is passed without a shell.
+            # The path checks above are validation, not authentication of a compromised toolchain.
             version_result = subprocess.run(
+                # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args
                 [str(binary), "--version"],
                 cwd=project_root,
                 env=env,
