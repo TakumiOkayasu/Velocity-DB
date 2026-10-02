@@ -172,7 +172,11 @@ class SuppressionTests(unittest.TestCase):
 
 class EnvironmentScanTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.targets = [gate.FRONTEND_TARGET, gate.BUILD_TARGET, "scripts/_lib/windows_environment.py"]
+        self.targets = [
+            gate.FRONTEND_TARGET,
+            gate.BUILD_TARGET,
+            "scripts/_lib/windows_environment.py",
+        ]
         self.report = {"paths": {"scanned": self.targets.copy()}, "errors": [], "results": []}
 
     def test_clean_targets_pass_and_keep_unrelated_findings(self) -> None:
