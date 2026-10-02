@@ -11,6 +11,8 @@ on:
       - '.github/workflows/security-scan.yml'
       - 'scripts/verify_semgrep_suppression.py'
       - 'scripts/tests/test_semgrep_suppression.py'
+      - 'scripts/_lib/build.py'
+      - 'scripts/tests/test_mise_build_security.py'
       - 'scripts/_lib/llvm.py'
       - 'scripts/_lib/utils.py'
       - 'scripts/_lib/environment.py'
@@ -49,6 +51,9 @@ jobs:
 
       - name: Test suppression verification
         run: python -m unittest discover -s scripts/tests -p test_semgrep_suppression.py
+
+      - name: Test mise build-tool security boundary
+        run: python -m unittest discover -s scripts/tests -p test_mise_build_security.py
 
       - name: Verify Semgrep suppression
         env:
