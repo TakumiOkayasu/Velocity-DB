@@ -49,7 +49,7 @@ export function useGridKeyboard({
   isEditMode,
   selectedRows,
   selectedColumns,
-  columns,
+  columns: allColumns,
   rowData,
   getRowByViewIndex,
   tableContainerRef,
@@ -63,6 +63,7 @@ export function useGridKeyboard({
   onSelectAll,
   onAutoSizeColumns,
 }: UseGridKeyboardOptions): UseGridKeyboardResult {
+  const columns = allColumns.filter((column) => !isSystemColumn(String(column.id)));
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const copyToClipboard = useCopyToClipboard();
@@ -183,7 +184,9 @@ export function useGridKeyboard({
     if (!editingCell) return;
 
     const { rowIndex, columnId } = editingCell;
-    const oldValue = rowData[rowIndex][columnId];
+    const row = rowData.find((item) => Number(item.__originalIndex) === rowIndex);
+    if (!row) return;
+    const oldValue = row[columnId];
     const newValue = editValue === '' ? null : editValue;
 
     if (oldValue !== newValue) {
@@ -211,6 +214,14 @@ export function useGridKeyboard({
 
   // Keyboard shortcuts
   useKeyboardHandler((e: KeyboardEvent) => {
+    // Ctrl+S: Save changes
+    if (e.ctrlKey && !e.shiftKey && e.key === 's') {
+      e.preventDefault();
+      commitEdit();
+      onApplyChanges();
+      return;
+    }
+
     // If editing a cell, handle Enter/Escape
     if (editingCell) {
       if (e.key === 'Enter') {
@@ -220,13 +231,6 @@ export function useGridKeyboard({
         e.preventDefault();
         cancelEdit();
       }
-      return;
-    }
-
-    // Ctrl+S: Save changes
-    if (e.ctrlKey && !e.shiftKey && e.key === 's') {
-      e.preventDefault();
-      onApplyChanges();
       return;
     }
 

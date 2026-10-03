@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { appSettingsProvider } from '../../api/providers';
+import { cacheSettings, mergeBackendSettings } from '../../utils/settingsCache';
+import { normalizeSettings } from '../../utils/settingsUtils';
 import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
 import { DialogOverlay } from '../common/DialogOverlay';
 import styles from './SettingsDialog.module.css';
@@ -14,7 +16,6 @@ import {
   QUERY_TIMEOUT_DEFAULT_SEC,
   QUERY_TIMEOUT_MAX_SEC,
   QUERY_TIMEOUT_MIN_SEC,
-  SETTINGS_CHANGED_EVENT,
 } from './settingsUtils';
 
 interface SettingsDialogProps {
@@ -66,31 +67,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
       .getSettings()
       .then((backend) => {
         if (cancelled || lifecycleRef.current !== lifecycle || isDirtyRef.current) return;
-        setSettings((prev) => ({
-          ...prev,
-          general: {
-            autoConnect: backend.general.autoConnect,
-            confirmOnExit: backend.general.confirmOnExit,
-            maxQueryHistory: backend.general.maxQueryHistory,
-            language: backend.general.language,
-          },
-          editor: {
-            ...prev.editor,
-            fontSize: backend.editor.fontSize,
-            fontFamily: backend.editor.fontFamily,
-            tabSize: backend.editor.tabSize,
-            wordWrap: backend.editor.wordWrap,
-          },
-          grid: {
-            defaultPageSize: backend.grid.defaultPageSize,
-            showRowNumbers: backend.grid.showRowNumbers,
-            nullDisplay: backend.grid.nullDisplay,
-          },
-          query: {
-            ...prev.query,
-            timeout: backend.query.timeoutSeconds * 1000,
-          },
-        }));
+        setSettings((prev) => mergeBackendSettings(prev, backend));
       })
       .catch((err) => {
         console.error('Failed to load settings from backend:', err);
@@ -106,32 +83,31 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
     const lifecycle = lifecycleRef.current;
     setIsSaving(true);
     setSaveError(null);
+    const saved = normalizeSettings(settings);
     // Backend 対応項目 (general/editor/grid/query) を 1 回の updateSettings で永続化
     try {
       await appSettingsProvider.updateSettings({
         general: {
-          autoConnect: settings.general.autoConnect,
-          confirmOnExit: settings.general.confirmOnExit,
-          maxQueryHistory: settings.general.maxQueryHistory,
-          language: settings.general.language,
+          autoConnect: saved.general.autoConnect,
+          confirmOnExit: saved.general.confirmOnExit,
+          maxQueryHistory: saved.general.maxQueryHistory,
+          language: saved.general.language,
         },
         editor: {
-          fontSize: settings.editor.fontSize,
-          fontFamily: settings.editor.fontFamily,
-          wordWrap: settings.editor.wordWrap,
-          tabSize: settings.editor.tabSize,
+          fontSize: saved.editor.fontSize,
+          fontFamily: saved.editor.fontFamily,
+          wordWrap: saved.editor.wordWrap,
+          tabSize: saved.editor.tabSize,
         },
         grid: {
-          defaultPageSize: settings.grid.defaultPageSize,
-          showRowNumbers: settings.grid.showRowNumbers,
-          nullDisplay: settings.grid.nullDisplay,
+          defaultPageSize: saved.grid.defaultPageSize,
+          showRowNumbers: saved.grid.showRowNumbers,
+          nullDisplay: saved.grid.nullDisplay,
         },
-        query: { timeoutSeconds: Math.round(settings.query.timeout / 1000) },
+        query: { timeoutSeconds: Math.round(saved.query.timeout / 1000) },
       });
       if (lifecycleRef.current !== lifecycle) return;
-      localStorage.setItem('app-settings', JSON.stringify(settings));
-      // 購読側 (useEditorSettings 等) へ反映を通知
-      window.dispatchEvent(new CustomEvent(SETTINGS_CHANGED_EVENT, { detail: settings }));
+      cacheSettings(saved);
       setIsSaving(false);
       onClose();
     } catch (err) {
@@ -201,6 +177,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
         </div>
 
         <div className={styles.tabContent}>
+          <p className={styles.shortcutNote}>未対応の項目は変更できません。</p>
           {activeTab === 'general' && (
             <div className={styles.settingsGroup}>
               <div className={styles.setting}>
@@ -208,9 +185,10 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                   <input
                     type="checkbox"
                     checked={settings.general.autoConnect}
+                    disabled
                     onChange={(e) => updateSetting('general', 'autoConnect', e.target.checked)}
                   />
-                  起動時に前回の接続を復元
+                  起動時に前回の接続を復元 (未対応)
                 </label>
               </div>
               <div className={styles.setting}>
@@ -218,9 +196,10 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                   <input
                     type="checkbox"
                     checked={settings.general.confirmOnExit}
+                    disabled
                     onChange={(e) => updateSetting('general', 'confirmOnExit', e.target.checked)}
                   />
-                  終了時に確認する
+                  終了時に確認する (未対応)
                 </label>
               </div>
               <div className={styles.setting}>
@@ -242,9 +221,10 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                 />
               </div>
               <div className={styles.setting}>
-                <label htmlFor="setting-general-language">言語</label>
+                <label htmlFor="setting-general-language">言語 (切替未対応)</label>
                 <select
                   id="setting-general-language"
+                  disabled
                   value={settings.general.language}
                   onChange={(e) => updateSetting('general', 'language', e.target.value)}
                 >
@@ -324,9 +304,10 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                   <input
                     type="checkbox"
                     checked={settings.query.autoCommit}
+                    disabled
                     onChange={(e) => updateSetting('query', 'autoCommit', e.target.checked)}
                   />
-                  自動コミット
+                  自動コミット (未対応)
                 </label>
               </div>
               <div className={styles.setting}>
@@ -346,9 +327,10 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                 />
               </div>
               <div className={styles.setting}>
-                <label htmlFor="setting-query-max-rows">最大行数</label>
+                <label htmlFor="setting-query-max-rows">最大行数 (未対応)</label>
                 <input
                   id="setting-query-max-rows"
+                  disabled
                   type="number"
                   value={settings.query.maxRows}
                   onChange={(e) =>
@@ -365,7 +347,9 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
           {activeTab === 'grid' && (
             <div className={styles.settingsGroup}>
               <div className={styles.setting}>
-                <label htmlFor="setting-grid-page-size">デフォルトページサイズ (行)</label>
+                <label htmlFor="setting-grid-page-size">
+                  デフォルトページサイズ (新規表示・再取得時の行数)
+                </label>
                 <input
                   id="setting-grid-page-size"
                   type="number"
@@ -408,9 +392,10 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
           {activeTab === 'appearance' && (
             <div className={styles.settingsGroup}>
               <div className={styles.setting}>
-                <label htmlFor="setting-appearance-theme">テーマ</label>
+                <label htmlFor="setting-appearance-theme">テーマ (切替未対応)</label>
                 <select
                   id="setting-appearance-theme"
+                  disabled
                   value={settings.appearance.theme}
                   onChange={(e) =>
                     updateSetting('appearance', 'theme', e.target.value as 'dark' | 'light')

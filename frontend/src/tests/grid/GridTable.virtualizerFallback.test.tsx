@@ -18,7 +18,7 @@
 
 import { useTable } from '@tanstack/react-table';
 import type { VirtualItem } from '@tanstack/react-virtual';
-import { cleanup, fireEvent, render, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { useRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 import {
@@ -272,4 +272,21 @@ describe('GridTable boolean editing (#719)', () => {
     );
     expect((getByRole('checkbox') as HTMLInputElement).disabled).toBe(true);
   });
+});
+
+it('renders unsaved text and null values instead of the original cell', () => {
+  const data = makeRowData(1);
+  const edit: GridEditContext = {
+    ...NOOP_EDIT,
+    getCellChange: (rowIndex, columnName) => ({
+      rowIndex,
+      columnName,
+      originalValue: data[0][columnName],
+      newValue: columnName === 'name' ? 'changed' : null,
+    }),
+  };
+  render(<Harness data={data} edit={edit} virtualRows={[]} totalSize={0} />);
+  expect(screen.getByText('changed')).toBeInTheDocument();
+  expect(screen.getByText('NULL')).toBeInTheDocument();
+  expect(screen.queryByText('name-0')).not.toBeInTheDocument();
 });

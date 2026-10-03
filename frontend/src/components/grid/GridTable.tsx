@@ -47,6 +47,7 @@ interface GridTableCallbacks {
 }
 
 interface GridTableProps {
+  nullDisplay?: string;
   table: GridTableInstance;
   tableContainerRef: RefObject<HTMLDivElement | null>;
   rows: GridRow[];
@@ -126,6 +127,7 @@ function findCellFromEvent(e: MouseEvent) {
 }
 
 function GridTableInner({
+  nullDisplay = 'NULL',
   table,
   tableContainerRef,
   rows,
@@ -352,7 +354,7 @@ function GridTableInner({
                     : null;
                   const displayValue = change ? change.newValue : value;
                   const isChanged = change !== null;
-                  const isNull = value === null;
+                  const isNull = displayValue === null;
                   const align = cell.column.columnDef.meta?.align ?? 'left';
                   const isEditing =
                     edit.editingCell?.rowIndex === originalIndex &&
@@ -401,6 +403,7 @@ function GridTableInner({
                       ) : !isSystemColumn(field) &&
                         isBooleanType(cell.column.columnDef.meta?.type ?? '') ? (
                         <BooleanCell
+                          nullDisplay={nullDisplay}
                           value={displayValue === null ? null : String(displayValue)}
                           label={field}
                           onChange={
@@ -416,9 +419,9 @@ function GridTableInner({
                           }
                         />
                       ) : isNull ? (
-                        'NULL'
+                        nullDisplay
                       ) : (
-                        String(value)
+                        String(displayValue)
                       )}
                     </td>
                   );

@@ -5,10 +5,14 @@ import { MainLayout } from './components/layout/MainLayout';
 import { useSuppressNativeSelectAll } from './hooks/useSuppressNativeSelectAll';
 import { useConnectionStore } from './store/connectionStore';
 import { useQueryStore } from './store/queryStore';
+import { loadSettingsCache } from './utils/settingsCache';
 import { useStartupMark } from './utils/perfMarks';
 
 function App() {
   useStartupMark();
+  useEffect(() => {
+    void loadSettingsCache().catch((error) => console.error('Failed to load settings:', error));
+  }, []);
 
   const activeQueryConnectionId = useQueryStore((state) => {
     const query = state.queries.find((q) => q.id === state.activeQueryId);

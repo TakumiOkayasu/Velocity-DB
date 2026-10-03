@@ -8,6 +8,7 @@ import type { Formattable } from './interfaces/Formattable';
 import type { Manageable } from './interfaces/Manageable';
 
 export interface PaginationState {
+  pageSize?: number;
   totalRowCount: number;
   loadedRowCount: number;
   isLoadingMore: boolean;

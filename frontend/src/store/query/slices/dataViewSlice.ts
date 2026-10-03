@@ -35,7 +35,8 @@ export function createDataViewSlice(
     id: string,
     baseSql: string,
     connectionId: string,
-    loadedRowCount: number
+    loadedRowCount: number,
+    pageSize: number
   ): void {
     set((state) => ({
       paginationStates: {
@@ -43,6 +44,7 @@ export function createDataViewSlice(
         [id]: {
           totalRowCount: -1,
           loadedRowCount,
+          pageSize,
           isLoadingMore: false,
           hasMore: true,
           baseSql,
@@ -74,6 +76,7 @@ export function createDataViewSlice(
       }
 
       const id = generateQueryId();
+      const pageSize = getSettings().grid.defaultPageSize;
       const controller = new AbortController();
       abort.register(id, controller);
 
@@ -81,7 +84,7 @@ export function createDataViewSlice(
         const { sql } = await queryProvider.buildDataViewSql(
           connectionId,
           tableName,
-          PAGE_SIZE + 1,
+          pageSize + 1,
           whereClause
         );
         const baseSql = toBaseSql(sql);
@@ -121,7 +124,8 @@ export function createDataViewSlice(
           tableName,
           sql,
           controller.signal,
-          getSettings().query.timeout
+          getSettings().query.timeout,
+          pageSize
         );
 
         set((state) => ({
@@ -134,7 +138,7 @@ export function createDataViewSlice(
         );
 
         if (resultSet.truncated) {
-          setupPagination(id, baseSql, connectionId, resultSet.rows.length);
+          setupPagination(id, baseSql, connectionId, resultSet.rows.length, pageSize);
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
@@ -158,6 +162,7 @@ export function createDataViewSlice(
       const query = get().queriesById[id];
       if (!query?.sourceTable) return null;
 
+      const pageSize = getSettings().grid.defaultPageSize;
       const controller = new AbortController();
       abort.register(id, controller);
 
@@ -165,7 +170,7 @@ export function createDataViewSlice(
         const { sql } = await queryProvider.buildDataViewSql(
           connectionId,
           query.sourceTable,
-          PAGE_SIZE + 1,
+          pageSize + 1,
           whereClause.trim() || undefined
         );
 
@@ -186,7 +191,8 @@ export function createDataViewSlice(
           query.sourceTable,
           sql,
           controller.signal,
-          getSettings().query.timeout
+          getSettings().query.timeout,
+          pageSize
         );
 
         // Clear old pagination state
@@ -201,7 +207,7 @@ export function createDataViewSlice(
 
         if (resultSet.truncated) {
           const baseSql = toBaseSql(sql);
-          setupPagination(id, baseSql, connectionId, resultSet.rows.length);
+          setupPagination(id, baseSql, connectionId, resultSet.rows.length, pageSize);
         }
 
         return null;
@@ -225,19 +231,27 @@ export function createDataViewSlice(
 
       log.info(`[QueryStore] Refreshing data view: ${query.sourceTable}`);
 
+      const pageSize = getSettings().grid.defaultPageSize;
       const controller = new AbortController();
       abort.register(id, controller);
 
       set((state) => startExecution(state, id));
 
       try {
+        const { sql } = await queryProvider.buildDataViewSql(
+          connectionId,
+          query.sourceTable,
+          pageSize + 1,
+          query.whereClause?.trim() || undefined
+        );
         const resultSet = await fetchTableWithComments(
           bridge,
           connectionId,
           query.sourceTable,
-          query.content,
+          sql,
           controller.signal,
-          getSettings().query.timeout
+          getSettings().query.timeout,
+          pageSize
         );
 
         // Clear old pagination state
@@ -246,6 +260,8 @@ export function createDataViewSlice(
           return {
             ...endExecution(state, id),
             results: { ...state.results, [id]: resultSet },
+            queries: state.queries.map((q) => (q.id === id ? { ...q, content: sql } : q)),
+            queriesById: { ...state.queriesById, [id]: { ...state.queriesById[id], content: sql } },
             paginationStates: restPagination,
           };
         });
@@ -253,8 +269,8 @@ export function createDataViewSlice(
         log.info(`[QueryStore] Data view refreshed: ${resultSet.rows.length} rows`);
 
         if (resultSet.truncated) {
-          const baseSql = toBaseSql(query.content);
-          setupPagination(id, baseSql, connectionId, resultSet.rows.length);
+          const baseSql = toBaseSql(sql);
+          setupPagination(id, baseSql, connectionId, resultSet.rows.length, pageSize);
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
@@ -289,7 +305,7 @@ export function createDataViewSlice(
           pagination.connectionId,
           pagination.baseSql,
           pagination.loadedRowCount,
-          pagination.loadedRowCount + PAGE_SIZE,
+          pagination.loadedRowCount + (pagination.pageSize ?? PAGE_SIZE),
           pagination.sortModel
         );
 
@@ -298,7 +314,7 @@ export function createDataViewSlice(
           if (!currentResult || 'multipleResults' in currentResult) return {};
 
           const newRows = currentResult.rows.concat(result.rows);
-          const reachedEnd = result.rows.length < PAGE_SIZE;
+          const reachedEnd = result.rows.length < (pagination.pageSize ?? PAGE_SIZE);
           const newTotal =
             reachedEnd && pagination.totalRowCount === -1
               ? newRows.length
@@ -355,7 +371,7 @@ export function createDataViewSlice(
           pagination.connectionId,
           pagination.baseSql,
           0,
-          PAGE_SIZE,
+          pagination.pageSize ?? PAGE_SIZE,
           sortModel
         );
 
@@ -363,7 +379,7 @@ export function createDataViewSlice(
           const currentResult = state.results[id];
           if (!currentResult || 'multipleResults' in currentResult) return {};
 
-          const reachedEnd = result.rows.length < PAGE_SIZE;
+          const reachedEnd = result.rows.length < (pagination.pageSize ?? PAGE_SIZE);
           return {
             results: {
               ...state.results,

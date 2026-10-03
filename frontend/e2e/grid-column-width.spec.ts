@@ -113,7 +113,7 @@ test.describe('#368 列幅スクロール固定', () => {
     await expect(page.getByText('name_0_long_suffix_to_trigger_auto_size')).toBeVisible();
 
     const cols = page.locator('colgroup col');
-    await expect(cols).toHaveCount(3);
+    await expect(cols).toHaveCount(4);
     const initialWidths = await cols.evaluateAll((els) =>
       els.map((e) => (e as HTMLElement).getBoundingClientRect().width)
     );

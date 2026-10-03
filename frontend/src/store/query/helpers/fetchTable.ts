@@ -16,7 +16,8 @@ export async function fetchTableWithComments(
   tableName: string,
   sql: string,
   signal?: AbortSignal,
-  timeoutMs?: number
+  timeoutMs?: number,
+  pageSize = PAGE_SIZE
 ): Promise<ResultSet> {
   const [columnDefinitions, pollResult] = await Promise.all([
     bridge.getColumns(connectionId, tableName),
@@ -30,9 +31,8 @@ export async function fetchTableWithComments(
 
   const colDefMap = new Map(columnDefinitions.map((col) => [col.name, col]));
 
-  const isTruncated = result.truncated || result.rows.length > PAGE_SIZE;
-  const displayRows =
-    result.rows.length > PAGE_SIZE ? result.rows.slice(0, PAGE_SIZE) : result.rows;
+  const isTruncated = result.truncated || result.rows.length > pageSize;
+  const displayRows = result.rows.length > pageSize ? result.rows.slice(0, pageSize) : result.rows;
 
   return {
     columns: result.columns.map((c) => {

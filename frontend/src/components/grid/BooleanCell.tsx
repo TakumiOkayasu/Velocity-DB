@@ -7,10 +7,11 @@ export function isBooleanType(type: string): boolean {
 interface BooleanCellProps {
   value: string | null;
   label: string;
+  nullDisplay?: string;
   onChange?: (value: string) => void;
 }
 
-export function BooleanCell({ value, label, onChange }: BooleanCellProps) {
+export function BooleanCell({ value, label, onChange, nullDisplay = 'NULL' }: BooleanCellProps) {
   const normalized = value?.toLowerCase();
   const checked = normalized === 't' || normalized === 'true' || normalized === '1';
   const isFalse = normalized === 'f' || normalized === 'false' || normalized === '0';
@@ -37,7 +38,7 @@ export function BooleanCell({ value, label, onChange }: BooleanCellProps) {
           onChange?.(encoded);
         }}
       />
-      {value === null && <span>NULL</span>}
+      {value === null && <span>{nullDisplay}</span>}
     </span>
   );
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { queryProvider } from '../../../api/providers';
 import { type CellChange, useEditStore } from '../../../store/editStore';
 import type { Query, ResultSet } from '../../../types';
@@ -13,6 +13,7 @@ interface UseGridEditOptions {
   rowData: RowData[];
   selectedRows: Set<number>;
   isReadOnly: boolean;
+  onApplied?: () => Promise<void>;
 }
 
 interface UseGridEditResult {
@@ -20,7 +21,6 @@ interface UseGridEditResult {
   hasChanges: boolean;
   isApplying: boolean;
   applyError: string | null;
-  previewStatements: string[];
   isRowDeleted: (rowIndex: number) => boolean;
   isRowInserted: (rowIndex: number) => boolean;
   getInsertedRows: () => Map<number, Record<string, string | null>>;
@@ -37,9 +37,7 @@ interface UseGridEditResult {
   deleteRow: () => void;
   cloneRow: () => void;
   insertRow: () => void;
-  buildPreview: () => Promise<void>;
-  executePreview: () => Promise<void>;
-  dismissPreview: () => void;
+  applyChanges: () => Promise<void>;
 }
 
 export function useGridEdit({
@@ -49,13 +47,12 @@ export function useGridEdit({
   rowData,
   selectedRows,
   isReadOnly,
+  onApplied,
 }: UseGridEditOptions): UseGridEditResult {
   const {
     updateCell,
     revertAll,
     hasChanges: hasChangesFn,
-    getCellChange,
-    isRowDeleted,
     isRowInserted,
     insertedRows,
     markRowDeleted,
@@ -67,17 +64,28 @@ export function useGridEdit({
     primaryKeyColumns,
     setEditMode,
     pendingChanges,
+    deletedRows,
+    validationErrors,
     setValidationErrors,
-    getValidationError,
     hasValidationErrors: hasValidationErrorsFn,
   } = useEditStore();
 
   const [isApplying, setIsApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
-  const [previewStatements, setPreviewStatements] = useState<string[]>([]);
+  const applyingRef = useRef(false);
+  const contextVersion = useRef(0);
+  const getCellChange = useCallback(
+    (rowIndex: number, field: string) => pendingChanges.get(rowIndex)?.changes[field] ?? null,
+    [pendingChanges]
+  );
+  const isRowDeleted = useCallback((rowIndex: number) => deletedRows.has(rowIndex), [deletedRows]);
+  const getValidationError = useCallback(
+    (rowIndex: number, field: string) => validationErrors.get(`${rowIndex}:${field}`) ?? null,
+    [validationErrors]
+  );
 
   // Edit mode is always ON when sourceTable exists and not read-only
-  const isEditMode = !!currentQuery?.sourceTable && !isReadOnly;
+  const isEditMode = !!currentQuery?.sourceTable && !isReadOnly && !isApplying;
 
   // Sync edit mode to store
   useEffect(() => {
@@ -85,10 +93,12 @@ export function useGridEdit({
   }, [isEditMode, setEditMode]);
 
   const revertChanges = useCallback(() => {
+    if (applyingRef.current) return;
     revertAll();
   }, [revertAll]);
 
   const deleteRow = useCallback(() => {
+    if (applyingRef.current) return;
     if (isReadOnly) {
       setApplyError('読み取り専用モードのため変更できません');
       return;
@@ -105,6 +115,7 @@ export function useGridEdit({
   }, [isReadOnly, selectedRows, isRowDeleted, markRowDeleted, unmarkRowDeleted, rowData]);
 
   const cloneRow = useCallback(() => {
+    if (applyingRef.current) return;
     if (isReadOnly) {
       setApplyError('読み取り専用モードのため変更できません');
       return;
@@ -137,6 +148,7 @@ export function useGridEdit({
   }, [resultSet, pendingChanges, insertedRows, setValidationErrors]);
 
   const insertRow = useCallback(() => {
+    if (applyingRef.current) return;
     if (isReadOnly) {
       setApplyError('読み取り専用モードのため変更できません');
       return;
@@ -150,58 +162,65 @@ export function useGridEdit({
     addNewRow(newRow);
   }, [isReadOnly, resultSet, addNewRow]);
 
-  const buildPreview = useCallback(async () => {
+  const applyChanges = useCallback(async () => {
+    if (applyingRef.current) return;
     if (isReadOnly) {
       setApplyError('読み取り専用モードのため変更を適用できません');
       return;
     }
-    if (hasValidationErrorsFn()) {
+    if (!activeConnectionId || !currentQuery?.sourceTable || !resultSet) return;
+    // Ctrl+S may have just committed the active cell, before the validation effect runs.
+    const state = useEditStore.getState();
+    const errors = validateNullConstraints(
+      resultSet.columns,
+      state.pendingChanges,
+      state.insertedRows
+    );
+    setValidationErrors(errors);
+    if (errors.size > 0) {
       setApplyError(
         'バリデーションエラーがあります。NULLが許可されていないカラムを確認してください'
       );
       return;
     }
-    if (!activeConnectionId || !currentQuery?.sourceTable) return;
-
     const dmlParams = getDmlParams();
-    if (!dmlParams) return;
-
-    setApplyError(null);
-
-    try {
-      const { statements } = await queryProvider.buildDmlStatements(activeConnectionId, dmlParams);
-      if (statements.length > 0) {
-        setPreviewStatements(statements);
-      }
-    } catch (err) {
-      setApplyError(err instanceof Error ? err.message : 'Failed to build DML');
-    }
-  }, [isReadOnly, activeConnectionId, currentQuery, getDmlParams, hasValidationErrorsFn]);
-
-  const executePreview = useCallback(async () => {
-    if (!activeConnectionId || previewStatements.length === 0) return;
-
+    if (!dmlParams || !hasChangesFn()) return;
+    const version = contextVersion.current;
+    applyingRef.current = true;
     setIsApplying(true);
     setApplyError(null);
-
     try {
-      await queryProvider.executeQuery(activeConnectionId, previewStatements.join('\n'));
-      revertAll();
-      setPreviewStatements([]);
+      const { statements } = await queryProvider.buildDmlStatements(activeConnectionId, dmlParams);
+      if (statements.length === 0 || contextVersion.current !== version) return;
+      // The backend executes a multi-statement batch in a transaction.
+      await queryProvider.executeQuery(activeConnectionId, statements.join('\n'), false);
+      if (contextVersion.current === version) {
+        revertAll();
+        await onApplied?.();
+      }
     } catch (err) {
-      setApplyError(err instanceof Error ? err.message : 'Failed to apply changes');
-      setPreviewStatements([]);
+      if (contextVersion.current === version) {
+        setApplyError(err instanceof Error ? err.message : 'Failed to apply changes');
+      }
     } finally {
+      applyingRef.current = false;
       setIsApplying(false);
     }
-  }, [activeConnectionId, previewStatements, revertAll]);
-
-  const dismissPreview = useCallback(() => {
-    setPreviewStatements([]);
-  }, []);
+  }, [
+    isReadOnly,
+    activeConnectionId,
+    currentQuery?.sourceTable,
+    resultSet,
+    getDmlParams,
+    hasChangesFn,
+    setValidationErrors,
+    revertAll,
+    onApplied,
+  ]);
 
   // Set table context for editing when resultSet or sourceTable changes
   useEffect(() => {
+    contextVersion.current += 1;
     if (resultSet && currentQuery?.sourceTable) {
       const { schema, table } = parseTableName(currentQuery.sourceTable);
 
@@ -214,15 +233,16 @@ export function useGridEdit({
     }
 
     return () => {
+      contextVersion.current += 1;
       clearTableContext();
     };
-  }, [resultSet, currentQuery?.sourceTable, setTableContext, clearTableContext]);
+  }, [resultSet, currentQuery?.id, currentQuery?.sourceTable, setTableContext, clearTableContext]);
 
   const getInsertedRows = useCallback(() => insertedRows, [insertedRows]);
 
   const updateCellWithRow = useCallback(
     (rowIndex: number, field: string, oldValue: string | null, newValue: string | null) => {
-      if (isReadOnly) return;
+      if (isReadOnly || applyingRef.current) return;
       updateCell(rowIndex, field, oldValue, newValue, rowData[rowIndex]);
     },
     [isReadOnly, updateCell, rowData]
@@ -236,20 +256,17 @@ export function useGridEdit({
     hasChanges,
     isApplying,
     applyError,
-    previewStatements,
-    isRowDeleted,
     isRowInserted,
     getInsertedRows,
-    getCellChange,
-    getValidationError,
     hasValidationErrors,
     updateCell: updateCellWithRow,
     revertChanges,
     deleteRow,
     cloneRow,
     insertRow,
-    buildPreview,
-    executePreview,
-    dismissPreview,
+    applyChanges,
+    getCellChange,
+    isRowDeleted,
+    getValidationError,
   };
 }

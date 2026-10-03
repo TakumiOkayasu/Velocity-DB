@@ -1,6 +1,7 @@
 import { type ColumnFiltersState, type SortingState, useTable } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useGridSettings } from '../../hooks/useGridSettings';
 import { useConnectionStore } from '../../store/connectionStore';
 import {
   useIsActiveDataView,
@@ -41,9 +42,6 @@ import { ResultTabs } from './ResultTabs';
 import { TransposeView } from './TransposeView';
 import { ValueEditorDialog } from './ValueEditorDialog';
 
-const DmlPreviewDialog = lazyWithRetry(() =>
-  import('../dialogs/DmlPreviewDialog').then((m) => ({ default: m.DmlPreviewDialog }))
-);
 const ErrorDetailDialog = lazyWithRetry(() =>
   import('../dialogs/ErrorDetailDialog').then((m) => ({ default: m.ErrorDetailDialog }))
 );
@@ -69,6 +67,7 @@ interface ResultGridProps {
 
 function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps = {}) {
   useFirstRenderMark('result-grid');
+  const gridSettings = useGridSettings();
   // --- Store subscriptions ---
   const activeQueryId = useQueryStore((state) => state.activeQueryId);
   const isActiveDataView = useIsActiveDataView();
@@ -209,7 +208,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   const resultSetColumns = resultSet?.columns;
   const columns = useMemo<GridColumnDef[]>(() => {
     if (!resultSetColumns) return [];
-    return resultSetColumns.map((col) => {
+    const dataColumns: GridColumnDef[] = resultSetColumns.map((col) => {
       const isNumeric = isNumericType(col.type);
       const displayName = showLogicalNamesInGrid && col.comment ? col.comment : col.name;
       return {
@@ -221,7 +220,21 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         meta: { type: col.type, align: isNumeric ? 'right' : 'left' },
       };
     });
-  }, [resultSetColumns, showLogicalNamesInGrid]);
+    return gridSettings.showRowNumbers
+      ? [
+          {
+            id: '__rowIndex',
+            header: '#',
+            accessorKey: '__rowIndex',
+            size: 64,
+            minSize: 48,
+            enableSorting: false,
+            enableColumnFilter: false,
+          },
+          ...dataColumns,
+        ]
+      : dataColumns;
+  }, [resultSetColumns, showLogicalNamesInGrid, gridSettings.showRowNumbers]);
 
   const columnsMeta = useMemo<ColumnMeta[]>(() => {
     if (!resultSetColumns) return [];
@@ -232,13 +245,16 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     }));
   }, [resultSetColumns]);
 
+  const refreshAfterSave = useCallback(async () => {
+    if (targetQueryId && queryConnectionId) await refreshDataView(targetQueryId, queryConnectionId);
+  }, [targetQueryId, queryConnectionId, refreshDataView]);
+
   // --- Hooks ---
   const {
     isEditMode,
     hasChanges,
     isApplying,
     applyError,
-    previewStatements,
     isRowDeleted,
     isRowInserted,
     getInsertedRows,
@@ -250,9 +266,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     deleteRow,
     cloneRow,
     insertRow,
-    buildPreview,
-    executePreview,
-    dismissPreview,
+    applyChanges,
   } = useGridEdit({
     resultSet,
     currentQuery,
@@ -260,17 +274,24 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     rowData: baseRowData,
     selectedRows,
     isReadOnly,
+    onApplied: refreshAfterSave,
   });
 
   const rowData = useMemo<RowData[]>(() => {
     const insertedRows = getInsertedRows();
-    if (insertedRows.size === 0) return baseRowData;
-    const combined = [...baseRowData];
+    const combined = baseRowData.map((row, index) => {
+      let edited = row;
+      for (const field of Object.keys(row)) {
+        const change = getCellChange(index, field);
+        if (change) edited = { ...edited, [field]: change.newValue };
+      }
+      return edited;
+    });
     insertedRows.forEach((rowValues, rowIndex) => {
       combined.push({ ...rowValues, __rowIndex: '新規', __originalIndex: String(rowIndex) });
     });
     return combined;
-  }, [baseRowData, getInsertedRows]);
+  }, [baseRowData, getInsertedRows, getCellChange]);
 
   // 列幅オートアジャスト (Issue #387):
   // - 初回 (columnsKey 変化時) のみ自動で全行の MAX 幅に合わせる (#368 flash 回避)
@@ -326,7 +347,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     onDeleteRow: deleteRow,
     onCloneRow: cloneRow,
     onInsertRow: insertRow,
-    onApplyChanges: buildPreview,
+    onApplyChanges: applyChanges,
     onNavigateRelated: navigateRelated,
     onOpenValueEditor: openValueEditor,
     onSelectAll: selectAllRows,
@@ -609,7 +630,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
       <GridToolbar
         showRefresh={!!currentQuery?.sourceTable && !!queryConnectionId}
         canEdit={!!currentQuery?.sourceTable}
-        hasChanges={hasChanges}
+        hasChanges={hasChanges || editingCell !== null}
         isApplying={isApplying}
         applyError={applyError}
         hasValidationErrors={hasValidationErrors}
@@ -621,7 +642,10 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         onInsertRow={insertRow}
         onDeleteRow={deleteRow}
         onRevertChanges={revertChanges}
-        onApplyChanges={buildPreview}
+        onApplyChanges={() => {
+          commitEdit();
+          void applyChanges();
+        }}
         onSetShowLogicalNames={setShowLogicalNamesInGrid}
         onToggleColumnFilters={toggleColumnFilters}
         onExport={openExportDialog}
@@ -642,6 +666,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
 
       {viewMode === 'table' ? (
         <GridTable
+          nullDisplay={gridSettings.nullDisplay}
           table={table}
           tableContainerRef={tableContainerRef}
           rows={rows}
@@ -661,6 +686,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         />
       ) : (
         <TransposeView
+          nullDisplay={gridSettings.nullDisplay}
           columns={columnsMeta}
           rowData={baseRowData}
           currentRowIndex={transposeRowIndex}
@@ -696,16 +722,6 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         onSave={saveValueEditor}
         onCancel={closeValueEditor}
       />
-
-      <Suspense fallback={null}>
-        <DmlPreviewDialog
-          isOpen={previewStatements.length > 0}
-          statements={previewStatements}
-          isExecuting={isApplying}
-          onExecute={executePreview}
-          onCancel={dismissPreview}
-        />
-      </Suspense>
 
       <QueryConfirmDialog
         isOpen={whereFilterError !== null}

@@ -283,3 +283,21 @@ describe('useGridKeyboard', () => {
     });
   });
 });
+
+it('Ctrl+S commits the active cell before submitting all changes', async () => {
+  const updateCell = vi.fn();
+  const onApplyChanges = vi.fn().mockResolvedValue(undefined);
+  const { result } = renderHook(() =>
+    useGridKeyboard({ ...baseOptions, isEditMode: true, updateCell, onApplyChanges })
+  );
+  act(() => result.current.startEdit(0, 'col_a', 'A1'));
+  act(() => result.current.setEditValue('edited'));
+  await act(async () =>
+    capturedKeydownHandler?.(new KeyboardEvent('keydown', { key: 's', ctrlKey: true }))
+  );
+  expect(updateCell).toHaveBeenCalledWith(0, 'col_a', 'A1', 'edited');
+  expect(onApplyChanges).toHaveBeenCalledOnce();
+  expect(updateCell.mock.invocationCallOrder[0]).toBeLessThan(
+    onApplyChanges.mock.invocationCallOrder[0]
+  );
+});
