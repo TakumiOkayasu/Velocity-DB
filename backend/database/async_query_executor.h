@@ -31,6 +31,7 @@ using QueryResultVariant = std::variant<ResultSet, std::vector<StatementResult>>
 struct AsyncQueryResult {
     std::string queryId;
     QueryStatus status = QueryStatus::Pending;
+    size_t maxRows = 10000;
     bool multipleResults = false;
     std::optional<ResultSet> result;
     std::vector<StatementResult> results;
@@ -51,11 +52,11 @@ public:
 
     /// Submits a query for asynchronous execution, returns a unique query ID
     /// Uses shared_ptr to ensure driver lifetime extends through async execution
-    [[nodiscard]] std::string submitQuery(std::shared_ptr<IDatabaseDriver> driver, std::string_view sql);
+    [[nodiscard]] std::string submitQuery(std::shared_ptr<IDatabaseDriver> driver, std::string_view sql, bool wrapBatches = true, std::shared_ptr<void> lease = nullptr, size_t maxRows = 10000);
 
     /// Submits an arbitrary cancellable task for asynchronous execution (e.g., psql subprocess).
     /// The task function receives a cancellation flag that it should poll periodically.
-    [[nodiscard]] std::string submitTask(std::function<QueryResultVariant(const std::atomic<bool>& cancelled)> task);
+    [[nodiscard]] std::string submitTask(std::function<QueryResultVariant(const std::atomic<bool>& cancelled)> task, size_t maxRows = 10000);
 
     /// Gets the current status and result of a query
     [[nodiscard]] AsyncQueryResult getQueryResult(std::string_view queryId);
@@ -79,6 +80,7 @@ private:
     struct QueryTask {
         std::future<QueryResultVariant> future;
         std::optional<QueryResultVariant> cachedResult;  // Cache result after first get()
+        size_t maxRows = 10000;
         bool multipleResults = false;
         std::atomic<QueryStatus> status{QueryStatus::Pending};
         std::atomic<bool> cancelled{false};

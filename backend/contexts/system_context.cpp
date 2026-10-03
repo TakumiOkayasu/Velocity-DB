@@ -45,10 +45,12 @@ SystemContext::SystemContext() {
     // 同期/非同期の両クエリ経路で ResultCache を共有する (#511)。従来は非同期経路 (フロントエンドの
     // 主経路) がキャッシュに一切触れず、ヒット率が構造的にゼロだった
     auto sharedResultCache = std::make_shared<ResultCache>();
-    m_queries = std::make_unique<QueryProvider>(*m_connections, *m_queryHistory, sharedResultCache);
-    m_asyncQueries = std::make_unique<AsyncQueryProvider>(*m_connections, *m_queryHistory, std::move(sharedResultCache));
+    auto transactions = std::make_unique<TransactionProvider>(*m_connections, sharedResultCache);
+    auto* transactionPolicy = transactions.get();
+    m_transactions = std::move(transactions);
+    m_queries = std::make_unique<QueryProvider>(*m_connections, *m_queryHistory, sharedResultCache, transactionPolicy);
+    m_asyncQueries = std::make_unique<AsyncQueryProvider>(*m_connections, *m_queryHistory, std::move(sharedResultCache), transactionPolicy);
     m_schema = std::make_unique<SchemaProvider>(*m_connections);
-    m_transactions = std::make_unique<TransactionProvider>(*m_connections);
     m_exports = std::make_unique<ExportProvider>(*m_connections);
     m_search = std::make_unique<SearchProvider>(*m_connections);
     m_utility = std::make_unique<UtilityProvider>();

@@ -30,6 +30,8 @@ const SAMPLE_SETTINGS: AppSettings = {
     nullDisplay: '(null)',
   },
   query: {
+    autoCommit: true,
+    maxRows: 10000,
     timeoutSeconds: 30,
   },
 };

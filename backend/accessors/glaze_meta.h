@@ -60,7 +60,7 @@ struct glz::meta<velocitydb::WindowSettings> {
 template <>
 struct glz::meta<velocitydb::QuerySettings> {
     using T = velocitydb::QuerySettings;
-    static constexpr auto value = object("timeoutSeconds", &T::timeoutSeconds);
+    static constexpr auto value = object("timeoutSeconds", &T::timeoutSeconds, "autoCommit", &T::autoCommit, "maxRows", &T::maxRows);
 };
 
 template <>

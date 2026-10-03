@@ -62,9 +62,12 @@ export async function executeAsyncWithPolling(
   sql: string,
   signal?: AbortSignal,
   onQueryIdReady?: (queryId: string) => void,
-  timeoutMs?: number
+  timeoutMs?: number,
+  maxRows?: number
 ): Promise<AsyncPollResult> {
-  const { queryId } = await bridge.executeAsyncQuery(connectionId, sql);
+  const { queryId } = await (maxRows === undefined
+    ? bridge.executeAsyncQuery(connectionId, sql)
+    : bridge.executeAsyncQuery(connectionId, sql, maxRows));
   onQueryIdReady?.(queryId);
 
   // Reuse one abort/deadline handle across all iterations. The deadline must race the IPC call

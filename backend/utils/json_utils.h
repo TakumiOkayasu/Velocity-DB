@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../database/driver_interface.h"
+
 #include <string>
 #include <string_view>
 #include <vector>
@@ -26,7 +28,7 @@ public:
     /// @param result The query result to serialize
     /// @param cached Whether the result was from cache
     /// @return JSON string representation
-    [[nodiscard]] static std::string serializeResultSet(const ResultSet& result, bool cached);
+    [[nodiscard]] static std::string serializeResultSet(const ResultSet& result, bool cached, size_t maxRows = QUERY_ROW_LIMIT);
 
     /// Append column definitions as JSON array field: "columns":[...]
     static void appendColumns(std::string& json, const std::vector<ColumnInfo>& columns);
@@ -37,7 +39,7 @@ public:
     /// Append ResultSet columns/rows/affectedRows/executionTimeMs/truncated as JSON fields (no outer braces).
     /// Rows exceeding QUERY_ROW_LIMIT are truncated.
     /// Use when embedding ResultSet data into a larger JSON object.
-    static void appendResultSetFields(std::string& json, const ResultSet& result);
+    static void appendResultSetFields(std::string& json, const ResultSet& result, size_t maxRows = QUERY_ROW_LIMIT);
 
 private:
     static void appendEscapedString(std::string& json, std::string_view str);

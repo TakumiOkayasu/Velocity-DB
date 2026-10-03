@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../utils/json_utils.h"
+
 #include <functional>
 #include <span>
 #include <string>
@@ -32,7 +34,7 @@ public:
 
     /// 複数ステートメント実行結果を `{"multipleResults":true,"results":[...]}` 形式で整形.
     /// 各要素は `{"statement":<エスケープ済 SQL 1行目>,"data":<serializeResultSet>}`.
-    [[nodiscard]] static std::string buildMultipleResultsJson(std::span<const NamedResult> results);
+    [[nodiscard]] static std::string buildMultipleResultsJson(std::span<const NamedResult> results, size_t maxRows = JsonUtils::QUERY_ROW_LIMIT);
 
     /// SIMD フィルタ結果 (`matchingIndices`) のみを行として持つ JSON を構築.
     /// `totalRows` / `filteredRows` / `simdAvailable` を含む.

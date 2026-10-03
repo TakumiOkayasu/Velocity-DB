@@ -30,11 +30,11 @@ ResultSet QueryResultFormatter::buildUseStatementResult(std::string_view dbName)
     return rs;
 }
 
-std::string QueryResultFormatter::buildMultipleResultsJson(std::span<const NamedResult> results) {
+std::string QueryResultFormatter::buildMultipleResultsJson(std::span<const NamedResult> results, size_t maxRows) {
     size_t estimatedSize = 50;
     for (const auto& r : results) {
         estimatedSize += r.statement.size() + 50;
-        estimatedSize += std::min(r.result.get().rows.size(), JsonUtils::QUERY_ROW_LIMIT) * 64;
+        estimatedSize += std::min(r.result.get().rows.size(), maxRows) * 64;
     }
 
     std::string json;
@@ -46,7 +46,7 @@ std::string QueryResultFormatter::buildMultipleResultsJson(std::span<const Named
         json += R"({"statement":")";
         json += JsonUtils::escapeString(results[i].statement);
         json += R"(","data":)";
-        json += JsonUtils::serializeResultSet(results[i].result.get(), false);
+        json += JsonUtils::serializeResultSet(results[i].result.get(), false, maxRows);
         json += '}';
     }
     json += "]}";

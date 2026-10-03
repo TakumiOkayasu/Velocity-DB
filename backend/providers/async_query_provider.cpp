@@ -10,15 +10,17 @@
 #include "../parsers/split_utils.h"
 #include "../parsers/sql_parser.h"
 #include "../utils/json_utils.h"
+#include "query_options.h"
 #include "simdjson.h"
+#include "transaction_provider.h"
 
 #include <format>
 #include <optional>
 
 namespace velocitydb {
 
-AsyncQueryProvider::AsyncQueryProvider(IConnectionProvider& connections, QueryHistory& queryHistory, std::shared_ptr<ResultCache> resultCache)
-    : m_connections(connections), m_queryHistory(queryHistory), m_resultCache(std::move(resultCache)), m_asyncExecutor(std::make_unique<AsyncQueryExecutor>()) {}
+AsyncQueryProvider::AsyncQueryProvider(IConnectionProvider& connections, QueryHistory& queryHistory, std::shared_ptr<ResultCache> resultCache, TransactionProvider* transactions)
+    : m_transactions(transactions), m_connections(connections), m_queryHistory(queryHistory), m_resultCache(std::move(resultCache)), m_asyncExecutor(std::make_unique<AsyncQueryExecutor>()) {}
 
 AsyncQueryProvider::~AsyncQueryProvider() = default;
 
@@ -40,6 +42,12 @@ std::string AsyncQueryProvider::executeAsyncQuery(std::string_view params) {
             return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
         }
 
+        const auto options = parseQueryOptions(doc.value());
+        if (!options.autoCommit && !m_transactions)
+            return JsonUtils::errorResponse("Manual transactions unavailable");
+        auto lease = m_transactions ? m_transactions->prepareQuery(connectionId, sqlQuery, options.autoCommit) : nullptr;
+        const bool manual = !options.autoCommit;
+
         // Delegate entire SQL to psql for COPY FROM stdin (libpq can't handle pg_dump format)
         auto driverType = m_connections.getDriverType(connectionId);
         std::string queryId;
@@ -53,12 +61,13 @@ std::string AsyncQueryProvider::executeAsyncQuery(std::string_view params) {
                 m_resultCache->invalidatePrefix(makeConnectionCachePrefix(connectionId));
             }
             auto connInfo = toPsqlConnectionInfo(*connParams);
-            queryId = m_asyncExecutor->submitTask([connInfo = std::move(connInfo), sqlCopy = std::string(sqlQuery)](const std::atomic<bool>& cancelled) -> QueryResultVariant {
-                auto result = executePsql(connInfo, sqlCopy, cancelled);
-                if (!result)
-                    throw std::runtime_error(result.error());
-                return *result;
-            });
+            queryId =
+                m_asyncExecutor->submitTask([connInfo = std::move(connInfo), sqlCopy = std::string(sqlQuery), lease = std::move(lease)](const std::atomic<bool>& cancelled) -> QueryResultVariant {
+                    auto result = executePsql(connInfo, sqlCopy, cancelled);
+                    if (!result)
+                        throw std::runtime_error(result.error());
+                    return *result;
+                });
         }
 
         // 単文の読み取り専用クエリは QueryProvider と共有の ResultCache を利用する (#511)。
@@ -66,7 +75,7 @@ std::string AsyncQueryProvider::executeAsyncQuery(std::string_view params) {
         // ポーリング契約 (getAsyncQueryResult) をそのまま満たす。
         std::string cacheKey;
         bool fromCache = false;
-        if (queryId.empty() && m_resultCache) {
+        if (queryId.empty() && m_resultCache && !manual) {
             auto statements = splitStatementsForDriver(sqlQuery, driverType);
             if (statements.size() == 1 && SQLParser::isReadOnlyQuery(sqlQuery)) {
                 cacheKey = makeConnectionCachePrefix(connectionId);
@@ -75,7 +84,7 @@ std::string AsyncQueryProvider::executeAsyncQuery(std::string_view params) {
                 if (cached.has_value()) {
                     fromCache = true;
                     cacheKey.clear();  // ヒット結果を再 put しない
-                    queryId = m_asyncExecutor->submitTask([rs = std::move(*cached)](const std::atomic<bool>&) -> QueryResultVariant { return rs; });
+                    queryId = m_asyncExecutor->submitTask([rs = std::move(*cached)](const std::atomic<bool>&) -> QueryResultVariant { return rs; }, options.maxRows);
                 }
             } else {
                 // 書き込みの可能性がある (複文 or 非 SELECT) ため安全側で接続単位無効化 (#511)
@@ -84,7 +93,7 @@ std::string AsyncQueryProvider::executeAsyncQuery(std::string_view params) {
         }
 
         if (queryId.empty())
-            queryId = m_asyncExecutor->submitQuery(driver, sqlQuery);
+            queryId = m_asyncExecutor->submitQuery(driver, sqlQuery, !manual, std::move(lease), options.maxRows);
 
         m_queryMeta[queryId] = {.connectionId = std::string(connectionId), .sql = truncateHistorySql(sqlQuery), .cacheKey = std::move(cacheKey), .skipHistory = fromCache};
         return JsonUtils::successResponse(std::format(R"({{"queryId":"{}"}})", queryId));
@@ -143,13 +152,13 @@ std::string AsyncQueryProvider::getAsyncQueryResult(std::string_view params) {
                 jsonResponse += R"({"statement":")";
                 jsonResponse += JsonUtils::escapeString(stmtResult.statement);
                 jsonResponse += R"(","data":)";
-                jsonResponse += JsonUtils::serializeResultSet(stmtResult.result, false);
+                jsonResponse += JsonUtils::serializeResultSet(stmtResult.result, false, asyncResult.maxRows);
                 jsonResponse += "}";
             }
             jsonResponse += "]";
         } else if (asyncResult.result.has_value()) {
             jsonResponse += ',';
-            JsonUtils::appendResultSetFields(jsonResponse, *asyncResult.result);
+            JsonUtils::appendResultSetFields(jsonResponse, *asyncResult.result, asyncResult.maxRows);
         }
 
         // Record history on completion/failure; erase meta on any terminal status to prevent leaks

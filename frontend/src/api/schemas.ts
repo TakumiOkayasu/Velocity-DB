@@ -68,6 +68,7 @@ export const getColumns = z.array(
 export const getAllColumns = z.array(z.tuple([z.string(), z.string(), getColumns]));
 
 // --- Transaction ---
+export const getTransactionState = z.object({ active: z.boolean(), busy: z.boolean() });
 export const beginTransaction = zVoidResponse;
 export const commit = zVoidResponse;
 export const rollback = zVoidResponse;
@@ -220,6 +221,8 @@ const gridSettingsSchema = z.object({
   nullDisplay: z.string(),
 });
 const querySettingsSchema = z.object({
+  autoCommit: z.boolean().default(true),
+  maxRows: z.number().default(10000),
   timeoutSeconds: z.number(),
 });
 export const getSettings = z.object({

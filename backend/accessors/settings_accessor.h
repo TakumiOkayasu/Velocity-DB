@@ -78,6 +78,8 @@ inline constexpr int kQueryTimeoutDefaultSec = 300;
 
 struct QuerySettings {
     int timeoutSeconds = kQueryTimeoutDefaultSec;
+    bool autoCommit = true;
+    int maxRows = 10000;
 };
 
 struct WindowSettings {

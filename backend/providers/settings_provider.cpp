@@ -199,6 +199,8 @@ std::string SettingsProvider::updateSettings(std::string_view params) {
         if (auto general = doc["general"]; !general.error()) {
             if (auto val = general["autoConnect"].get_bool(); !val.error())
                 settings.general.autoConnect = val.value();
+            if (auto val = general["lastConnectionId"].get_string(); !val.error())
+                settings.general.lastConnectionId = std::string(val.value());
             if (auto val = general["confirmOnExit"].get_bool(); !val.error())
                 settings.general.confirmOnExit = val.value();
             if (auto val = general["maxQueryHistory"].get_int64(); !val.error())
@@ -230,6 +232,10 @@ std::string SettingsProvider::updateSettings(std::string_view params) {
         }
 
         if (auto query = doc["query"]; !query.error()) {
+            if (auto val = query["autoCommit"].get_bool(); !val.error())
+                settings.query.autoCommit = val.value();
+            if (auto val = query["maxRows"].get_int64(); !val.error())
+                settings.query.maxRows = std::clamp(narrowToInt(val.value()), 100, 1000000);
             if (auto val = query["timeoutSeconds"].get_int64(); !val.error())
                 settings.query.timeoutSeconds = std::clamp(narrowToInt(val.value()), kQueryTimeoutMinSec, kQueryTimeoutMaxSec);
         }

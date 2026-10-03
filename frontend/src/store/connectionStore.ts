@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import { connectionProvider, schemaProvider } from '../api/providers';
+import { appSettingsProvider, connectionProvider, schemaProvider } from '../api/providers';
 import type { Connection } from '../types';
 import type { ConnectionResult } from '../connections/ConnectionPreparation';
 import { log } from '../utils/logger';
@@ -131,6 +131,13 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         .then(() => schemaProvider.getTables(result.connectionId, ''))
         .catch(() => {});
 
+      try {
+        await appSettingsProvider.updateSettings({
+          general: { lastConnectionId: connection.profileId ?? '' },
+        });
+      } catch {
+        log.error('[Connection] Failed to persist the last saved profile');
+      }
       log.info('[Connection] stage=frontend-result outcome=connected');
       return {
         status: 'connected',

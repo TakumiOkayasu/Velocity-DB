@@ -16,8 +16,10 @@
 #include "../utils/logger.h"
 #include "../utils/sql_validation.h"
 #include "../utils/string_utils.h"
+#include "query_options.h"
 #include "query_result_formatter.h"
 #include "simdjson.h"
+#include "transaction_provider.h"
 
 #include <algorithm>
 #include <chrono>
@@ -43,8 +45,8 @@ template <typename T>
 
 }  // namespace
 
-QueryProvider::QueryProvider(IConnectionProvider& connections, QueryHistory& queryHistory, std::shared_ptr<ResultCache> resultCache)
-    : m_connections(connections), m_resultCache(resultCache ? std::move(resultCache) : std::make_shared<ResultCache>()), m_queryHistory(queryHistory) {}
+QueryProvider::QueryProvider(IConnectionProvider& connections, QueryHistory& queryHistory, std::shared_ptr<ResultCache> resultCache, TransactionProvider* transactions)
+    : m_transactions(transactions), m_connections(connections), m_resultCache(resultCache ? std::move(resultCache) : std::make_shared<ResultCache>()), m_queryHistory(queryHistory) {}
 
 QueryProvider::~QueryProvider() = default;
 
@@ -80,6 +82,12 @@ std::string QueryProvider::executeQuery(std::string_view params) {
             return JsonUtils::errorResponse(std::format("Connection not found: {}", connectionId));
         }
 
+        const auto options = parseQueryOptions(doc.value());
+        if (!options.autoCommit && !m_transactions)
+            return JsonUtils::errorResponse("Manual transactions unavailable");
+        auto lease = m_transactions ? m_transactions->prepareQuery(connectionId, sqlQuery, options.autoCommit) : nullptr;
+        const bool manual = !options.autoCommit;
+
         // Delegate entire SQL to psql for COPY FROM stdin (libpq can't handle pg_dump format)
         auto driverType = m_connections.getDriverType(connectionId);
         if (driverType == DriverType::PostgreSQL && containsCopyFromStdin(sqlQuery)) {
@@ -108,7 +116,7 @@ std::string QueryProvider::executeQuery(std::string_view params) {
                 ResultSet result;
             };
             std::vector<StatementResult> allResults;
-            auto wrapTransaction = std::ranges::none_of(statements, &SQLParser::isTransactionControl);
+            auto wrapTransaction = !manual && std::ranges::none_of(statements, &SQLParser::isTransactionControl);
 
             size_t stmtIdx = 0;
             try {
@@ -149,7 +157,7 @@ std::string QueryProvider::executeQuery(std::string_view params) {
                 namedResults.reserve(allResults.size());
                 for (const auto& r : allResults)
                     namedResults.push_back({.statement = r.statement, .result = std::cref(r.result)});
-                return JsonUtils::successResponse(QueryResultFormatter::buildMultipleResultsJson(namedResults));
+                return JsonUtils::successResponse(QueryResultFormatter::buildMultipleResultsJson(namedResults, options.maxRows));
             } catch (const std::exception& e) {
                 if (wrapTransaction)
                     try {
@@ -191,17 +199,17 @@ std::string QueryProvider::executeQuery(std::string_view params) {
         cacheKey.push_back('\0');
         cacheKey.append(cacheSql);
         bool selectQuery = SQLParser::isReadOnlyQuery(sqlQuery);
-        if (useCache && selectQuery) {
-            if (auto cachedJson = m_resultCache->getAndApply(cacheKey, [](const ResultSet& rs) { return JsonUtils::serializeResultSet(rs, true); }); !cachedJson.empty()) {
+        if (useCache && selectQuery && !manual) {
+            if (auto cachedJson = m_resultCache->getAndApply(cacheKey, [&](const ResultSet& rs) { return JsonUtils::serializeResultSet(rs, true, options.maxRows); }); !cachedJson.empty()) {
                 return JsonUtils::successResponse(cachedJson);
             }
         }
 
         auto queryResult = driver->execute(sqlQuery);
 
-        std::string jsonResponse = JsonUtils::serializeResultSet(queryResult, false);
+        std::string jsonResponse = JsonUtils::serializeResultSet(queryResult, false, options.maxRows);
 
-        if (useCache && selectQuery) {
+        if (useCache && selectQuery && !manual) {
             auto execTimeMs = queryResult.executionTimeMs;
             auto affectedRows = queryResult.affectedRows;
             m_resultCache->put(cacheKey, std::move(queryResult));
@@ -276,7 +284,9 @@ std::string QueryProvider::executeQueryPaginated(std::string_view params) {
 
         // グリッドのスクロール往復で同一ページを再取得するため、読み取り専用クエリはページ単位で
         // キャッシュする。DML/USE 時は接続プレフィックスごと無効化される (#511)
-        bool cacheable = SQLParser::isReadOnlyQuery(sqlQuery);
+        const bool manual = m_transactions && m_transactions->isInTransaction(connectionId);
+        auto lease = m_transactions ? m_transactions->prepareQuery(connectionId, sqlQuery, !manual) : nullptr;
+        bool cacheable = SQLParser::isReadOnlyQuery(sqlQuery) && !manual;
         std::string cacheKey;
         if (cacheable) {
             cacheKey = makeConnectionCachePrefix(connectionId);
@@ -324,7 +334,9 @@ std::string QueryProvider::getRowCount(std::string_view params) {
         auto countQuery = formatter->rowCountQuery(sqlQuery);
 
         // COUNT はグリッド初期化毎に呼ばれるためキャッシュする (DML/USE で接続単位無効化) (#511)
-        bool cacheable = SQLParser::isReadOnlyQuery(sqlQuery);
+        const bool manual = m_transactions && m_transactions->isInTransaction(connectionId);
+        auto lease = m_transactions ? m_transactions->prepareQuery(connectionId, sqlQuery, !manual) : nullptr;
+        bool cacheable = SQLParser::isReadOnlyQuery(sqlQuery) && !manual;
         std::string cacheKey;
         if (cacheable) {
             cacheKey = makeConnectionCachePrefix(connectionId);
