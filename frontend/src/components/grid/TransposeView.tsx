@@ -5,6 +5,7 @@ import { BooleanCell, isBooleanType } from './BooleanCell';
 import styles from './TransposeView.module.css';
 
 interface TransposeViewProps {
+  nullDisplay?: string;
   columns: ColumnMeta[];
   rowData: RowData[];
   currentRowIndex: number;
@@ -13,6 +14,7 @@ interface TransposeViewProps {
 }
 
 function TransposeViewInner({
+  nullDisplay = 'NULL',
   columns,
   rowData,
   currentRowIndex,
@@ -116,9 +118,9 @@ function TransposeViewInner({
                       .join(' ')}
                   >
                     {isBooleanType(col.type) ? (
-                      <BooleanCell value={value} label={col.name} />
+                      <BooleanCell value={value} label={col.name} nullDisplay={nullDisplay} />
                     ) : isNull ? (
-                      'NULL'
+                      nullDisplay
                     ) : (
                       value
                     )}

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import '../helpers/mockSettingsUtils';
+import { getSettings, defaultSettings } from '../../utils/settingsUtils';
 import { PAGE_SIZE } from '../../store/query/helpers/fetchTable';
 import { useQueryStore } from '../../store/queryStore';
 
@@ -439,4 +440,57 @@ describe('Query execute pagination', () => {
     await executeQuery(queryId, 'conn_1');
     expect(useQueryStore.getState().paginationStates[queryId]).toBeUndefined();
   });
+});
+
+it('uses saved page size for SQL, trimming, pagination and refresh without skipping rows', async () => {
+  vi.mocked(getSettings).mockReturnValue({
+    ...defaultSettings,
+    grid: { ...defaultSettings.grid, defaultPageSize: 10 },
+  });
+  useQueryStore.setState({ queries: [], queriesById: {}, paginationStates: {}, results: {} });
+  mockTruncatedDataView(25);
+  mockedBridge.getAsyncQueryResult.mockResolvedValue({
+    queryId: 'a',
+    status: 'completed',
+    columns: [{ name: 'id', type: 'int' }],
+    rows: Array.from({ length: 11 }, (_, i) => [String(i)]),
+    affectedRows: 0,
+    executionTimeMs: 1,
+  });
+  await useQueryStore.getState().openTableData('conn_1', 'dbo.Users');
+  const id = useQueryStore.getState().queries[0].id;
+  expect(mockedQueryProvider.buildDataViewSql).toHaveBeenLastCalledWith(
+    'conn_1',
+    'dbo.Users',
+    11,
+    undefined
+  );
+  expect(useQueryStore.getState().paginationStates[id].loadedRowCount).toBe(10);
+  expect(useQueryStore.getState().paginationStates[id].pageSize).toBe(10);
+  vi.mocked(getSettings).mockReturnValue({
+    ...defaultSettings,
+    grid: { ...defaultSettings.grid, defaultPageSize: 20 },
+  });
+  mockedBridge.executeQueryPaginated.mockResolvedValue({
+    columns: [],
+    rows: Array.from({ length: 10 }, (_, i) => [String(i + 10)]),
+    affectedRows: 0,
+    executionTimeMs: 1,
+  });
+  await useQueryStore.getState().fetchMoreRows(id);
+  expect(mockedBridge.executeQueryPaginated).toHaveBeenLastCalledWith(
+    'conn_1',
+    'SELECT * FROM [dbo.Users]',
+    10,
+    20,
+    undefined
+  );
+  await useQueryStore.getState().refreshDataView(id, 'conn_1');
+  expect(mockedQueryProvider.buildDataViewSql).toHaveBeenLastCalledWith(
+    'conn_1',
+    'dbo.Users',
+    21,
+    undefined
+  );
+  vi.mocked(getSettings).mockReturnValue(defaultSettings);
 });

@@ -48,7 +48,7 @@ function GridToolbarInner({
   onChangeViewMode,
 }: GridToolbarProps) {
   const isTableMode = viewMode === 'table';
-  const editDisabled = !isTableMode;
+  const editDisabled = !isTableMode || isApplying;
   return (
     <div className={styles.toolbar}>
       {/* Group 1: Data operations */}
@@ -56,6 +56,7 @@ function GridToolbarInner({
         <button
           type="button"
           onClick={onRefresh}
+          disabled={isApplying}
           className={styles.iconButton}
           title="データを再取得 (F5)"
         >

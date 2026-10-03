@@ -116,7 +116,7 @@ describe('SettingsDialog', () => {
         const history = screen.getByLabelText('クエリ履歴の最大保存件数') as HTMLInputElement;
         expect(history.value).toBe('250');
       });
-      const language = screen.getByLabelText('言語') as HTMLSelectElement;
+      const language = screen.getByLabelText('言語 (切替未対応)') as HTMLSelectElement;
       expect(language.value).toBe('ja');
 
       fireEvent.click(screen.getByText('エディタ'));
@@ -125,9 +125,13 @@ describe('SettingsDialog', () => {
       expect((screen.getByLabelText('タブサイズ') as HTMLSelectElement).value).toBe('2');
 
       fireEvent.click(screen.getByText('グリッド'));
-      expect((screen.getByLabelText('デフォルトページサイズ (行)') as HTMLInputElement).value).toBe(
-        '500'
-      );
+      expect(
+        (
+          screen.getByLabelText(
+            'デフォルトページサイズ (新規表示・再取得時の行数)'
+          ) as HTMLInputElement
+        ).value
+      ).toBe('500');
       expect((screen.getByLabelText('NULLの表示文字列') as HTMLInputElement).value).toBe('<null>');
 
       fireEvent.click(screen.getByText('クエリ'));
@@ -169,7 +173,9 @@ describe('SettingsDialog', () => {
       );
       render(<SettingsDialog {...defaultProps} />);
 
-      fireEvent.change(screen.getByLabelText('言語'), { target: { value: 'ja' } });
+      fireEvent.change(screen.getByLabelText('クエリ履歴の最大保存件数'), {
+        target: { value: '600' },
+      });
       const loadResolver = resolveLoad;
       if (!loadResolver) throw new Error('getSettings resolver was not initialized');
       await act(async () => {
@@ -179,7 +185,9 @@ describe('SettingsDialog', () => {
         });
       });
 
-      expect((screen.getByLabelText('言語') as HTMLSelectElement).value).toBe('ja');
+      expect((screen.getByLabelText('クエリ履歴の最大保存件数') as HTMLInputElement).value).toBe(
+        '600'
+      );
     });
   });
 
@@ -189,7 +197,9 @@ describe('SettingsDialog', () => {
       window.addEventListener('settings-changed', listener);
       try {
         render(<SettingsDialog {...defaultProps} />);
-        fireEvent.change(screen.getByLabelText('言語'), { target: { value: 'ja' } });
+        fireEvent.change(screen.getByLabelText('クエリ履歴の最大保存件数'), {
+          target: { value: '600' },
+        });
         fireEvent.click(screen.getByText('キャンセル'));
 
         expect(defaultProps.onClose).toHaveBeenCalledOnce();
@@ -218,8 +228,9 @@ describe('SettingsDialog', () => {
     it('変更した一般/グリッド項目が payload に反映される', () => {
       render(<SettingsDialog {...defaultProps} />);
 
-      const language = screen.getByLabelText('言語') as HTMLSelectElement;
-      fireEvent.change(language, { target: { value: 'ja' } });
+      fireEvent.change(screen.getByLabelText('クエリ履歴の最大保存件数'), {
+        target: { value: '600' },
+      });
 
       fireEvent.click(screen.getByText('グリッド'));
       fireEvent.change(screen.getByLabelText('NULLの表示文字列'), {
@@ -229,7 +240,7 @@ describe('SettingsDialog', () => {
       fireEvent.click(screen.getByText('保存'));
       expect(appSettingsProvider.updateSettings).toHaveBeenCalledWith(
         expect.objectContaining({
-          general: expect.objectContaining({ language: 'ja' }),
+          general: expect.objectContaining({ maxQueryHistory: 600 }),
           grid: expect.objectContaining({ nullDisplay: 'NULL' }),
         })
       );
@@ -291,7 +302,7 @@ describe('SettingsDialog', () => {
       fireEvent.click(screen.getByText('保存'));
       const savingButton = screen.getByText('保存中...');
       expect(savingButton).toBeDisabled();
-      expect(screen.getByLabelText('言語')).toBeDisabled();
+      expect(screen.getByLabelText('クエリ履歴の最大保存件数')).toBeDisabled();
       fireEvent.keyDown(window, { key: 'Escape' });
       expect(defaultProps.onClose).not.toHaveBeenCalled();
       fireEvent.click(savingButton);
@@ -354,4 +365,16 @@ describe('SettingsDialog', () => {
       );
     });
   });
+});
+
+it('shows unsupported settings as disabled instead of pretending to apply them', async () => {
+  render(<SettingsDialog isOpen onClose={() => {}} />);
+  expect(screen.getByLabelText('起動時に前回の接続を復元 (未対応)')).toBeDisabled();
+  expect(screen.getByLabelText('終了時に確認する (未対応)')).toBeDisabled();
+  expect(screen.getByLabelText('言語 (切替未対応)')).toBeDisabled();
+  fireEvent.click(screen.getByText('クエリ'));
+  expect(screen.getByLabelText('自動コミット (未対応)')).toBeDisabled();
+  expect(screen.getByLabelText('最大行数 (未対応)')).toBeDisabled();
+  fireEvent.click(screen.getByText('外観'));
+  expect(screen.getByLabelText('テーマ (切替未対応)')).toBeDisabled();
 });

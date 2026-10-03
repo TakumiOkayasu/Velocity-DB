@@ -138,6 +138,11 @@ export const useEditStore = create<EditState>((set, get) => ({
       };
     }
 
+    // Re-editing a pending cell must keep the first value for WHERE and revert.
+    const previous = rowChange.changes[columnName];
+    if (previous) originalValue = previous.originalValue;
+    rowChange = { ...rowChange, changes: { ...rowChange.changes } };
+
     // If reverting to original value, remove the change
     if (originalValue === newValue) {
       delete rowChange.changes[columnName];

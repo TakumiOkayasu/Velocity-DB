@@ -27,6 +27,8 @@ vi.mock('../../store/editStore', () => ({
     clearTableContext: vi.fn(),
     primaryKeyColumns: [],
     pendingChanges: new Map(),
+    deletedRows: new Map(),
+    validationErrors: new Map(),
     setValidationErrors: vi.fn(),
     getValidationError: () => null,
     hasValidationErrors: () => false,
@@ -128,7 +130,7 @@ describe('useGridEdit', () => {
   });
 
   describe('read-only guard', () => {
-    it('isReadOnly=true で buildPreview がブロック+エラーメッセージ', async () => {
+    it('isReadOnly=true で applyChanges がブロック+エラーメッセージ', async () => {
       const { result } = renderHook(() =>
         useGridEdit({
           ...baseOptions,
@@ -139,7 +141,7 @@ describe('useGridEdit', () => {
       );
 
       await act(async () => {
-        await result.current.buildPreview();
+        await result.current.applyChanges();
       });
 
       expect(result.current.applyError).toBe('読み取り専用モードのため変更を適用できません');

@@ -134,8 +134,46 @@ export function getSettings(): AppSettings {
   const saved = localStorage.getItem('app-settings');
   if (!saved) return defaultSettings;
   try {
-    return migrate(JSON.parse(saved));
+    return normalizeSettings(migrate(JSON.parse(saved)));
   } catch {
     return defaultSettings;
   }
+}
+
+function bounded(value: number, min: number, max: number, fallback: number): number {
+  return Number.isFinite(value) ? Math.min(max, Math.max(min, Math.round(value))) : fallback;
+}
+
+export function normalizeSettings(settings: AppSettings): AppSettings {
+  return {
+    ...settings,
+    general: {
+      ...settings.general,
+      maxQueryHistory: bounded(
+        settings.general.maxQueryHistory,
+        MAX_QUERY_HISTORY_MIN,
+        MAX_QUERY_HISTORY_MAX,
+        defaultSettings.general.maxQueryHistory
+      ),
+    },
+    editor: { ...settings.editor, fontSize: bounded(settings.editor.fontSize, 8, 32, 14) },
+    grid: {
+      ...settings.grid,
+      defaultPageSize: bounded(
+        settings.grid.defaultPageSize,
+        PAGE_SIZE_MIN,
+        PAGE_SIZE_MAX,
+        defaultSettings.grid.defaultPageSize
+      ),
+    },
+    query: {
+      ...settings.query,
+      timeout: bounded(
+        settings.query.timeout,
+        QUERY_TIMEOUT_MIN_SEC * 1000,
+        QUERY_TIMEOUT_MAX_SEC * 1000,
+        QUERY_TIMEOUT_DEFAULT_SEC * 1000
+      ),
+    },
+  };
 }

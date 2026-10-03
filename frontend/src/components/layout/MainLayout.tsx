@@ -431,6 +431,7 @@ export function MainLayout() {
             title="設定 (Ctrl+,)"
           >
             <ToolbarIcons.Settings />
+            <span>設定</span>
           </button>
         </div>
       </header>

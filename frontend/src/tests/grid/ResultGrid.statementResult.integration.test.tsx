@@ -111,7 +111,7 @@ vi.mock('../../components/grid/hooks/useGridEdit', () => ({
     deleteRow: vi.fn(),
     cloneRow: vi.fn(),
     insertRow: vi.fn(),
-    buildPreview: vi.fn(),
+    applyChanges: vi.fn(),
     executePreview: vi.fn(),
     dismissPreview: vi.fn(),
   }),

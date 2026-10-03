@@ -8,7 +8,7 @@
 // パラメタ chain のズレ (callback 参照入れ替え / prop 忘れ) は Harness 再現では
 // 検出できないため、実 ResultGrid を mount して props 伝達を直接 capture する。
 
-import { cleanup, fireEvent, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
 // ===== hoisted spy 群 (vi.mock factory から参照するため) =====
@@ -157,7 +157,7 @@ vi.mock('../../components/grid/hooks/useGridEdit', () => ({
     deleteRow: () => {},
     cloneRow: () => {},
     insertRow: () => {},
-    buildPreview: () => {},
+    applyChanges: () => {},
     executePreview: () => {},
     dismissPreview: () => {},
   }),
@@ -270,6 +270,7 @@ describe('ResultGrid パラメタ chain (候補 a-d 一括検証)', () => {
         whereClause: '',
       },
     };
+    localStorage.clear();
     resetSpies();
   });
 
@@ -286,7 +287,7 @@ describe('ResultGrid パラメタ chain (候補 a-d 一括検証)', () => {
 
     expect(args).not.toBeNull();
     expect(args?.resultSet).toBe(resultSetFixture);
-    expect(args?.columns.map((c) => c.id)).toEqual(['id', 'name']);
+    expect(args?.columns.map((c) => c.id)).toEqual(['__rowIndex', 'id', 'name']);
     expect(args?.rowData).toHaveLength(2);
     expect(args?.rowData[0].id).toBe('1');
     expect(args?.rowData[0].name).toBe('alice');
@@ -349,5 +350,19 @@ describe('ResultGrid パラメタ chain (候補 a-d 一括検証)', () => {
     rerender(<ResultGrid queryId="q1" />);
     const second = (spies.autoSizeArgs.current as { resultSet: unknown }).resultSet;
     expect(second).toBe(first);
+  });
+  it('updates row numbers and NULL display when settings are saved', () => {
+    render(<ResultGrid queryId="q1" />);
+    expect(spies.gridTableProps.current?.nullDisplay).toBe('(NULL)');
+    act(() => {
+      localStorage.setItem(
+        'app-settings',
+        JSON.stringify({ grid: { showRowNumbers: false, nullDisplay: '<empty>' } })
+      );
+      window.dispatchEvent(new CustomEvent('settings-changed'));
+    });
+    expect(spies.gridTableProps.current?.nullDisplay).toBe('<empty>');
+    const args = spies.autoSizeArgs.current as { columns: { id: string }[] };
+    expect(args.columns.map((c) => c.id)).toEqual(['id', 'name']);
   });
 });
