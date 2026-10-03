@@ -17,7 +17,10 @@ import type { QueryState } from './types';
 // 個別 provider を Bridgeable 契約に束ねる薄いアダプタ。
 // 各 slice は narrow な Bridgeable interface に依存し、合成は queryStore (= 上位レイヤ) で行う。
 const queryBridge: QueryBridgeable & ColumnBridgeable & PaginatedBridgeable = {
-  executeAsyncQuery: (connectionId, sql) => queryProvider.executeAsyncQuery(connectionId, sql),
+  executeAsyncQuery: (connectionId, sql, maxRows) =>
+    maxRows === undefined
+      ? queryProvider.executeAsyncQuery(connectionId, sql)
+      : queryProvider.executeAsyncQuery(connectionId, sql, maxRows),
   getAsyncQueryResult: (queryId) => queryProvider.getAsyncQueryResult(queryId),
   cancelAsyncQuery: (queryId) => queryProvider.cancelAsyncQuery(queryId),
   removeAsyncQuery: (queryId) => queryProvider.removeAsyncQuery(queryId),

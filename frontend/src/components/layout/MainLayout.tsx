@@ -19,6 +19,7 @@ import { checkQueryExecutability } from '../../utils/queryExecutionCheck';
 import { QueryConfirmDialog } from '../dialogs/QueryConfirmDialog';
 import { ToolbarIcons } from '../icons/SvgIcons';
 import { CenterPanel } from './CenterPanel';
+import { TransactionControls } from './TransactionControls';
 import styles from './MainLayout.module.css';
 import { resolveNewQueryConnectionId } from './newQueryConnection';
 
@@ -77,6 +78,7 @@ export function MainLayout() {
   const connections = useConnections();
   const { addConnection, cancelConnection } = useConnectionActions();
   const isConnecting = useConnectionStore((s) => s.isConnecting);
+  const selectedConnectionId = useConnectionStore((s) => s.activeConnectionId);
 
   const activeQueryId = useQueryStore((s) => s.activeQueryId);
   const {
@@ -372,6 +374,8 @@ export function MainLayout() {
             <ToolbarIcons.Format />
           </button>
         </div>
+
+        <TransactionControls connectionId={activeQueryConnectionId ?? selectedConnectionId} />
 
         {/* Spacer */}
         <div className={styles.toolbarSpacer} />

@@ -28,9 +28,8 @@ void TransactionManager::begin() {
         throw std::runtime_error("Transaction already active");
     }
 
-    // BEGIN TRANSACTION is unambiguous on both SQL Server and PostgreSQL
-    // (plain BEGIN is a block statement in SQL Server batch context)
-    [[maybe_unused]] auto result = m_driver->execute("BEGIN TRANSACTION");
+    // Use the driver-specific transaction opener (SQL Server BEGIN is a block).
+    [[maybe_unused]] auto result = m_driver->execute(beginTransactionSQL(m_driver->getType()));
     if (!m_driver->getLastError().empty()) [[unlikely]] {
         throw std::runtime_error(std::string(m_driver->getLastError()));
     }

@@ -13,7 +13,6 @@ import { useConnectionStore } from '../../connectionStore';
 import { useToastStore } from '../../toastStore';
 import { executeAsyncWithPolling, toQueryResult } from '../helpers/asyncPolling';
 import { endExecution, failExecution, startExecution } from '../helpers/executionState';
-import { fetchAndUpdateRowCount } from '../helpers/paginationHelper';
 import type { AbortRegistrable } from '../interfaces/AbortRegistrable';
 import type { Executable } from '../interfaces/Executable';
 import type { PaginatedBridgeable } from '../interfaces/PaginatedBridgeable';
@@ -23,14 +22,6 @@ import type { GetState, SetState } from '../types';
 interface ExecuteSliceDeps {
   bridge: QueryBridgeable & PaginatedBridgeable;
   abort: AbortRegistrable;
-}
-
-function hasExplicitLimit(sql: string): boolean {
-  return (
-    /\bTOP\s+\d+\b/i.test(sql) ||
-    /\bLIMIT\s+\d+\b/i.test(sql) ||
-    /\bFETCH\s+(?:FIRST|NEXT)\s+\d+/i.test(sql)
-  );
 }
 
 const STALE_CONNECTION_PATTERN = /Connection not found|is no longer active/i;
@@ -155,16 +146,8 @@ export function createExecuteSlice(
         const sqls = await rewriteWithFkHandling(connectionId, sql);
         if (sqls.length > 1) {
           const hasTransaction = sqls[0] === SQL_BEGIN_TRANSACTION;
-          try {
-            for (const s of sqls) {
-              await queryProvider.executeQuery(connectionId, s, false);
-            }
-          } catch (error) {
-            if (hasTransaction) {
-              await queryProvider.executeQuery(connectionId, 'ROLLBACK', false).catch(() => {});
-            }
-            throw error;
-          }
+          const statements = hasTransaction ? sqls.slice(1, -1) : sqls;
+          await queryProvider.executeQuery(connectionId, statements.join('\n'), false);
           set((state) => ({
             ...endExecution(state, id),
             results: {
@@ -191,7 +174,8 @@ export function createExecuteSlice(
         (queryId) => {
           activeQueryIds.set(id, queryId);
         },
-        timeoutMs
+        timeoutMs,
+        getSettings().query.maxRows
       );
 
       const queryResult = toQueryResult(result);
@@ -200,29 +184,6 @@ export function createExecuteSlice(
         ...endExecution(state, id),
         results: { ...state.results, [id]: queryResult },
       }));
-
-      if (
-        !result.multipleResults &&
-        result.truncated &&
-        !hasExplicitLimit(sql) &&
-        'rows' in queryResult
-      ) {
-        set((state) => ({
-          paginationStates: {
-            ...state.paginationStates,
-            [id]: {
-              totalRowCount: -1,
-              loadedRowCount: queryResult.rows.length,
-              isLoadingMore: false,
-              hasMore: true,
-              baseSql: sql,
-              connectionId,
-            },
-          },
-        }));
-
-        fetchAndUpdateRowCount(set, bridge, id, sql, connectionId);
-      }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         set((state) => endExecution(state, id));

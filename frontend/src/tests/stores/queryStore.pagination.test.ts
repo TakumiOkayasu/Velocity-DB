@@ -339,7 +339,7 @@ describe('Query execute pagination', () => {
 
   afterEach(() => vi.clearAllMocks());
 
-  it('truncated結果でpaginationStatesを初期化する', async () => {
+  it('任意SQLの行数上限を追加取得で迂回しない', async () => {
     const { addQuery, updateQuery, executeQuery } = useQueryStore.getState();
     addQuery('conn_1');
     const queryId = useQueryStore.getState().queries[0].id;
@@ -361,9 +361,13 @@ describe('Query execute pagination', () => {
     await executeQuery(queryId, 'conn_1');
 
     const pag = useQueryStore.getState().paginationStates[queryId];
-    expect(pag).toBeDefined();
-    expect(pag.hasMore).toBe(true);
-    expect(pag.baseSql).toBe('SELECT * FROM big_table');
+    expect(pag).toBeUndefined();
+    expect(mockedBridge.executeAsyncQuery).toHaveBeenCalledWith(
+      'conn_1',
+      'SELECT * FROM big_table',
+      10000
+    );
+    expect(mockedBridge.getRowCount).not.toHaveBeenCalled();
   });
 
   it('hasExplicitLimit: TOP付きSQLではpagination無効', async () => {

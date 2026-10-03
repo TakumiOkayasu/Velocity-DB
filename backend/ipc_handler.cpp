@@ -74,6 +74,7 @@ void IPCHandler::registerRoutes() {
     m_routes["clearSchemaCache"] = [this](auto p) { return m_ctx.schema().clearSchemaCache(p); };
 
     // Transactions
+    m_routes["getTransactionState"] = [this](auto p) { return m_ctx.transactions().getTransactionState(p); };
     m_routes["beginTransaction"] = [this](auto p) { return m_ctx.transactions().beginTransaction(p); };
     m_routes["commit"] = [this](auto p) { return m_ctx.transactions().commitTransaction(p); };
     m_routes["rollback"] = [this](auto p) { return m_ctx.transactions().rollbackTransaction(p); };

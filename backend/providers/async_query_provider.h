@@ -12,13 +12,14 @@ namespace velocitydb {
 class IConnectionProvider;
 class AsyncQueryExecutor;
 class QueryHistory;
+class TransactionProvider;
 class ResultCache;
 
 /// Provider for asynchronous query execution
 class AsyncQueryProvider : public IAsyncQueryProvider {
 public:
     /// resultCache は QueryProvider と共有される (#511)。nullptr の場合キャッシュ無効 (テスト用)
-    AsyncQueryProvider(IConnectionProvider& connections, QueryHistory& queryHistory, std::shared_ptr<ResultCache> resultCache = nullptr);
+    AsyncQueryProvider(IConnectionProvider& connections, QueryHistory& queryHistory, std::shared_ptr<ResultCache> resultCache = nullptr, TransactionProvider* transactions = nullptr);
     ~AsyncQueryProvider() override;
 
     AsyncQueryProvider(const AsyncQueryProvider&) = delete;
@@ -40,6 +41,7 @@ private:
         bool skipHistory = false;  // キャッシュヒット由来の完了は履歴に記録しない (同期経路と整合)
     };
 
+    TransactionProvider* m_transactions;
     IConnectionProvider& m_connections;
     QueryHistory& m_queryHistory;
     std::shared_ptr<ResultCache> m_resultCache;

@@ -37,10 +37,10 @@ private:
     std::unique_ptr<IConnectionProvider> m_connections;
     std::unique_ptr<QueryHistory> m_queryHistory;
     std::unique_ptr<ISettingsProvider> m_settings;
+    std::unique_ptr<ITransactionProvider> m_transactions;
     std::unique_ptr<IQueryProvider> m_queries;
     std::unique_ptr<IAsyncQueryProvider> m_asyncQueries;
     std::unique_ptr<ISchemaProvider> m_schema;
-    std::unique_ptr<ITransactionProvider> m_transactions;
     std::unique_ptr<IExportProvider> m_exports;
     std::unique_ptr<ISearchProvider> m_search;
     std::unique_ptr<IUtilityProvider> m_utility;

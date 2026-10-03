@@ -1,5 +1,6 @@
 import type { AsyncQueryResultResponse, DatabaseType } from '../../types';
 import * as S from '../schemas';
+import { getSettings } from '../../utils/settingsUtils';
 import { BaseProvider, type IpcInvoker, type ResponseValidator } from './types';
 
 type Column = { name: string; type: string; comment?: string };
@@ -102,7 +103,11 @@ export interface QueryProvider {
   getRowCount(connectionId: string, sql: string): Promise<{ rowCount: number }>;
   cancelQuery(connectionId: string): Promise<void>;
   lintSql(sql: string, dbType: DatabaseType): Promise<LintSqlResult>;
-  executeAsyncQuery(connectionId: string, sql: string): Promise<{ queryId: string }>;
+  executeAsyncQuery(
+    connectionId: string,
+    sql: string,
+    maxRows?: number
+  ): Promise<{ queryId: string }>;
   getAsyncQueryResult(queryId: string): Promise<AsyncQueryResultResponse>;
   cancelAsyncQuery(queryId: string): Promise<{ cancelled: boolean }>;
   removeAsyncQuery(queryId: string): Promise<{ removed: boolean }>;
@@ -149,7 +154,16 @@ class QueryProviderImpl extends BaseProvider implements QueryProvider {
     sql: string,
     useCache = true
   ): Promise<ExecuteQueryResult> {
-    return this.invokeAndParse('executeQuery', { connectionId, sql, useCache }, S.executeQuery);
+    try {
+      const { autoCommit, maxRows } = getSettings().query;
+      return await this.invokeAndParse(
+        'executeQuery',
+        { connectionId, sql, useCache, autoCommit, maxRows },
+        S.executeQuery
+      );
+    } finally {
+      window.dispatchEvent(new Event('query-state-changed'));
+    }
   }
 
   async executeQueryPaginated(
@@ -178,12 +192,36 @@ class QueryProviderImpl extends BaseProvider implements QueryProvider {
     return this.invokeAndParse('lintSql', { sql, dbType }, S.lintSql);
   }
 
-  async executeAsyncQuery(connectionId: string, sql: string): Promise<{ queryId: string }> {
-    return this.invokeAndParse('executeAsyncQuery', { connectionId, sql }, S.executeAsyncQuery);
+  async executeAsyncQuery(
+    connectionId: string,
+    sql: string,
+    maxRows?: number
+  ): Promise<{ queryId: string }> {
+    try {
+      return await this.invokeAndParse(
+        'executeAsyncQuery',
+        {
+          connectionId,
+          sql,
+          autoCommit: getSettings().query.autoCommit,
+          ...(maxRows === undefined ? {} : { maxRows }),
+        },
+        S.executeAsyncQuery
+      );
+    } finally {
+      window.dispatchEvent(new Event('query-state-changed'));
+    }
   }
 
   async getAsyncQueryResult(queryId: string): Promise<AsyncQueryResultResponse> {
-    return this.invokeAndParse('getAsyncQueryResult', { queryId }, S.getAsyncQueryResult);
+    const result = await this.invokeAndParse(
+      'getAsyncQueryResult',
+      { queryId },
+      S.getAsyncQueryResult
+    );
+    if (result.status !== 'pending' && result.status !== 'running')
+      window.dispatchEvent(new Event('query-state-changed'));
+    return result;
   }
 
   async cancelAsyncQuery(queryId: string): Promise<{ cancelled: boolean }> {

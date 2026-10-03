@@ -29,11 +29,14 @@ export interface AppSettings {
   };
   query: {
     timeoutSeconds: number;
+    autoCommit: boolean;
+    maxRows: number;
   };
 }
 
 export interface UpdateSettingsInput {
   general?: Partial<{
+    lastConnectionId: string;
     autoConnect: boolean;
     confirmOnExit: boolean;
     maxQueryHistory: number;
@@ -53,6 +56,8 @@ export interface UpdateSettingsInput {
   }>;
   query?: Partial<{
     timeoutSeconds: number;
+    autoCommit: boolean;
+    maxRows: number;
   }>;
   window?: Partial<{
     width: number;

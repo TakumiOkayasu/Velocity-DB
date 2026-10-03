@@ -39,6 +39,8 @@ const BACKEND_SETTINGS: BackendAppSettings = {
     nullDisplay: '<null>',
   },
   query: {
+    autoCommit: true,
+    maxRows: 10000,
     timeoutSeconds: 45,
   },
 };
@@ -220,7 +222,7 @@ describe('SettingsDialog', () => {
         general: { autoConnect: false, confirmOnExit: true, maxQueryHistory: 1000, language: 'en' },
         editor: { fontSize: 14, fontFamily: 'Consolas', wordWrap: true, tabSize: 4 },
         grid: { defaultPageSize: 100000, showRowNumbers: true, nullDisplay: '(NULL)' },
-        query: { timeoutSeconds: 300 },
+        query: { timeoutSeconds: 300, autoCommit: true, maxRows: 10000 },
       });
       await waitFor(() => expect(defaultProps.onClose).toHaveBeenCalled());
     });
@@ -336,7 +338,9 @@ describe('SettingsDialog', () => {
       fireEvent.click(screen.getByText('保存'));
       // 保存時は秒単位で Backend へ同期される (Backend の clamp 1-3600 と整合)
       expect(appSettingsProvider.updateSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ query: { timeoutSeconds: 600 } })
+        expect.objectContaining({
+          query: { timeoutSeconds: 600, autoCommit: true, maxRows: 10000 },
+        })
       );
     });
 
@@ -361,7 +365,9 @@ describe('SettingsDialog', () => {
       fireEvent.change(input, { target: { value: '3600' } });
       fireEvent.click(screen.getByText('保存'));
       expect(appSettingsProvider.updateSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ query: { timeoutSeconds: 3600 } })
+        expect.objectContaining({
+          query: { timeoutSeconds: 3600, autoCommit: true, maxRows: 10000 },
+        })
       );
     });
   });
@@ -369,12 +375,12 @@ describe('SettingsDialog', () => {
 
 it('shows unsupported settings as disabled instead of pretending to apply them', async () => {
   render(<SettingsDialog isOpen onClose={() => {}} />);
-  expect(screen.getByLabelText('起動時に前回の接続を復元 (未対応)')).toBeDisabled();
+  expect(screen.getByLabelText('起動時に前回の保存済み接続を復元')).toBeEnabled();
   expect(screen.getByLabelText('終了時に確認する (未対応)')).toBeDisabled();
   expect(screen.getByLabelText('言語 (切替未対応)')).toBeDisabled();
   fireEvent.click(screen.getByText('クエリ'));
-  expect(screen.getByLabelText('自動コミット (未対応)')).toBeDisabled();
-  expect(screen.getByLabelText('最大行数 (未対応)')).toBeDisabled();
+  expect(screen.getByLabelText('自動コミット (OFF時は接続ごとにCommit/Rollback)')).toBeEnabled();
+  expect(screen.getByLabelText('任意SQLの最大表示行数 (各結果セット)')).toBeEnabled();
   fireEvent.click(screen.getByText('外観'));
   expect(screen.getByLabelText('テーマ (切替未対応)')).toBeDisabled();
 });

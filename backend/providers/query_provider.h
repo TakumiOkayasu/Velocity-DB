@@ -11,13 +11,14 @@ namespace velocitydb {
 class IConnectionProvider;
 class ResultCache;
 class QueryHistory;
+class TransactionProvider;
 
 /// Provider for query execution, cache, history, and filtering
 class QueryProvider : public IQueryProvider {
 public:
     /// resultCache を省略した場合は自前で生成する (テスト用)。本番では SystemContext が
     /// AsyncQueryProvider と共有する ResultCache を注入する (#511)
-    QueryProvider(IConnectionProvider& connections, QueryHistory& queryHistory, std::shared_ptr<ResultCache> resultCache = nullptr);
+    QueryProvider(IConnectionProvider& connections, QueryHistory& queryHistory, std::shared_ptr<ResultCache> resultCache = nullptr, TransactionProvider* transactions = nullptr);
     ~QueryProvider() override;
 
     QueryProvider(const QueryProvider&) = delete;
@@ -45,6 +46,7 @@ public:
 private:
     void recordHistory(std::string_view sql, std::string_view connectionId, double execTimeMs, bool success, std::string_view errorMsg = {}, int64_t affectedRows = 0);
 
+    TransactionProvider* m_transactions;
     IConnectionProvider& m_connections;
     std::shared_ptr<ResultCache> m_resultCache;
     QueryHistory& m_queryHistory;

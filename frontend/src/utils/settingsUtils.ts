@@ -168,6 +168,7 @@ export function normalizeSettings(settings: AppSettings): AppSettings {
     },
     query: {
       ...settings.query,
+      maxRows: bounded(settings.query.maxRows, 100, 1000000, defaultSettings.query.maxRows),
       timeout: bounded(
         settings.query.timeout,
         QUERY_TIMEOUT_MIN_SEC * 1000,

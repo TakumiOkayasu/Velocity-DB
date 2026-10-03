@@ -6,6 +6,7 @@ describe('queryProvider', () => {
   let mock: MockIpcInvoker;
 
   beforeEach(() => {
+    localStorage.clear();
     mock = new MockIpcInvoker();
     __setIpcInvokerForTest(mock);
   });
@@ -28,7 +29,13 @@ describe('queryProvider', () => {
     }
     expect(mock.calls[0]).toEqual({
       method: 'executeQuery',
-      params: { connectionId: 'conn1', sql: 'SELECT 1', useCache: true },
+      params: {
+        connectionId: 'conn1',
+        sql: 'SELECT 1',
+        useCache: true,
+        autoCommit: true,
+        maxRows: 10000,
+      },
     });
   });
 

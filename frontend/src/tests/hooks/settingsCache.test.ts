@@ -34,6 +34,8 @@ const BACKEND_SETTINGS: BackendAppSettings = {
     nullDisplay: '<null>',
   },
   query: {
+    autoCommit: true,
+    maxRows: 10000,
     timeoutSeconds: 45,
   },
 };

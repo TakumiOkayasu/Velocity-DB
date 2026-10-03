@@ -39,10 +39,11 @@ AsyncQueryExecutor::~AsyncQueryExecutor() {
     }
 }
 
-std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<IDatabaseDriver> driver, std::string_view sql) {
+std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<IDatabaseDriver> driver, std::string_view sql, bool wrapBatches, std::shared_ptr<void> lease, size_t maxRows) {
     auto queryId = std::format("query_{}", m_queryIdCounter++);
 
     auto task = std::make_shared<QueryTask>();
+    task->maxRows = maxRows;
     task->driver = driver;  // shared_ptr ensures driver lifetime
     task->sql = std::string(sql);
     task->startTime = std::chrono::steady_clock::now();
@@ -53,12 +54,13 @@ std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<IDatabaseDriver> dri
     task->multipleResults = statements.size() > 1;
 
     // Auto-wrap in transaction if multiple statements and no user-supplied transaction control
-    auto wrapTransaction = statements.size() > 1 && std::ranges::none_of(statements, &SQLParser::isTransactionControl);
+    auto wrapTransaction = wrapBatches && statements.size() > 1 && std::ranges::none_of(statements, &SQLParser::isTransactionControl);
 
     // Capture shared_ptr by value to ensure driver and task lifetime extends through async execution
     if (statements.size() > 1) {
         // Multiple statements: execute sequentially and collect all results
-        task->future = m_pool.submit([driver, statements, task, wrapTransaction]() -> QueryResultVariant {
+        task->future = m_pool.submit([driver, statements, task, wrapTransaction, lease = std::move(lease)]() mutable -> QueryResultVariant {
+            (void)lease;
             try {
                 if (wrapTransaction)
                     (void)driver->execute(beginTransactionSQL(driver->getType()));
@@ -100,6 +102,7 @@ std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<IDatabaseDriver> dri
                 if (wrapTransaction)
                     (void)driver->execute("COMMIT");
 
+                lease.reset();
                 task->endTime = std::chrono::steady_clock::now();
                 task->status = QueryStatus::Completed;
                 return allResults;
@@ -109,6 +112,7 @@ std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<IDatabaseDriver> dri
                         (void)driver->execute("ROLLBACK");
                     } catch (...) {  // NOLINT(bugprone-empty-catch)
                     }
+                lease.reset();
                 task->endTime = std::chrono::steady_clock::now();
                 task->errorMessage = e.what();
                 task->status = QueryStatus::Failed;
@@ -118,13 +122,16 @@ std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<IDatabaseDriver> dri
     } else {
         // Single statement
         std::string sqlCopy(sql);
-        task->future = m_pool.submit([driver, sqlCopy, task]() -> QueryResultVariant {
+        task->future = m_pool.submit([driver, sqlCopy, task, lease = std::move(lease)]() mutable -> QueryResultVariant {
+            (void)lease;
             try {
                 auto result = driver->execute(sqlCopy);
+                lease.reset();
                 task->endTime = std::chrono::steady_clock::now();
                 task->status = QueryStatus::Completed;
                 return result;
             } catch (const std::exception& e) {
+                lease.reset();
                 task->endTime = std::chrono::steady_clock::now();
                 task->errorMessage = e.what();
                 task->status = QueryStatus::Failed;
@@ -139,10 +146,11 @@ std::string AsyncQueryExecutor::submitQuery(std::shared_ptr<IDatabaseDriver> dri
     return queryId;
 }
 
-std::string AsyncQueryExecutor::submitTask(std::function<QueryResultVariant(const std::atomic<bool>&)> task) {
+std::string AsyncQueryExecutor::submitTask(std::function<QueryResultVariant(const std::atomic<bool>& cancelled)> task, size_t maxRows) {
     auto queryId = std::format("query_{}", m_queryIdCounter++);
 
     auto queryTask = std::make_shared<QueryTask>();
+    queryTask->maxRows = maxRows;
     queryTask->startTime = std::chrono::steady_clock::now();
     queryTask->status = QueryStatus::Running;
 
@@ -182,6 +190,7 @@ AsyncQueryResult AsyncQueryExecutor::getQueryResult(std::string_view queryId) {
     AsyncQueryResult result;
     result.queryId = std::string(queryId);
     result.status = task->status.load();
+    result.maxRows = task->maxRows;
     result.multipleResults = task->multipleResults;
     result.startTime = task->startTime;
     result.endTime = task->endTime;

@@ -104,7 +104,11 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
           showRowNumbers: saved.grid.showRowNumbers,
           nullDisplay: saved.grid.nullDisplay,
         },
-        query: { timeoutSeconds: Math.round(saved.query.timeout / 1000) },
+        query: {
+          timeoutSeconds: Math.round(saved.query.timeout / 1000),
+          autoCommit: saved.query.autoCommit,
+          maxRows: saved.query.maxRows,
+        },
       });
       if (lifecycleRef.current !== lifecycle) return;
       cacheSettings(saved);
@@ -185,10 +189,9 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                   <input
                     type="checkbox"
                     checked={settings.general.autoConnect}
-                    disabled
                     onChange={(e) => updateSetting('general', 'autoConnect', e.target.checked)}
                   />
-                  起動時に前回の接続を復元 (未対応)
+                  起動時に前回の保存済み接続を復元
                 </label>
               </div>
               <div className={styles.setting}>
@@ -304,10 +307,9 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                   <input
                     type="checkbox"
                     checked={settings.query.autoCommit}
-                    disabled
                     onChange={(e) => updateSetting('query', 'autoCommit', e.target.checked)}
                   />
-                  自動コミット (未対応)
+                  自動コミット (OFF時は接続ごとにCommit/Rollback)
                 </label>
               </div>
               <div className={styles.setting}>
@@ -327,10 +329,14 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                 />
               </div>
               <div className={styles.setting}>
-                <label htmlFor="setting-query-max-rows">最大行数 (未対応)</label>
+                <label
+                  htmlFor="setting-query-max-rows"
+                  title="結果表示の上限です。SQLの検索範囲や更新件数は制限しません。"
+                >
+                  任意SQLの最大表示行数 (各結果セット)
+                </label>
                 <input
                   id="setting-query-max-rows"
-                  disabled
                   type="number"
                   value={settings.query.maxRows}
                   onChange={(e) =>

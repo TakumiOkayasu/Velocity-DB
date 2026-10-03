@@ -14,7 +14,12 @@ export function mergeBackendSettings(local: AppSettings, backend: BackendSetting
       wordWrap: backend.editor.wordWrap,
     },
     grid: { ...local.grid, ...backend.grid },
-    query: { ...local.query, timeout: backend.query.timeoutSeconds * 1000 },
+    query: {
+      ...local.query,
+      autoCommit: backend.query.autoCommit,
+      maxRows: backend.query.maxRows,
+      timeout: backend.query.timeoutSeconds * 1000,
+    },
   };
 }
 
@@ -24,9 +29,10 @@ export function cacheSettings(settings: AppSettings): void {
 }
 
 /** Hydrate consumers even if the settings dialog is never opened. A later save wins. */
-export async function loadSettingsCache(): Promise<void> {
+export async function loadSettingsCache(): Promise<BackendSettings> {
   const initial = localStorage.getItem('app-settings');
   const backend = await appSettingsProvider.getSettings();
-  if (localStorage.getItem('app-settings') !== initial) return;
+  if (localStorage.getItem('app-settings') !== initial) return backend;
   cacheSettings(mergeBackendSettings(getSettings(), backend));
+  return backend;
 }
