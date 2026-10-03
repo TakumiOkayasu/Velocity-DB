@@ -1,13 +1,10 @@
-#include "providers/async_query_provider.h"
-
 #include "database/connection_types.h"
 #include "database/driver_interface.h"
 #include "database/query_history.h"
 #include "database/result_cache.h"
 #include "interfaces/providers/connection_provider.h"
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
+#include "providers/async_query_provider.h"
+#include "simdjson.h"
 
 #include <chrono>
 #include <deque>
@@ -18,6 +15,9 @@
 #include <string_view>
 #include <thread>
 #include <vector>
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 using velocitydb::AsyncQueryProvider;
 using velocitydb::DatabaseConnectionParams;
@@ -100,8 +100,8 @@ protected:
     }
 
     // 提出 → 完了までポーリングして最終レスポンス JSON を返す
-    std::string submitAndAwait(AsyncQueryProvider& provider, std::string_view sql) {
-        auto submitRes = provider.executeAsyncQuery(std::format(R"({{"connectionId":"c1","sql":"{}"}})", sql));
+    std::string submitAndAwait(AsyncQueryProvider& provider, std::string_view sql, std::string_view options = "") {
+        auto submitRes = provider.executeAsyncQuery(std::format(R"({{"connectionId":"c1","sql":"{}"{}}})", sql, options));
         auto queryId = extractQueryId(submitRes);
         EXPECT_FALSE(queryId.empty()) << submitRes;
         for (int i = 0; i < 1000; ++i) {
@@ -151,9 +151,9 @@ TEST_F(AsyncQueryProviderCacheTest, DmlSubmissionInvalidatesConnectionCache) {
     EXPECT_CALL(*driver, execute(::testing::_)).Times(3).WillRepeatedly(::testing::Invoke([](std::string_view) { return makeSelectResult(); }));
     AsyncQueryProvider provider(connections, history, cache);
 
-    (void)submitAndAwait(provider, "SELECT 1");                      // miss → put
-    (void)submitAndAwait(provider, "DELETE FROM t WHERE id = 1");    // 無効化 + 実行
-    auto third = submitAndAwait(provider, "SELECT 1");               // 再実行 (キャッシュ消滅済)
+    (void)submitAndAwait(provider, "SELECT 1");                    // miss → put
+    (void)submitAndAwait(provider, "DELETE FROM t WHERE id = 1");  // 無効化 + 実行
+    auto third = submitAndAwait(provider, "SELECT 1");             // 再実行 (キャッシュ消滅済)
 
     EXPECT_NE(third.find(R"("status":"completed")"), std::string::npos);
     // 無効化後の再実行分で put が 2 回になっている
@@ -191,4 +191,21 @@ TEST_F(AsyncQueryProviderCacheTest, WorksWithoutCache) {
 
     EXPECT_NE(first.find(R"("status":"completed")"), std::string::npos);
     EXPECT_NE(second.find(R"("status":"completed")"), std::string::npos);
+}
+
+TEST_F(AsyncQueryProviderCacheTest, CachedRowsUseTheNewRequestsDisplayLimit) {
+    auto rows = makeSelectResult();
+    rows.rows.resize(150, rows.rows.front());
+    EXPECT_CALL(*driver, execute("SELECT 1")).Times(1).WillOnce(::testing::Return(rows));
+    AsyncQueryProvider provider(connections, history, cache);
+    auto first = submitAndAwait(provider, "SELECT 1", R"(,"maxRows":100)");
+    simdjson::dom::parser parser;
+    auto small = parser.parse(first).value()["data"];
+    ASSERT_EQ(small["status"].get_string().value(), "completed");
+    EXPECT_EQ(small["rows"].get_array().value().size(), 100u);
+    EXPECT_TRUE(small["truncated"].get_bool().value());
+    auto second = submitAndAwait(provider, "SELECT 1", R"(,"maxRows":200)");
+    auto large = parser.parse(second).value()["data"];
+    ASSERT_EQ(large["status"].get_string().value(), "completed");
+    EXPECT_EQ(large["rows"].get_array().value().size(), 150u);
 }

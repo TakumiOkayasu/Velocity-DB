@@ -1,13 +1,11 @@
-#include "providers/query_provider.h"
-
 #include "database/connection_types.h"
 #include "database/driver_interface.h"
 #include "database/query_history.h"
 #include "database/result_cache.h"
 #include "interfaces/providers/connection_provider.h"
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
+#include "providers/query_provider.h"
+#include "providers/transaction_provider.h"
+#include "simdjson.h"
 
 #include <chrono>
 #include <deque>
@@ -15,6 +13,9 @@
 #include <optional>
 #include <string>
 #include <string_view>
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 using velocitydb::DatabaseConnectionParams;
 using velocitydb::DriverType;
@@ -137,11 +138,11 @@ TEST_F(QueryProviderCacheTest, DmlInvalidatesPaginatedAndRowCountCache) {
     EXPECT_CALL(*driver, execute(::testing::_)).Times(5).WillRepeatedly(::testing::Invoke([](std::string_view) { return makeSingleValueResult("42"); }));
     QueryProvider provider(connections, history, cache);
 
-    (void)provider.executeQueryPaginated(kPaginatedParams);                                       // 1: miss → put
-    (void)provider.getRowCount(kRowCountParams);                                                  // 2: miss → put
-    (void)provider.executeQuery(R"({"connectionId":"c1","sql":"DELETE FROM t WHERE id = 1"})");   // 3: DML → 無効化
-    (void)provider.executeQueryPaginated(kPaginatedParams);                                       // 4: 再実行
-    (void)provider.getRowCount(kRowCountParams);                                                  // 5: 再実行
+    (void)provider.executeQueryPaginated(kPaginatedParams);                                      // 1: miss → put
+    (void)provider.getRowCount(kRowCountParams);                                                 // 2: miss → put
+    (void)provider.executeQuery(R"({"connectionId":"c1","sql":"DELETE FROM t WHERE id = 1"})");  // 3: DML → 無効化
+    (void)provider.executeQueryPaginated(kPaginatedParams);                                      // 4: 再実行
+    (void)provider.getRowCount(kRowCountParams);                                                 // 5: 再実行
 }
 
 // 別接続の DML は他接続のキャッシュに影響しない
@@ -149,7 +150,43 @@ TEST_F(QueryProviderCacheTest, DmlOnOtherConnectionKeepsCache) {
     EXPECT_CALL(*driver, execute(::testing::_)).Times(2).WillRepeatedly(::testing::Invoke([](std::string_view) { return makeSingleValueResult("42"); }));
     QueryProvider provider(connections, history, cache);
 
-    (void)provider.executeQueryPaginated(kPaginatedParams);                                       // 1: miss → put (c1)
-    (void)provider.executeQuery(R"({"connectionId":"c2","sql":"DELETE FROM t WHERE id = 1"})");   // 2: c2 の DML
-    (void)provider.executeQueryPaginated(kPaginatedParams);                                       // c1 はキャッシュ命中
+    (void)provider.executeQueryPaginated(kPaginatedParams);                                      // 1: miss → put (c1)
+    (void)provider.executeQuery(R"({"connectionId":"c2","sql":"DELETE FROM t WHERE id = 1"})");  // 2: c2 の DML
+    (void)provider.executeQueryPaginated(kPaginatedParams);                                      // c1 はキャッシュ命中
+}
+
+TEST_F(QueryProviderCacheTest, ManualBatchRemainsPendingUntilExplicitRollback) {
+    ON_CALL(*driver, isConnected()).WillByDefault(::testing::Return(true));
+    velocitydb::TransactionProvider transactions(connections, cache);
+    QueryProvider provider(connections, history, cache, &transactions);
+    {
+        ::testing::InSequence sequence;
+        EXPECT_CALL(*driver, execute("BEGIN TRANSACTION")).WillOnce(::testing::Return(ResultSet{}));
+        EXPECT_CALL(*driver, execute("UPDATE t SET x=1")).WillOnce(::testing::Return(ResultSet{}));
+        EXPECT_CALL(*driver, execute("UPDATE t SET x=2")).WillOnce(::testing::Return(ResultSet{}));
+        EXPECT_CALL(*driver, execute("ROLLBACK")).WillOnce(::testing::Return(ResultSet{}));
+    }
+    auto response = provider.executeQuery(R"({"connectionId":"c1","sql":"UPDATE t SET x=1; UPDATE t SET x=2","autoCommit":false})");
+    EXPECT_NE(response.find(R"("success":true)"), std::string::npos) << response;
+    EXPECT_TRUE(transactions.isInTransaction("c1"));
+    EXPECT_NE(transactions.rollbackTransaction(R"({"connectionId":"c1"})").find(R"("success":true)"), std::string::npos);
+    EXPECT_FALSE(transactions.isInTransaction("c1"));
+}
+
+TEST_F(QueryProviderCacheTest, CachedResultRespectsEachRequestsRowLimit) {
+    auto rows = makeSingleValueResult("42");
+    rows.rows.resize(150, rows.rows.front());
+    rows.affectedRows = 321;
+    EXPECT_CALL(*driver, execute("SELECT x FROM t")).Times(1).WillOnce(::testing::Return(rows));
+    QueryProvider provider(connections, history, cache);
+    auto first = provider.executeQuery(R"({"connectionId":"c1","sql":"SELECT x FROM t","maxRows":100})");
+    simdjson::dom::parser parser;
+    auto small = parser.parse(first).value()["data"];
+    EXPECT_EQ(small["rows"].get_array().value().size(), 100u);
+    EXPECT_TRUE(small["truncated"].get_bool().value());
+    EXPECT_EQ(small["affectedRows"].get_int64().value(), 321);
+    auto second = provider.executeQuery(R"({"connectionId":"c1","sql":"SELECT x FROM t","maxRows":200})");
+    auto large = parser.parse(second).value()["data"];
+    EXPECT_EQ(large["rows"].get_array().value().size(), 150u);
+    EXPECT_TRUE(large["cached"].get_bool().value());
 }

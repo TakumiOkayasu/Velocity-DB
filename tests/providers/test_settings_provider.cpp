@@ -116,8 +116,7 @@ TEST_F(SettingsProviderTest, FailedSettingsSaveReturnsErrorAndRestoresInMemorySe
     std::filesystem::remove(m_settingsPath);
     std::filesystem::create_directory(m_settingsPath);
 
-    const auto result = provider->updateSettings(
-        R"({"general":{"maxQueryHistory":5},"query":{"timeoutSeconds":45}})");
+    const auto result = provider->updateSettings(R"({"general":{"maxQueryHistory":5},"query":{"timeoutSeconds":45}})");
 
     EXPECT_NE(result.find("\"success\":false"), std::string::npos);
     const auto& after = provider->settingsAccessor().getSettings();
@@ -239,6 +238,24 @@ TEST_F(SettingsProviderTest, SubInterfacesAreUsableIndependently) {
     EXPECT_EQ(asAppSettings.getSettings(), provider->getSettings());
     EXPECT_EQ(asProfile.getConnectionProfiles(), provider->getConnectionProfiles());
     EXPECT_EQ(asSession.getSessionState(), provider->getSessionState());
+}
+
+TEST_F(SettingsProviderTest, QueryBehaviorAndLastProfileSurviveReload) {
+    auto response = provider->updateSettings(R"({"general":{"autoConnect":true,"lastConnectionId":"stable-profile-id"},"query":{"autoCommit":false,"maxRows":250}})");
+    ASSERT_NE(response.find(R"("success":true)"), std::string::npos);
+    SettingsAccessor reloaded(m_settingsPath);
+    ASSERT_TRUE(reloaded.load().has_value());
+    EXPECT_TRUE(reloaded.getSettings().general.autoConnect);
+    EXPECT_EQ(reloaded.getSettings().general.lastConnectionId, "stable-profile-id");
+    EXPECT_FALSE(reloaded.getSettings().query.autoCommit);
+    EXPECT_EQ(reloaded.getSettings().query.maxRows, 250);
+}
+
+TEST_F(SettingsProviderTest, RowLimitIsClampedWhenSaved) {
+    (void)provider->updateSettings(R"({"query":{"maxRows":-1}})");
+    EXPECT_EQ(provider->settingsAccessor().getSettings().query.maxRows, 100);
+    (void)provider->updateSettings(R"({"query":{"maxRows":1000001}})");
+    EXPECT_EQ(provider->settingsAccessor().getSettings().query.maxRows, 1000000);
 }
 
 }  // namespace
