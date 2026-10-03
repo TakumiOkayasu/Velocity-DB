@@ -688,7 +688,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         <TransposeView
           nullDisplay={gridSettings.nullDisplay}
           columns={columnsMeta}
-          rowData={baseRowData}
+          rowData={rowData}
           currentRowIndex={transposeRowIndex}
           showLogicalNames={showLogicalNamesInGrid}
           onNavigate={setTransposeRowIndex}
