@@ -240,3 +240,19 @@ describe('useContextMenuItems', () => {
     expect(items).toEqual([]);
   });
 });
+
+it.each(['table', 'view'] as const)(
+  'copies the exact qualified %s name without fetching schema',
+  async (type) => {
+    const params = createParams();
+    const { result } = renderHook(() => useContextMenuItems(params));
+    const name = 'public.顧客 履歴';
+    const label = type === 'table' ? 'テーブル名' : 'ビュー名';
+    const item = result.current
+      .getMenuItems(makeNode({ type, name }))
+      .find((item) => item.label === `${label}をコピー`);
+    expect(item).toBeDefined();
+    await item?.action();
+    expect(params.copyToClipboard).toHaveBeenCalledWith(name, `${label}をコピーしました`);
+  }
+);

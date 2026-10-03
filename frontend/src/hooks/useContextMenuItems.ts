@@ -37,7 +37,13 @@ export function useContextMenuItems({
 }: UseContextMenuItemsParams) {
   const buildTableOrViewItems = useCallback(
     (node: DatabaseObject): MenuItem[] => {
-      const items: MenuItem[] = [];
+      const objectLabel = node.type === 'table' ? 'テーブル名' : 'ビュー名';
+      const items: MenuItem[] = [
+        {
+          label: `${objectLabel}をコピー`,
+          action: () => copyToClipboard(node.name, `${objectLabel}をコピーしました`),
+        },
+      ];
 
       items.push({
         label: 'SELECT文をコピー',
