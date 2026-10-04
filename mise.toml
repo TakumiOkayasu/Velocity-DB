@@ -7,7 +7,7 @@ cmake = "4.4.3"
 ninja = "1.13.2"
 
 [tools."github:llvm/llvm-project"]
-version = "23.1.1"
+version = "23.1.2"
 version_prefix = "llvmorg-"
 strip_components = 1
 bin_path = "bin"
