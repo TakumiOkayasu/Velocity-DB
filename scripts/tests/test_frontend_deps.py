@@ -1,6 +1,7 @@
 """Tests for the pinned frontend runtime and frozen dependency bootstrap."""
 
 import io
+import json
 import os
 import sys
 import threading
@@ -20,7 +21,31 @@ from _lib import utils
 def frontend(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     directory = tmp_path / "frontend"
     directory.mkdir()
-    (directory / "package.json").write_text('{"name": "frontend"}', encoding="utf-8")
+    dependencies = {
+        "vite-plus": "1.0.0",
+        "vite": "npm:@voidzero-dev/vite-plus-core@1.0.0",
+        "vitest": "5.0.1",
+        "@vitest/coverage-v8": "5.0.1",
+    }
+    (directory / "package.json").write_text(
+        json.dumps(
+            {
+                "name": "frontend",
+                "devDependencies": dependencies,
+                "overrides": {name: dependencies[name] for name in ("vite", "vitest")},
+            }
+        ),
+        encoding="utf-8",
+    )
+    for name, version in dependencies.items():
+        package_dir = directory / "node_modules" / name
+        package_dir.mkdir(parents=True)
+        package = {
+            "name": "@voidzero-dev/vite-plus-core" if name == "vite" else name,
+            "version": "1.0.0" if name == "vite" else version,
+            "dependencies": dependencies if name == "vite-plus" else {},
+        }
+        (package_dir / "package.json").write_text(json.dumps(package), encoding="utf-8")
     (directory / "bun.lock").write_text("lock", encoding="utf-8")
     local_bin = directory / "node_modules" / ".bin"
     local_bin.mkdir(parents=True)
@@ -181,3 +206,137 @@ def test_parallel_commands_serialize_install(
         release_first.set()
         assert first.result() == second.result() == runtime
     assert calls == 2
+
+
+def test_matching_dependency_versions_are_logged(
+    frontend: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runtime = utils.FrontendRuntime(frontend.parent / "bun", {"PATH": "pinned"})
+    monkeypatch.setattr(utils, "resolve_frontend_runtime", lambda: runtime)
+    monkeypatch.setattr(utils, "run_command", lambda *_args, **_kwargs: (True, ""))
+    output = io.StringIO()
+    assert utils.ensure_frontend_deps(out=output) == runtime
+    assert (
+        "Frontend dependency versions: vite-plus@1.0.0, vite@1.0.0, "
+        "vitest@5.0.1, @vitest/coverage-v8@5.0.1"
+    ) in output.getvalue()
+
+
+@pytest.mark.parametrize(
+    ("target", "section", "name", "version", "error"),
+    [
+        (
+            "package.json",
+            "overrides",
+            "vitest",
+            "4.1.11",
+            "vitest: declared 5.0.1, but override selects 4.1.11",
+        ),
+        (
+            "package.json",
+            "devDependencies",
+            "vite",
+            "npm:@voidzero-dev/vite-plus-core@0.3.3",
+            "vite: expected declaration npm:@voidzero-dev/vite-plus-core@1.0.0, "
+            "got npm:@voidzero-dev/vite-plus-core@0.3.3",
+        ),
+        (
+            "package.json",
+            "overrides",
+            "vite",
+            "npm:@voidzero-dev/vite-plus-core@0.3.3",
+            "vite: declared npm:@voidzero-dev/vite-plus-core@1.0.0, "
+            "but override selects npm:@voidzero-dev/vite-plus-core@0.3.3",
+        ),
+        (
+            "package.json",
+            "devDependencies",
+            "@vitest/coverage-v8",
+            "5.0.2",
+            "@vitest/coverage-v8: expected declaration 5.0.1, got 5.0.2",
+        ),
+        (
+            "node_modules/vite-plus/package.json",
+            "dependencies",
+            "vitest",
+            "4.1.11",
+            "vite-plus@1.0.0 requires vitest 4.1.11, but the frontend declares 5.0.1",
+        ),
+        (
+            "node_modules/vite-plus/package.json",
+            "dependencies",
+            "vite",
+            "npm:@voidzero-dev/vite-plus-core@0.3.3",
+            "vite-plus@1.0.0 requires vite npm:@voidzero-dev/vite-plus-core@0.3.3, "
+            "but the frontend declares npm:@voidzero-dev/vite-plus-core@1.0.0",
+        ),
+    ],
+)
+def test_dependency_version_mismatches_prevent_frontend_command(
+    frontend: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    target: str,
+    section: str,
+    name: str,
+    version: str,
+    error: str,
+) -> None:
+    package_file = frontend / target
+    package = json.loads(package_file.read_text(encoding="utf-8"))
+    package[section][name] = version
+    package_file.write_text(json.dumps(package), encoding="utf-8")
+    runtime = utils.FrontendRuntime(frontend.parent / "bun", {"PATH": "pinned"})
+    monkeypatch.setattr(utils, "resolve_frontend_runtime", lambda: runtime)
+    commands = Mock(return_value=(True, ""))
+    monkeypatch.setattr(utils, "run_command", commands)
+    output = io.StringIO()
+    assert utils.ensure_frontend_deps(out=output) is None
+    assert error in output.getvalue()
+    commands.assert_called_once()
+
+
+def test_vite_plus_upgrade_requires_matching_core_alias(frontend: Path) -> None:
+    manifest_file = frontend / "package.json"
+    manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+    manifest["devDependencies"]["vite-plus"] = "1.0.1"
+    manifest_file.write_text(json.dumps(manifest), encoding="utf-8")
+    installed_file = frontend / "node_modules" / "vite-plus" / "package.json"
+    installed = json.loads(installed_file.read_text(encoding="utf-8"))
+    installed["version"] = "1.0.1"
+    installed["dependencies"]["vite"] = "npm:@voidzero-dev/vite-plus-core@1.0.1"
+    installed_file.write_text(json.dumps(installed), encoding="utf-8")
+    output = io.StringIO()
+    assert not utils._check_frontend_dependency_versions(frontend, output)
+    assert (
+        "vite: expected declaration npm:@voidzero-dev/vite-plus-core@1.0.1, "
+        "got npm:@voidzero-dev/vite-plus-core@1.0.0"
+    ) in output.getvalue()
+
+
+@pytest.mark.parametrize("name", ["vite-plus", "vite", "vitest", "@vitest/coverage-v8"])
+def test_installed_version_mismatch_is_rejected(frontend: Path, name: str) -> None:
+    package_file = frontend / "node_modules" / name / "package.json"
+    package = json.loads(package_file.read_text(encoding="utf-8"))
+    package["version"] = "0.0.0"
+    package_file.write_text(json.dumps(package), encoding="utf-8")
+    output = io.StringIO()
+    assert not utils._check_frontend_dependency_versions(frontend, output)
+    assert f"installed {package['name']}@0.0.0" in output.getvalue()
+
+
+def test_upstream_vite_cannot_replace_core_alias(frontend: Path) -> None:
+    package_file = frontend / "node_modules" / "vite" / "package.json"
+    package = json.loads(package_file.read_text(encoding="utf-8"))
+    package["name"] = "vite"
+    package_file.write_text(json.dumps(package), encoding="utf-8")
+    output = io.StringIO()
+    assert not utils._check_frontend_dependency_versions(frontend, output)
+    assert "expected @voidzero-dev/vite-plus-core@1.0.0, installed vite@1.0.0" in output.getvalue()
+
+
+def test_missing_installed_metadata_is_rejected(frontend: Path) -> None:
+    (frontend / "node_modules" / "vitest" / "package.json").unlink()
+    output = io.StringIO()
+    assert not utils._check_frontend_dependency_versions(frontend, output)
+    assert "Frontend dependency version check failed" in output.getvalue()
+    assert "vitest" in output.getvalue()

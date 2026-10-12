@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom';
+import '@testing-library/jest-dom/vitest';
 
 // Mock window.invoke for tests
 Object.defineProperty(window, 'invoke', {
