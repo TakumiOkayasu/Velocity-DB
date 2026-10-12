@@ -1,5 +1,6 @@
 """Common utility functions for Velocity-DB build system."""
 
+import json
 import os
 import re
 import shutil
@@ -280,6 +281,56 @@ def ensure_frontend_deps(out: TextIO | None = None) -> FrontendRuntime | None:
         return _install_frontend_deps(out)
 
 
+def _check_frontend_dependency_versions(frontend_dir: Path, out: TextIO | None) -> bool:
+    """Reject overrides or stale installs that hide the intended Vite+/Vitest versions."""
+    try:
+        manifest = json.loads((frontend_dir / "package.json").read_text(encoding="utf-8"))
+        declared = manifest["devDependencies"]
+        overrides = manifest.get("overrides", {})
+        versions = {
+            "vite-plus": declared["vite-plus"],
+            "vite": declared["vite-plus"],
+            "vitest": declared["vitest"],
+            "@vitest/coverage-v8": declared["vitest"],
+        }
+        core_name = "@voidzero-dev/vite-plus-core"
+        specs = versions | {"vite": f"npm:{core_name}@{versions['vite']}"}
+        installed = {}
+        for name, spec in specs.items():
+            if declared[name] != spec:
+                raise ValueError(f"{name}: expected declaration {spec}, got {declared[name]}")
+            if name in overrides and overrides[name] != spec:
+                raise ValueError(f"{name}: declared {spec}, but override selects {overrides[name]}")
+            package_file = frontend_dir / "node_modules" / name / "package.json"
+            package = json.loads(package_file.read_text(encoding="utf-8"))
+            expected_name = core_name if name == "vite" else name
+            if package["name"] != expected_name or package["version"] != versions[name]:
+                raise ValueError(
+                    f"{name}: expected {expected_name}@{versions[name]}, "
+                    f"installed {package['name']}@{package['version']}"
+                )
+            installed[name] = package
+
+        # Use Vite+'s published requirements rather than maintaining a second
+        # compatibility table that can drift when the dependency bot updates it.
+        for name in ("vite", "vitest"):
+            supported = installed["vite-plus"]["dependencies"][name]
+            if supported != specs[name]:
+                raise ValueError(
+                    f"vite-plus@{versions['vite-plus']} requires {name} {supported}, "
+                    f"but the frontend declares {specs[name]}"
+                )
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        print(f"\nERROR: Frontend dependency version check failed: {exc}", file=out)
+        return False
+    print(
+        "Frontend dependency versions: "
+        + ", ".join(f"{name}@{package['version']}" for name, package in installed.items()),
+        file=out,
+    )
+    return True
+
+
 def _install_frontend_deps(out: TextIO | None = None) -> FrontendRuntime | None:
     """Serialize dependency installs within a process (parallel build and test)."""
     project_root = get_project_root()
@@ -306,6 +357,8 @@ def _install_frontend_deps(out: TextIO | None = None) -> FrontendRuntime | None:
     local_bin = frontend_dir / "node_modules" / ".bin"
     if not shutil.which("vp", path=str(local_bin)):
         print("\nERROR: Local Vite+ (frontend/node_modules/.bin/vp) is missing", file=out)
+        return None
+    if not _check_frontend_dependency_versions(frontend_dir, out):
         return None
     return runtime
 
