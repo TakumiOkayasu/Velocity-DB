@@ -1,10 +1,12 @@
 import { appSettingsProvider } from '../api/providers';
 import type { AppSettings as BackendSettings } from '../api/providers/app-settings';
+import { DEFAULT_WEBVIEW_SETTINGS } from '../types/webview';
 import { type AppSettings, getSettings, SETTINGS_CHANGED_EVENT } from './settingsUtils';
 
 export function mergeBackendSettings(local: AppSettings, backend: BackendSettings): AppSettings {
   return {
     ...local,
+    webview: { ...DEFAULT_WEBVIEW_SETTINGS, ...backend.webview },
     general: { ...local.general, ...backend.general },
     editor: {
       ...local.editor,

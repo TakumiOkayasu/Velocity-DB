@@ -13,6 +13,19 @@ vi.mock('../../api/providers', () => ({
 
 // backend getSettings が返す settings.json 相当のフィクスチャ (デフォルトとは異なる値)
 const BACKEND_SETTINGS: BackendAppSettings = {
+  webview: {
+    gpuCompositing: false,
+    rendererBackgrounding: false,
+    cacheEnabled: false,
+    openDevToolsOnStartup: false,
+  },
+  webviewStartup: {
+    gpuCompositing: false,
+    rendererBackgrounding: false,
+    cacheEnabled: false,
+    openDevToolsOnStartup: false,
+  },
+  webviewRestartRequired: false,
   general: {
     autoConnect: true,
     lastConnectionId: 'conn-1',
@@ -101,9 +114,17 @@ describe('SettingsDialog', () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it('6つのタブが表示される (一般/エディタ/クエリ/グリッド/外観/ショートカット)', () => {
+  it('7つの設定タブが表示される', () => {
     render(<SettingsDialog {...defaultProps} />);
-    for (const label of ['一般', 'エディタ', 'クエリ', 'グリッド', '外観', 'ショートカット']) {
+    for (const label of [
+      '一般',
+      'エディタ',
+      'クエリ',
+      'グリッド',
+      'WebView',
+      '外観',
+      'ショートカット',
+    ]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
   });
@@ -369,6 +390,218 @@ describe('SettingsDialog', () => {
           query: { timeoutSeconds: 3600, autoCommit: true, maxRows: 10000 },
         })
       );
+    });
+  });
+
+  describe('WebView 起動設定 (issue #779)', () => {
+    const labels = [
+      'GPU 合成を許可する',
+      '非アクティブ時のレンダラーの優先度低下を許可する',
+      'HTTP キャッシュを有効にする',
+      '起動時に開発者ツールを自動で開く',
+    ];
+    const enabled = {
+      gpuCompositing: true,
+      rendererBackgrounding: true,
+      cacheEnabled: true,
+      openDevToolsOnStartup: true,
+    };
+
+    async function openWebviewTab() {
+      fireEvent.click(screen.getByText('WebView'));
+      await waitFor(() =>
+        expect(screen.getAllByText('今回の起動時に指定した設定: 無効')).toHaveLength(4)
+      );
+    }
+
+    it('全項目を backend に保存し、今回の起動設定と明確に区別する', async () => {
+      vi.mocked(appSettingsProvider.getSettings).mockResolvedValue(BACKEND_SETTINGS);
+      render(<SettingsDialog {...defaultProps} />);
+      await openWebviewTab();
+
+      expect(screen.getByText(/変更は保存後、アプリを終了して次回起動/)).toBeInTheDocument();
+      expect(screen.getByText(/自動では再起動しません/)).toBeInTheDocument();
+      for (const label of labels) {
+        expect(screen.getByLabelText(label)).not.toBeChecked();
+        fireEvent.click(screen.getByLabelText(label));
+      }
+      expect(screen.getAllByText('今回の起動時に指定した設定: 無効')).toHaveLength(4);
+      expect(screen.getByText(/保存しても、再起動するまで今回の設定/)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByText('保存'));
+      expect(appSettingsProvider.updateSettings).toHaveBeenCalledOnce();
+      expect(appSettingsProvider.updateSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ webview: enabled })
+      );
+      await waitFor(() => expect(defaultProps.onClose).toHaveBeenCalledOnce());
+      const cached = JSON.parse(localStorage.getItem('app-settings') ?? '{}');
+      expect(cached.webview).toEqual(enabled);
+      expect(cached).not.toHaveProperty('webviewStartup');
+      expect(screen.getAllByText('今回の起動時に指定した設定: 無効')).toHaveLength(4);
+    });
+
+    it('保存後に開き直すと保存値と変更前の起動スナップショットを表示する', async () => {
+      vi.mocked(appSettingsProvider.getSettings)
+        .mockResolvedValueOnce(BACKEND_SETTINGS)
+        .mockResolvedValueOnce({
+          ...BACKEND_SETTINGS,
+          webview: enabled,
+          webviewRestartRequired: true,
+        });
+      const { rerender } = render(<SettingsDialog {...defaultProps} />);
+      await openWebviewTab();
+      for (const label of labels) fireEvent.click(screen.getByLabelText(label));
+      fireEvent.click(screen.getByText('保存'));
+      await waitFor(() => expect(defaultProps.onClose).toHaveBeenCalledOnce());
+
+      rerender(<SettingsDialog {...defaultProps} isOpen={false} />);
+      rerender(<SettingsDialog {...defaultProps} />);
+      expect(await screen.findByRole('status')).toHaveTextContent(
+        '保存済みの WebView 設定は未適用'
+      );
+      for (const label of labels) expect(screen.getByLabelText(label)).toBeChecked();
+      expect(screen.getAllByText('今回の起動時に指定した設定: 無効')).toHaveLength(4);
+    });
+
+    it('デフォルトに戻しても今回の起動スナップショットは変わらない', async () => {
+      vi.mocked(appSettingsProvider.getSettings).mockResolvedValue({
+        ...BACKEND_SETTINGS,
+        webview: enabled,
+        webviewStartup: enabled,
+      });
+      render(<SettingsDialog {...defaultProps} />);
+      fireEvent.click(screen.getByText('WebView'));
+      await waitFor(() =>
+        expect(screen.getAllByText('今回の起動時に指定した設定: 有効')).toHaveLength(4)
+      );
+
+      fireEvent.click(screen.getByText('デフォルトに戻す'));
+      for (const label of labels) expect(screen.getByLabelText(label)).not.toBeChecked();
+      expect(screen.getAllByText('今回の起動時に指定した設定: 有効')).toHaveLength(4);
+      fireEvent.click(screen.getByText('保存'));
+      expect(appSettingsProvider.updateSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ webview: BACKEND_SETTINGS.webview })
+      );
+      await waitFor(() => expect(defaultProps.onClose).toHaveBeenCalledOnce());
+    });
+
+    it('保存失敗時は編集値とダイアログを維持し、キャッシュを更新しない', async () => {
+      const initialCache = JSON.stringify({ version: 2, webview: BACKEND_SETTINGS.webview });
+      localStorage.setItem('app-settings', initialCache);
+      vi.mocked(appSettingsProvider.getSettings).mockResolvedValue(BACKEND_SETTINGS);
+      vi.mocked(appSettingsProvider.updateSettings).mockRejectedValue(new Error('disk full'));
+      render(<SettingsDialog {...defaultProps} />);
+      await openWebviewTab();
+      fireEvent.click(screen.getByLabelText(labels[0]));
+      fireEvent.click(screen.getByText('保存'));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('設定を保存できませんでした');
+      expect(defaultProps.onClose).not.toHaveBeenCalled();
+      expect(screen.getByLabelText(labels[0])).toBeChecked();
+      expect(screen.getAllByText('今回の起動時に指定した設定: 無効')).toHaveLength(4);
+      expect(localStorage.getItem('app-settings')).toBe(initialCache);
+    });
+
+    it('保存が未完了の間は WebView の編集と二重送信を防ぐ', async () => {
+      let finish: ((value: { saved: boolean }) => void) | undefined;
+      vi.mocked(appSettingsProvider.getSettings).mockResolvedValue(BACKEND_SETTINGS);
+      vi.mocked(appSettingsProvider.updateSettings).mockImplementation(
+        () => new Promise((resolve) => (finish = resolve))
+      );
+      render(<SettingsDialog {...defaultProps} />);
+      await openWebviewTab();
+      fireEvent.click(screen.getByLabelText(labels[0]));
+      fireEvent.click(screen.getByText('保存'));
+      for (const label of labels) expect(screen.getByLabelText(label)).toBeDisabled();
+      expect(screen.getByText('デフォルトに戻す')).toBeDisabled();
+      fireEvent.click(screen.getByText('保存中...'));
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(appSettingsProvider.updateSettings).toHaveBeenCalledOnce();
+      expect(defaultProps.onClose).not.toHaveBeenCalled();
+      expect(localStorage.getItem('app-settings')).toBeNull();
+
+      if (!finish) throw new Error('updateSettings resolver was not initialized');
+      finish({ saved: true });
+      await waitFor(() => expect(defaultProps.onClose).toHaveBeenCalledOnce());
+    });
+
+    it('backend 読込前に編集しても起動スナップショットだけは取得する', async () => {
+      let finish: ((value: BackendAppSettings) => void) | undefined;
+      vi.mocked(appSettingsProvider.getSettings).mockImplementation(
+        () => new Promise((resolve) => (finish = resolve))
+      );
+      render(<SettingsDialog {...defaultProps} />);
+      fireEvent.click(screen.getByText('WebView'));
+      fireEvent.click(screen.getByLabelText(labels[0]));
+      if (!finish) throw new Error('getSettings resolver was not initialized');
+      await act(async () =>
+        finish?.({
+          ...BACKEND_SETTINGS,
+          webview: { ...BACKEND_SETTINGS.webview, cacheEnabled: true },
+          webviewRestartRequired: true,
+        })
+      );
+      expect(screen.getByLabelText(labels[0])).toBeChecked();
+      expect(screen.getByLabelText(labels[2])).toBeChecked();
+      expect(screen.getAllByText('今回の起動時に指定した設定: 無効')).toHaveLength(4);
+      fireEvent.click(screen.getByText('保存'));
+      expect(appSettingsProvider.updateSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ webview: { gpuCompositing: true } })
+      );
+      await waitFor(() => expect(defaultProps.onClose).toHaveBeenCalledOnce());
+    });
+
+    it('一般設定を先に編集しても遅れて取得した WebView 保存値を表示する', async () => {
+      let finish: ((value: BackendAppSettings) => void) | undefined;
+      vi.mocked(appSettingsProvider.getSettings).mockImplementation(
+        () => new Promise((resolve) => (finish = resolve))
+      );
+      render(<SettingsDialog {...defaultProps} />);
+      fireEvent.change(screen.getByLabelText('クエリ履歴の最大保存件数'), {
+        target: { value: '600' },
+      });
+      if (!finish) throw new Error('getSettings resolver was not initialized');
+      await act(async () =>
+        finish?.({ ...BACKEND_SETTINGS, webview: enabled, webviewRestartRequired: true })
+      );
+      fireEvent.click(screen.getByText('WebView'));
+      for (const label of labels) expect(screen.getByLabelText(label)).toBeChecked();
+      expect(screen.getAllByText('今回の起動時に指定した設定: 無効')).toHaveLength(4);
+      fireEvent.click(screen.getByText('保存'));
+      const payload = vi.mocked(appSettingsProvider.updateSettings).mock.calls[0]?.[0];
+      expect(payload).not.toHaveProperty('webview');
+      expect(payload?.general?.maxQueryHistory).toBe(600);
+      await waitFor(() => expect(defaultProps.onClose).toHaveBeenCalledOnce());
+    });
+
+    it('backend 読込前の一般設定保存は未編集の WebView を上書きしない', async () => {
+      let finish: ((value: BackendAppSettings) => void) | undefined;
+      vi.mocked(appSettingsProvider.getSettings).mockImplementation(
+        () => new Promise((resolve) => (finish = resolve))
+      );
+      render(<SettingsDialog {...defaultProps} />);
+      fireEvent.change(screen.getByLabelText('クエリ履歴の最大保存件数'), {
+        target: { value: '600' },
+      });
+      fireEvent.click(screen.getByText('保存'));
+      const payload = vi.mocked(appSettingsProvider.updateSettings).mock.calls[0]?.[0];
+      expect(payload).not.toHaveProperty('webview');
+      await waitFor(() => expect(defaultProps.onClose).toHaveBeenCalledOnce());
+      if (!finish) throw new Error('getSettings resolver was not initialized');
+      await act(async () =>
+        finish?.({ ...BACKEND_SETTINGS, webview: enabled, webviewRestartRequired: true })
+      );
+      expect(appSettingsProvider.updateSettings).toHaveBeenCalledOnce();
+    });
+
+    it('backend 読込失敗時はキャッシュを今回の起動設定として表示しない', async () => {
+      localStorage.setItem('app-settings', JSON.stringify({ version: 2, webview: enabled }));
+      render(<SettingsDialog {...defaultProps} />);
+      fireEvent.click(screen.getByText('WebView'));
+      await waitFor(() =>
+        expect(screen.getAllByText('今回の起動時に指定した設定: 確認できません')).toHaveLength(4)
+      );
+      for (const label of labels) expect(screen.getByLabelText(label)).toBeChecked();
     });
   });
 });

@@ -27,6 +27,9 @@ struct SettingsResponse {
     EditorSettings editor;
     GridSettings grid;
     QuerySettings query;
+    WebViewSettings webview;
+    WebViewSettings webviewStartup;
+    bool webviewRestartRequired = false;
 };
 
 struct SshConfigResponse {
@@ -122,7 +125,8 @@ struct SessionStateResponse {
 template <>
 struct glz::meta<velocitydb::dto::SettingsResponse> {
     using T = velocitydb::dto::SettingsResponse;
-    static constexpr auto value = glz::object("general", &T::general, "editor", &T::editor, "grid", &T::grid, "query", &T::query);
+    static constexpr auto value = glz::object("general", &T::general, "editor", &T::editor, "grid", &T::grid, "query", &T::query, "webview", &T::webview, "webviewStartup", &T::webviewStartup,
+                                              "webviewRestartRequired", &T::webviewRestartRequired);
 };
 
 template <>
@@ -159,7 +163,11 @@ namespace {
 }  // namespace
 
 SettingsProvider::SettingsProvider(std::unique_ptr<SettingsAccessor> settingsAccessor, std::unique_ptr<SessionAccessor> sessionAccessor, IConnectionProvider* connections, QueryHistory& queryHistory)
-    : m_settingsAccessor(std::move(settingsAccessor)), m_sessionAccessor(std::move(sessionAccessor)), m_connections(connections), m_queryHistory(queryHistory) {
+    : m_settingsAccessor(std::move(settingsAccessor))
+    , m_webviewStartup(m_settingsAccessor->getSettings().webview)
+    , m_sessionAccessor(std::move(sessionAccessor))
+    , m_connections(connections)
+    , m_queryHistory(queryHistory) {
     const auto& settings = m_settingsAccessor->getSettings();
     applyQueryTimeoutToConnections(settings.query.timeoutSeconds);
     applyMaxQueryHistoryToInstance(settings.general.maxQueryHistory);
@@ -181,7 +189,7 @@ SettingsProvider::~SettingsProvider() = default;
 
 std::string SettingsProvider::getSettings() {
     const auto& s = m_settingsAccessor->getSettings();
-    dto::SettingsResponse resp{s.general, s.editor, s.grid, s.query};
+    dto::SettingsResponse resp{s.general, s.editor, s.grid, s.query, s.webview, m_webviewStartup, s.webview != m_webviewStartup};
     std::string json;
     if (auto ec = glz::write_json(resp, json); bool(ec)) {
         return JsonUtils::errorResponse("Failed to serialize settings");
@@ -193,8 +201,58 @@ std::string SettingsProvider::updateSettings(std::string_view params) {
     try {
         thread_local static simdjson::dom::parser parser;
         auto doc = parser.parse(params);
+        if (doc.error() || doc.get_object().error()) {
+            return JsonUtils::errorResponse("Settings must be a JSON object");
+        }
 
         AppSettings settings = m_settingsAccessor->getSettings();
+
+        // Validate every WebView option before mutating the accessor or saving any section.
+        // Only typed settings are accepted; arbitrary Chromium arguments are not exposed.
+        bool foundWebview = false;
+        const auto sections = doc.get_object().value();
+        for (const auto section : sections) {
+            if (section.key != "webview") {
+                continue;
+            }
+            if (foundWebview) {
+                return JsonUtils::errorResponse("Duplicate webview settings section");
+            }
+            foundWebview = true;
+            auto webview = section.value.get_object();
+            if (webview.error()) {
+                return JsonUtils::errorResponse("webview must be an object");
+            }
+            unsigned seenOptions = 0;
+            for (const auto option : webview.value()) {
+                bool WebViewSettings::* member = nullptr;
+                unsigned optionBit = 0;
+                if (option.key == "gpuCompositing") {
+                    member = &WebViewSettings::gpuCompositing;
+                    optionBit = 1;
+                } else if (option.key == "rendererBackgrounding") {
+                    member = &WebViewSettings::rendererBackgrounding;
+                    optionBit = 2;
+                } else if (option.key == "cacheEnabled") {
+                    member = &WebViewSettings::cacheEnabled;
+                    optionBit = 4;
+                } else if (option.key == "openDevToolsOnStartup") {
+                    member = &WebViewSettings::openDevToolsOnStartup;
+                    optionBit = 8;
+                } else {
+                    return JsonUtils::errorResponse(std::format("Unknown webview setting: {}", option.key));
+                }
+                if ((seenOptions & optionBit) != 0) {
+                    return JsonUtils::errorResponse(std::format("Duplicate webview setting: {}", option.key));
+                }
+                seenOptions |= optionBit;
+                auto value = option.value.get_bool();
+                if (value.error()) {
+                    return JsonUtils::errorResponse(std::format("webview.{} must be a boolean", option.key));
+                }
+                settings.webview.*member = value.value();
+            }
+        }
 
         if (auto general = doc["general"]; !general.error()) {
             if (auto val = general["autoConnect"].get_bool(); !val.error())

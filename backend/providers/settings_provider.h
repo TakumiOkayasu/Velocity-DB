@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../host/webview_settings.h"
 #include "../interfaces/providers/settings_provider.h"
 
 #include <memory>
@@ -50,6 +51,7 @@ private:
     void applyMaxQueryHistoryToInstance(int maxItems);
 
     std::unique_ptr<SettingsAccessor> m_settingsAccessor;
+    const WebViewSettings m_webviewStartup;
     std::unique_ptr<SessionAccessor> m_sessionAccessor;
     IConnectionProvider* m_connections;  // Non-owning; may be null in tests
     QueryHistory& m_queryHistory;        // Non-owning; wired at construction

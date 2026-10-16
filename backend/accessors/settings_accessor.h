@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../host/webview_settings.h"
+
 #include <expected>
 #include <filesystem>
 #include <mutex>
@@ -96,6 +98,7 @@ struct AppSettings {
     GridSettings grid;
     QuerySettings query;
     WindowSettings window;
+    WebViewSettings webview;
     std::vector<ConnectionProfile> connectionProfiles;
 };
 

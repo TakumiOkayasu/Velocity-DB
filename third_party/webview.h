@@ -13,10 +13,13 @@
 #include <format>
 #include <functional>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <queue>
 #include <string>
 #include <thread>
+#include <utility>
+#include <vector>
 #include "simdjson.h"
 
 #define WEBVIEW_HINT_NONE 0
@@ -86,7 +89,18 @@ public:
 
     void set_disable_cache(bool disable) { m_disableCache = disable; }
 
+    // Supplied only by the native adapter's fixed boolean-to-arguments allowlist.
+    void set_browser_arguments(std::wstring arguments) { m_browserArguments = std::move(arguments); }
+
+    void set_diagnostic_callback(std::function<void(bool, const std::string&)> callback) {
+        m_diagnosticCallback = std::move(callback);
+    }
+
     ~webview() {
+        // COM completions may arrive after Close. They retain only this independent
+        // token and return before touching this object once teardown starts.
+        // Browser callbacks and destruction run on the creating UI apartment.
+        m_callbackAlive->store(false);
         stopWorkerPool();
         if (m_webviewWindow) {
             m_webviewWindow->remove_NewWindowRequested(m_newWindowRequestedToken);
@@ -124,18 +138,24 @@ public:
         m_bindings[name] = fn;
     }
 
-    void run() {
+    int run() {
         if (!m_hwnd) {
             createWindow();
+        }
+        if (!m_hwnd) {
+            reportDiagnostic("[WebView2] Failed to create host window", true);
+            return 1;
         }
 
         initWebView2();
 
-        MSG msg;
-        while (GetMessage(&msg, nullptr, 0, 0)) {
+        MSG msg{};
+        BOOL messageResult;
+        while ((messageResult = GetMessage(&msg, nullptr, 0, 0)) > 0) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
+        return messageResult == -1 ? 1 : static_cast<int>(msg.wParam);
     }
 
     void terminate() {
@@ -143,6 +163,19 @@ public:
     }
 
 private:
+    void reportDiagnostic(const std::string& message, bool warning = false) const {
+        if (m_diagnosticCallback) {
+            m_diagnosticCallback(warning, message);
+        } else {
+            fprintf(stderr, "%s\n", message.c_str());
+        }
+    }
+
+    void reportResult(const char* operation, HRESULT result) const {
+        reportDiagnostic(std::format("[WebView2] {}: {} (HRESULT: 0x{:08X})", operation,
+                                     SUCCEEDED(result) ? "applied" : "failed", static_cast<unsigned long>(result)), FAILED(result));
+    }
+
     void createWindow() {
         WNDCLASSEXW wc = {};
         wc.cbSize = sizeof(WNDCLASSEXW);
@@ -220,21 +253,26 @@ private:
         }
         LPCWSTR userDataFolderPtr = wUserDataFolder.empty() ? nullptr : wUserDataFolder.c_str();
 
-        // GPU compositing can intermittently fail to render specific tiles/layers
-        // on some Windows environments (Chromium known issue). Disabling GPU
-        // compositing prevents partial rendering failures in WebView2.
+        // Browser arguments are startup-only. The native adapter derives them from
+        // a fixed allowlist of booleans; there is no raw command-line setting.
         auto options = Microsoft::WRL::Make<CoreWebView2EnvironmentOptions>();
-        if (options) {
-            options->put_AdditionalBrowserArguments(
-                L"--disable-gpu-compositing "
-                L"--disable-renderer-backgrounding"
-            );
+        if (!options) {
+            reportDiagnostic("[WebView2] Cannot create environment options; startup settings were not applied", true);
+            PostQuitMessage(1);
+            return;
+        }
+        const HRESULT optionsResult = options->put_AdditionalBrowserArguments(m_browserArguments.c_str());
+        if (FAILED(optionsResult)) {
+            reportResult("Set startup browser arguments", optionsResult);
+            PostQuitMessage(1);
+            return;
         }
 
         HRESULT hr = CreateCoreWebView2EnvironmentWithOptions(
             nullptr, userDataFolderPtr, options.Get(),
             Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
-                [this](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
+                [this, alive = m_callbackAlive](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
+                    if (!alive->load()) return S_OK;
                     return onEnvironmentCreated(result, env);
                 }
             ).Get()
@@ -244,36 +282,61 @@ private:
             auto msg = std::format(
                 "WebView2 runtime not found. (HRESULT: 0x{:08X})\n"
                 "Please install Microsoft Edge WebView2 Runtime.", static_cast<unsigned long>(hr));
+            reportDiagnostic(std::format("[WebView2] {}", msg), true);
             MessageBoxA(m_hwnd, msg.c_str(), "Error", MB_OK | MB_ICONERROR);
             PostQuitMessage(1);
         }
     }
 
     HRESULT onEnvironmentCreated(HRESULT result, ICoreWebView2Environment* env) {
-        if (FAILED(result)) {
+        if (FAILED(result) || !env) {
             auto msg = std::format(
                 "Failed to create WebView2 environment. (HRESULT: 0x{:08X})", static_cast<unsigned long>(result));
+            reportDiagnostic(std::format("[WebView2] {}", msg), true);
             MessageBoxA(m_hwnd, msg.c_str(), "Error", MB_OK | MB_ICONERROR);
             PostQuitMessage(1);
-            return result;
+            return FAILED(result) ? result : E_POINTER;
         }
 
-        env->CreateCoreWebView2Controller(
+        LPWSTR version = nullptr;
+        const HRESULT versionResult = env->get_BrowserVersionString(&version);
+        if (SUCCEEDED(versionResult) && version) {
+            reportDiagnostic(std::format("[WebView2] Runtime version: {}", utf16_to_utf8(version)));
+        } else {
+            reportDiagnostic("[WebView2] Runtime version unavailable", true);
+        }
+        CoTaskMemFree(version);
+        reportDiagnostic(std::format("[WebView2] Environment created with requested browser arguments: {}",
+                                     m_browserArguments.empty() ? "(browser defaults)" : utf16_to_utf8(m_browserArguments)));
+
+        const HRESULT controllerResult = env->CreateCoreWebView2Controller(
             m_hwnd,
             Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
-                [this](HRESULT result, ICoreWebView2Controller* controller) -> HRESULT {
+                [this, alive = m_callbackAlive](HRESULT result, ICoreWebView2Controller* controller) -> HRESULT {
+                    if (!alive->load()) {
+                        if (controller) controller->Close();
+                        return S_OK;
+                    }
                     if (FAILED(result) || !controller) {
+                        reportDiagnostic(std::format("[WebView2] Failed to create controller (HRESULT: 0x{:08X})", static_cast<unsigned long>(result)), true);
                         MessageBoxA(m_hwnd, "Failed to create WebView2 controller.", "Error", MB_OK | MB_ICONERROR);
                         PostQuitMessage(1);
                         return result;
                     }
 
                     m_webviewController = controller;
-                    m_webviewController->get_CoreWebView2(&m_webviewWindow);
+                    const HRESULT coreResult = m_webviewController->get_CoreWebView2(&m_webviewWindow);
+                    if (FAILED(coreResult) || !m_webviewWindow) {
+                        reportDiagnostic(std::format("[WebView2] Browser interface unavailable (HRESULT: 0x{:08X})", static_cast<unsigned long>(coreResult)), true);
+                        PostQuitMessage(1);
+                        return FAILED(coreResult) ? coreResult : E_POINTER;
+                    }
 
                     // Disable cache via DevTools protocol if requested
                     if (m_disableCache) {
                         disableCacheViaDevTools();
+                    } else {
+                        reportDiagnostic("[WebView2] Cache: enabled (browser default)");
                     }
 
                     // Resize WebView to fill window
@@ -294,16 +357,19 @@ private:
                     // Setup bindings
                     setupBindings();
 
-                    // Open DevTools in debug builds
+                    // This controls automatic opening only; it does not disable DevTools access.
                     if (m_debug) {
-                        m_webviewWindow->OpenDevToolsWindow();
+                        reportResult("Open DevTools on startup", m_webviewWindow->OpenDevToolsWindow());
+                    } else {
+                        reportDiagnostic("[WebView2] Automatic DevTools opening: off");
                     }
 
                     // Navigation event handler (debug logging)
                     EventRegistrationToken navToken;
                     m_webviewWindow->add_NavigationCompleted(
                         Callback<ICoreWebView2NavigationCompletedEventHandler>(
-                            [this](ICoreWebView2* /*sender*/, ICoreWebView2NavigationCompletedEventArgs* args) -> HRESULT {
+                            [this, alive = m_callbackAlive](ICoreWebView2* /*sender*/, ICoreWebView2NavigationCompletedEventArgs* args) -> HRESULT {
+                                if (!alive->load()) return S_OK;
                                 BOOL success = FALSE;
                                 args->get_IsSuccess(&success);
                                 COREWEBVIEW2_WEB_ERROR_STATUS status{};
@@ -335,22 +401,29 @@ private:
                 }
             ).Get()
         );
-        return S_OK;
+        if (FAILED(controllerResult)) {
+            reportResult("Create controller", controllerResult);
+            PostQuitMessage(1);
+        }
+        return controllerResult;
     }
 
     void disableCacheViaDevTools() {
         if (!m_webviewWindow) return;
 
-        // Call DevTools protocol to disable cache
-        ComPtr<ICoreWebView2> webview;
-        m_webviewWindow->QueryInterface(IID_PPV_ARGS(&webview));
-        if (webview) {
-            // Network.setCacheDisabled disables the browser cache
-            webview->CallDevToolsProtocolMethod(
-                L"Network.setCacheDisabled",
-                L"{\"cacheDisabled\": true}",
-                nullptr
-            );
+        // Report asynchronous CDP failure rather than claiming the requested policy took effect.
+        const HRESULT result = m_webviewWindow->CallDevToolsProtocolMethod(
+            L"Network.setCacheDisabled", L"{\"cacheDisabled\": true}",
+            Callback<ICoreWebView2CallDevToolsProtocolMethodCompletedHandler>(
+                [this, alive = m_callbackAlive](HRESULT errorCode, LPCWSTR /*resultJson*/) -> HRESULT {
+                    if (!alive->load()) return S_OK;
+                    reportResult("Disable browser cache", errorCode);
+                    return S_OK;
+                }
+            ).Get()
+        );
+        if (FAILED(result)) {
+            reportResult("Request browser cache disable", result);
         }
     }
 
@@ -363,9 +436,9 @@ private:
 
         ComPtr<ICoreWebView2Settings3> settings3;
         if (SUCCEEDED(settings->QueryInterface(IID_PPV_ARGS(&settings3))) && settings3) {
-            settings3->put_AreBrowserAcceleratorKeysEnabled(FALSE);
+            reportResult("Disable browser accelerator keys", settings3->put_AreBrowserAcceleratorKeysEnabled(FALSE));
         } else {
-            fprintf(stderr, "[WebView2] WARNING: ICoreWebView2Settings3 not available, browser accelerator keys remain enabled\n");
+            reportDiagnostic("[WebView2] ICoreWebView2Settings3 unavailable; browser accelerator keys remain enabled", true);
         }
     }
 
@@ -438,8 +511,9 @@ private:
         // Handle messages from JavaScript - dispatch to worker thread
         m_webviewWindow->add_WebMessageReceived(
             Callback<ICoreWebView2WebMessageReceivedEventHandler>(
-                [this](ICoreWebView2* /*sender*/, ICoreWebView2WebMessageReceivedEventArgs* args) -> HRESULT {
-                    LPWSTR messageRaw;
+                [this, alive = m_callbackAlive](ICoreWebView2* /*sender*/, ICoreWebView2WebMessageReceivedEventArgs* args) -> HRESULT {
+                    if (!alive->load()) return S_OK;
+                    LPWSTR messageRaw = nullptr;
                     args->TryGetWebMessageAsString(&messageRaw);
 
                     if (messageRaw) {
@@ -473,7 +547,9 @@ private:
                                 dispatchToWorker([fn, data = std::move(data), id, hwnd]() {
                                     std::string response = fn(data);
                                     auto* resp = new IPCResponse{id, std::move(response)};
-                                    PostMessage(hwnd, WM_IPC_RESPONSE, 0, reinterpret_cast<LPARAM>(resp));
+                                    if (!PostMessage(hwnd, WM_IPC_RESPONSE, 0, reinterpret_cast<LPARAM>(resp))) {
+                                        delete resp;
+                                    }
                                 });
                             }
                         }
@@ -519,6 +595,7 @@ private:
 
         case WM_DESTROY:
             if (self) {
+                self->m_callbackAlive->store(false);
                 self->stopWorkerPool();
             }
             PostQuitMessage(0);
@@ -560,6 +637,12 @@ private:
             }
         }
         m_workerThreads.clear();
+        // WM_DESTROY can stop the UI loop before queued responses are dispatched.
+        // All workers have joined, so no further responses can be posted now.
+        MSG message{};
+        while (m_hwnd && PeekMessage(&message, m_hwnd, WM_IPC_RESPONSE, WM_IPC_RESPONSE, PM_REMOVE)) {
+            delete reinterpret_cast<IPCResponse*>(message.lParam);
+        }
     }
 
     void dispatchToWorker(std::function<void()> task) {
@@ -578,6 +661,9 @@ private:
     std::string m_url;
     std::string m_frontendPath;
     std::string m_userDataFolder;
+    std::wstring m_browserArguments = L"--disable-gpu-compositing --disable-renderer-backgrounding";
+    std::function<void(bool, const std::string&)> m_diagnosticCallback;
+    std::shared_ptr<std::atomic<bool>> m_callbackAlive = std::make_shared<std::atomic<bool>>(true);
     int m_width = 800;
     int m_height = 600;
     int m_hints = WEBVIEW_HINT_NONE;

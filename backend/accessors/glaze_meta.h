@@ -64,9 +64,17 @@ struct glz::meta<velocitydb::QuerySettings> {
 };
 
 template <>
+struct glz::meta<velocitydb::WebViewSettings> {
+    using T = velocitydb::WebViewSettings;
+    static constexpr auto value =
+        object("gpuCompositing", &T::gpuCompositing, "rendererBackgrounding", &T::rendererBackgrounding, "cacheEnabled", &T::cacheEnabled, "openDevToolsOnStartup", &T::openDevToolsOnStartup);
+};
+
+template <>
 struct glz::meta<velocitydb::AppSettings> {
     using T = velocitydb::AppSettings;
-    static constexpr auto value = object("general", &T::general, "editor", &T::editor, "grid", &T::grid, "query", &T::query, "window", &T::window, "connectionProfiles", &T::connectionProfiles);
+    static constexpr auto value =
+        object("general", &T::general, "editor", &T::editor, "grid", &T::grid, "query", &T::query, "window", &T::window, "webview", &T::webview, "connectionProfiles", &T::connectionProfiles);
 };
 
 // --- Session structs ---

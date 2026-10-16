@@ -83,6 +83,19 @@ export const mockData: Record<string, unknown> = {
   parseERDiagram: { name: '', databaseType: '', tables: [], relations: [], shapes: [], ddl: '' },
   getExecutionPlan: { plan: 'Mock execution plan text', actual: false },
   getSettings: {
+    webview: {
+      gpuCompositing: false,
+      rendererBackgrounding: false,
+      cacheEnabled: false,
+      openDevToolsOnStartup: false,
+    },
+    webviewStartup: {
+      gpuCompositing: false,
+      rendererBackgrounding: false,
+      cacheEnabled: false,
+      openDevToolsOnStartup: false,
+    },
+    webviewRestartRequired: false,
     general: {
       autoConnect: false,
       lastConnectionId: '',

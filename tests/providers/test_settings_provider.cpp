@@ -5,9 +5,12 @@
 #include "interfaces/providers/connection_profile_accessor.h"
 #include "interfaces/providers/session_state_accessor.h"
 #include "providers/settings_provider.h"
+#include "simdjson.h"
 
 #include <filesystem>
 #include <format>
+#include <fstream>
+#include <iterator>
 #include <memory>
 #include <random>
 
@@ -15,6 +18,23 @@
 
 namespace velocitydb {
 namespace {
+
+void expectWebViewResponse(const std::string& response, const WebViewSettings& desired, const WebViewSettings& startup, bool restartRequired) {
+    simdjson::dom::parser parser;
+    const auto doc = parser.parse(response);
+    ASSERT_FALSE(doc.error());
+    ASSERT_TRUE(doc["success"].get_bool().value());
+    const auto data = doc["data"];
+    const auto expectSection = [&](std::string_view section, const WebViewSettings& expected) {
+        EXPECT_EQ(data[section]["gpuCompositing"].get_bool().value(), expected.gpuCompositing);
+        EXPECT_EQ(data[section]["rendererBackgrounding"].get_bool().value(), expected.rendererBackgrounding);
+        EXPECT_EQ(data[section]["cacheEnabled"].get_bool().value(), expected.cacheEnabled);
+        EXPECT_EQ(data[section]["openDevToolsOnStartup"].get_bool().value(), expected.openDevToolsOnStartup);
+    };
+    expectSection("webview", desired);
+    expectSection("webviewStartup", startup);
+    EXPECT_EQ(data["webviewRestartRequired"].get_bool().value(), restartRequired);
+}
 
 class SettingsProviderTest : public ::testing::Test {
 protected:
@@ -35,6 +55,11 @@ protected:
         std::filesystem::remove_all(m_directory, error);
     }
 
+    [[nodiscard]] std::string readSettingsFile() const {
+        std::ifstream file(m_settingsPath, std::ios::binary);
+        return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+    }
+
     std::filesystem::path m_directory;
     std::filesystem::path m_settingsPath;
 
@@ -50,6 +75,131 @@ TEST_F(SettingsProviderTest, AccessSettingsAccessor) {
     // Default settings should have reasonable values
     EXPECT_GT(settings.editor.fontSize, 0);
     EXPECT_FALSE(settings.editor.fontFamily.empty());
+}
+
+TEST_F(SettingsProviderTest, WebViewDefaultsPreserveExistingStartupBehavior) {
+    const WebViewSettings defaults;
+    EXPECT_FALSE(defaults.gpuCompositing);
+    EXPECT_FALSE(defaults.rendererBackgrounding);
+    EXPECT_FALSE(defaults.cacheEnabled);
+    EXPECT_FALSE(defaults.openDevToolsOnStartup);
+    EXPECT_EQ(provider->settingsAccessor().getSettings().webview, defaults);
+    expectWebViewResponse(provider->getSettings(), defaults, defaults, false);
+}
+
+TEST_F(SettingsProviderTest, LegacySettingsWithoutWebViewLoadWithDefaults) {
+    {
+        std::ofstream file(m_settingsPath);
+        file << R"({"general":{"language":"ja"},"editor":{"fontSize":18},"query":{"timeoutSeconds":45}})";
+    }
+    auto settings = std::make_unique<SettingsAccessor>(m_settingsPath);
+    ASSERT_TRUE(settings->load().has_value());
+    EXPECT_EQ(settings->getSettings().general.language, "ja");
+    EXPECT_EQ(settings->getSettings().editor.fontSize, 18);
+    EXPECT_EQ(settings->getSettings().query.timeoutSeconds, 45);
+    EXPECT_EQ(settings->getSettings().webview, WebViewSettings{});
+    SettingsProvider freshProvider{std::move(settings), std::make_unique<SessionAccessor>(), nullptr, *m_queryHistory};
+    expectWebViewResponse(freshProvider.getSettings(), {}, {}, false);
+}
+
+TEST_F(SettingsProviderTest, WebViewChangesPersistWithoutChangingStartupSnapshot) {
+    const WebViewSettings enabled{true, true, true, true};
+    const auto result = provider->updateSettings(R"({"webview":{"gpuCompositing":true,"rendererBackgrounding":true,"cacheEnabled":true,"openDevToolsOnStartup":true}})");
+    ASSERT_NE(result.find(R"("success":true)"), std::string::npos);
+    EXPECT_EQ(provider->settingsAccessor().getSettings().webview, enabled);
+    expectWebViewResponse(provider->getSettings(), enabled, {}, true);
+
+    auto settings = std::make_unique<SettingsAccessor>(m_settingsPath);
+    ASSERT_TRUE(settings->load().has_value());
+    EXPECT_EQ(settings->getSettings().webview, enabled);
+    SettingsProvider restarted{std::move(settings), std::make_unique<SessionAccessor>(), nullptr, *m_queryHistory};
+    expectWebViewResponse(restarted.getSettings(), enabled, enabled, false);
+
+    // Disabling a saved option also requires restart; omitted options retain their saved values.
+    ASSERT_NE(restarted.updateSettings(R"({"webview":{"gpuCompositing":false}})").find(R"("success":true)"), std::string::npos);
+    const WebViewSettings partiallyDisabled{false, true, true, true};
+    expectWebViewResponse(restarted.getSettings(), partiallyDisabled, enabled, true);
+    SettingsAccessor reloaded(m_settingsPath);
+    ASSERT_TRUE(reloaded.load().has_value());
+    EXPECT_EQ(reloaded.getSettings().webview, partiallyDisabled);
+
+    // Restoring the startup values clears the restart requirement in this running provider.
+    ASSERT_NE(restarted.updateSettings(R"({"webview":{"gpuCompositing":true}})").find(R"("success":true)"), std::string::npos);
+    expectWebViewResponse(restarted.getSettings(), enabled, enabled, false);
+}
+
+TEST_F(SettingsProviderTest, WebViewBooleanFieldsCanAllBeDisabledAndReloaded) {
+    ASSERT_NE(provider->updateSettings(R"({"webview":{"gpuCompositing":true,"rendererBackgrounding":true,"cacheEnabled":true,"openDevToolsOnStartup":true}})").find(R"("success":true)"),
+              std::string::npos);
+    ASSERT_NE(provider->updateSettings(R"({"webview":{"gpuCompositing":false,"rendererBackgrounding":false,"cacheEnabled":false,"openDevToolsOnStartup":false}})").find(R"("success":true)"),
+              std::string::npos);
+    SettingsAccessor reloaded(m_settingsPath);
+    ASSERT_TRUE(reloaded.load().has_value());
+    EXPECT_EQ(reloaded.getSettings().webview, WebViewSettings{});
+    expectWebViewResponse(provider->getSettings(), {}, {}, false);
+}
+
+TEST_F(SettingsProviderTest, InvalidWebViewSectionsAreRejectedWithoutSavingAnySettings) {
+    const auto before = provider->getSettings();
+    const auto diskBefore = readSettingsFile();
+    for (const auto invalid : {"null", "true", "false", "0", R"("settings")", "[]"}) {
+        SCOPED_TRACE(invalid);
+        const auto request = std::format(R"({{"general":{{"language":"ja"}},"query":{{"timeoutSeconds":45}},"webview":{}}})", invalid);
+        EXPECT_NE(provider->updateSettings(request).find(R"("success":false)"), std::string::npos);
+        EXPECT_EQ(provider->getSettings(), before);
+        EXPECT_EQ(readSettingsFile(), diskBefore);
+    }
+}
+
+TEST_F(SettingsProviderTest, InvalidWebViewOptionTypesAreRejectedAtomically) {
+    const auto before = provider->getSettings();
+    const auto diskBefore = readSettingsFile();
+    for (const auto key : {"gpuCompositing", "rendererBackgrounding", "cacheEnabled", "openDevToolsOnStartup"}) {
+        for (const auto invalid : {"null", "0", "1", R"("true")", "[]", "{}"}) {
+            SCOPED_TRACE(std::format("{}={}", key, invalid));
+            const auto request = std::format(R"({{"editor":{{"fontSize":20}},"webview":{{"{}":{}}}}})", key, invalid);
+            EXPECT_NE(provider->updateSettings(request).find(R"("success":false)"), std::string::npos);
+            EXPECT_EQ(provider->getSettings(), before);
+            EXPECT_EQ(readSettingsFile(), diskBefore);
+        }
+    }
+}
+
+TEST_F(SettingsProviderTest, UnknownWebViewOptionsAndRawFlagsAreRejectedAtomically) {
+    const auto before = provider->getSettings();
+    const auto diskBefore = readSettingsFile();
+    for (const auto request : {
+             R"({"editor":{"fontSize":20},"webview":{"gpuCompositing":true,"unknown":false}})",
+             R"({"webview":{"additionalBrowserArguments":"--disable-web-security"}})",
+             R"({"webview":{"browserArguments":"--disable-gpu"}})",
+             R"({"webview":{"engine":"alternate"}})",
+             R"({"webview":{"disableGpu":true}})",
+             R"({"webview":{"gpuCompositing":true,"gpuCompositing":false}})",
+             R"({"webview":{"gpuCompositing":true},"webview":{"cacheEnabled":true}})",
+         }) {
+        SCOPED_TRACE(request);
+        EXPECT_NE(provider->updateSettings(request).find(R"("success":false)"), std::string::npos);
+        EXPECT_EQ(provider->getSettings(), before);
+        EXPECT_EQ(readSettingsFile(), diskBefore);
+    }
+}
+
+TEST_F(SettingsProviderTest, EmptyWebViewUpdatePreservesSavedOptions) {
+    ASSERT_NE(provider->updateSettings(R"({"webview":{"cacheEnabled":true}})").find(R"("success":true)"), std::string::npos);
+    const auto before = provider->getSettings();
+    ASSERT_NE(provider->updateSettings(R"({"webview":{}})").find(R"("success":true)"), std::string::npos);
+    EXPECT_EQ(provider->getSettings(), before);
+}
+
+TEST_F(SettingsProviderTest, MalformedOrNonObjectSettingsAreRejected) {
+    const auto before = provider->getSettings();
+    const auto diskBefore = readSettingsFile();
+    for (const auto request : {"{", "null", "true", "[]", R"("settings")"}) {
+        SCOPED_TRACE(request);
+        EXPECT_NE(provider->updateSettings(request).find(R"("success":false)"), std::string::npos);
+        EXPECT_EQ(provider->getSettings(), before);
+        EXPECT_EQ(readSettingsFile(), diskBefore);
+    }
 }
 
 TEST_F(SettingsProviderTest, AccessSessionAccessor) {
@@ -116,12 +266,14 @@ TEST_F(SettingsProviderTest, FailedSettingsSaveReturnsErrorAndRestoresInMemorySe
     std::filesystem::remove(m_settingsPath);
     std::filesystem::create_directory(m_settingsPath);
 
-    const auto result = provider->updateSettings(R"({"general":{"maxQueryHistory":5},"query":{"timeoutSeconds":45}})");
+    const auto result = provider->updateSettings(R"({"general":{"maxQueryHistory":5},"query":{"timeoutSeconds":45},"webview":{"gpuCompositing":true,"cacheEnabled":true}})");
 
     EXPECT_NE(result.find("\"success\":false"), std::string::npos);
     const auto& after = provider->settingsAccessor().getSettings();
     EXPECT_EQ(after.general.maxQueryHistory, before.general.maxQueryHistory);
     EXPECT_EQ(after.query.timeoutSeconds, before.query.timeoutSeconds);
+    EXPECT_EQ(after.webview, before.webview);
+    expectWebViewResponse(provider->getSettings(), before.webview, before.webview, false);
     EXPECT_EQ(m_queryHistory->getAll().size(), 10u);
 }
 

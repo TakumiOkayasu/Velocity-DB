@@ -1,11 +1,10 @@
-#include <gtest/gtest.h>
-
 #include "accessors/glaze_meta.h"
 #include "accessors/settings_accessor.h"
 
-#include <glaze/glaze.hpp>
-
 #include <string>
+
+#include <glaze/glaze.hpp>
+#include <gtest/gtest.h>
 
 namespace velocitydb {
 namespace {
@@ -22,8 +21,7 @@ TEST(GlazeMetaConnectionProfile, PreservesFolderPathAcrossRoundTrip) {
     auto write_err = glz::write_json(original, json);
     ASSERT_FALSE(static_cast<bool>(write_err)) << "serialize should succeed";
 
-    EXPECT_NE(json.find(R"("folderPath":"Develop")"), std::string::npos)
-        << "folderPath should be present in serialized JSON: " << json;
+    EXPECT_NE(json.find(R"("folderPath":"Develop")"), std::string::npos) << "folderPath should be present in serialized JSON: " << json;
 
     ConnectionProfile decoded;
     auto read_err = glz::read_json(decoded, json);
@@ -80,6 +78,35 @@ TEST(GlazeMetaConnectionProfile, DefaultsFolderPathToEmptyWhenMissingInJson) {
 
     EXPECT_EQ(decoded.folderPath, "");
     EXPECT_EQ(decoded.id, "id-2");
+}
+
+TEST(GlazeMetaWebViewSettings, PreservesAllOptionsThroughAppSettingsRoundTrip) {
+    AppSettings original;
+    original.webview = {true, true, true, true};
+
+    std::string json;
+    ASSERT_FALSE(static_cast<bool>(glz::write_json(original, json)));
+    EXPECT_NE(json.find(R"("webview":)"), std::string::npos);
+    EXPECT_EQ(json.find("webviewStartup"), std::string::npos);
+    EXPECT_EQ(json.find("webviewRestartRequired"), std::string::npos);
+
+    AppSettings decoded;
+    ASSERT_FALSE(static_cast<bool>(glz::read_json(decoded, json)));
+    EXPECT_EQ(decoded.webview, original.webview);
+}
+
+TEST(GlazeMetaWebViewSettings, MissingSectionAndMissingOptionsKeepDefaults) {
+    for (const auto json : {R"({"general":{"language":"ja"}})", R"({"webview":{}})"}) {
+        AppSettings decoded;
+        ASSERT_FALSE(static_cast<bool>(glz::read_json(decoded, json)));
+        EXPECT_EQ(decoded.webview, WebViewSettings{});
+    }
+    AppSettings partial;
+    ASSERT_FALSE(static_cast<bool>(glz::read_json(partial, R"({"webview":{"gpuCompositing":true}})")));
+    EXPECT_TRUE(partial.webview.gpuCompositing);
+    EXPECT_FALSE(partial.webview.rendererBackgrounding);
+    EXPECT_FALSE(partial.webview.cacheEnabled);
+    EXPECT_FALSE(partial.webview.openDevToolsOnStartup);
 }
 
 }  // namespace

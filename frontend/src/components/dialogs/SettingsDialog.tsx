@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { appSettingsProvider } from '../../api/providers';
 import { cacheSettings, mergeBackendSettings } from '../../utils/settingsCache';
 import { normalizeSettings } from '../../utils/settingsUtils';
+import type { WebViewSettings } from '../../types/webview';
 import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
 import { DialogOverlay } from '../common/DialogOverlay';
 import styles from './SettingsDialog.module.css';
@@ -28,10 +29,41 @@ const TABS = [
   { id: 'editor', label: 'エディタ' },
   { id: 'query', label: 'クエリ' },
   { id: 'grid', label: 'グリッド' },
+  { id: 'webview', label: 'WebView' },
   { id: 'appearance', label: '外観' },
   { id: 'shortcuts', label: 'ショートカット' },
 ] as const;
 type TabId = (typeof TABS)[number]['id'];
+
+const WEBVIEW_OPTIONS = [
+  {
+    key: 'gpuCompositing',
+    label: 'GPU 合成を許可する',
+    description:
+      'GPU 合成の禁止指定を外し、WebView2 の既定動作に任せます。GPU の利用を保証する設定ではなく、ハードウェアアクセラレーション全体を切り替える設定でもありません。',
+  },
+  {
+    key: 'rendererBackgrounding',
+    label: '非アクティブ時のレンダラーの優先度低下を許可する',
+    description:
+      'OFF ではバックグラウンドでもレンダラープロセスの優先度を下げません。ページを一時停止する設定ではありません。',
+  },
+  {
+    key: 'cacheEnabled',
+    label: 'HTTP キャッシュを有効にする',
+    description:
+      'WebView2 の HTTP キャッシュを使用します。既存のキャッシュを削除する操作ではありません。',
+  },
+  {
+    key: 'openDevToolsOnStartup',
+    label: '起動時に開発者ツールを自動で開く',
+    description: '次回のアプリ起動時に WebView2 の開発者ツールを開きます。',
+  },
+] as const satisfies ReadonlyArray<{
+  key: keyof WebViewSettings;
+  label: string;
+  description: string;
+}>;
 
 // ショートカット表示。値は実キーハンドラ実装 (MainLayout.tsx) と同期させる
 const SHORTCUT_DISPLAY: ReadonlyArray<{ label: string; keys: string }> = [
@@ -46,11 +78,16 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<TabId>('general');
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [webviewStartup, setWebviewStartup] = useState<WebViewSettings | null>(null);
+  const [webviewRestartRequired, setWebviewRestartRequired] = useState(false);
+  const [isLoadingStartup, setIsLoadingStartup] = useState(true);
+  const isSavingRef = useRef(false);
   const isDirtyRef = useRef(false);
+  const dirtyWebviewFieldsRef = useRef(new Set<keyof WebViewSettings>());
   const lifecycleRef = useRef(0);
   const closeDialog = useCallback(() => {
-    if (!isSaving) onClose();
-  }, [isSaving, onClose]);
+    if (!isSavingRef.current) onClose();
+  }, [onClose]);
   useDialogKeyboard({ isOpen, onEscape: closeDialog });
 
   // 開いたタイミングで localStorage キャッシュ → backend 永続値 (settings.json) の順に読込。
@@ -59,17 +96,34 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
     if (!isOpen) return;
     const lifecycle = ++lifecycleRef.current;
     isDirtyRef.current = false;
+    dirtyWebviewFieldsRef.current.clear();
+    isSavingRef.current = false;
     setIsSaving(false);
     setSaveError(null);
+    setWebviewStartup(null);
+    setWebviewRestartRequired(false);
+    setIsLoadingStartup(true);
     setSettings(getSettings());
     let cancelled = false;
     appSettingsProvider
       .getSettings()
       .then((backend) => {
-        if (cancelled || lifecycleRef.current !== lifecycle || isDirtyRef.current) return;
-        setSettings((prev) => mergeBackendSettings(prev, backend));
+        if (cancelled || lifecycleRef.current !== lifecycle) return;
+        setWebviewStartup(backend.webviewStartup);
+        setWebviewRestartRequired(backend.webviewRestartRequired);
+        setIsLoadingStartup(false);
+        setSettings((prev) => {
+          const merged = mergeBackendSettings(prev, backend);
+          for (const key of dirtyWebviewFieldsRef.current) {
+            merged.webview[key] = prev.webview[key];
+          }
+          // Other edits must not prevent untouched native startup options from hydrating.
+          return isDirtyRef.current ? { ...prev, webview: merged.webview } : merged;
+        });
       })
       .catch((err) => {
+        if (cancelled || lifecycleRef.current !== lifecycle) return;
+        setIsLoadingStartup(false);
         console.error('Failed to load settings from backend:', err);
       });
     return () => {
@@ -79,14 +133,21 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
   }, [isOpen]);
 
   const saveSettings = useCallback(async () => {
-    if (isSaving) return;
+    if (isSavingRef.current) return;
     const lifecycle = lifecycleRef.current;
+    isSavingRef.current = true;
+    // A late initial read must not replace the settings being saved.
+    isDirtyRef.current = true;
     setIsSaving(true);
     setSaveError(null);
     const saved = normalizeSettings(settings);
-    // Backend 対応項目 (general/editor/grid/query) を 1 回の updateSettings で永続化
+    const webview: Partial<WebViewSettings> = {};
+    for (const key of dirtyWebviewFieldsRef.current) webview[key] = saved.webview[key];
+    // WebView 設定も backend に保存するが、起動時スナップショットは変更しない。
     try {
-      await appSettingsProvider.updateSettings({
+      const result = await appSettingsProvider.updateSettings({
+        // Never overwrite native options from a stale cache during an unrelated save.
+        ...(dirtyWebviewFieldsRef.current.size > 0 ? { webview } : {}),
         general: {
           autoConnect: saved.general.autoConnect,
           confirmOnExit: saved.general.confirmOnExit,
@@ -110,29 +171,33 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
           maxRows: saved.query.maxRows,
         },
       });
+      if (!result.saved) throw new Error('Backend did not save settings');
       if (lifecycleRef.current !== lifecycle) return;
       cacheSettings(saved);
+      isSavingRef.current = false;
       setIsSaving(false);
       onClose();
     } catch (err) {
       if (lifecycleRef.current !== lifecycle) return;
       console.error('Failed to sync settings to backend:', err);
       setSaveError('設定を保存できませんでした。もう一度お試しください。');
+      isSavingRef.current = false;
       setIsSaving(false);
     }
-  }, [settings, onClose, isSaving]);
+  }, [settings, onClose]);
 
   const resetSettings = useCallback(() => {
     isDirtyRef.current = true;
+    dirtyWebviewFieldsRef.current = new Set(WEBVIEW_OPTIONS.map(({ key }) => key));
     setSettings(defaultSettings);
   }, []);
 
   // version (primitive) は updateSetting 対象外。スプレッド不可のため型から除外。
   const updateSetting = useCallback(
-    <K extends Exclude<keyof AppSettings, 'version'>>(
+    <K extends Exclude<keyof AppSettings, 'version'>, F extends keyof AppSettings[K]>(
       category: K,
-      key: keyof AppSettings[K],
-      value: AppSettings[K][keyof AppSettings[K]]
+      key: F,
+      value: AppSettings[K][F]
     ) => {
       isDirtyRef.current = true;
       setSettings((prev) => ({
@@ -147,6 +212,10 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
   );
 
   if (!isOpen) return null;
+
+  const webviewDiffersFromStartup =
+    webviewStartup !== null &&
+    WEBVIEW_OPTIONS.some(({ key }) => settings.webview[key] !== webviewStartup[key]);
 
   return (
     <DialogOverlay
@@ -392,6 +461,57 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                   placeholder={defaultSettings.grid.nullDisplay}
                 />
               </div>
+            </div>
+          )}
+
+          {activeTab === 'webview' && (
+            <div className={styles.settingsGroup}>
+              <p className={styles.settingDescription}>
+                WebView2 の起動設定です。チェック状態は保存する設定を表します。
+                変更は保存後、アプリを終了して次回起動したときに適用されます。自動では再起動しません。
+              </p>
+              {webviewRestartRequired && (
+                <output className={styles.restartNotice}>
+                  保存済みの WebView 設定は未適用です。反映するにはアプリを再起動してください。
+                </output>
+              )}
+              {webviewDiffersFromStartup && (
+                <p className={styles.restartNotice}>
+                  今回の起動設定と異なります。保存しても、再起動するまで今回の設定で動作します。
+                </p>
+              )}
+              {WEBVIEW_OPTIONS.map(({ key, label, description }) => (
+                <div key={key} className={styles.setting}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={settings.webview[key]}
+                      aria-describedby={`setting-webview-${key}-description setting-webview-${key}-startup`}
+                      onChange={(e) => {
+                        dirtyWebviewFieldsRef.current.add(key);
+                        updateSetting('webview', key, e.target.checked);
+                      }}
+                    />
+                    {label}
+                  </label>
+                  <p
+                    id={`setting-webview-${key}-description`}
+                    className={styles.settingDescription}
+                  >
+                    {description}
+                  </p>
+                  <p id={`setting-webview-${key}-startup`} className={styles.startupValue}>
+                    今回の起動時に指定した設定:{' '}
+                    {webviewStartup
+                      ? webviewStartup[key]
+                        ? '有効'
+                        : '無効'
+                      : isLoadingStartup
+                        ? '取得中…'
+                        : '確認できません'}
+                  </p>
+                </div>
+              ))}
             </div>
           )}
 

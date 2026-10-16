@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 test.describe('ダイアログ Escapeキー閉じ', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
+    await expect(page.getByRole('button', { name: '設定', exact: true })).toBeVisible();
   });
 
   test('SettingsDialog: Escapeで閉じる', async ({ page }) => {

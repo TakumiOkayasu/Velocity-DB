@@ -135,6 +135,24 @@
   font-style: italic;
 }
 
+.settingDescription,
+.startupValue {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.restartNotice {
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--accent-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 .footer {
   display: flex;
   justify-content: space-between;

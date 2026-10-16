@@ -104,4 +104,43 @@ describe('settingsUtils.getSettings (schema migration)', () => {
     expect(loaded.general.maxQueryHistory).toBe(500);
     expect(loaded.grid.nullDisplay).toBe('NULL');
   });
+
+  it('WebView がない旧キャッシュには従来の起動設定を補完する', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, editor: { fontSize: 18 } }));
+    expect(getSettings().webview).toEqual({
+      gpuCompositing: false,
+      rendererBackgrounding: false,
+      cacheEnabled: false,
+      openDevToolsOnStartup: false,
+    });
+  });
+
+  it('WebView キャッシュは boolean のみ許可し不正な値を defaults に戻す', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        webview: {
+          gpuCompositing: 'true',
+          rendererBackgrounding: 1,
+          cacheEnabled: null,
+          openDevToolsOnStartup: true,
+        },
+      })
+    );
+    expect(getSettings().webview).toEqual({
+      ...defaultSettings.webview,
+      openDevToolsOnStartup: true,
+    });
+  });
+
+  it('保存した WebView の boolean をそのまま読み込む', () => {
+    const webview = {
+      gpuCompositing: true,
+      rendererBackgrounding: true,
+      cacheEnabled: true,
+      openDevToolsOnStartup: true,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...defaultSettings, webview }));
+    expect(getSettings().webview).toEqual(webview);
+  });
 });

@@ -17,6 +17,7 @@
 #include "../providers/utility_provider.h"
 
 #include <algorithm>
+#include <stdexcept>
 
 namespace velocitydb {
 
@@ -29,13 +30,20 @@ namespace {
     return std::make_unique<QueryHistory>(maxItems);
 }
 
-}  // namespace
-
-SystemContext::SystemContext() {
-    // accessor の load は SystemContext で先行実施する: QueryHistory が settings.general.maxQueryHistory を
-    // 構築時に必要とし、その値は SettingsAccessor を load 済みでなければ取得できないため。
+[[nodiscard]] std::unique_ptr<SettingsAccessor> loadSettingsAccessor() {
     auto settingsAccessor = std::make_unique<SettingsAccessor>();
     (void)settingsAccessor->load();
+    return settingsAccessor;
+}
+
+}  // namespace
+
+SystemContext::SystemContext() : SystemContext(loadSettingsAccessor()) {}
+
+SystemContext::SystemContext(std::unique_ptr<SettingsAccessor> settingsAccessor) {
+    if (!settingsAccessor) {
+        throw std::invalid_argument("Loaded settings accessor is required");
+    }
     auto sessionAccessor = std::make_unique<SessionAccessor>();
     (void)sessionAccessor->load();
 

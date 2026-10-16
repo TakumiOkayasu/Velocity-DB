@@ -4,6 +4,19 @@ import { __setIpcInvokerForTest, appSettingsProvider } from '../../api/providers
 import type { AppSettings, UpdateSettingsInput } from '../../api/providers/app-settings';
 
 const SAMPLE_SETTINGS: AppSettings = {
+  webview: {
+    gpuCompositing: false,
+    rendererBackgrounding: false,
+    cacheEnabled: false,
+    openDevToolsOnStartup: false,
+  },
+  webviewStartup: {
+    gpuCompositing: false,
+    rendererBackgrounding: false,
+    cacheEnabled: false,
+    openDevToolsOnStartup: false,
+  },
+  webviewRestartRequired: false,
   general: {
     autoConnect: true,
     lastConnectionId: 'conn-1',
@@ -61,6 +74,56 @@ describe('appSettingsProvider', () => {
     mock.setResponse('getSettings', { general: 'not an object' });
 
     await expect(appSettingsProvider.getSettings()).rejects.toThrow();
+  });
+
+  it('getSettings: WebView 未対応の旧応答に安全なデフォルトを補完する', async () => {
+    const { general, editor, grid, query } = SAMPLE_SETTINGS;
+    mock.setResponse('getSettings', { general, editor, grid, query });
+    const result = await appSettingsProvider.getSettings();
+    expect(result.webview).toEqual(SAMPLE_SETTINGS.webview);
+    expect(result.webviewStartup).toEqual(SAMPLE_SETTINGS.webviewStartup);
+    expect(result.webviewRestartRequired).toBe(false);
+  });
+
+  it('getSettings: WebView の部分応答もフィールド単位で補完する', async () => {
+    mock.setResponse('getSettings', {
+      ...SAMPLE_SETTINGS,
+      webview: { gpuCompositing: true },
+      webviewStartup: { cacheEnabled: true },
+      webviewRestartRequired: true,
+    });
+    const result = await appSettingsProvider.getSettings();
+    expect(result.webview).toEqual({ ...SAMPLE_SETTINGS.webview, gpuCompositing: true });
+    expect(result.webviewStartup).toEqual({
+      ...SAMPLE_SETTINGS.webviewStartup,
+      cacheEnabled: true,
+    });
+    expect(result.webviewRestartRequired).toBe(true);
+  });
+
+  it.each(['webview', 'webviewStartup'] as const)(
+    'getSettings: %s の不正な boolean を拒否する',
+    async (field) => {
+      mock.setResponse('getSettings', {
+        ...SAMPLE_SETTINGS,
+        [field]: { ...SAMPLE_SETTINGS[field], gpuCompositing: 'true' },
+      });
+      await expect(appSettingsProvider.getSettings()).rejects.toThrow();
+    }
+  );
+
+  it('getSettings: 再起動状態の不正な boolean を拒否する', async () => {
+    mock.setResponse('getSettings', { ...SAMPLE_SETTINGS, webviewRestartRequired: 1 });
+    await expect(appSettingsProvider.getSettings()).rejects.toThrow();
+  });
+
+  it('updateSettings: WebView の部分更新を boolean のまま送る', async () => {
+    mock.setResponse('updateSettings', { saved: true });
+    await appSettingsProvider.updateSettings({ webview: { gpuCompositing: true } });
+    expect(mock.calls[0]).toEqual({
+      method: 'updateSettings',
+      params: { webview: { gpuCompositing: true } },
+    });
   });
 
   it('updateSettings: IPC に引数を渡し saved を返す', async () => {
