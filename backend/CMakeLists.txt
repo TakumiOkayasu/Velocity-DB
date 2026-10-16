@@ -16,6 +16,8 @@ endif()
 # Core library sources (without main.cpp)
 set(LIB_SOURCES
     webview_app.cpp
+    host/webview2_host.cpp
+    host/webview_request.cpp
     ipc_handler.cpp
     # Database
     database/odbc_helpers.cpp
@@ -87,6 +89,11 @@ endif()
 
 set(HEADERS
     webview_app.h
+    host/webview_host.h
+    host/webview_settings.h
+    host/webview2_host.h
+    host/webview2_options.h
+    host/webview_request.h
     ipc_handler.h
     # Database
     database/driver_interface.h

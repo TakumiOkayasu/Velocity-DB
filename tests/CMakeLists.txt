@@ -26,6 +26,7 @@ FetchContent_MakeAvailable(googletest)
 # Test sources
 set(TEST_SOURCES
     test_main.cpp
+    host/test_webview_host.cpp
     database/test_sqlserver_dialect.cpp
     database/test_sqlserver_driver.cpp
     database/test_odbc_unicode.cpp

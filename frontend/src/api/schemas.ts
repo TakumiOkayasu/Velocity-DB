@@ -1,4 +1,5 @@
 import z from 'zod';
+import { DEFAULT_WEBVIEW_SETTINGS } from '../types/webview';
 
 // --- Primitives ---
 // backend 側 `JsonUtils::successResponse("{}")` で `data: {}` 空オブジェクトを返す void 応答用 schema。
@@ -225,11 +226,20 @@ const querySettingsSchema = z.object({
   maxRows: z.number().default(10000),
   timeoutSeconds: z.number(),
 });
+const webviewSettingsSchema = z.object({
+  gpuCompositing: z.boolean().default(false),
+  rendererBackgrounding: z.boolean().default(false),
+  cacheEnabled: z.boolean().default(false),
+  openDevToolsOnStartup: z.boolean().default(false),
+});
 export const getSettings = z.object({
   general: generalSettingsSchema,
   editor: editorSettingsSchema,
   grid: gridSettingsSchema,
   query: querySettingsSchema,
+  webview: webviewSettingsSchema.default({ ...DEFAULT_WEBVIEW_SETTINGS }),
+  webviewStartup: webviewSettingsSchema.default({ ...DEFAULT_WEBVIEW_SETTINGS }),
+  webviewRestartRequired: z.boolean().default(false),
 });
 export const updateSettings = z.object({ saved: z.boolean() });
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "host/webview_host.h"
+
 #include <Windows.h>
 
 #include <expected>
@@ -7,19 +9,16 @@
 #include <memory>
 #include <string>
 
-namespace webview {
-class webview;
-}
-
 namespace velocitydb {
 
 class IPCHandler;
 class SystemContext;
-class SettingsAccessor;
+struct WindowSettings;
 
 class WebViewApp {
 public:
     explicit WebViewApp(HINSTANCE hInstance);
+    WebViewApp(HINSTANCE hInstance, std::unique_ptr<IWebViewHost> host);
     ~WebViewApp();
 
     WebViewApp(const WebViewApp&) = delete;
@@ -30,7 +29,7 @@ public:
     [[nodiscard]] int run();
 
 private:
-    void createAndConfigureWebView();
+    void configureFrontend();
     [[nodiscard]] std::filesystem::path computeExecutablePath() const;
     [[nodiscard]] std::expected<std::filesystem::path, std::string> locateFrontendDirectory() const;
 
@@ -40,15 +39,14 @@ private:
         int x;
         int y;
     };
-    [[nodiscard]] WindowSize calculateWindowSize() const;
-    void saveWindowSettings();
+    [[nodiscard]] WindowSize calculateWindowSize(const WindowSettings& windowSettings) const;
 
     HINSTANCE m_hInstance;
-    // Order matters: m_systemContext must outlive m_ipcHandler (holds reference to it)
+    // Destruction order: host first, then handler, then its context.
     std::unique_ptr<SystemContext> m_systemContext;
     std::unique_ptr<IPCHandler> m_ipcHandler;
-    std::unique_ptr<webview::webview> m_webview;
-    std::unique_ptr<SettingsAccessor> m_settingsAccessor;
+    WebViewHostConfig m_hostConfig;
+    std::unique_ptr<IWebViewHost> m_host;
 };
 
 }  // namespace velocitydb

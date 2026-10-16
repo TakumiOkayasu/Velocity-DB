@@ -55,6 +55,12 @@
 | 型定義 | `I*`, `*Type` | `IConnection` |
 | ユーティリティ | `*Utils` | `sqlParser` |
 
+## ネイティブ表示ホスト
+
+`WebViewApp` は `IWebViewHost` を介して WebView2 を起動する。JSON IPC は既存の
+`window.invoke` 契約を保ち、COM・ウィンドウ・スレッド配送はホスト実装内に閉じ込める。
+[ホストの差し替え境界と起動設定](WEBVIEW_HOST.md) を参照。
+
 ## データフロー
 
 ### 接続確立

@@ -7,11 +7,14 @@
 namespace velocitydb {
 
 class QueryHistory;
+class SettingsAccessor;
 
 /// Concrete implementation of ISystemContext, owning all provider instances.
 class SystemContext : public ISystemContext {
 public:
     SystemContext();
+    /// Takes the already-loaded accessor used to capture host startup settings. Does not reload it.
+    explicit SystemContext(std::unique_ptr<SettingsAccessor> settingsAccessor);
     ~SystemContext() override;
 
     SystemContext(const SystemContext&) = delete;

@@ -4,10 +4,23 @@ import { appSettingsProvider } from '../../api/providers';
 import type { AppSettings as BackendAppSettings } from '../../api/providers/app-settings';
 import { useEditorSettings } from '../../hooks/useEditorSettings';
 import { useGridSettings } from '../../hooks/useGridSettings';
-import { cacheSettings, loadSettingsCache } from '../../utils/settingsCache';
+import { cacheSettings, loadSettingsCache, mergeBackendSettings } from '../../utils/settingsCache';
 import { getSettings } from '../../utils/settingsUtils';
 vi.mock('../../api/providers', () => ({ appSettingsProvider: { getSettings: vi.fn() } }));
 const BACKEND_SETTINGS: BackendAppSettings = {
+  webview: {
+    gpuCompositing: false,
+    rendererBackgrounding: false,
+    cacheEnabled: false,
+    openDevToolsOnStartup: false,
+  },
+  webviewStartup: {
+    gpuCompositing: false,
+    rendererBackgrounding: false,
+    cacheEnabled: false,
+    openDevToolsOnStartup: false,
+  },
+  webviewRestartRequired: false,
   general: {
     autoConnect: true,
     lastConnectionId: 'conn-1',
@@ -66,4 +79,29 @@ it('does not replace a newer save with a late startup response', async () => {
   finish?.(BACKEND_SETTINGS);
   await loading;
   expect(getSettings().editor.fontSize).toBe(22);
+});
+
+it('caches desired WebView settings without treating them as the current startup snapshot', async () => {
+  vi.mocked(appSettingsProvider.getSettings).mockResolvedValue({
+    ...BACKEND_SETTINGS,
+    webview: { ...BACKEND_SETTINGS.webview, gpuCompositing: true },
+    webviewRestartRequired: true,
+  });
+  const backend = await loadSettingsCache();
+  expect(getSettings().webview.gpuCompositing).toBe(true);
+  expect(backend.webviewStartup.gpuCompositing).toBe(false);
+  expect(backend.webviewRestartRequired).toBe(true);
+  const cached = JSON.parse(localStorage.getItem('app-settings') ?? '{}');
+  expect(cached).not.toHaveProperty('webviewStartup');
+  expect(cached).not.toHaveProperty('webviewRestartRequired');
+});
+
+it('merges desired WebView fields while preserving frontend-only settings', () => {
+  const local = getSettings();
+  const merged = mergeBackendSettings(local, {
+    ...BACKEND_SETTINGS,
+    webview: { ...BACKEND_SETTINGS.webview, cacheEnabled: true },
+  });
+  expect(merged.webview.cacheEnabled).toBe(true);
+  expect(merged.shortcuts).toEqual(local.shortcuts);
 });

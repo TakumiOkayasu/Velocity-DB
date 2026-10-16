@@ -45,6 +45,9 @@ function makeMockInvoke(): string {
       ],
       getConnectionProfiles: { profiles: [] },
       getSettings: {
+        webview: { gpuCompositing: false, rendererBackgrounding: false, cacheEnabled: false, openDevToolsOnStartup: false },
+        webviewStartup: { gpuCompositing: false, rendererBackgrounding: false, cacheEnabled: false, openDevToolsOnStartup: false },
+        webviewRestartRequired: false,
         general: {
           autoConnect: false,
           lastConnectionId: '',

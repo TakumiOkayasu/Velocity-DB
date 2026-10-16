@@ -1,7 +1,11 @@
 import * as S from '../schemas';
+import type { WebViewSettings } from '../../types/webview';
 import { asIpcParams, BaseProvider, type IpcInvoker, type ResponseValidator } from './types';
 
 export interface AppSettings {
+  webview: WebViewSettings;
+  webviewStartup: WebViewSettings;
+  webviewRestartRequired: boolean;
   general: {
     autoConnect: boolean;
     lastConnectionId: string;
@@ -35,6 +39,7 @@ export interface AppSettings {
 }
 
 export interface UpdateSettingsInput {
+  webview?: Partial<WebViewSettings>;
   general?: Partial<{
     lastConnectionId: string;
     autoConnect: boolean;

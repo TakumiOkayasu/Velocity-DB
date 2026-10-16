@@ -1,4 +1,5 @@
 // Settings utility functions - separated from component for Fast Refresh compatibility
+import { DEFAULT_WEBVIEW_SETTINGS, type WebViewSettings } from '../types/webview';
 
 // Query timeout bounds (seconds). Keep in sync with backend kQueryTimeoutMin/Max/DefaultSec
 // in settings_manager.h. Frontend stores ms internally for backward compat with saved localStorage.
@@ -21,6 +22,8 @@ const SETTINGS_VERSION = 2;
 
 export interface AppSettings {
   version: number;
+  // Desired settings only. The current startup snapshot must come from the native host.
+  webview: WebViewSettings;
   general: {
     autoConnect: boolean;
     confirmOnExit: boolean;
@@ -58,6 +61,7 @@ export interface AppSettings {
 // backend accessors/settings_accessor.h のデフォルト値と一致させる
 export const defaultSettings: AppSettings = {
   version: SETTINGS_VERSION,
+  webview: { ...DEFAULT_WEBVIEW_SETTINGS },
   general: {
     autoConnect: false,
     confirmOnExit: true,
@@ -115,6 +119,7 @@ function migrate(parsed: unknown): AppSettings {
   const obj = parsed as Record<string, unknown>;
   return {
     version: SETTINGS_VERSION,
+    webview: { ...defaultSettings.webview, ...pickTyped(obj.webview, defaultSettings.webview) },
     general: { ...defaultSettings.general, ...pickTyped(obj.general, defaultSettings.general) },
     editor: { ...defaultSettings.editor, ...pickTyped(obj.editor, defaultSettings.editor) },
     query: { ...defaultSettings.query, ...pickTyped(obj.query, defaultSettings.query) },

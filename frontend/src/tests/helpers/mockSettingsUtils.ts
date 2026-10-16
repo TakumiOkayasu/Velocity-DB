@@ -2,6 +2,12 @@ import { vi } from 'vite-plus/test';
 
 const mockSettings = {
   version: 2,
+  webview: {
+    gpuCompositing: false,
+    rendererBackgrounding: false,
+    cacheEnabled: false,
+    openDevToolsOnStartup: false,
+  },
   general: { autoConnect: false, confirmOnExit: true, maxQueryHistory: 1000, language: 'en' },
   editor: { fontSize: 14, fontFamily: 'Consolas', tabSize: 4, wordWrap: true, minimap: false },
   query: { autoCommit: true, timeout: 300000, maxRows: 10000 },
