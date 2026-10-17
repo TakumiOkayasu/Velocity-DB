@@ -140,6 +140,8 @@ jobs:
       - name: Test grid tab lifecycle and column layout
         if: runner.os == 'Linux'
         working-directory: frontend
+        env:
+          VELOCITYDB_E2E_PREVIEW: '1'
         run: bun run test:e2e e2e/grid-tab-lifecycle.spec.ts e2e/grid-column-width.spec.ts
 
       - name: Upload grid smoke failure artifacts

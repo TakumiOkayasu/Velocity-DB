@@ -25,9 +25,9 @@ export interface UseScrollRestoreHandlerResult {
 }
 
 /**
- * Restore once per query/scroller lifetime; save subsequent user scroll events.
- * Loading and transpose views can replace the scroller without changing the query.
- * Every scheduled frame belongs to the current effect, including delayed release.
+ * queryId とスクローラー DOM ごとに一度だけ復元し、その後のスクロールを保存する。
+ * loading / 転置表示では、同じ queryId のままスクローラーが再生成される。
+ * 保存抑止の遅延解除を含め、全 rAF を現在の effect の寿命に結び付ける。
  */
 export function useScrollRestoreHandler({
   targetQueryId,
@@ -46,7 +46,7 @@ export function useScrollRestoreHandler({
     [scrollerRef]
   );
 
-  // Suppress clamp/programmatic scroll before the browser can dispatch events.
+  // ブラウザーが scroll event を配送する前に、clamp / 復元中の保存を抑止する。
   useLayoutEffect(() => {
     suppressScrollSaveRef.current = true;
     restoredRef.current = false;
@@ -69,7 +69,7 @@ export function useScrollRestoreHandler({
     let frameId: number | undefined;
     let attempts = 0;
     const releaseAfterScroll = () => {
-      // Allow queued programmatic scroll events to finish before saving again.
+      // 復元による scroll event が処理されてから保存を再開する。
       frameId = requestAnimationFrame(() => {
         frameId = requestAnimationFrame(() => {
           suppressScrollSaveRef.current = false;
@@ -94,8 +94,8 @@ export function useScrollRestoreHandler({
     };
 
     if (restoredRef.current) {
-      // Row appends can interrupt the release frames. Finish releasing without
-      // restoring again and jumping away from the user's current position.
+      // 行追加で解除用 rAF が中断された場合は、解除だけを再開する。
+      // 再復元してユーザーの現在位置から飛ばないようにする。
       if (suppressScrollSaveRef.current) releaseAfterScroll();
     } else if (rowsLength > 0) {
       frameId = requestAnimationFrame(tryRestore);

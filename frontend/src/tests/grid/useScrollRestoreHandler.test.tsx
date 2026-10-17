@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { useScrollRestoreHandler } from '../../components/grid/hooks/useScrollRestoreHandler';
 import { useScrollPositionStore } from '../../store/scrollPositionStore';
 
-// One flush is one browser frame. Nested rAF callbacks cannot run in the same frame.
+// 1 回の flush は 1 フレーム。入れ子の rAF は同一フレーム内に実行しない。
 let frames: Map<number, FrameRequestCallback>;
 let nextFrameId: number;
 function advanceFrames(count = 1) {
@@ -53,7 +53,7 @@ function createHarness() {
   const scrollToOffset = vi.fn((top: number) => {
     if (scrollerRef.current) scrollerRef.current.scrollTop = top;
   });
-  // Only the three APIs used by the real hook are stubbed; React effects and refs are real.
+  // virtualizer の API だけをスタブ化し、React の effect / ref は実物を使う。
   const virtualizer = { measure, getTotalSize, scrollToOffset } as unknown as Virtualizer<
     HTMLDivElement,
     Element
@@ -94,7 +94,7 @@ describe('useScrollRestoreHandler', () => {
     vi.restoreAllMocks();
   });
 
-  it('restores both offsets, suppresses transition events, then saves user scroll', () => {
+  it('縦横位置を復元し、過渡期のイベントを抑止してからスクロール保存を再開する', () => {
     const props = createHarness();
     save('A', 800, 120);
     const { getByTestId } = render(<Harness {...props} queryId="A" />);
@@ -114,7 +114,7 @@ describe('useScrollRestoreHandler', () => {
     expect(position('A')).toEqual({ top: 900, left: 50 });
   });
 
-  it.each([0, 1])('does not let an old release affect B after %i release frames', (elapsed) => {
+  it.each([0, 1])('解除用 rAF を %i 回進めた旧タブが B の保存抑止を解除しない', (elapsed) => {
     const props = createHarness();
     save('A', 800);
     save('B', 600, 30);
@@ -135,7 +135,7 @@ describe('useScrollRestoreHandler', () => {
     expect(position('B')).toEqual({ top: 700, left: 40 });
   });
 
-  it('keeps a new A restoration suppressed through rapid A → B → A', () => {
+  it('高速な A → B → A でも新しい A の復元待ち中は保存しない', () => {
     const props = createHarness();
     save('A', 800);
     save('B', 600);
@@ -155,7 +155,7 @@ describe('useScrollRestoreHandler', () => {
     expect(el.scrollTop).toBe(800);
   });
 
-  it('starts an unsaved tab at the origin rather than inheriting the previous tab', () => {
+  it('未保存タブは前タブの位置を引き継がず原点に戻る', () => {
     const props = createHarness();
     save('A', 800, 120);
     const { getByTestId, rerender } = render(<Harness {...props} queryId="A" />);
@@ -168,24 +168,21 @@ describe('useScrollRestoreHandler', () => {
     expect(position('A')).toEqual({ top: 800, left: 120 });
   });
 
-  it.each([0, 1])(
-    'finishes release after row append without restoring twice (%i frames)',
-    (elapsed) => {
-      const props = createHarness();
-      save('A', 800);
-      const { getByTestId, rerender } = render(<Harness {...props} queryId="A" />);
-      const el = getByTestId('scroller');
-      setHeight(el);
-      advanceFrames(1 + elapsed);
-      rerender(<Harness {...props} queryId="A" rowsLength={200} />);
-      advanceFrames(3);
-      expect(props.scrollToOffset).toHaveBeenCalledExactlyOnceWith(800);
-      scroll(el, 900);
-      expect(position('A')?.top).toBe(900);
-    }
-  );
+  it.each([0, 1])('行追加後は再復元せず保存抑止の解除を完了する（%i フレーム）', (elapsed) => {
+    const props = createHarness();
+    save('A', 800);
+    const { getByTestId, rerender } = render(<Harness {...props} queryId="A" />);
+    const el = getByTestId('scroller');
+    setHeight(el);
+    advanceFrames(1 + elapsed);
+    rerender(<Harness {...props} queryId="A" rowsLength={200} />);
+    advanceFrames(3);
+    expect(props.scrollToOffset).toHaveBeenCalledExactlyOnceWith(800);
+    scroll(el, 900);
+    expect(position('A')?.top).toBe(900);
+  });
 
-  it('waits for rows and a usable viewport before restoring', () => {
+  it('行と有効な viewport が揃ってから復元する', () => {
     const props = createHarness();
     save('A', 800);
     const { getByTestId, rerender } = render(<Harness {...props} queryId="A" rowsLength={0} />);
@@ -202,7 +199,7 @@ describe('useScrollRestoreHandler', () => {
     expect(props.scrollToOffset).toHaveBeenCalledExactlyOnceWith(800);
   });
 
-  it('waits for virtual size and cancels its retry on unmount', () => {
+  it('仮想行のサイズを待ち、unmount でリトライを解除する', () => {
     const props = createHarness();
     props.getTotalSize.mockReturnValue(0);
     const { getByTestId, unmount } = render(<Harness {...props} queryId="A" />);
@@ -213,7 +210,7 @@ describe('useScrollRestoreHandler', () => {
     expect(frames.size).toBe(0);
   });
 
-  it('restores the same query after loading replaces the scroller', () => {
+  it('loading でスクローラーが再生成された同じ queryId も復元する', () => {
     const props = createHarness();
     save('A', 800, 120);
     const { getByTestId, rerender } = render(<Harness {...props} queryId="A" />);
@@ -234,7 +231,7 @@ describe('useScrollRestoreHandler', () => {
     expect(props.scrollToOffset).toHaveBeenCalledTimes(2);
   });
 
-  it('releases after a restored query is filtered to zero rows', () => {
+  it('復元済みの表がフィルターで 0 行になっても保存抑止を解除する', () => {
     const props = createHarness();
     save('A', 800);
     const { getByTestId, rerender } = render(<Harness {...props} queryId="A" />);
@@ -248,7 +245,7 @@ describe('useScrollRestoreHandler', () => {
     expect(position('A')).toEqual({ top: 0, left: 20 });
   });
 
-  it('restores when the virtual size becomes available', () => {
+  it('仮想行のサイズが確定したら復元する', () => {
     const props = createHarness();
     props.getTotalSize.mockReturnValue(0);
     save('A', 800);
@@ -263,7 +260,7 @@ describe('useScrollRestoreHandler', () => {
     expect(props.scrollToOffset).toHaveBeenCalledExactlyOnceWith(800);
   });
 
-  it('releases suppression after the bounded viewport wait', () => {
+  it('viewport 待機の上限を超えたら保存抑止を解除する', () => {
     const props = createHarness();
     const { getByTestId } = render(<Harness {...props} queryId="A" />);
     advanceFrames(31);
@@ -272,7 +269,7 @@ describe('useScrollRestoreHandler', () => {
     expect(position('A')?.top).toBe(100);
   });
 
-  it('does not restore or save for a null query', () => {
+  it('queryId が null の場合は復元も保存もしない', () => {
     const props = createHarness();
     const { getByTestId } = render(<Harness {...props} queryId={null} />);
     setHeight(getByTestId('scroller'));
@@ -282,7 +279,7 @@ describe('useScrollRestoreHandler', () => {
     expect(useScrollPositionStore.getState().positions).toEqual({});
   });
 
-  it.each([0, 1, 2])('cancels every pending frame when unmounted after %i frames', (elapsed) => {
+  it.each([0, 1, 2])('%i フレーム後の unmount で全ての予約済み rAF を解除する', (elapsed) => {
     const props = createHarness();
     const { getByTestId, unmount } = render(<Harness {...props} queryId="A" />);
     setHeight(getByTestId('scroller'));
@@ -293,7 +290,7 @@ describe('useScrollRestoreHandler', () => {
     expect(useScrollPositionStore.getState().positions).toEqual({});
   });
 
-  it('can restore after StrictMode setup/cleanup replay', () => {
+  it('StrictMode の setup / cleanup 再実行後も復元できる', () => {
     const props = createHarness();
     save('A', 800, 120);
     const { getByTestId } = render(

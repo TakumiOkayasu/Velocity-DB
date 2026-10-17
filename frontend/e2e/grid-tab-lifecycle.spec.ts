@@ -1,8 +1,8 @@
 import { expect, type Page, test } from '@playwright/test';
 import { mockData } from '../src/api/mockData';
 
-// #779: Exercise the real ResultGrid/virtualizer with deterministic IPC results.
-// This checks browser layout/content, not native WebView2 compositor output.
+// #779: 固定した IPC 応答で実際の ResultGrid / virtualizer を検証する。
+// 対象はブラウザーの配置・内容であり、ネイティブ WebView2 の合成描画は検証できない。
 const TABLES = {
   WideRows: { rowCount: 1000, columnCount: 18 },
   NarrowRows: { rowCount: 800, columnCount: 3 },
@@ -57,7 +57,21 @@ async function startApp(page: Page) {
             data = { status: 'connected', connectionId: 'grid-connection' };
             break;
           case 'getConnectionProfiles':
-            data = { profiles: [] };
+            // ObjectTree に表示される保存済みプロファイル経由の接続を使う。
+            data = {
+              profiles: [
+                {
+                  id: 'grid-profile',
+                  name: 'Grid lifecycle fixture',
+                  server: 'localhost',
+                  database: 'fixture',
+                  username: '',
+                  useWindowsAuth: true,
+                  savePassword: false,
+                  dbType: 'sqlserver',
+                },
+              ],
+            };
             break;
           case 'getTables':
             data = Object.keys(tables).map((name) => ['dbo', name, 'TABLE', '']);
@@ -113,12 +127,9 @@ async function startApp(page: Page) {
     { tables: TABLES, defaults: mockData }
   );
   await page.goto('/');
-  await page.getByTitle('新規接続', { exact: true }).click();
-  await page.locator('#conn-name').fill('Grid lifecycle fixture');
-  await page.locator('#conn-server').fill('localhost');
-  await page.locator('#conn-database').fill('fixture');
-  await page.getByTestId('conn-submit').click();
-  await expect(page.locator('#conn-server')).toHaveCount(0);
+  await page.getByTestId('profile-node').click();
+  await page.getByRole('dialog').getByRole('button', { name: '接続', exact: true }).click();
+  await expect(page.getByText('データベースに接続', { exact: true })).toHaveCount(0);
   await page.getByRole('treeitem', { name: /Tables \(4\)/ }).click();
   await expect(page.getByRole('treeitem').filter({ hasText: 'WideRows' })).toBeVisible();
 }
@@ -147,8 +158,8 @@ async function settleFrames(page: Page) {
 async function expectGrid(page: Page, name: TableName, position: Position = ORIGIN) {
   const scroller = page.locator(SCROLLER);
   await expect(scroller).toBeVisible();
-  // A nonempty tbody can still leave the top half blank. Check continuous real
-  // row coverage below the sticky header, row identities, cells, and hit testing.
+  // tbody が空でなくても上半分に欠落が残り得るため、固定ヘッダー直下からの
+  // 実データ行の連続性、行番号・セル内容、ヒットテストを確認する。
   await expect
     .poll(
       async () => {
@@ -242,8 +253,8 @@ test.use({
   trace: 'retain-on-failure',
 });
 
-test.describe('#779 grid tab lifecycle', () => {
-  test('keeps rows covered and scroll positions isolated across repeated close/reopen', async ({
+test.describe('#779 グリッドのタブ切替ライフサイクル', () => {
+  test('閉じる・再表示を繰り返しても実データ行とタブごとのスクロール位置を維持する', async ({
     page,
   }) => {
     await startApp(page);
@@ -285,9 +296,7 @@ test.describe('#779 grid tab lifecycle', () => {
     });
   });
 
-  test('cancels stale loading/restore work when a table is closed and reopened', async ({
-    page,
-  }) => {
+  test('読込中の閉じる・再表示と再取得で古い復元処理が現在の表示を壊さない', async ({ page }) => {
     await startApp(page);
     await openTable(page, 'WideRows');
     await expectGrid(page, 'WideRows');
@@ -309,7 +318,7 @@ test.describe('#779 grid tab lifecycle', () => {
     await page.getByRole('tab').filter({ hasText: 'LoadingRows' }).click();
     await expectGrid(page, 'LoadingRows');
 
-    // Refresh removes/replaces the scroll element without changing queryId.
+    // 再取得では queryId が変わらず、スクロール要素だけが再作成される。
     const loadingPosition = { top: 3200, left: 600 };
     await scrollGrid(page, loadingPosition);
     await expectGrid(page, 'LoadingRows', loadingPosition);
@@ -320,8 +329,8 @@ test.describe('#779 grid tab lifecycle', () => {
     await page.evaluate(() => window.dispatchEvent(new Event('release-grid-fixture')));
     await expectGrid(page, 'LoadingRows', loadingPosition);
 
-    // Switch once per frame, before the previous restoration's two-frame save
-    // suppression has necessarily ended. The final tab must own the final state.
+    // 前の復元処理の保存抑止（2 フレーム）が終わる前に、1 フレームごとに切り替える。
+    // 最後に選んだタブの状態が維持されることを確認する。
     await page.evaluate(async () => {
       for (const name of ['WideRows', 'LoadingRows', 'WideRows', 'LoadingRows']) {
         const tab = Array.from(document.querySelectorAll<HTMLElement>('[role="tab"]')).find(
