@@ -1,6 +1,6 @@
 import { flexRender } from '@tanstack/react-table';
 import type { VirtualItem } from '@tanstack/react-virtual';
-import { type MouseEvent, memo, type RefObject, type UIEvent, useCallback, useMemo } from 'react';
+import { type MouseEvent, memo, type Ref, type UIEvent, useCallback, useMemo } from 'react';
 import { type ColumnMeta, isSystemColumn } from '../../types/grid';
 import type { ValidationError } from '../../utils/validation';
 import { ContextMenu } from '../common/ContextMenu';
@@ -49,7 +49,7 @@ interface GridTableCallbacks {
 interface GridTableProps {
   nullDisplay?: string;
   table: GridTableInstance;
-  tableContainerRef: RefObject<HTMLDivElement | null>;
+  tableContainerRef: Ref<HTMLDivElement>;
   rows: GridRow[];
   virtualRows: VirtualItem[];
   totalSize: number;
@@ -176,13 +176,10 @@ function GridTableInner({
   // receive Ctrl+C etc. Without this, the browser's default text selection
   // copies only the last clicked cell. Also suppresses the default Shift+click
   // text-range selection which would otherwise conflict with grid selection.
-  const onContainerMouseDown = useCallback(
-    (e: MouseEvent) => {
-      if (e.shiftKey) e.preventDefault();
-      tableContainerRef.current?.focus({ preventScroll: true });
-    },
-    [tableContainerRef]
-  );
+  const onContainerMouseDown = useCallback((e: MouseEvent<HTMLDivElement>) => {
+    if (e.shiftKey) e.preventDefault();
+    e.currentTarget.focus({ preventScroll: true });
+  }, []);
 
   return (
     // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- scroll/focus container for the inner table; keyboard navigation is handled at table-cell level

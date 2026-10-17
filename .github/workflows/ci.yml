@@ -132,6 +132,27 @@ jobs:
       - name: Test frontend
         run: uv run --locked scripts/pdg.py test frontend
 
+      - name: Install Chromium for grid smoke tests
+        if: runner.os == 'Linux'
+        working-directory: frontend
+        run: bunx --no-install playwright install --with-deps chromium
+
+      - name: Test grid tab lifecycle and column layout
+        if: runner.os == 'Linux'
+        working-directory: frontend
+        env:
+          VELOCITYDB_E2E_PREVIEW: '1'
+        run: bun run test:e2e e2e/grid-tab-lifecycle.spec.ts e2e/grid-column-width.spec.ts
+
+      - name: Upload grid smoke failure artifacts
+        if: runner.os == 'Linux' && failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: grid-smoke-failure
+          path: frontend/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
       - name: Upload build artifacts
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
