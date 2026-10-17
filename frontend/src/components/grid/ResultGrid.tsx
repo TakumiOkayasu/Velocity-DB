@@ -410,20 +410,6 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   const virtualTotalSize = rowVirtualizer.getTotalSize();
   const lastVirtualIndex = virtualRows[virtualRows.length - 1]?.index ?? -1;
 
-  // --- Force virtualizer re-measure when container size changes ---
-  // WebView2 software compositing may delay layout; the built-in
-  // ResizeObserver inside @tanstack/react-virtual can miss the first
-  // resize if it fires before the element is observed.
-  useEffect(() => {
-    const el = tableContainerRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(() => {
-      rowVirtualizer.measure();
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [rowVirtualizer]);
-
   // --- Reset per-tab UI state on queryId switch ---
   // sort / filter / selection は per-tab 独立のためリセット。
   // scroll 位置の保存/復元は useScrollRestoreHandler が担当 (Issue #366, #461)。
@@ -437,7 +423,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
   }, [targetQueryId]);
   /* oxlint-enable react-hooks/exhaustive-deps */
 
-  const { handleScroll } = useScrollRestoreHandler({
+  const { handleScroll, setScrollerRef } = useScrollRestoreHandler({
     targetQueryId,
     scrollerRef: tableContainerRef,
     rowVirtualizer,
@@ -668,7 +654,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         <GridTable
           nullDisplay={gridSettings.nullDisplay}
           table={table}
-          tableContainerRef={tableContainerRef}
+          tableContainerRef={setScrollerRef}
           rows={rows}
           virtualRows={virtualRows}
           totalSize={virtualTotalSize}
