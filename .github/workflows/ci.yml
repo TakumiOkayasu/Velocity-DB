@@ -52,7 +52,7 @@ jobs:
           VELOCITYDB_FORMAT_MANIFEST: ${{ runner.temp }}/format-manifest.json
         run: uv run --locked scripts/pdg.py test scripts
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: cpp-format-${{ matrix.os }}
           path: ${{ runner.temp }}/format-manifest.json
@@ -146,7 +146,7 @@ jobs:
 
       - name: Upload grid smoke failure artifacts
         if: runner.os == 'Linux' && failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: grid-smoke-failure
           path: frontend/test-results/
@@ -155,7 +155,7 @@ jobs:
 
       - name: Upload build artifacts
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: frontend-build
           path: frontend/dist/
@@ -242,7 +242,7 @@ jobs:
         run: uv run --locked scripts/pdg.py test backend
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: backend-build
           path: build/Release/
@@ -278,7 +278,7 @@ jobs:
           Get-ChildItem -Recurse package | ForEach-Object { $_.FullName }
 
       - name: Upload packaged application
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: Velocity-DB-windows-x64
           path: package/
