@@ -7,13 +7,13 @@
       "dependencies": {
         "@monaco-editor/react": "^4.7.0",
         "@sqltools/formatter": "^1.2.5",
-        "@tanstack/react-table": "^9.2.6",
-        "@tanstack/react-virtual": "^3.14.12",
+        "@tanstack/react-table": "^9.2.8",
+        "@tanstack/react-virtual": "^3.14.15",
         "@xyflow/react": "^12.12.0",
         "monaco-editor": "^0.57.0",
         "react": "^19.3.0",
         "react-dom": "^19.3.0",
-        "zod": "^4.6.5",
+        "zod": "^4.6.6",
         "zustand": "^5.0.15",
       },
       "devDependencies": {
@@ -245,15 +245,15 @@
 
     "@tanstack/react-store": ["@tanstack/react-store@0.11.2", "", { "dependencies": { "@tanstack/store": "0.11.2", "use-sync-external-store": "^1.6.0" }, "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-oj5O5DmiMWE+ih+SioX2ayC1kbK7d3fpLx0B75fPJr9nY3zU+hoW010yr64qXsY/9fyiLVE2bn5mGNV3owm8RQ=="],
 
-    "@tanstack/react-table": ["@tanstack/react-table@9.2.6", "", { "dependencies": { "@tanstack/react-store": "^0.11.2", "@tanstack/table-core": "9.2.6" }, "peerDependencies": { "react": ">=18" } }, "sha512-Wmt3sbzwz+5CtB0pqIxGw2FrNW9mF4AhJ9KnS1/VGZ8cDAEg51S4ixru2dnF0xQnY407kdYNLer3ms+n8zCN6w=="],
+    "@tanstack/react-table": ["@tanstack/react-table@9.2.8", "", { "dependencies": { "@tanstack/react-store": "^0.11.2", "@tanstack/table-core": "9.2.8" }, "peerDependencies": { "react": ">=18" } }, "sha512-cJxgratJm3uMm2sXnmY3PCTvcvIEFleCJ2uSOM2nxCmIY8RWA1KjXt5fsWGlYisL7DODr2w9YpLRQ3i/7MdIsQ=="],
 
-    "@tanstack/react-virtual": ["@tanstack/react-virtual@3.14.13", "", { "dependencies": { "@tanstack/virtual-core": "3.17.11" }, "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-JbDTAwtzZ99aOeCrAfW5EsE5KSq5RWh6Af2dtFwyLIIk48Ja7vm6n4axu/43T3vfjFnEGJalxJ1wyYjSQD6bSg=="],
+    "@tanstack/react-virtual": ["@tanstack/react-virtual@3.14.15", "", { "dependencies": { "@tanstack/virtual-core": "3.19.0" }, "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-FXU72FW6a3yRtOpn7ollcsmPSi7ShMJECiqTpnCG2n2R8FIPrZrPYPAUmETGO8OCojATFbpLSDMuYuXX9mUAjg=="],
 
     "@tanstack/store": ["@tanstack/store@0.11.2", "", {}, "sha512-sJ4mjol8uQsHV0gOJzzjwXfh2Fwm+Sz0+8deqiTm4jGbMdjzNSW+xZCFm0kUa870uhd8yi+DpKnZb5Kc4apa0Q=="],
 
-    "@tanstack/table-core": ["@tanstack/table-core@9.2.6", "", { "dependencies": { "@tanstack/store": "^0.11.2" } }, "sha512-t5LaLx8gDCgzjvwtZo5xtLklJP11D9zaKOW8q6jOCyuQYhkqpTK1heqMfgTQwDlhl0dU8f1X66Xurbj3jpCUSw=="],
+    "@tanstack/table-core": ["@tanstack/table-core@9.2.8", "", { "dependencies": { "@tanstack/store": "^0.11.2" } }, "sha512-M4D6fY5jnc7z7TaoD3Pjvz5R+8MbhzCGYdkcFf2T1AgjigwLinvFWZh6mtqfN016A7yGIroOL0GiTlVGsTh6Vg=="],
 
-    "@tanstack/virtual-core": ["@tanstack/virtual-core@3.17.11", "", {}, "sha512-+ILjvtHup6Y2hzQ6YzwMgX1Q+oQpxEGOXCEsCNaPoIP0VxMbizIBTmYTDtkerkIQS8/CbP1BRuyt8V/8BCsy1g=="],
+    "@tanstack/virtual-core": ["@tanstack/virtual-core@3.19.0", "", {}, "sha512-6k6+BXoM01iJTfqH5hvih0Kj49x130wRzty1muE1hBJJm5/P8h3aEYEtQPa4iYE239nF4i6UL/KIIuQI3zG4sw=="],
 
     "@testing-library/dom": ["@testing-library/dom@10.4.1", "", { "dependencies": { "@babel/code-frame": "^7.10.4", "@babel/runtime": "^7.12.5", "@types/aria-query": "^5.0.1", "aria-query": "5.3.0", "dom-accessibility-api": "^0.5.9", "lz-string": "^1.5.0", "picocolors": "1.1.1", "pretty-format": "^27.0.2" } }, "sha512-o4PXJQidqJl82ckFaXUeoAW+XysPLauYI43Abki5hABd853iMhitooc6znOnczgbTYmEP6U6/y1ZyKAIsvMKGg=="],
 
@@ -725,7 +725,7 @@
 
     "yuku-parser": ["yuku-parser@0.9.5", "", { "dependencies": { "@yuku-toolchain/types": "^0.9.5", "yuku-ast": "^0.9.5" }, "optionalDependencies": { "@yuku-parser/binding-android-arm64": "0.9.5", "@yuku-parser/binding-darwin-arm64": "0.9.5", "@yuku-parser/binding-darwin-x64": "0.9.5", "@yuku-parser/binding-freebsd-x64": "0.9.5", "@yuku-parser/binding-linux-arm-gnu": "0.9.5", "@yuku-parser/binding-linux-arm-musl": "0.9.5", "@yuku-parser/binding-linux-arm64-gnu": "0.9.5", "@yuku-parser/binding-linux-arm64-musl": "0.9.5", "@yuku-parser/binding-linux-x64-gnu": "0.9.5", "@yuku-parser/binding-linux-x64-musl": "0.9.5", "@yuku-parser/binding-win32-arm64": "0.9.5", "@yuku-parser/binding-win32-x64": "0.9.5" } }, "sha512-IBnAdNVMswWbJcM7woPluOudectJzFjJ1N8jVRxP9Uq4CIv5hZdBIcdmtRbFDYF/Ph2j2gVup4YJ4N9mh0jYFA=="],
 
-    "zod": ["zod@4.6.5", "", {}, "sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q=="],
+    "zod": ["zod@4.6.6", "", {}, "sha512-4UmzQUF5fxvfcYHlbjBmejU+w+hbDnWFx4aS8kBx7nPBHcO2SqPbpAG8snbdg+Xse4pRefR98hgjFgIMCI/UhA=="],
 
     "zustand": ["zustand@5.0.15", "", { "peerDependencies": { "@types/react": ">=18.0.0", "immer": ">=9.0.6", "react": ">=18.0.0", "use-sync-external-store": ">=1.2.0" }, "optionalPeers": ["@types/react", "immer", "react", "use-sync-external-store"] }, "sha512-MpSEjRiBkA9crSYeOUH32rJC7SVqAbm0Fqcqge/bUi2PPoLcBWKOsG+C8mevmpr8TwXHBVkChbbJiyvkE+i/3A=="],
 
