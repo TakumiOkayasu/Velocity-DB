@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+declare const __VELOCITYDB_FRONTEND_SOURCE__: string;
+
 // CSS Modules
 declare module '*.module.css' {
   const classes: { readonly [key: string]: string };

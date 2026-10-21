@@ -3,6 +3,10 @@ import App from './App';
 import { logger } from './utils/logger';
 import './styles/global.css';
 
+logger.info(
+  `[Build] Frontend source=${__VELOCITYDB_FRONTEND_SOURCE__} mode=${import.meta.env.DEV ? 'development' : 'artifact'}`
+);
+
 // Global error handlers - flush logs immediately on crash
 window.addEventListener('error', (event) => {
   const msg = `[FATAL] Uncaught error: ${event.message} at ${event.filename}:${event.lineno}:${event.colno}`;

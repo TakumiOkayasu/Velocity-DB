@@ -2,6 +2,7 @@ import path from 'node:path';
 import react from '@vitejs/plugin-react';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { defineConfig, type Plugin, type PluginOption, lazyPlugins } from 'vite-plus';
+import { buildInfoPlugin } from './tooling/buildInfo';
 
 /**
  * Prevents Vite from bundling unused Monaco language workers (css, html, json, typescript).
@@ -88,6 +89,7 @@ export default defineConfig({
   plugins: lazyPlugins(() => [
     react(),
     monacoWorkerExcludePlugin(),
+    buildInfoPlugin(path.resolve(__dirname)),
     ...(BUNDLE_REPORT_ENABLED
       ? [
           visualizer({
@@ -106,7 +108,7 @@ export default defineConfig({
     // Use jsdom's per-worker storage instead of Node's file-backed Web Storage globals.
     execArgv: ['--no-experimental-webstorage'],
     setupFiles: ['./src/tests/setup.ts'],
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'tooling/**/*.test.ts'],
   },
   base: './', // Use relative paths for file:// protocol
   resolve: {

@@ -1,3 +1,6 @@
+# Local build-attempt state (survives clean builds)
+.build-metadata/
+
 # Build directories
 build/
 dist/
