@@ -80,6 +80,7 @@ set(LIB_SOURCES
     utils/file_dialog.cpp
     utils/credential_protector.cpp
     utils/logger.cpp
+    utils/frontend_build_identity.cpp
 )
 
 # Add SSH tunnel source if libssh2 is available
@@ -202,6 +203,8 @@ set(HEADERS
     utils/sql_escape.h
     utils/credential_protector.h
     utils/logger.h
+    utils/build_identity.h
+    utils/frontend_build_identity.h
     utils/string_utils.h
 )
 
@@ -219,6 +222,8 @@ configure_file(
 
 # Create a static library for the core functionality
 add_library(VelocityDBCore STATIC ${LIB_SOURCES} ${HEADERS})
+include(BuildIdentity)
+velocitydb_add_build_identity(VelocityDBCore)
 
 target_include_directories(VelocityDBCore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}

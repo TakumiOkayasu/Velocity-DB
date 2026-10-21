@@ -4,6 +4,8 @@
 #include "contexts/system_context.h"
 #include "host/webview2_host.h"
 #include "ipc_handler.h"
+#include "utils/build_identity.h"
+#include "utils/frontend_build_identity.h"
 #include "utils/logger.h"
 #include "version_config.h"
 
@@ -24,7 +26,7 @@ WebViewApp::WebViewApp(HINSTANCE hInstance, std::unique_ptr<IWebViewHost> host) 
     // Load once: host configuration and SettingsProvider's startup snapshot share these values.
     (void)settingsAccessor->load();
     const auto windowSize = calculateWindowSize(settingsAccessor->getSettings().window);
-    m_hostConfig.title = std::format("Velocity-DB - v{}", kAppVersion);
+    m_hostConfig.title = std::format("Velocity-DB - v{} [{}]", kAppVersion, backendBuildIdentity());
     m_hostConfig.width = windowSize.width;
     m_hostConfig.height = windowSize.height;
     m_hostConfig.webview = settingsAccessor->getSettings().webview;
@@ -93,12 +95,20 @@ void WebViewApp::configureFrontend() {
 
         log<LogLevel::INFO>(std::format("[WebView] Frontend path: {}", pathStr));
         log<LogLevel::INFO>(std::format("[WebView] index.html: {}", frontendPath->string()));
+        if (const auto identity = readFrontendBuildIdentity(frontendDir)) {
+            m_hostConfig.title += std::format(" [UI {} / {}]", identity->source, identity->fingerprint.substr(0, 12));
+            log<LogLevel::INFO>(std::format("[Build] Frontend source {} / SHA256 {}", identity->source, identity->fingerprint));
+        } else {
+            m_hostConfig.title += " [UI unknown]";
+            log<LogLevel::WARNING>("[Build] Frontend identity unknown: build-info.json is missing or invalid");
+        }
         log_flush();
 
         // Use virtual host to avoid CORS issues with file:// protocol
         m_hostConfig.url = "https://app.local/index.html";
     } else {
         // Fallback to dev server
+        m_hostConfig.title += " [UI dev server]";
         log<LogLevel::WARNING>("[WebView] Frontend not found, falling back to dev server");
         log_flush();
         m_hostConfig.url = "http://localhost:5173";

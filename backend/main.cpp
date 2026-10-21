@@ -1,7 +1,11 @@
+#include "utils/build_identity.h"
 #include "utils/logger.h"
+#include "version_config.h"
 #include "webview_app.h"
 
 #include <Windows.h>
+
+#include <format>
 
 #include <objbase.h>
 
@@ -35,6 +39,8 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 
     // Initialize logger
     velocitydb::initialize_logger();
+    velocitydb::log<velocitydb::LogLevel::INFO>(std::format("[Build] Backend v{} / {}", velocitydb::kAppVersion, velocitydb::backendBuildIdentity()));
+    velocitydb::log_flush();
 
     // Single instance check using named mutex
     constexpr const wchar_t* MUTEX_NAME = L"Global\\VelocityDB-{8F5E9C2A-1B3D-4E7F-9A6C-2D8B4E1F3C5A}";
