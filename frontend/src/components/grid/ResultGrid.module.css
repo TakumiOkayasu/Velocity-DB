@@ -653,3 +653,19 @@
   min-width: 70px;
   text-align: center;
 }
+
+.diagnosticButton {
+  height: 30px;
+  padding: 0 8px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.diagnosticButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

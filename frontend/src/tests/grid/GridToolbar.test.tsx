@@ -14,6 +14,7 @@ const defaultProps = {
   isReadOnly: false,
   viewMode: 'table' as const,
   onRefresh: vi.fn(),
+  onCaptureRendering: vi.fn(),
   onInsertRow: vi.fn(),
   onDeleteRow: vi.fn(),
   onRevertChanges: vi.fn(),
@@ -121,6 +122,34 @@ describe('GridToolbar', () => {
     it('viewMode=transpose でオートアジャストボタンが disabled', () => {
       render(<GridToolbar {...defaultProps} viewMode="transpose" />);
       expect(screen.getByTitle(/列幅をオートアジャスト/)).toBeDisabled();
+    });
+  });
+
+  describe('表示診断', () => {
+    it('マウス押下による blur を防ぎ、クリックごとに一度だけ採取する', () => {
+      const onCaptureRendering = vi.fn();
+      const closeMenu = vi.fn();
+      document.addEventListener('mousedown', closeMenu);
+      render(<GridToolbar {...defaultProps} onCaptureRendering={onCaptureRendering} />);
+      const button = screen.getByRole('button', { name: '表示診断' });
+      expect(fireEvent.mouseDown(button)).toBe(false);
+      expect(closeMenu).not.toHaveBeenCalled();
+      document.removeEventListener('mousedown', closeMenu);
+      expect(onCaptureRendering).not.toHaveBeenCalled();
+      fireEvent.click(button);
+      fireEvent.click(button);
+      expect(onCaptureRendering).toHaveBeenCalledTimes(2);
+      expect(defaultProps.onAutoSizeColumns).not.toHaveBeenCalled();
+      expect(defaultProps.onRefresh).not.toHaveBeenCalled();
+      expect(defaultProps.onApplyChanges).not.toHaveBeenCalled();
+    });
+
+    it('Transpose ではテーブル診断を実行しない', () => {
+      render(<GridToolbar {...defaultProps} viewMode="transpose" />);
+      const button = screen.getByRole('button', { name: '表示診断' });
+      expect(button).toBeDisabled();
+      fireEvent.click(button);
+      expect(defaultProps.onCaptureRendering).not.toHaveBeenCalled();
     });
   });
 

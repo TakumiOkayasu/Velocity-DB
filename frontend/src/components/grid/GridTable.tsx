@@ -314,7 +314,7 @@ function GridTableInner({
           }}
         >
           {paddingTop > 0 && (
-            <tr>
+            <tr data-grid-spacer="top">
               <td aria-hidden="true" style={{ height: `${paddingTop}px` }} />
             </tr>
           )}
@@ -427,7 +427,7 @@ function GridTableInner({
             );
           })}
           {paddingBottom > 0 && (
-            <tr>
+            <tr data-grid-spacer="bottom">
               <td aria-hidden="true" style={{ height: `${paddingBottom}px` }} />
             </tr>
           )}

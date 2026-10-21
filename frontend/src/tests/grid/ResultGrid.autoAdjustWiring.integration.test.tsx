@@ -127,6 +127,7 @@ function Harness({
         showColumnFilters={false}
         isReadOnly={false}
         viewMode="table"
+        onCaptureRendering={() => {}}
         onRefresh={() => {}}
         onInsertRow={() => {}}
         onDeleteRow={() => {}}

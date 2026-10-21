@@ -3,11 +3,24 @@ import { mockData } from '../src/api/mockData';
 
 // #779: 固定した IPC 応答で実際の ResultGrid / virtualizer を検証する。
 // 対象はブラウザーの配置・内容であり、ネイティブ WebView2 の合成描画は検証できない。
+const DIAGNOSTIC_SECRETS = {
+  table: 'DiagnosticSecretRows',
+  column: 'diagnostic_secret_column',
+  cell: 'DIAGNOSTIC_PRIVATE_CELL',
+  connection: 'diagnostic-private-connection',
+  server: 'diagnostic-private-server',
+  database: 'diagnostic-private-database',
+  sql: 'DIAGNOSTIC_PRIVATE_SQL',
+  reservedColumn: '__originalIndex',
+  reservedValue: '123456789',
+};
 const TABLES = {
   WideRows: { rowCount: 1000, columnCount: 18 },
   NarrowRows: { rowCount: 800, columnCount: 3 },
   SmallRows: { rowCount: 3, columnCount: 2 },
   LoadingRows: { rowCount: 900, columnCount: 16 },
+  EmptyRows: { rowCount: 0, columnCount: 2 },
+  DiagnosticSecretRows: { rowCount: 12000, columnCount: 48 },
 };
 type TableName = keyof typeof TABLES;
 type Position = { top: number; left: number };
@@ -16,17 +29,28 @@ const SCROLLER = '[class*="tableContainer"]';
 
 async function startApp(page: Page) {
   await page.addInitScript(
-    ({ tables, defaults }) => {
+    ({ tables, defaults, secrets }) => {
       const results = Object.fromEntries(
         Object.entries(tables).map(([name, { rowCount, columnCount }]) => [
           name,
           {
             columns: Array.from({ length: columnCount }, (_, c) => ({
-              name: `col_${c}`,
+              name:
+                name !== secrets.table
+                  ? `col_${c}`
+                  : c === columnCount - 1
+                    ? secrets.reservedColumn
+                    : `${secrets.column}_${c}`,
               type: 'nvarchar',
             })),
             rows: Array.from({ length: rowCount }, (_, r) =>
-              Array.from({ length: columnCount }, (_, c) => `${name}:${r}:${c}`)
+              Array.from({ length: columnCount }, (_, c) =>
+                name !== secrets.table
+                  ? `${name}:${r}:${c}`
+                  : c === columnCount - 1
+                    ? secrets.reservedValue
+                    : `${secrets.cell}:${r}:${c}`
+              )
             ),
             affectedRows: 0,
             executionTimeMs: 1,
@@ -34,6 +58,8 @@ async function startApp(page: Page) {
         ])
       );
       const queries = new Map<string, string>();
+      const frontendLogs: string[] = [];
+      Object.defineProperty(window, 'gridFixtureLogs', { value: frontendLogs });
       let nextId = 0;
       let loadingReleased = false;
       window.addEventListener('hold-grid-fixture', () => {
@@ -54,7 +80,7 @@ async function startApp(page: Page) {
             data = { requestId: 'grid-connection-request' };
             break;
           case 'getConnectResult':
-            data = { status: 'connected', connectionId: 'grid-connection' };
+            data = { status: 'connected', connectionId: secrets.connection };
             break;
           case 'getConnectionProfiles':
             // ObjectTree に表示される保存済みプロファイル経由の接続を使う。
@@ -63,8 +89,8 @@ async function startApp(page: Page) {
                 {
                   id: 'grid-profile',
                   name: 'Grid lifecycle fixture',
-                  server: 'localhost',
-                  database: 'fixture',
+                  server: secrets.server,
+                  database: secrets.database,
                   username: '',
                   useWindowsAuth: true,
                   savePassword: false,
@@ -77,7 +103,7 @@ async function startApp(page: Page) {
             data = Object.keys(tables).map((name) => ['dbo', name, 'TABLE', '']);
             break;
           case 'buildDataViewSql':
-            data = { sql: `SELECT * FROM ${params.tableName}` };
+            data = { sql: `SELECT * FROM ${params.tableName} /* ${secrets.sql} */` };
             break;
           case 'getColumns': {
             const name = Object.keys(tables).find((key) => params.table.includes(key));
@@ -115,6 +141,10 @@ async function startApp(page: Page) {
           case 'getActiveQueries':
             data = [];
             break;
+          case 'writeFrontendLog':
+            frontendLogs.push(params.content);
+            data = {};
+            break;
           case 'cancelAsyncQuery':
             data = { cancelled: true };
             break;
@@ -124,13 +154,15 @@ async function startApp(page: Page) {
         return JSON.stringify({ success: true, data });
       };
     },
-    { tables: TABLES, defaults: mockData }
+    { tables: TABLES, defaults: mockData, secrets: DIAGNOSTIC_SECRETS }
   );
   await page.goto('/');
   await page.getByTestId('profile-node').click();
   await page.getByRole('dialog').getByRole('button', { name: '接続', exact: true }).click();
   await expect(page.getByText('データベースに接続', { exact: true })).toHaveCount(0);
-  await page.getByRole('treeitem', { name: /Tables \(4\)/ }).click();
+  await page
+    .getByRole('treeitem', { name: new RegExp(`Tables \\(${Object.keys(TABLES).length}\\)`) })
+    .click();
   await expect(page.getByRole('treeitem').filter({ hasText: 'WideRows' })).toBeVisible();
 }
 
@@ -348,5 +380,263 @@ test.describe('#779 グリッドのタブ切替ライフサイクル', () => {
       body: await page.screenshot(),
       contentType: 'image/png',
     });
+  });
+});
+
+const DIAGNOSTIC_MARKER = '[GridRenderDiagnostic]';
+type LoggedGridDiagnostic = {
+  schemaVersion: number;
+  build: { frontendSource: string };
+  model: {
+    rowCount: number;
+    virtualItemCount: number;
+    virtualItems: unknown[];
+    virtualizer: { scrollOffset: number };
+  };
+  truncated: { rows: boolean; virtualItems: boolean; bytes: boolean };
+  dom: {
+    container: { scrollTop: number; scrollLeft: number } | null;
+    rowCount: number;
+    rows: { cells: unknown[] }[];
+  };
+};
+
+async function readDiagnostics(page: Page) {
+  const lines = await page.evaluate(() => {
+    const logs = Reflect.get(window, 'gridFixtureLogs') as string[];
+    return logs.join('\n').split('\n');
+  });
+  return lines
+    .filter((line) => line.includes(DIAGNOSTIC_MARKER))
+    .map((line) => {
+      const json = line.slice(line.indexOf(DIAGNOSTIC_MARKER) + DIAGNOSTIC_MARKER.length).trim();
+      return { json, payload: JSON.parse(json) as LoggedGridDiagnostic };
+    });
+}
+
+async function expectDiagnosticCount(page: Page, count: number) {
+  await expect
+    .poll(async () => (await readDiagnostics(page)).length, {
+      message: 'Each manual capture must reach the existing writeFrontendLog IPC exactly once',
+    })
+    .toBe(count);
+  return readDiagnostics(page);
+}
+
+test.describe('#779 手動のグリッド表示診断', () => {
+  test('繰り返し採取してもスクロール位置と同じ DOM ノードを維持する', async ({ page }) => {
+    await startApp(page);
+    await openTable(page, 'WideRows');
+    await expectGrid(page, 'WideRows');
+    const position = { top: 5600, left: 900 };
+    await scrollGrid(page, position);
+    await expectGrid(page, 'WideRows', position);
+    expect(await readDiagnostics(page)).toEqual([]);
+
+    const before = await page.locator(SCROLLER).evaluateHandle((container) => ({
+      container,
+      table: container.querySelector('table'),
+      rows: Array.from(container.querySelectorAll('tr[data-row-index]')),
+      cells: Array.from(container.querySelectorAll('tr[data-row-index] td')),
+    }));
+    const capture = page.getByRole('button', { name: '表示診断', exact: true });
+    await expect(capture).toHaveAttribute('title', '表示診断をログに記録（セル値なし）');
+
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      await capture.click();
+      const diagnostics = await expectDiagnosticCount(page, attempt);
+      const diagnostic = diagnostics[attempt - 1].payload;
+      expect(diagnostic.schemaVersion).toBe(1);
+      expect(diagnostic.dom.container).toMatchObject({
+        scrollTop: position.top,
+        scrollLeft: position.left,
+      });
+      expect(diagnostic.model.rowCount).toBe(TABLES.WideRows.rowCount);
+      expect(diagnostic.dom.rows.length).toBeGreaterThan(0);
+      expect(
+        await before.evaluate((snapshot) => {
+          const currentRows = Array.from(snapshot.container.querySelectorAll('tr[data-row-index]'));
+          const currentCells = Array.from(
+            snapshot.container.querySelectorAll('tr[data-row-index] td')
+          );
+          return (
+            snapshot.container.isConnected &&
+            snapshot.table === snapshot.container.querySelector('table') &&
+            snapshot.rows.length === currentRows.length &&
+            snapshot.rows.every((row, index) => row === currentRows[index]) &&
+            snapshot.cells.length === currentCells.length &&
+            snapshot.cells.every((cell, index) => cell === currentCells[index])
+          );
+        })
+      ).toBe(true);
+      await expectGrid(page, 'WideRows', position);
+    }
+    await before.dispose();
+  });
+
+  test('編集中の値・入力要素・フォーカス・選択範囲を変えずに採取する', async ({ page }) => {
+    await startApp(page);
+    await openTable(page, 'WideRows');
+    await expectGrid(page, 'WideRows');
+    await scrollGrid(page, { top: 5600, left: 900 });
+    const rowIndex = await page.locator(SCROLLER).evaluate((container) => {
+      const headerBottom = container.querySelector('thead')?.getBoundingClientRect().bottom;
+      if (headerBottom === undefined) throw new Error('Missing fixture header');
+      const row = Array.from(
+        container.querySelectorAll<HTMLTableRowElement>('tr[data-row-index]')
+      ).find((element) => element.getBoundingClientRect().top >= headerBottom);
+      if (!row) throw new Error('Missing visible fixture row');
+      return row.dataset.rowIndex;
+    });
+    await page.locator(`tr[data-row-index="${rowIndex}"] td[data-field="col_7"]`).dblclick();
+    const input = page.locator(`${SCROLLER} input[type="text"]`);
+    const draft = 'DIAGNOSTIC_PRIVATE_UNSAVED_EDIT';
+    await expect(input).toBeFocused();
+    await input.fill(draft);
+    await input.evaluate((element: HTMLInputElement) => element.setSelectionRange(3, 9));
+    await settleFrames(page);
+    const before = await input.evaluateHandle((element: HTMLInputElement) => ({
+      input: element,
+      selectionStart: element.selectionStart,
+      selectionEnd: element.selectionEnd,
+      container: element.closest('[class*="tableContainer"]'),
+    }));
+    const position = await page.locator(SCROLLER).evaluate((element) => ({
+      top: element.scrollTop,
+      left: element.scrollLeft,
+    }));
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      // 実際の pointer 操作で onBlur による確定が起きないことも検証する。
+      await page.getByRole('button', { name: '表示診断', exact: true }).click();
+      const diagnostics = await expectDiagnosticCount(page, attempt);
+      await expect(input).toBeFocused();
+      await expect(input).toHaveValue(draft);
+      expect(
+        await before.evaluate((snapshot) => ({
+          sameInput:
+            snapshot.input.isConnected &&
+            snapshot.input === document.activeElement &&
+            snapshot.container?.contains(snapshot.input),
+          selectionStart: snapshot.input.selectionStart,
+          selectionEnd: snapshot.input.selectionEnd,
+          top: snapshot.container?.scrollTop,
+          left: snapshot.container?.scrollLeft,
+        }))
+      ).toEqual({
+        sameInput: true,
+        selectionStart: 3,
+        selectionEnd: 9,
+        ...position,
+      });
+      expect(diagnostics[attempt - 1].json).not.toContain(draft);
+    }
+    await before.dispose();
+    await input.press('Escape');
+  });
+
+  test('開いているコンテキストメニューを閉じずに採取する', async ({ page }) => {
+    await startApp(page);
+    await openTable(page, 'WideRows');
+    await expectGrid(page, 'WideRows');
+    await page.locator('tr[data-row-index="0"] td[data-field="col_1"]').click({ button: 'right' });
+    const menuItem = page.getByRole('button', { name: 'セル値をコピー', exact: true });
+    await expect(menuItem).toBeVisible();
+    // ContextMenu の遅延登録された document mousedown リスナーも有効な状態にする。
+    await settleFrames(page);
+    const before = await menuItem.evaluateHandle((element) => ({
+      item: element,
+      menu: element.parentElement,
+    }));
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      await page.getByRole('button', { name: '表示診断', exact: true }).click();
+      await expectDiagnosticCount(page, attempt);
+      await expect(menuItem).toBeVisible();
+      expect(
+        await before.evaluate(
+          (snapshot) => snapshot.item.isConnected && snapshot.menu === snapshot.item.parentElement
+        )
+      ).toBe(true);
+      await expectGrid(page, 'WideRows');
+    }
+    await before.dispose();
+  });
+
+  test('大きい結果でも採取量を制限しセル値・列名・テーブル名・接続情報・SQLを含めない', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 3000 });
+    await startApp(page);
+    await openTable(page, 'DiagnosticSecretRows');
+    await expect(page.locator(SCROLLER)).toBeVisible();
+    await expect(
+      page.locator(`td[data-field="${DIAGNOSTIC_SECRETS.column}_0"]`).first()
+    ).toContainText(DIAGNOSTIC_SECRETS.cell);
+    await scrollGrid(page, { top: 180000, left: 900 });
+    await expect.poll(async () => page.locator('tr[data-row-index]').count()).toBeGreaterThan(80);
+    const renderedCount = await page.locator('tr[data-row-index]').count();
+
+    await page.getByRole('button', { name: '表示診断', exact: true }).click();
+    const [{ json, payload }] = await expectDiagnosticCount(page, 1);
+    expect(payload.schemaVersion).toBe(1);
+    expect(typeof payload.build.frontendSource).toBe('string');
+    expect(payload.build.frontendSource).toMatch(/^[0-9a-f]{12,40}(?:-dirty)?$/);
+    expect(payload.model.rowCount).toBe(TABLES.DiagnosticSecretRows.rowCount);
+    expect(payload.dom.rowCount).toBe(renderedCount);
+    expect(payload.model.virtualItemCount).toBe(renderedCount);
+    expect(payload.model.virtualizer.scrollOffset).toBe(180000);
+    expect(payload.truncated.rows).toBe(true);
+    expect(payload.truncated.virtualItems).toBe(true);
+    expect(payload.dom.rows.length).toBeGreaterThan(0);
+    expect(payload.dom.rows.length).toBeLessThanOrEqual(40);
+    for (const row of payload.dom.rows) {
+      expect(row.cells.length).toBeGreaterThan(0);
+      expect(row.cells.length).toBeLessThanOrEqual(3);
+    }
+    expect(payload.model.virtualItems.length).toBeGreaterThan(0);
+    expect(payload.model.virtualItems.length).toBeLessThanOrEqual(80);
+    expect(Buffer.byteLength(json, 'utf8')).toBeLessThanOrEqual(64 * 1024);
+    for (const secret of Object.values(DIAGNOSTIC_SECRETS)) {
+      expect(json).not.toContain(secret);
+    }
+    expect(json).not.toContain('SELECT *');
+    expect(json).not.toContain('grid-query-');
+    expect(json).not.toContain('textContent');
+    expect(json).not.toContain('innerHTML');
+  });
+
+  test('空結果・読込中・タブを閉じた後も安全で自動採取しない', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await startApp(page);
+    const capture = page.getByRole('button', { name: '表示診断', exact: true });
+    await expect(capture).toHaveCount(0);
+    await openTable(page, 'EmptyRows');
+    await expect(capture).toBeVisible();
+    await capture.click();
+    const [{ payload }] = await expectDiagnosticCount(page, 1);
+    expect(payload.model.rowCount).toBe(0);
+    expect(payload.dom.rowCount).toBe(0);
+    expect(payload.dom.rows).toEqual([]);
+    expect(payload.model.virtualItems).toEqual([]);
+    await closeTable(page, 'EmptyRows');
+    await expect(capture).toHaveCount(0);
+
+    await openTable(page, 'LoadingRows');
+    await expect(page.getByText('クエリ実行中...', { exact: true })).toBeVisible();
+    await expect(capture).toHaveCount(0);
+    await closeTable(page, 'LoadingRows');
+    await page.evaluate(() => window.dispatchEvent(new Event('release-grid-fixture')));
+    await settleFrames(page);
+    await expect(capture).toHaveCount(0);
+    expect(await readDiagnostics(page)).toHaveLength(1);
+
+    await openTable(page, 'LoadingRows');
+    await expectGrid(page, 'LoadingRows');
+    await capture.click();
+    const diagnostics = await expectDiagnosticCount(page, 2);
+    expect(diagnostics[1].payload.model.rowCount).toBe(TABLES.LoadingRows.rowCount);
+    expect(errors).toEqual([]);
   });
 });
