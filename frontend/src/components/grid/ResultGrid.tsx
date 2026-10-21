@@ -14,11 +14,12 @@ import {
   useQueryStore,
 } from '../../store/queryStore';
 import { useSessionStore } from '../../store/sessionStore';
+import { useToastStore } from '../../store/toastStore';
 import type { ResultSet } from '../../types';
 import { type ColumnMeta, type GridViewMode, isNumericType, type RowData } from '../../types/grid';
 import { parseErrorMessage } from '../../utils/errorParser';
 import { lazyWithRetry } from '../../utils/lazyWithRetry';
-import { log } from '../../utils/logger';
+import { log, logger } from '../../utils/logger';
 import { useFirstRenderMark } from '../../utils/perfMarks';
 import { getStatementType } from '../../utils/sql/statement-type';
 import { QueryConfirmDialog } from '../dialogs/QueryConfirmDialog';
@@ -27,6 +28,7 @@ import { GridStatusBar } from './GridStatusBar';
 import { GridTable } from './GridTable';
 import { type GridColumnDef, type GridRow, gridTableFeatures } from './tableFeatures';
 import { GridToolbar } from './GridToolbar';
+import { captureGridRenderDiagnostic, serializeGridRenderDiagnostic } from './gridRenderDiagnostic';
 import { useClampedActiveIndex } from './hooks/useClampedActiveIndex';
 import { useColumnAutoSize } from './hooks/useColumnAutoSize';
 import { useElapsedTimer } from './hooks/useElapsedTimer';
@@ -518,6 +520,30 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
     [selectedRows]
   );
 
+  const captureRendering = useCallback(() => {
+    // 採取前に focus/scroll/measure/setState/非同期処理を挟まない。
+    // virtualRows/totalSize は最後の render 値、virtualizer は現在値を別々に記録する。
+    try {
+      const snapshot = captureGridRenderDiagnostic(tableContainerRef.current, {
+        rowCount: rows.length,
+        columnCount: columns.length,
+        virtualRows,
+        totalSize: virtualTotalSize,
+        virtualizer: rowVirtualizer,
+      });
+      logger.addToQueue(
+        `[${snapshot.capturedAt}] [INFO] [GridRenderDiagnostic] ${serializeGridRenderDiagnostic(snapshot)}`
+      );
+      void logger.forceFlush();
+      useToastStore
+        .getState()
+        .addToast('表示診断を採取しました。ローカルログを確認してください。', 'info');
+    } catch {
+      // DOM/例外の文字列化はしない（セル値などの混入防止）。
+      useToastStore.getState().addToast('表示診断を採取できませんでした。', 'error');
+    }
+  }, [rows.length, columns.length, virtualRows, virtualTotalSize, rowVirtualizer]);
+
   // --- Early returns ---
   if (isExecuting) {
     const isWarning = elapsedSeconds >= ELAPSED_WARNING_SECONDS;
@@ -637,6 +663,7 @@ function ResultGridInner({ queryId, excludeDataView = false }: ResultGridProps =
         onExport={openExportDialog}
         onAutoSizeColumns={triggerAutoSize}
         onChangeViewMode={changeViewMode}
+        onCaptureRendering={captureRendering}
       />
 
       {currentQuery?.sourceTable && (

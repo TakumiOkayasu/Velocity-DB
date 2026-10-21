@@ -13,6 +13,7 @@ interface GridToolbarProps {
   showColumnFilters: boolean;
   isReadOnly: boolean;
   viewMode: GridViewMode;
+  onCaptureRendering: () => void;
   onRefresh: () => void;
   onInsertRow: () => void;
   onDeleteRow: () => void;
@@ -36,6 +37,7 @@ function GridToolbarInner({
   showColumnFilters,
   isReadOnly,
   viewMode,
+  onCaptureRendering,
   onRefresh,
   onInsertRow,
   onDeleteRow,
@@ -121,6 +123,21 @@ function GridToolbarInner({
       {applyError && <span className={styles.errorIndicator}>{applyError}</span>}
 
       <div className={styles.toolbarSpacer} />
+
+      <button
+        type="button"
+        onMouseDown={(event) => {
+          // 編集の blur と、document の外側クリックによるメニュー閉鎖を採取前に起こさない。
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+        onClick={onCaptureRendering}
+        disabled={!isTableMode}
+        className={styles.diagnosticButton}
+        title="表示診断をログに記録（セル値なし）"
+      >
+        表示診断
+      </button>
 
       {/* Group 3: View options */}
       <button
