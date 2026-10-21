@@ -55,6 +55,7 @@ set(TEST_SOURCES
     database/test_thread_pool.cpp
     database/test_result_cache.cpp
     utils/test_version_config.cpp
+    utils/test_frontend_build_identity.cpp
     utils/test_glaze_meta_roundtrip.cpp
 )
 
