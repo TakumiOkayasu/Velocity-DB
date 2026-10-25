@@ -2,7 +2,7 @@ min_version = "2026.9.16"
 
 [tools]
 node = "26.10.0"
-bun = "1.4.3"
+bun = "1.4.4"
 cmake = "4.4.3"
 ninja = "1.13.2"
 
