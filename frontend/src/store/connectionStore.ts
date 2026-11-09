@@ -26,7 +26,9 @@ interface ConnectionState {
   setTableListLoadTime: (connectionId: string, loadTimeMs: number) => void;
   setTableOpenTime: (connectionId: string, loadTimeMs: number) => void;
   profileVersion: number;
+  profileFolders: Map<string, string>;
   incrementProfileVersion: () => void;
+  updateConnectionFolder: (profileId: string, folderPath: string) => void;
 }
 
 export const useConnectionStore = create<ConnectionState>((set, get) => ({
@@ -115,7 +117,15 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
       }
 
       set((state) => ({
-        connections: [...state.connections.filter((c) => !matchesExisting(c)), newConnection],
+        connections: [
+          ...state.connections.filter((c) => !matchesExisting(c)),
+          {
+            ...newConnection,
+            folderPath: connection.profileId
+              ? (state.profileFolders.get(connection.profileId) ?? connection.folderPath)
+              : connection.folderPath,
+          },
+        ],
         activeConnectionId: result.connectionId,
         isConnecting: false,
         connectRequestId: null,
@@ -263,6 +273,16 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
   },
 
   profileVersion: 0,
+  profileFolders: new Map(),
+  updateConnectionFolder: (profileId, folderPath) => {
+    set((state) => ({
+      // A save can complete while connect/disconnect IPC is still pending.
+      profileFolders: new Map(state.profileFolders).set(profileId, folderPath),
+      connections: state.connections.map((connection) =>
+        connection.profileId === profileId ? { ...connection, folderPath } : connection
+      ),
+    }));
+  },
   incrementProfileVersion: () => {
     set((state) => ({ profileVersion: state.profileVersion + 1 }));
   },

@@ -58,6 +58,7 @@
   border: none;
   border-bottom: 1px solid var(--border-color, #3c3f41);
   user-select: none;
+  border-left: 3px solid var(--connection-color, transparent);
 }
 
 .folderHeader:hover {
@@ -97,6 +98,7 @@
 
 /* Profile items (disconnected) */
 .profileItem {
+  border-left: 3px solid var(--connection-color, transparent);
   display: flex;
   align-items: center;
   gap: 8px;

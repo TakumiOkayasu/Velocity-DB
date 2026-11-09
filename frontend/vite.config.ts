@@ -28,6 +28,12 @@ function monacoWorkerExcludePlugin(): Plugin {
 }
 
 const BUNDLE_REPORT_ENABLED = process.env.VELOCITYDB_BUNDLE_REPORT === '1';
+// These tests have no browser contract. DOM-dependent utilities stay in the UI project.
+const NODE_TEST_FILES = [
+  'src/tests/utils/**/!(logger|perfMarks|settingsUtils).test.ts',
+  'src/tests/connections/**/*.test.ts',
+  'tooling/**/*.test.ts',
+];
 
 export default defineConfig({
   fmt: {
@@ -104,11 +110,27 @@ export default defineConfig({
   ]),
   test: {
     globals: true,
-    environment: 'jsdom',
+    // Keep parallel DOM initialization within the available CPU budget.
+    maxWorkers: '50%',
     // Use jsdom's per-worker storage instead of Node's file-backed Web Storage globals.
     execArgv: ['--no-experimental-webstorage'],
-    setupFiles: ['./src/tests/setup.ts'],
-    include: ['src/**/*.{test,spec}.{ts,tsx}', 'tooling/**/*.test.ts'],
+    projects: [
+      {
+        extends: true,
+        test: { name: 'node', environment: 'node', include: NODE_TEST_FILES, css: true },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'ui',
+          pool: 'vmThreads',
+          environment: 'jsdom',
+          setupFiles: ['./src/tests/setup.ts'],
+          include: ['src/**/*.{test,spec}.{ts,tsx}', 'tooling/**/*.test.ts'],
+          exclude: NODE_TEST_FILES,
+        },
+      },
+    ],
   },
   base: './', // Use relative paths for file:// protocol
   resolve: {

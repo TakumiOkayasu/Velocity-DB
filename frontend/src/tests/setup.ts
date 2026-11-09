@@ -1,4 +1,14 @@
 import '@testing-library/jest-dom/vitest';
+import { vi } from 'vite-plus/test';
+
+const { performance } = await vi.importActual<{ performance: Performance }>('node:perf_hooks');
+
+// VM contexts need a User Timing implementation. Keep real measurements and assertions.
+Object.defineProperty(globalThis, 'performance', {
+  value: performance,
+  configurable: true,
+  writable: true,
+});
 
 // Mock window.invoke for tests
 Object.defineProperty(window, 'invoke', {

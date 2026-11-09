@@ -1,4 +1,5 @@
 import { memo, type ReactNode } from 'react';
+import { folderColor } from '../../utils/connectionColor';
 import styles from './ObjectTree.module.css';
 
 /** Horizontal indent per nesting level (px). */
@@ -32,7 +33,10 @@ function FolderNodeComponent({
       <button
         type="button"
         className={styles.folderHeader}
-        style={{ paddingLeft: HEADER_BASE_PADDING_PX + level * FOLDER_INDENT_PX }}
+        style={{
+          paddingLeft: HEADER_BASE_PADDING_PX + level * FOLDER_INDENT_PX,
+          '--connection-color': folderColor(fullPath),
+        }}
         onClick={toggle}
         aria-expanded={expanded}
         title={fullPath}

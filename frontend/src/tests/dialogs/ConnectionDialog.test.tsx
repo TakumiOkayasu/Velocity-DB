@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { connectionProfileProvider as bridge } from '../../api/providers';
 import { ConnectionDialog } from '../../components/dialogs/ConnectionDialog';
 import { useConnectionStore } from '../../store/connectionStore';
+import type { SavedConnectionProfile } from '../../types';
 
 vi.mock('../../api/providers', () => ({
   connectionProfileProvider: {
@@ -118,11 +119,11 @@ describe('ConnectionDialog', () => {
     const mockedBridge = vi.mocked(bridge);
 
     beforeEach(() => {
-      useConnectionStore.setState({ profileVersion: 0 });
+      useConnectionStore.setState(useConnectionStore.getInitialState());
     });
 
     afterEach(() => {
-      useConnectionStore.setState({ profileVersion: 0 });
+      useConnectionStore.setState(useConnectionStore.getInitialState());
     });
 
     it('プロファイル保存後にprofileVersionがインクリメントされる', async () => {
@@ -143,6 +144,48 @@ describe('ConnectionDialog', () => {
         expect(useConnectionStore.getState().profileVersion).toBe(1);
       });
     });
+
+    it.each([true, false])(
+      '接続中のフォルダー変更は保存成功時だけ反映する (success=%s)',
+      async (success) => {
+        const profile: SavedConnectionProfile = {
+          id: 'profile_1',
+          name: 'Shared',
+          server: 'db.example',
+          port: 5432,
+          database: 'test',
+          username: 'user',
+          useWindowsAuth: false,
+          savePassword: false,
+          isProduction: false,
+          isReadOnly: false,
+          folderPath: 'Product/Dev',
+        };
+        useConnectionStore.setState({
+          connections: [
+            {
+              ...profile,
+              id: 'live',
+              profileId: profile.id,
+              isActive: true,
+              password: '',
+            },
+          ],
+        });
+        mockedBridge.getConnectionProfiles.mockResolvedValue({ profiles: [profile] });
+        if (success) mockedBridge.saveConnectionProfile.mockResolvedValue({ id: profile.id });
+        else mockedBridge.saveConnectionProfile.mockRejectedValue(new Error('save failed'));
+        render(<ConnectionDialog {...defaultProps} />);
+        const folder = await screen.findByDisplayValue('Product/Dev');
+        fireEvent.change(folder, { target: { value: ' / Other // Stage / ' } });
+        fireEvent.click(screen.getByTitle('プロファイルを更新'));
+        await screen.findByText(success ? 'Profile saved' : 'Failed to save profile');
+        expect(useConnectionStore.getState().connections[0].folderPath).toBe(
+          success ? 'Other/Stage' : 'Product/Dev'
+        );
+        expect(useConnectionStore.getState().profileVersion).toBe(success ? 1 : 0);
+      }
+    );
 
     it('プロファイル削除後にprofileVersionがインクリメントされる', async () => {
       const testProfile = {

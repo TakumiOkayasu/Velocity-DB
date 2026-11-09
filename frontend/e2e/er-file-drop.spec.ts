@@ -16,7 +16,22 @@ test('dropped ER files keep independent tabs and new diagrams start empty', asyn
           databaseType: '',
           ddl: '',
           relations: [],
-          shapes: [],
+          // Converted IPC colors; C++ parser tests cover A5ER byte order separately.
+          shapes: [
+            {
+              shapeType: 'rect',
+              text: 'Synthetic group',
+              page: 'Main',
+              fillColor: '#18a2f0',
+              fontColor: '#eeeeee',
+              fillAlpha: 128,
+              fontSize: 12,
+              left: 0,
+              top: 200,
+              width: 300,
+              height: 120,
+            },
+          ],
           tables: [
             {
               name,
@@ -27,8 +42,8 @@ test('dropped ER files keep independent tabs and new diagrams start empty', asyn
               page: 'Main',
               posX: 0,
               posY: 0,
-              color: '',
-              bkColor: '',
+              color: '#1e1e1e',
+              bkColor: '#767676',
             },
           ],
         };
@@ -51,6 +66,21 @@ test('dropped ER files keep independent tabs and new diagrams start empty', asyn
   const tables = page.locator('.react-flow__node-table');
   await drop('first.A5ER', fixture('FirstTable'));
   await expect(tables).toHaveAttribute('data-id', 'FirstTable');
+  const header = tables.getByText('FirstTable', { exact: true }).locator('..');
+  await expect(header).toHaveCSS('background-color', 'rgb(118, 118, 118)');
+  await expect(header).toHaveCSS('color', 'rgb(255, 255, 255)');
+  const shape = page.locator('.react-flow__node-shape > div');
+  const expectedFill = await page.evaluate(() => {
+    // Compare browser-normalized colors, including its alpha serialization precision.
+    const probe = document.createElement('div');
+    probe.style.backgroundColor = `rgba(24, 162, 240, ${128 / 255})`;
+    document.body.append(probe);
+    const color = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return color;
+  });
+  await expect(shape).toHaveCSS('background-color', expectedFill);
+  await expect(shape).toHaveCSS('color', 'rgb(238, 238, 238)');
   await drop('second.a5er', fixture('SecondTable'));
   await expect(tables).toHaveAttribute('data-id', 'SecondTable');
   await page.getByText('first.A5ER', { exact: true }).click();

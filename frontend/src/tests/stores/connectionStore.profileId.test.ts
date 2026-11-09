@@ -39,6 +39,7 @@ describe('connectionStore profileId-based identification (#414)', () => {
       connectRequestId: null,
       connectCancelled: false,
       error: null,
+      profileFolders: new Map(),
     });
     vi.clearAllMocks();
   });
@@ -51,7 +52,33 @@ describe('connectionStore profileId-based identification (#414)', () => {
       connectRequestId: null,
       connectCancelled: false,
       error: null,
+      profileFolders: new Map(),
     });
+  });
+
+  it('接続待ち中に保存したルートフォルダーへの移動を接続完了時にも保持する', async () => {
+    mockConnectAsync.mockResolvedValue({ requestId: 'pending-folder' });
+    let complete: (result: { status: 'connected'; connectionId: string }) => void = () => {
+      throw new Error('Polling has not started');
+    };
+    mockGetConnectResult.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        })
+    );
+    const pending = useConnectionStore.getState().addConnection({
+      ...baseConnection,
+      profileId: 'moving-profile',
+      folderPath: 'Product',
+    });
+    await vi.waitFor(() => expect(mockGetConnectResult).toHaveBeenCalled());
+    useConnectionStore.getState().updateConnectionFolder('moving-profile', '');
+    complete({ status: 'connected', connectionId: 'moved-connection' });
+    await pending;
+    expect(useConnectionStore.getState().connections).toEqual([
+      expect.objectContaining({ id: 'moved-connection', folderPath: '' }),
+    ]);
   });
 
   it('別 profileId かつ同名なら共存する (Develop/Test と Staging/Test)', async () => {

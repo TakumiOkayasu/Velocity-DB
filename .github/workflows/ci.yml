@@ -137,12 +137,12 @@ jobs:
         working-directory: frontend
         run: bunx --no-install playwright install --with-deps chromium
 
-      - name: Test grid tab lifecycle, column layout and WebView settings
+      - name: Test grid, WebView settings and ER imports
         if: runner.os == 'Linux'
         working-directory: frontend
         env:
           VELOCITYDB_E2E_PREVIEW: '1'
-        run: bun run test:e2e e2e/grid-tab-lifecycle.spec.ts e2e/grid-column-width.spec.ts e2e/webview-settings.spec.ts
+        run: bun run test:e2e e2e/grid-tab-lifecycle.spec.ts e2e/grid-column-width.spec.ts e2e/webview-settings.spec.ts e2e/er-file-drop.spec.ts
 
       - name: Upload grid smoke failure artifacts
         if: runner.os == 'Linux' && failure()

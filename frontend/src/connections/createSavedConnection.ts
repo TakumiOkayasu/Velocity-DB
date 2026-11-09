@@ -34,6 +34,7 @@ export function createSavedConnection(
 
       const connection: Omit<Connection, 'id' | 'isActive'> = {
         profileId: profile.id,
+        folderPath: profile.folderPath,
         name: profile.name,
         server: profile.server,
         port: profile.port,

@@ -16,6 +16,7 @@ const profile: SavedConnectionProfile = {
   isProduction: false,
   isReadOnly: true,
   environment: 'staging',
+  folderPath: 'Product/Staging',
 };
 
 function dependencies() {
@@ -40,6 +41,7 @@ describe('saved connection preparation', () => {
     await expect(prepared.connect()).resolves.toEqual({ status: 'connected' });
     expect(connect).toHaveBeenCalledExactlyOnceWith({
       profileId: profile.id,
+      folderPath: profile.folderPath,
       name: profile.name,
       server: profile.server,
       port: profile.port,

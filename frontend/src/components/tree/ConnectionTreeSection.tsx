@@ -7,7 +7,7 @@ import { useTableActions } from '../../hooks/useTableActions';
 import { useConnectionStore } from '../../store/connectionStore';
 import { useToastStore } from '../../store/toastStore';
 import type { Connection, DatabaseObject } from '../../types';
-import { connectionColor } from '../../utils/colorContrast';
+import { connectionColor } from '../../utils/connectionColor';
 import { type FlattenedTreeRow, flattenVisibleTree } from '../../utils/flattenVisibleTree';
 import { log } from '../../utils/logger';
 import { markTreeExpandStart, useTreeExpandMeasure } from '../../utils/perfMarks';
@@ -337,10 +337,7 @@ export function ConnectionTreeSection({
     closeConnection: removeConnection,
   });
 
-  const connColor = useMemo(
-    () => connectionColor(connection.server, connection.database),
-    [connection.server, connection.database]
-  );
+  const connColor = useMemo(() => connectionColor(connection), [connection]);
 
   // #502: 可視範囲の行のみ DOM 化する (environment クラスは database ノードのみに適用されるため
   // 全行へ渡しても従来のルートノード限定の挙動と等価)

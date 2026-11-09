@@ -135,6 +135,7 @@ export function MainLayout() {
     try {
       const result = await addConnection({
         profileId,
+        folderPath: config.folderPath,
         name: config.name,
         server: config.server,
         port: config.port,
