@@ -118,20 +118,20 @@ std::string A5ERParser::generateDDL(const ERModel& model, TargetDatabase target)
 
 // === Color conversion ===
 
-std::string A5ERParser::convertA5erColor(const std::string& raw) {
+std::string A5ERParser::convertA5erColor(const std::string& raw, ColorSource source) {
     if (raw.empty() || raw[0] != '$')
         return "";
 
     std::string_view hex(raw);
     hex.remove_prefix(1);  // Remove '$'
 
-    // 8-digit: $AABBGGRR — if AA=FF it's the default color (transparent)
     if (hex.size() == 8) {
-        auto a0 = static_cast<unsigned char>(std::tolower(static_cast<unsigned char>(hex[0])));
-        auto a1 = static_cast<unsigned char>(std::tolower(static_cast<unsigned char>(hex[1])));
-        if (a0 == 'f' && a1 == 'f')
+        // Shapes use the full $FFFFFFFF marker; their opacity comes from BrushAlpha.
+        // Keep the existing FF-prefix convention for entity and field colors.
+        const auto marker = source == ColorSource::Shape ? hex : hex.substr(0, 2);
+        if (marker.find_first_not_of("Ff") == std::string_view::npos)
             return "";
-        hex.remove_prefix(2);  // Remove alpha
+        hex.remove_prefix(2);
     }
 
     if (hex.size() != 6)
@@ -215,8 +215,8 @@ ERModel A5ERParser::toERModel(const A5ERModel& a5model) {
         // Normalize shapeType to lowercase
         std::ranges::transform(shape.shapeType, shape.shapeType.begin(), [](unsigned char c) { return std::tolower(c); });
         shape.text = s.text;
-        shape.fillColor = convertA5erColor(s.brushColor);
-        shape.fontColor = convertA5erColor(s.fontColor);
+        shape.fillColor = convertA5erColor(s.brushColor, ColorSource::Shape);
+        shape.fontColor = convertA5erColor(s.fontColor, ColorSource::Shape);
         shape.fillAlpha = s.brushAlpha;
         shape.fontSize = s.fontSize;
         shape.left = s.left;

@@ -579,13 +579,15 @@ DEL
 // Shape edge cases
 // ============================================================
 
-TEST_F(ERDiagramParserTest, ShapeMultiple) {
+TEST_F(ERDiagramParserTest, MultipleShapesPreserveExplicitColorsAndAlpha) {
     const char* input = R"a5er(# A5:ER FORMAT:19
 
 [Shape]
 ShapeType=RoundRect
 Text=Group A
-BrushColor=$E8FFFF
+BrushColor=$Ff563412
+BrushAlpha=128
+FontColor=$FfFfFfFf
 Left=50
 Top=30
 Width=500
@@ -597,6 +599,7 @@ DEL
 ShapeType=Rectangle
 Text=Group B
 BrushColor=$FFCCCC
+FontColor=$FF332211
 Left=600
 Top=30
 Width=300
@@ -608,11 +611,14 @@ DEL
     ASSERT_EQ(model.shapes.size(), 2);
     EXPECT_EQ(model.shapes[0].shapeType, "roundrect");
     EXPECT_EQ(model.shapes[0].text, "Group A");
-    EXPECT_EQ(model.shapes[0].fillColor, "#FFFFE8");
+    EXPECT_EQ(model.shapes[0].fillColor, "#123456");
+    EXPECT_EQ(model.shapes[0].fillAlpha, 128);
+    EXPECT_TRUE(model.shapes[0].fontColor.empty());
 
     EXPECT_EQ(model.shapes[1].shapeType, "rectangle");
     EXPECT_EQ(model.shapes[1].text, "Group B");
     EXPECT_EQ(model.shapes[1].fillColor, "#CCCCFF");
+    EXPECT_EQ(model.shapes[1].fontColor, "#112233");
 }
 
 TEST_F(ERDiagramParserTest, ShapeDefaultValues) {
