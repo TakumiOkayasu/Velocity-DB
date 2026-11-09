@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
 // lazyWithRetry内部ロジックを直接テストするため、
 // React.lazyをモックしてfactory関数の振る舞いを検証する
@@ -13,13 +13,16 @@ describe('lazyWithRetry', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
-    sessionStorage.clear();
-    reloadMock = vi.fn();
-    Object.defineProperty(window, 'location', {
-      value: { reload: reloadMock },
-      writable: true,
+    const storage = new Map<string, string>();
+    vi.stubGlobal('sessionStorage', {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => storage.set(key, value),
+      removeItem: (key: string) => storage.delete(key),
     });
+    reloadMock = vi.fn();
+    vi.stubGlobal('window', { location: { reload: reloadMock } });
   });
+  afterEach(() => vi.unstubAllGlobals());
 
   it('正常インポート時はモジュールをそのまま返す', async () => {
     const module = { default: () => null };

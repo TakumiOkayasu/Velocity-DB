@@ -80,6 +80,9 @@ async function openDialog(): Promise<void> {
   );
   await screen.findAllByTestId('profile-node');
   fireEvent.click(screen.getByTitle('新規接続'));
+  await act(async () => {
+    await vi.dynamicImportSettled();
+  });
   // The first saved profile is selected asynchronously by the real profile hook.
   await screen.findByDisplayValue('dev-server');
 }
