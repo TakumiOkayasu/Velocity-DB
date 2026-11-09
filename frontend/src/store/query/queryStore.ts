@@ -98,7 +98,7 @@ export const useIsActiveDataView = () =>
   useQueryStore((state) => state.queriesById[state.activeQueryId ?? '']?.isDataView === true);
 
 export const useIsActiveERDiagram = () =>
-  useQueryStore((state) => state.queriesById[state.activeQueryId ?? '']?.isERDiagram === true);
+  useQueryStore((state) => Boolean(state.queriesById[state.activeQueryId ?? '']?.erDiagram));
 
 export const useQueryById = (queryId: string | null | undefined) =>
   useQueryStore((state) => (queryId ? state.queriesById[queryId] : undefined));

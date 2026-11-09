@@ -159,7 +159,7 @@ export function EditorTabs() {
   }, []);
 
   const createERDiagram = useCallback(() => {
-    const existingNames = new Set(queries.filter((q) => q.isERDiagram).map((q) => q.name));
+    const existingNames = new Set(queries.filter((q) => q.erDiagram).map((q) => q.name));
     let idx = 1;
     let name = 'ER図';
     while (existingNames.has(name)) {
@@ -217,7 +217,7 @@ export function EditorTabs() {
               onDrop={(e) => handleDrop(e, index)}
               onDragEnd={handleDragEnd}
             >
-              <TabFileIcon isERDiagram={query.isERDiagram ?? false} />
+              <TabFileIcon isERDiagram={Boolean(query.erDiagram)} />
               <span className={styles.tabName}>
                 {query.isDirty && <span className={styles.dirty}>●</span>}
                 {stripBrackets(query.name)}
@@ -259,7 +259,7 @@ export function EditorTabs() {
                     setMenuOpen(false);
                   }}
                 >
-                  <TabFileIcon isERDiagram={query.isERDiagram ?? false} />
+                  <TabFileIcon isERDiagram={Boolean(query.erDiagram)} />
                   <span className={styles.overflowMenuItemName}>{stripBrackets(query.name)}</span>
                 </button>
               ))}

@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQueryStore } from '../store/queryStore';
+import { useToastStore } from '../store/toastStore';
+import { readERDiagramFile } from '../utils/readERDiagramFile';
 
 interface UseFileDropOptions {
   addQueryFromFile: (name: string, content: string, connectionId?: string | null) => void;
@@ -10,8 +13,22 @@ export function useFileDrop({ addQueryFromFile, activeQueryConnectionId }: UseFi
   const dragCounterRef = useRef(0);
 
   const readAndOpen = useCallback(
-    (files: FileList) => {
+    async (files: FileList) => {
       for (const file of Array.from(files)) {
+        if (/\.(a5er|xml)$/i.test(file.name)) {
+          try {
+            const { model } = await readERDiagramFile(file);
+            useQueryStore.getState().openERDiagram(file.name, model);
+          } catch (err) {
+            useToastStore
+              .getState()
+              .addToast(
+                `${file.name}: ${err instanceof Error ? err.message : String(err)}`,
+                'error'
+              );
+          }
+          continue;
+        }
         if (!file.name.toLowerCase().endsWith('.sql')) continue;
         const reader = new FileReader();
         reader.onload = () => {
@@ -55,7 +72,7 @@ export function useFileDrop({ addQueryFromFile, activeQueryConnectionId }: UseFi
       dragCounterRef.current = 0;
       setIsFileDragOver(false);
       if (e.dataTransfer?.files.length) {
-        readAndOpen(e.dataTransfer.files);
+        void readAndOpen(e.dataTransfer.files);
       }
     };
 

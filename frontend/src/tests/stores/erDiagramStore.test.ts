@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
-import { useERDiagramStore } from '../../store/erDiagramStore';
+import { createERDiagramStore } from '../../store/erDiagramStore';
+
+const diagramStore = createERDiagramStore();
 
 vi.mock('../../api/providers', () => ({
   schemaProvider: {},
@@ -7,7 +9,7 @@ vi.mock('../../api/providers', () => ({
 
 describe('erDiagramStore - viewport & focus', () => {
   beforeEach(() => {
-    useERDiagramStore.setState({
+    diagramStore.setState({
       viewports: {},
       focusedNodeId: null,
       selectedPage: 'MAIN',
@@ -15,7 +17,7 @@ describe('erDiagramStore - viewport & focus', () => {
   });
 
   afterEach(() => {
-    useERDiagramStore.setState({
+    diagramStore.setState({
       viewports: {},
       focusedNodeId: null,
     });
@@ -23,8 +25,8 @@ describe('erDiagramStore - viewport & focus', () => {
 
   describe('saveViewport', () => {
     it('should save viewport for a page', () => {
-      useERDiagramStore.getState().saveViewport('MAIN', { x: 10, y: 20, zoom: 1.5 });
-      expect(useERDiagramStore.getState().viewports.MAIN).toEqual({
+      diagramStore.getState().saveViewport('MAIN', { x: 10, y: 20, zoom: 1.5 });
+      expect(diagramStore.getState().viewports.MAIN).toEqual({
         x: 10,
         y: 20,
         zoom: 1.5,
@@ -32,10 +34,10 @@ describe('erDiagramStore - viewport & focus', () => {
     });
 
     it('should update existing viewport', () => {
-      const { saveViewport } = useERDiagramStore.getState();
+      const { saveViewport } = diagramStore.getState();
       saveViewport('MAIN', { x: 10, y: 20, zoom: 1.5 });
       saveViewport('MAIN', { x: 30, y: 40, zoom: 0.5 });
-      expect(useERDiagramStore.getState().viewports.MAIN).toEqual({
+      expect(diagramStore.getState().viewports.MAIN).toEqual({
         x: 30,
         y: 40,
         zoom: 0.5,
@@ -43,10 +45,10 @@ describe('erDiagramStore - viewport & focus', () => {
     });
 
     it('should store viewports for multiple pages independently', () => {
-      const { saveViewport } = useERDiagramStore.getState();
+      const { saveViewport } = diagramStore.getState();
       saveViewport('MAIN', { x: 0, y: 0, zoom: 1 });
       saveViewport('SUB', { x: 100, y: 200, zoom: 0.8 });
-      const { viewports } = useERDiagramStore.getState();
+      const { viewports } = diagramStore.getState();
       expect(viewports.MAIN).toEqual({ x: 0, y: 0, zoom: 1 });
       expect(viewports.SUB).toEqual({ x: 100, y: 200, zoom: 0.8 });
     });
@@ -54,25 +56,25 @@ describe('erDiagramStore - viewport & focus', () => {
 
   describe('setFocusedNodeId', () => {
     it('should set focused node id', () => {
-      useERDiagramStore.getState().setFocusedNodeId('users');
-      expect(useERDiagramStore.getState().focusedNodeId).toBe('users');
+      diagramStore.getState().setFocusedNodeId('users');
+      expect(diagramStore.getState().focusedNodeId).toBe('users');
     });
 
     it('should clear focused node id with null', () => {
-      useERDiagramStore.getState().setFocusedNodeId('users');
-      useERDiagramStore.getState().setFocusedNodeId(null);
-      expect(useERDiagramStore.getState().focusedNodeId).toBeNull();
+      diagramStore.getState().setFocusedNodeId('users');
+      diagramStore.getState().setFocusedNodeId(null);
+      expect(diagramStore.getState().focusedNodeId).toBeNull();
     });
   });
 
   describe('clearDiagram', () => {
     it('should reset viewports and focusedNodeId', () => {
-      const state = useERDiagramStore.getState();
+      const state = diagramStore.getState();
       state.saveViewport('MAIN', { x: 10, y: 20, zoom: 1 });
       state.setFocusedNodeId('users');
       state.clearDiagram();
-      expect(useERDiagramStore.getState().viewports).toEqual({});
-      expect(useERDiagramStore.getState().focusedNodeId).toBeNull();
+      expect(diagramStore.getState().viewports).toEqual({});
+      expect(diagramStore.getState().focusedNodeId).toBeNull();
     });
   });
 });
@@ -81,7 +83,7 @@ describe('erDiagramStore - loadFromDatabase (#512 一括列取得)', () => {
   const pk = { name: 'id', type: 'int', size: 4, nullable: false, isPrimaryKey: true };
 
   beforeEach(() => {
-    useERDiagramStore.setState({ tables: [], relations: [], isLoading: false, error: null });
+    diagramStore.setState({ tables: [], relations: [], isLoading: false, error: null });
   });
 
   it('getAllColumns を 1 回だけ呼び、テーブル毎の getColumns を呼ばない', async () => {
@@ -100,11 +102,11 @@ describe('erDiagramStore - loadFromDatabase (#512 一括列取得)', () => {
     const getColumns = vi.fn();
     Object.assign(schemaProvider, { getTables, getAllColumns, getColumns });
 
-    await useERDiagramStore.getState().loadFromDatabase('conn-1', 'db1');
+    await diagramStore.getState().loadFromDatabase('conn-1', 'db1');
 
     expect(getAllColumns).toHaveBeenCalledTimes(1);
     expect(getColumns).not.toHaveBeenCalled();
-    expect(useERDiagramStore.getState().tables).toHaveLength(2);
+    expect(diagramStore.getState().tables).toHaveLength(2);
   });
 
   it('getAllColumns 失敗時はテーブル毎の getColumns にフォールバックする', async () => {
@@ -120,9 +122,9 @@ describe('erDiagramStore - loadFromDatabase (#512 一括列取得)', () => {
     const getColumns = vi.fn().mockResolvedValue([pk]);
     Object.assign(schemaProvider, { getTables, getAllColumns, getColumns });
 
-    await useERDiagramStore.getState().loadFromDatabase('conn-1', 'db1');
+    await diagramStore.getState().loadFromDatabase('conn-1', 'db1');
 
     expect(getColumns).toHaveBeenCalledTimes(2);
-    expect(useERDiagramStore.getState().tables).toHaveLength(2);
+    expect(diagramStore.getState().tables).toHaveLength(2);
   });
 });

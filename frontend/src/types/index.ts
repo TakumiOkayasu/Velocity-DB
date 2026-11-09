@@ -1,3 +1,4 @@
+import type { ERDiagramStore } from '../store/erDiagramStore';
 // SSH authentication type
 export type SshAuthType = 'password' | 'privateKey';
 
@@ -94,7 +95,7 @@ export interface Query {
   sourceTable?: string; // Table name when opened from Object Tree (for WHERE filter)
   whereClause?: string; // Applied WHERE clause for data view (persists across tab switches)
   isDataView?: boolean; // True when viewing table data (show grid instead of editor)
-  isERDiagram?: boolean; // True when viewing ER diagram
+  erDiagram?: ERDiagramStore;
   useServerSideRowModel?: boolean; // Use AG Grid Server-Side Row Model for large tables
   logicalName?: string; // テーブル論理名（A5:ER由来、ツールチップ用）
 }

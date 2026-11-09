@@ -1,3 +1,4 @@
+import { createERDiagramStore } from '../../store/erDiagramStore';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { EditorTabs } from '../../components/editor/EditorTabs';
@@ -93,7 +94,7 @@ describe('EditorTabs', () => {
           content: '',
           connectionId: null,
           isDirty: false,
-          isERDiagram: true,
+          erDiagram: createERDiagramStore(),
         },
       ];
 
@@ -117,7 +118,6 @@ describe('EditorTabs', () => {
           content: '',
           connectionId: null,
           isDirty: false,
-          isERDiagram: false,
         },
       ];
 

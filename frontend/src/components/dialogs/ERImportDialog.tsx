@@ -1,13 +1,13 @@
 import { useCallback, useRef, useState } from 'react';
-import { schemaProvider } from '../../api/providers';
-import { type ERDiagramModel, toERDiagramModel } from '../../utils/erDiagramParser';
+import { readERDiagramFile } from '../../utils/readERDiagramFile';
+import type { ERDiagramModel } from '../../utils/erDiagramParser';
 import { DialogOverlay } from '../common/DialogOverlay';
 import styles from './ERImportDialog.module.css';
 
 interface ERImportDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onImport: (model: ERDiagramModel) => void;
+  onImport: (name: string, model: ERDiagramModel) => void;
 }
 
 export function ERImportDialog({ isOpen, onClose, onImport }: ERImportDialogProps) {
@@ -18,32 +18,34 @@ export function ERImportDialog({ isOpen, onClose, onImport }: ERImportDialogProp
   const [showDDL, setShowDDL] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const selection = useRef(0);
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const request = ++selection.current;
+    setParsedModel(null);
+    setGeneratedDDL('');
     setFileName(file.name);
     setError(null);
 
     try {
-      const content = await file.text();
-      const result = await schemaProvider.parseERDiagram({
-        content,
-        filename: file.name,
-      });
-      setParsedModel(toERDiagramModel(result, file.name));
-      setGeneratedDDL(result.ddl);
+      const { model, ddl } = await readERDiagramFile(file);
+      if (request !== selection.current) return;
+      setParsedModel(model);
+      setGeneratedDDL(ddl);
     } catch (err) {
+      if (request !== selection.current) return;
       setError(err instanceof Error ? err.message : 'Failed to parse file');
     }
   }, []);
 
   const handleImport = useCallback(() => {
     if (parsedModel) {
-      onImport(parsedModel);
+      onImport(fileName, parsedModel);
     }
     onClose();
-  }, [parsedModel, onImport, onClose]);
+  }, [fileName, parsedModel, onImport, onClose]);
 
   const handleCopyDDL = useCallback(async () => {
     try {
