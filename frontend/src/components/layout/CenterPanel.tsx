@@ -3,7 +3,8 @@ import { useERImport } from '../../hooks/useERImport';
 import { useConnectionStore } from '../../store/connectionStore';
 import { ERDiagramStoreContext } from '../../store/erDiagramStore';
 import { useActiveQuery, useQueryStore } from '../../store/queryStore';
-import { connectionColor } from '../../utils/colorContrast';
+import { connectionColor } from '../../utils/connectionColor';
+import { connectionLabel } from '../../utils/connectionLabel';
 import { lazyWithRetry } from '../../utils/lazyWithRetry';
 import { log } from '../../utils/logger';
 import { EditorTabs } from '../editor/EditorTabs';
@@ -44,7 +45,7 @@ export function CenterPanel() {
   const selectorColor = useMemo(() => {
     if (!activeQuery?.connectionId) return undefined;
     const conn = connections.find((c) => c.id === activeQuery.connectionId);
-    return conn ? connectionColor(conn.server, conn.database) : undefined;
+    return conn ? connectionColor(conn) : undefined;
   }, [activeQuery?.connectionId, connections]);
 
   const activeQueryId = activeQuery?.id ?? null;
@@ -71,6 +72,7 @@ export function CenterPanel() {
           onChange={handleConnectionChange}
           disabled={connections.length === 0 || !activeQuery}
           title="このタブの接続先"
+          aria-label="このタブの接続先"
         >
           {connections.length === 0 ? (
             <option value="">未接続</option>
@@ -79,7 +81,7 @@ export function CenterPanel() {
               {!activeQuery?.connectionId && <option value="">接続を選択</option>}
               {connections.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name} / {c.database}
+                  {connectionLabel(c)}
                   {c.isProduction ? ' (本番)' : ''}
                 </option>
               ))}

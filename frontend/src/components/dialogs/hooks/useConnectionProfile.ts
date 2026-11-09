@@ -247,6 +247,7 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
               message: 'Profile saved',
             },
       });
+      useConnectionStore.getState().updateConnectionFolder(savedProfile.id, folderPath);
       useConnectionStore.getState().incrementProfileVersion();
     } catch (e) {
       console.error('Failed to save profile:', e);

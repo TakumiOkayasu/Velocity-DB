@@ -1,15 +1,11 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
+import type { Connection, SavedConnectionProfile } from '../../../types';
 
 const addConnectionMock = vi.fn().mockResolvedValue({});
 const cancelConnectionMock = vi.fn();
 
-type MockConnection = {
-  id: string;
-  name: string;
-  isActive: boolean;
-  profileId?: string;
-};
+type MockConnection = Connection;
 
 const mockState: { connections: MockConnection[] } = { connections: [] };
 
@@ -52,7 +48,7 @@ vi.mock('../../../api/providers', () => ({
 import { connectionProfileProvider as bridge } from '../../../api/providers';
 import { ObjectTree } from '../../../components/tree/ObjectTree';
 
-type ProfileFixture = Awaited<ReturnType<typeof bridge.getConnectionProfiles>>['profiles'][number];
+type ProfileFixture = SavedConnectionProfile;
 
 const buildProfile = (id: string, name: string, folderPath: string): ProfileFixture => ({
   id,
@@ -97,6 +93,8 @@ describe('ObjectTree profileId-based active state (#414)', () => {
     ]);
     mockState.connections = [
       {
+        ...buildProfile('p_dev_test', 'Test', 'Develop'),
+        password: '',
         id: 'db_dev',
         name: 'Test',
         isActive: true,
@@ -121,6 +119,8 @@ describe('ObjectTree profileId-based active state (#414)', () => {
     setProfiles([buildProfile('p_only', 'Test', 'Develop')]);
     mockState.connections = [
       {
+        ...buildProfile('p_only', 'Test', 'Develop'),
+        password: '',
         id: 'db_manual',
         name: 'Test',
         isActive: true,

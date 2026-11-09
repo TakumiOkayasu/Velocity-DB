@@ -26,7 +26,7 @@
   gap: 6px;
   padding: 0 12px;
   min-height: 35px;
-  max-width: 200px;
+  max-width: 320px;
   min-width: 80px;
   flex-shrink: 1;
   background-color: var(--tab-inactive-bg);
@@ -77,11 +77,24 @@
 
 .tabName {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.tabTitle {
+  display: flex;
   gap: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+}
+
+.connectionLabel {
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dirty {

@@ -82,6 +82,7 @@ export interface Connection {
   tableOpenTimeMs?: number; // Time taken to open a table (click to display)
   ssh?: SshConfig;
   profileId?: string; // Set when connection originates from a saved profile; absent for ad-hoc connections.
+  folderPath?: string;
 }
 
 // Query types

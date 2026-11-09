@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { connectionColor } from '../../utils/connectionColor';
 import type { Connection, SavedConnectionProfile } from '../../types';
 import type { ExpandableType } from '../../utils/treeNode';
 import { ConnectionTreeSection } from './ConnectionTreeSection';
@@ -38,6 +39,7 @@ function ProfileNodeComponent({
       type="button"
       {...identityProps}
       className={`${styles.profileItem} ${profile.isProduction ? styles.production : ''}`}
+      style={{ '--connection-color': connectionColor(profile) }}
       onClick={() => onProfileClick(profile)}
       title={`Click to connect to ${profile.name}`}
     >

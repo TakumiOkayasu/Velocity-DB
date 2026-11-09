@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useConnectionStore } from '../../store/connectionStore';
 import { useQueries, useQueryActions, useQueryStore } from '../../store/queryStore';
 import type { Query } from '../../types';
-import { connectionColor } from '../../utils/colorContrast';
+import { connectionColor } from '../../utils/connectionColor';
+import { connectionLabel } from '../../utils/connectionLabel';
 import { stripBrackets } from '../../utils/stringUtils';
 import { TabIcons } from '../icons/SvgIcons';
 import { resolveNewQueryConnectionId } from '../layout/newQueryConnection';
@@ -43,14 +44,30 @@ export function EditorTabs() {
         connections.map((c) => [
           c.id,
           {
-            color: connectionColor(c.server, c.database),
-            label: `${c.server}/${c.database}`,
+            color: connectionColor(c),
+            label: connectionLabel(c),
           },
         ])
       ),
     [connections]
   );
   const { addQuery, removeQuery, setActive, reorderQuery, openERDiagram } = useQueryActions();
+  const ambiguousNames = useMemo(() => {
+    const connectionsByName = new Map<string, Set<string | null>>();
+    for (const query of queries) {
+      const name = stripBrackets(query.name);
+      const ids = connectionsByName.get(name) ?? new Set();
+      ids.add(query.connectionId);
+      connectionsByName.set(name, ids);
+    }
+    return new Set([...connectionsByName].filter(([, ids]) => ids.size > 1).map(([name]) => name));
+  }, [queries]);
+  const tabLabel = (query: Query) => {
+    const name = stripBrackets(query.name);
+    const connection = query.connectionId ? connectionColorMap[query.connectionId] : undefined;
+    const label = ambiguousNames.has(name) && connection ? `${name} [${connection.label}]` : name;
+    return query.isDirty ? `${label} (未保存)` : label;
+  };
 
   const activeQuery = queries.find((q) => q.id === activeQueryId);
   const activeQueryConnectionId = activeQuery?.connectionId ?? null;
@@ -195,6 +212,7 @@ export function EditorTabs() {
               className={className}
               style={connColor ? { '--connection-color': connColor } : undefined}
               role="tab"
+              aria-label={tabLabel(query)}
               tabIndex={0}
               onClick={() => setActive(query.id)}
               onKeyDown={(e) => {
@@ -219,8 +237,15 @@ export function EditorTabs() {
             >
               <TabFileIcon isERDiagram={Boolean(query.erDiagram)} />
               <span className={styles.tabName}>
-                {query.isDirty && <span className={styles.dirty}>●</span>}
-                {stripBrackets(query.name)}
+                <span className={styles.tabTitle}>
+                  {query.isDirty && <span className={styles.dirty}>●</span>}
+                  {stripBrackets(query.name)}
+                </span>
+                {ambiguousNames.has(stripBrackets(query.name)) && query.connectionId && (
+                  <span className={styles.connectionLabel}>
+                    {connectionColorMap[query.connectionId]?.label}
+                  </span>
+                )}
               </span>
               <button
                 type="button"
@@ -260,7 +285,7 @@ export function EditorTabs() {
                   }}
                 >
                   <TabFileIcon isERDiagram={Boolean(query.erDiagram)} />
-                  <span className={styles.overflowMenuItemName}>{stripBrackets(query.name)}</span>
+                  <span className={styles.overflowMenuItemName}>{tabLabel(query)}</span>
                 </button>
               ))}
             </div>

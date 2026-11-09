@@ -212,7 +212,11 @@ describe('saved-profile connection through ConnectionDialog (#689)', () => {
     fireEvent.click(screen.getByTestId('conn-submit'));
     await waitFor(() => {
       expect(useConnectionStore.getState().connections).toEqual([
-        expect.objectContaining({ id: 'connection-689', profileId: `profile-${selected}` }),
+        expect.objectContaining({
+          id: 'connection-689',
+          profileId: `profile-${selected}`,
+          folderPath: selected,
+        }),
       ]);
     });
     expect(useConnectionStore.getState().activeConnectionId).toBe('connection-689');

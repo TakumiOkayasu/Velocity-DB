@@ -44,7 +44,8 @@ export function readableColor(bgHex: string, preferred?: string): string {
   if (preferred && contrastRatio(bgHex, preferred) >= WCAG_AA) {
     return preferred;
   }
-  return relativeLuminance(bgHex) > 0.179 ? '#1e1e1e' : '#ffffff';
+  if (contrastRatio(bgHex, '#1e1e1e') >= WCAG_AA) return '#1e1e1e';
+  return contrastRatio(bgHex, '#ffffff') >= WCAG_AA ? '#ffffff' : '#000000';
 }
 
 /** Blend a foreground color with a background using alpha (0-255) */
@@ -63,25 +64,4 @@ export function hexToRgba(hex: string, alpha: number): string {
   if (!rgb) return 'transparent';
   const a = Math.max(0, Math.min(1, alpha / 255));
   return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${a})`;
-}
-
-const CONNECTION_PALETTE = [
-  '#4caf50',
-  '#2196f3',
-  '#ff9800',
-  '#e91e63',
-  '#9c27b0',
-  '#00bcd4',
-  '#fdd835',
-  '#a1887f',
-];
-
-/** Deterministic color for a server+database pair */
-export function connectionColor(server: string, database: string): string {
-  const key = `${server}/${database}`;
-  let hash = 0;
-  for (let i = 0; i < key.length; i++) {
-    hash = ((hash << 5) - hash + key.charCodeAt(i)) | 0;
-  }
-  return CONNECTION_PALETTE[Math.abs(hash) % CONNECTION_PALETTE.length];
 }

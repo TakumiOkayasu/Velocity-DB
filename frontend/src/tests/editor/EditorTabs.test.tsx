@@ -2,7 +2,7 @@ import { createERDiagramStore } from '../../store/erDiagramStore';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { EditorTabs } from '../../components/editor/EditorTabs';
-import type { Query } from '../../types';
+import type { Connection, Query } from '../../types';
 
 // --- Mocks ---
 const mockAddQuery = vi.fn();
@@ -12,6 +12,7 @@ const mockReorderQuery = vi.fn();
 const mockOpenERDiagram = vi.fn().mockReturnValue('new-er-id');
 let mockQueries: Query[] = [];
 let mockActiveQueryId: string | null = null;
+let mockConnections: Connection[] = [];
 
 vi.mock('../../store/queryStore', () => ({
   useQueries: () => mockQueries,
@@ -28,23 +29,62 @@ vi.mock('../../store/queryStore', () => ({
 
 vi.mock('../../store/connectionStore', () => {
   const useConnectionStore = (selector?: (s: { connections: unknown[] }) => unknown) =>
-    selector ? selector({ connections: [] }) : [];
+    selector ? selector({ connections: mockConnections }) : mockConnections;
   (useConnectionStore as unknown as { getState: () => unknown }).getState = () => ({
     activeConnectionId: null,
   });
   return { useConnectionStore };
 });
 
-vi.mock('../../utils/colorContrast', () => ({
-  connectionColor: () => '#000',
-}));
-
 describe('EditorTabs', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockQueries = [];
     mockActiveQueryId = null;
+    mockConnections = [];
   });
+
+  it.each(['db_i', 'db_a'])(
+    '同名テーブルを接続先の文字と生成色で識別できる (second DB=%s)',
+    (secondDatabase) => {
+      mockConnections = ['db_a', secondDatabase].map((database, index) => ({
+        id: `c${index}`,
+        name: 'Shared',
+        server: 'db.example',
+        port: 5432,
+        database,
+        username: index === 0 ? 'user' : 'other',
+        password: '',
+        useWindowsAuth: false,
+        isActive: true,
+        isProduction: false,
+        isReadOnly: false,
+        folderPath: 'Product',
+      }));
+      mockQueries = mockConnections.map((connection) => ({
+        id: connection.id,
+        name: '[Users]',
+        connectionId: connection.id,
+        content: '',
+        isDirty: false,
+      }));
+      const { rerender } = render(<EditorTabs />);
+      const [a, b] = screen.getAllByRole('tab');
+      expect(a).toHaveAccessibleName(/Users.*db_a.*user@db.example:5432.*Product\/Shared/);
+      expect(b).toHaveAccessibleName(new RegExp(`Users.*${secondDatabase}.*other@db.example:5432`));
+      expect(a).toHaveTextContent('db_a · user@db.example:5432');
+      expect(b).toHaveTextContent(`${secondDatabase} · other@db.example:5432`);
+      const firstColor = a.style.getPropertyValue('--connection-color');
+      expect(firstColor).toMatch(/^#[0-9a-f]{6}$/);
+      expect(b.style.getPropertyValue('--connection-color')).not.toBe(firstColor);
+      mockConnections = mockConnections.map((connection) => ({
+        ...connection,
+        folderPath: 'Other',
+      }));
+      rerender(<EditorTabs />);
+      expect(a.style.getPropertyValue('--connection-color')).not.toBe(firstColor);
+    }
+  );
 
   describe('新規タブメニュー', () => {
     it('+ボタンクリックでドロップダウンが表示される', () => {
@@ -117,11 +157,13 @@ describe('EditorTabs', () => {
           name: 'Test',
           content: '',
           connectionId: null,
-          isDirty: false,
+          isDirty: true,
         },
       ];
 
       render(<EditorTabs />);
+
+      expect(screen.getByRole('tab', { name: 'Test (未保存)' })).toBeInTheDocument();
 
       window.dispatchEvent(new KeyboardEvent('keydown', { ctrlKey: true, key: 'w' }));
 

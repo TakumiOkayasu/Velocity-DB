@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { connectionProvider } from '../../api/providers';
 import { useDialogKeyboard } from '../../hooks/useDialogKeyboard';
 import type { ConnectionConfig, SshConfig } from '../../types/connectionForm';
-import { connectionColor } from '../../utils/colorContrast';
+import { connectionColor } from '../../utils/connectionColor';
 import styles from './ConnectionDialog.module.css';
 import { useConnectionProfile } from './hooks/useConnectionProfile';
 import { QueryConfirmDialog } from './QueryConfirmDialog';
@@ -152,7 +152,7 @@ export function ConnectionDialog({
             </div>
             <div className={styles.profileItems}>
               {profiles.map((profile) => {
-                const connColor = connectionColor(profile.server, profile.database);
+                const connColor = connectionColor(profile);
                 return (
                   <button
                     type="button"
