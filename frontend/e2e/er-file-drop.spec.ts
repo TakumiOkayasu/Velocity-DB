@@ -70,7 +70,16 @@ test('dropped ER files keep independent tabs and new diagrams start empty', asyn
   await expect(header).toHaveCSS('background-color', 'rgb(118, 118, 118)');
   await expect(header).toHaveCSS('color', 'rgb(255, 255, 255)');
   const shape = page.locator('.react-flow__node-shape > div');
-  await expect(shape).toHaveCSS('background-color', 'rgba(24, 162, 240, 0.502)');
+  const expectedFill = await page.evaluate(() => {
+    // Compare browser-normalized colors, including its alpha serialization precision.
+    const probe = document.createElement('div');
+    probe.style.backgroundColor = `rgba(24, 162, 240, ${128 / 255})`;
+    document.body.append(probe);
+    const color = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return color;
+  });
+  await expect(shape).toHaveCSS('background-color', expectedFill);
   await expect(shape).toHaveCSS('color', 'rgb(238, 238, 238)');
   await drop('second.a5er', fixture('SecondTable'));
   await expect(tables).toHaveAttribute('data-id', 'SecondTable');
