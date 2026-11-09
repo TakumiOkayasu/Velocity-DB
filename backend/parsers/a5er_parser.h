@@ -103,8 +103,10 @@ private:
     static std::string resolveCardinality(int type1, int type2, bool& needsSwap);
     std::string mapTypeToSQLServer(const std::string& a5erType, int size, int scale) const;
 
-    /// A5:ER $BBGGRR or $AABBGGRR → CSS #RRGGBB (empty if default/transparent)
-    static std::string convertA5erColor(const std::string& raw);
+    enum class ColorSource { Entity, Shape };
+
+    /// A5:ER $BBGGRR or $AABBGGRR → CSS #RRGGBB (empty if default)
+    static std::string convertA5erColor(const std::string& raw, ColorSource source = ColorSource::Entity);
 };
 
 }  // namespace velocitydb
