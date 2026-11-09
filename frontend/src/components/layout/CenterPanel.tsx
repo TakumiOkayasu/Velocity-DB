@@ -1,6 +1,7 @@
 import { Suspense, useCallback, useMemo } from 'react';
 import { useERImport } from '../../hooks/useERImport';
 import { useConnectionStore } from '../../store/connectionStore';
+import { ERDiagramStoreContext } from '../../store/erDiagramStore';
 import { useActiveQuery, useQueryStore } from '../../store/queryStore';
 import { connectionColor } from '../../utils/colorContrast';
 import { lazyWithRetry } from '../../utils/lazyWithRetry';
@@ -38,7 +39,7 @@ export function CenterPanel() {
   const updateQueryConnection = useQueryStore((s) => s.updateQueryConnection);
   const erImport = useERImport();
   const isDataView = activeQuery?.isDataView === true;
-  const isERDiagram = activeQuery?.isERDiagram === true;
+  const diagram = activeQuery?.erDiagram;
 
   const selectorColor = useMemo(() => {
     if (!activeQuery?.connectionId) return undefined;
@@ -56,7 +57,7 @@ export function CenterPanel() {
   );
 
   log.debug(
-    `[CenterPanel] Render: activeQuery=${activeQuery?.id}, isDataView=${isDataView}, isERDiagram=${isERDiagram}`
+    `[CenterPanel] Render: activeQuery=${activeQuery?.id}, isDataView=${isDataView}, isERDiagram=${Boolean(diagram)}`
   );
 
   return (
@@ -88,8 +89,10 @@ export function CenterPanel() {
       </div>
       <div className={styles.editorContainer}>
         <Suspense fallback={<EditorLoadingFallback />}>
-          {isERDiagram ? (
-            <ERDiagramView onOpenImportDialog={erImport.open} />
+          {diagram ? (
+            <ERDiagramStoreContext.Provider key={activeQuery.id} value={diagram}>
+              <ERDiagramView onOpenImportDialog={erImport.open} />
+            </ERDiagramStoreContext.Provider>
           ) : isDataView ? (
             <ResultGrid queryId={activeQuery?.id} />
           ) : (

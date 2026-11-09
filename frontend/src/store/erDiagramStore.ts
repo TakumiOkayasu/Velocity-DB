@@ -1,4 +1,5 @@
-import { create } from 'zustand';
+import { createContext, useContext } from 'react';
+import { createStore, type StateCreator, useStore } from 'zustand';
 import { schemaProvider } from '../api/providers';
 import type { ColumnInfo } from '../api/providers/schema';
 import type { ERRelationEdge, ERShapeNode, ERTableNode } from '../types';
@@ -49,7 +50,7 @@ interface ERDiagramState {
   loadFromParsedModel: (model: ERDiagramModel) => void;
 }
 
-export const useERDiagramStore = create<ERDiagramState>((set, get) => ({
+const diagramState: StateCreator<ERDiagramState> = (set, get) => ({
   tables: [],
   relations: [],
   shapes: [],
@@ -296,4 +297,19 @@ export const useERDiagramStore = create<ERDiagramState>((set, get) => ({
       selectedPage: pages[0] || DEFAULT_PAGE,
     });
   },
-}));
+});
+
+export const createERDiagramStore = () => createStore(diagramState);
+
+export type ERDiagramStore = ReturnType<typeof createERDiagramStore>;
+export const ERDiagramStoreContext = createContext<ERDiagramStore | null>(null);
+
+export function useERDiagramStoreApi() {
+  const store = useContext(ERDiagramStoreContext);
+  if (!store) throw new Error('Missing ER diagram tab');
+  return store;
+}
+
+export function useERDiagramStore<T>(selector: (state: ERDiagramState) => T): T {
+  return useStore(useERDiagramStoreApi(), selector);
+}

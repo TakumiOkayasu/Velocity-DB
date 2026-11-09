@@ -5,6 +5,7 @@ import {
   type Edge,
   MarkerType,
   type Node,
+  type OnMoveEnd,
   type OnNodeDrag,
   ReactFlow,
   ReactFlowProvider,
@@ -14,7 +15,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '@xyflow/react/dist/style.css';
 import { useERDiagramContext } from '../../hooks/useERDiagramContext';
-import { useERDiagramStore } from '../../store/erDiagramStore';
+import { useERDiagramStore, useERDiagramStoreApi } from '../../store/erDiagramStore';
 import type { ERRelationEdge, ERShapeNode, ERTableNode } from '../../types';
 import { ALL_PAGES, DEFAULT_PAGE, GRID_LAYOUT } from '../../utils/erDiagramConstants';
 import { useERDiagramRenderMark } from '../../utils/perfMarks';
@@ -133,53 +134,39 @@ function ERDiagramFlow({
 }) {
   const { setViewport, getViewport, fitView } = useReactFlow();
   const saveViewport = useERDiagramStore((s) => s.saveViewport);
-  const viewportsRef = useRef(useERDiagramStore.getState().viewports);
-  useEffect(() => {
-    return useERDiagramStore.subscribe((s) => {
-      viewportsRef.current = s.viewports;
-    });
-  }, []);
+  const store = useERDiagramStoreApi();
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const prevPageRef = useRef(selectedPage);
-  const isInitialMount = useRef(true);
 
-  // ページ切替時: ノード更新 + viewport復元
+  useEffect(() => {
+    setNodes(toNodes(tables, shapes));
+    setEdgePosMap(new Map(tables.map((t) => [t.id, t.position])));
+  }, [tables, shapes, setNodes]);
+
   useEffect(() => {
     const prevPage = prevPageRef.current;
     prevPageRef.current = selectedPage;
+    if (prevPage !== selectedPage) saveViewport(prevPage, getViewport());
 
-    setNodes(toNodes(tables, shapes));
-    setEdgePosMap(new Map(tables.map((t) => [t.id, t.position])));
-
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      requestAnimationFrame(() => fitView({ duration: 200 }));
-      return;
-    }
-
-    // 切替前のviewportを保存
-    if (prevPage !== selectedPage) {
-      const currentVp = getViewport();
-      saveViewport(prevPage, currentVp);
-    }
-
-    // 切替先のviewportを復元（なければfitView）
-    const saved = viewportsRef.current[selectedPage];
-    requestAnimationFrame(() => {
-      if (saved && prevPage !== selectedPage) {
-        setViewport(saved, { duration: 200 });
-      } else if (prevPage !== selectedPage) {
-        fitView({ duration: 200 });
-      }
+    const saved = store.getState().viewports[selectedPage];
+    const frame = requestAnimationFrame(() => {
+      if (saved) setViewport(saved);
+      else fitView({ duration: 200 });
     });
-  }, [tables, shapes, selectedPage, setNodes, fitView, getViewport, saveViewport, setViewport]);
+    return () => cancelAnimationFrame(frame);
+  }, [selectedPage, store, saveViewport, getViewport, setViewport, fitView]);
 
   const [edgePosMap, setEdgePosMap] = useState<PosMap>(
     () => new Map(tables.map((t) => [t.id, t.position]))
   );
 
   const edges: Edge[] = useMemo(() => buildEdges(relations, edgePosMap), [relations, edgePosMap]);
+
+  const saveCurrentViewport: OnMoveEnd = useCallback(
+    (_event, viewport) => saveViewport(selectedPage, viewport),
+    [selectedPage, saveViewport]
+  );
 
   const nodeDragStop: OnNodeDrag<Node> = useCallback((_event, _node, draggedNodes) => {
     setEdgePosMap((prev) => {
@@ -204,6 +191,7 @@ function ERDiagramFlow({
       edges={edges}
       onNodesChange={onNodesChange}
       onNodeDragStop={nodeDragStop}
+      onMoveEnd={saveCurrentViewport}
       onNodeClick={nodeClick}
       nodeTypes={nodeTypes}
       nodesDraggable={false}

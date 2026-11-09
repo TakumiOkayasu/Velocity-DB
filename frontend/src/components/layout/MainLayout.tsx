@@ -93,7 +93,7 @@ export function MainLayout() {
   const isRunDisabled = useQueryStore((s) => {
     const q = s.queriesById[s.activeQueryId ?? ''];
     if (!q || !q.connectionId) return true;
-    if (q.isDataView === true || q.isERDiagram === true) return true;
+    if (q.isDataView === true || q.erDiagram) return true;
     return q.content.trim().length === 0;
   });
   const isFormatDisabled = useQueryStore((s) => {
@@ -549,7 +549,7 @@ export function MainLayout() {
               <path d="M24 4v28M14 22l10 10 10-10" />
               <path d="M4 32v8a4 4 0 004 4h32a4 4 0 004-4v-8" />
             </svg>
-            <span>.sql ファイルをドロップ</span>
+            <span>.sql / .a5er / .xml ファイルをドロップ</span>
           </div>
         </div>
       )}
