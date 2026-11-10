@@ -31,6 +31,19 @@ test('dropped ER files keep independent tabs and new diagrams start empty', asyn
               width: 300,
               height: 120,
             },
+            {
+              shapeType: 'rect',
+              text: 'Transparent black label',
+              page: 'Main',
+              fillColor: '',
+              fontColor: '#000000',
+              fillAlpha: 0,
+              fontSize: 12,
+              left: 350,
+              top: 200,
+              width: 300,
+              height: 120,
+            },
           ],
           tables: [
             {
@@ -69,7 +82,9 @@ test('dropped ER files keep independent tabs and new diagrams start empty', asyn
   const header = tables.getByText('FirstTable', { exact: true }).locator('..');
   await expect(header).toHaveCSS('background-color', 'rgb(118, 118, 118)');
   await expect(header).toHaveCSS('color', 'rgb(255, 255, 255)');
-  const shape = page.locator('.react-flow__node-shape > div');
+  const shape = page
+    .locator('.react-flow__node-shape > div')
+    .filter({ hasText: 'Synthetic group' });
   const expectedFill = await page.evaluate(() => {
     // Compare browser-normalized colors, including its alpha serialization precision.
     const probe = document.createElement('div');
@@ -81,9 +96,26 @@ test('dropped ER files keep independent tabs and new diagrams start empty', asyn
   });
   await expect(shape).toHaveCSS('background-color', expectedFill);
   await expect(shape).toHaveCSS('color', 'rgb(238, 238, 238)');
+  const label = page
+    .locator('.react-flow__node-shape > div')
+    .filter({ hasText: 'Transparent black label' });
+  await expect(label).toHaveCSS('color', 'rgb(255, 255, 255)');
+  await page.evaluate(() => {
+    document.body.dataset.production = 'true';
+  });
+  await expect(page.getByLabel('ER図の背景色')).toHaveValue('#2a1f1f');
+  await expect(page.locator('.react-flow')).toHaveCSS('background-color', 'rgb(42, 31, 31)');
+  await page.evaluate(() => {
+    delete document.body.dataset.production;
+  });
+  await page.getByLabel('ER図の背景色').fill('#ffffff');
+  await expect(page.locator('.react-flow')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(label).toHaveCSS('color', 'rgb(0, 0, 0)');
   await drop('second.a5er', fixture('SecondTable'));
   await expect(tables).toHaveAttribute('data-id', 'SecondTable');
+  await expect(page.getByLabel('ER図の背景色')).toHaveValue('#1e1f22');
   await page.getByText('first.A5ER', { exact: true }).click();
+  await expect(page.getByLabel('ER図の背景色')).toHaveValue('#ffffff');
   await expect(tables).toHaveAttribute('data-id', 'FirstTable');
   await page.getByTitle('新規タブ (Ctrl+N)').click();
   await page.getByRole('button', { name: '新規ER図' }).click();

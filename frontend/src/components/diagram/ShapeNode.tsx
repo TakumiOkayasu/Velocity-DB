@@ -1,4 +1,5 @@
-import { memo } from 'react';
+import { memo, useContext } from 'react';
+import { ERCanvasBackgroundContext } from '../../store/erDiagramStore';
 import { blendWithBackground, hexToRgba, readableColor } from '../../utils/colorContrast';
 import styles from './ShapeNode.module.css';
 
@@ -17,19 +18,18 @@ interface ShapeNodeProps {
   data: ShapeNodeData;
 }
 
-const CANVAS_BG = '#1e1e1e';
-
 export const ShapeNode = memo(function ShapeNode({ data }: ShapeNodeProps) {
   const { shapeType, text, fillColor, fontColor, fillAlpha, fontSize, width, height } = data;
+  const canvasBackground = useContext(ERCanvasBackgroundContext);
   const isRound = shapeType === 'roundrect';
 
   const backgroundColor = fillColor ? hexToRgba(fillColor, fillAlpha) : 'transparent';
 
-  // fontColorが指定されていればそのまま使用（A5:SQL互換）
-  // 未指定の場合のみ、ブレンド後のeffectiveBgでauto計算
-  const textColor =
-    fontColor ??
-    readableColor(fillColor ? blendWithBackground(fillColor, fillAlpha, CANVAS_BG) : CANVAS_BG);
+  // Preserve imported text colors when they remain readable on the rendered background.
+  const effectiveBackground = fillColor
+    ? blendWithBackground(fillColor, fillAlpha, canvasBackground)
+    : canvasBackground;
+  const textColor = readableColor(effectiveBackground, fontColor);
 
   return (
     <div
@@ -43,7 +43,11 @@ export const ShapeNode = memo(function ShapeNode({ data }: ShapeNodeProps) {
         fontSize: fontSize || 9,
       }}
     >
-      {text && <span className={styles.text}>{text}</span>}
+      {text && (
+        <span className={styles.text} style={{ backgroundColor: effectiveBackground }}>
+          {text}
+        </span>
+      )}
     </div>
   );
 });

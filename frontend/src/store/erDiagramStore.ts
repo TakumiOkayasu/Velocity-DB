@@ -7,6 +7,8 @@ import { DEFAULT_PAGE, GRID_LAYOUT } from '../utils/erDiagramConstants';
 import { type ERDiagramModel, toERDiagramModel } from '../utils/erDiagramParser';
 import { extractPages } from '../utils/erDiagramUtils';
 
+export const ERCanvasBackgroundContext = createContext('#1e1f22');
+
 export interface Viewport {
   x: number;
   y: number;
@@ -19,6 +21,9 @@ interface ERDiagramState {
   shapes: ERShapeNode[];
   isLoading: boolean;
   error: string | null;
+
+  backgroundColor: string;
+  setBackgroundColor: (color: string) => void;
 
   // Page state
   selectedPage: string;
@@ -51,6 +56,8 @@ interface ERDiagramState {
 }
 
 const diagramState: StateCreator<ERDiagramState> = (set, get) => ({
+  backgroundColor: '',
+  setBackgroundColor: (backgroundColor) => set({ backgroundColor }),
   tables: [],
   relations: [],
   shapes: [],
