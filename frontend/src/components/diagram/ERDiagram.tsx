@@ -12,10 +12,22 @@ import {
   useNodesState,
   useReactFlow,
 } from '@xyflow/react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import '@xyflow/react/dist/style.css';
 import { useERDiagramContext } from '../../hooks/useERDiagramContext';
-import { useERDiagramStore, useERDiagramStoreApi } from '../../store/erDiagramStore';
+import {
+  ERCanvasBackgroundContext,
+  useERDiagramStore,
+  useERDiagramStoreApi,
+} from '../../store/erDiagramStore';
 import type { ERRelationEdge, ERShapeNode, ERTableNode } from '../../types';
 import { ALL_PAGES, DEFAULT_PAGE, GRID_LAYOUT } from '../../utils/erDiagramConstants';
 import { useERDiagramRenderMark } from '../../utils/perfMarks';
@@ -23,6 +35,17 @@ import styles from './ERDiagram.module.css';
 import { ERDiagramSearch } from './ERDiagramSearch';
 import { ShapeNode } from './ShapeNode';
 import { TableNode } from './TableNode';
+
+function subscribeTheme(change: () => void) {
+  const observer = new MutationObserver(change);
+  observer.observe(document.body, { attributes: true });
+  observer.observe(document.documentElement, { attributes: true });
+  return () => observer.disconnect();
+}
+
+function getThemeBackground() {
+  return getComputedStyle(document.body).getPropertyValue('--bg-primary').trim() || '#1e1f22';
+}
 
 interface ERDiagramProps {
   onTableClick?: (tableId: string) => void;
@@ -133,6 +156,7 @@ function ERDiagramFlow({
   onTableClick?: (tableId: string) => void;
 }) {
   const { setViewport, getViewport, fitView } = useReactFlow();
+  const backgroundColor = useContext(ERCanvasBackgroundContext);
   const saveViewport = useERDiagramStore((s) => s.saveViewport);
   const store = useERDiagramStoreApi();
 
@@ -187,6 +211,7 @@ function ERDiagramFlow({
 
   return (
     <ReactFlow
+      style={{ backgroundColor }}
       nodes={nodes}
       edges={edges}
       onNodesChange={onNodesChange}
@@ -263,6 +288,10 @@ export function ERDiagram({ onTableClick, onOpenImportDialog }: ERDiagramProps) 
     shapes: filteredShapes,
   } = useERDiagramContext();
 
+  const backgroundColor = useERDiagramStore((s) => s.backgroundColor);
+  const setBackgroundColor = useERDiagramStore((s) => s.setBackgroundColor);
+  const themeBackground = useSyncExternalStore(subscribeTheme, getThemeBackground);
+  const canvasBackground = backgroundColor || themeBackground;
   const allTables = useERDiagramStore((s) => s.tables);
   const hasData = totalTableCount > 0;
 
@@ -301,6 +330,20 @@ export function ERDiagram({ onTableClick, onOpenImportDialog }: ERDiagramProps) 
     <div className={styles.container}>
       <ReactFlowProvider>
         <div className={styles.tabBar}>
+          <label className={styles.backgroundSetting}>
+            背景色
+            <input
+              type="color"
+              aria-label="ER図の背景色"
+              value={canvasBackground}
+              onChange={(event) => setBackgroundColor(event.target.value)}
+            />
+          </label>
+          {backgroundColor && (
+            <button type="button" className={styles.tab} onClick={() => setBackgroundColor('')}>
+              テーマの背景色に戻す
+            </button>
+          )}
           {showTabs && (
             <>
               <button
@@ -339,13 +382,15 @@ export function ERDiagram({ onTableClick, onOpenImportDialog }: ERDiagramProps) 
           )}
         </div>
         <div className={styles.flowContainer}>
-          <ERDiagramFlow
-            tables={layoutTables}
-            relations={filteredRelations}
-            shapes={layoutShapes}
-            selectedPage={selectedPage}
-            onTableClick={onTableClick}
-          />
+          <ERCanvasBackgroundContext.Provider value={canvasBackground}>
+            <ERDiagramFlow
+              tables={layoutTables}
+              relations={filteredRelations}
+              shapes={layoutShapes}
+              selectedPage={selectedPage}
+              onTableClick={onTableClick}
+            />
+          </ERCanvasBackgroundContext.Provider>
         </div>
       </ReactFlowProvider>
     </div>
