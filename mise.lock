@@ -47,33 +47,33 @@ url = "https://github.com/Kitware/CMake/releases/download/v4.4.3/cmake-4.4.3-win
 url_api = "https://api.github.com/repos/Kitware/CMake/releases/assets/529578311"
 
 [[tools."github:llvm/llvm-project"]]
-version = "23.1.5"
+version = "23.1.6"
 backend = "github:llvm/llvm-project"
-specifiers = ["23.1.5"]
+specifiers = ["23.1.6"]
 
 [tools."github:llvm/llvm-project".options]
 asset_pattern = "LLVM-{{ version }}-Linux-X64.tar.zst"
 version_prefix = "llvmorg-"
 
 [tools."github:llvm/llvm-project"."platforms.linux-x64"]
-checksum = "sha256:c3107384835f788768f614db610e87fba7077f125ca950eb02a78bab0a308065"
-url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.5/LLVM-23.1.5-Linux-X64.tar.zst"
-url_api = "https://api.github.com/repos/llvm/llvm-project/releases/assets/705660944"
+checksum = "sha256:59e14234f145927f982b50627e8bafaf2fca50151b7d973d6a0b40796ddcfe9a"
+url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.6/LLVM-23.1.6-Linux-X64.tar.zst"
+url_api = "https://api.github.com/repos/llvm/llvm-project/releases/assets/760398335"
 provenance = "github-attestations"
 
 [[tools."github:llvm/llvm-project"]]
-version = "23.1.5"
+version = "23.1.6"
 backend = "github:llvm/llvm-project"
-specifiers = ["23.1.5"]
+specifiers = ["23.1.6"]
 
 [tools."github:llvm/llvm-project".options]
 asset_pattern = "clang[+]llvm-{{ version }}-x86_64-pc-windows-msvc.tar.zst"
 version_prefix = "llvmorg-"
 
 [tools."github:llvm/llvm-project"."platforms.windows-x64"]
-checksum = "sha256:b2be33385ddc86e83511417a060de927ae8b09d1f3017cc3cdce5c73cd5029d7"
-url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.5/clang%2Bllvm-23.1.5-x86_64-pc-windows-msvc.tar.zst"
-url_api = "https://api.github.com/repos/llvm/llvm-project/releases/assets/705478406"
+checksum = "sha256:7623f582089983c1cb51030cf1996514b19464e5669099571b399e8543770155"
+url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.6/clang%2Bllvm-23.1.6-x86_64-pc-windows-msvc.tar.zst"
+url_api = "https://api.github.com/repos/llvm/llvm-project/releases/assets/759987142"
 provenance = "github-attestations"
 
 [[tools.ninja]]
