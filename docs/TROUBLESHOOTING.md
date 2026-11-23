@@ -129,6 +129,44 @@ Vite+やReact等の依存関係は`frontend/package.json`と`frontend/bun.lock`�
 これらのlockは管理対象が異なるため、両方をコミットする。mise本体の版を上げる場合は、
 CIのmise-action指定も更新し、lock形式と両OSの互換性を確認する。
 
+#### Vite+ の連動依存を更新する順序
+
+`vite-plus`、`vite` alias、`vitest`、`@vitest/coverage-v8` は連動しているため、
+この4依存はDependabotの通常のversion update（major/minor/patch）だけから除外する
+（#821、#827、#828）。`ignore.update-types`を明示し、security updateは除外しない。
+以下は通常更新の手順とし、security updateのPRでも連動依存の整合性検査を維持する。
+
+`dependency-name: vite`はmanifestのalias名への指定で、実体の
+`@voidzero-dev/vite-plus-core`には一致しない。確認したBun parserは`npm:` alias宣言を
+更新対象から外し、lockfileの実体名を別の依存として読む。実体名への包括的な除外は追加しない。
+根拠は[公式ignore仕様](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference#ignore--)、
+[security update時の除外処理](https://github.com/dependabot/dependabot-core/blob/cbabeb7b1671021a093ac3990c9e0ac17dc20fdd/common/lib/dependabot/config/ignore_condition.rb#L40-L46)、
+[Bun aliasの既存テスト](https://github.com/dependabot/dependabot-core/blob/cbabeb7b1671021a093ac3990c9e0ac17dc20fdd/bun/spec/dependabot/bun/file_parser_spec.rb#L398-L409)を参照する。
+
+次の順序で通常更新する。
+
+1. **更新より先に互換性検証Issueを作る。** 対象バージョンの
+   [公式リリース](https://github.com/voidzero-dev/vite-plus/releases)と公開済みの
+   `vite-plus` の `package.json` を確認し、要求されるVite alias・Vitest・coverageの版と
+   一次ソースをIssueに記録する。CLIとcoreの番号が常に同じとは推測しない。
+2. 最新mainの固定Node/Bunで、`devDependencies`、対応する`overrides`、
+   `frontend/bun.lock`を同じ変更に揃える。例えばVite+ 1.6.0は
+   `vite = npm:@voidzero-dev/vite-plus-core@1.6.0`、`vitest = 5.1.0`を要求する。
+   coverageも`5.1.0`に揃える。
+3. frozen installと既存の依存整合性検査を維持し、以下を実行する。
+   formatter更新で差分が必要な場合は結果を確認して修正する。
+
+   ```powershell
+   uv run --locked python -m pytest scripts/tests/test_frontend_deps.py -q
+   uv run --locked scripts/pdg.py lint frontend
+   uv run --locked scripts/pdg.py test frontend
+   uv run --locked scripts/pdg.py build frontend
+   ```
+
+4. 検証Issueとローカル結果を参照する**draft PR**を作成し、そのhead SHAに対する
+   Windows/Linuxのlint・build・testとCI対象のbrowser smokeが成功したことを記録する。
+   通常の依存更新とは分け、Dependabotブランチの修正による自動マージを避ける。
+
 ### miseのLLVMセットアップ
 
 `mise trust`で`No untrusted config files found`と表示される場合、未信頼の設定がないという意味で、
