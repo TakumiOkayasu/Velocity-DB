@@ -132,7 +132,18 @@ CIのmise-action指定も更新し、lock形式と両OSの互換性を確認す�
 #### Vite+ の連動依存を更新する順序
 
 `vite-plus`、`vite` alias、`vitest`、`@vitest/coverage-v8` は連動しているため、
-この4依存はDependabotの単独更新から除外する（#821、#827、#828）。次の順序で更新する。
+この4依存はDependabotの通常のversion update（major/minor/patch）だけから除外する
+（#821、#827、#828）。`ignore.update-types`を明示し、security updateは除外しない。
+以下は通常更新の手順とし、security updateのPRでも連動依存の整合性検査を維持する。
+
+`dependency-name: vite`はmanifestのalias名への指定で、実体の
+`@voidzero-dev/vite-plus-core`には一致しない。確認したBun parserは`npm:` alias宣言を
+更新対象から外し、lockfileの実体名を別の依存として読む。実体名への包括的な除外は追加しない。
+根拠は[公式ignore仕様](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference#ignore--)、
+[security update時の除外処理](https://github.com/dependabot/dependabot-core/blob/cbabeb7b1671021a093ac3990c9e0ac17dc20fdd/common/lib/dependabot/config/ignore_condition.rb#L40-L46)、
+[Bun aliasの既存テスト](https://github.com/dependabot/dependabot-core/blob/cbabeb7b1671021a093ac3990c9e0ac17dc20fdd/bun/spec/dependabot/bun/file_parser_spec.rb#L398-L409)を参照する。
+
+次の順序で通常更新する。
 
 1. **更新より先に互換性検証Issueを作る。** 対象バージョンの
    [公式リリース](https://github.com/voidzero-dev/vite-plus/releases)と公開済みの
