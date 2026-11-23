@@ -129,6 +129,33 @@ Vite+やReact等の依存関係は`frontend/package.json`と`frontend/bun.lock`�
 これらのlockは管理対象が異なるため、両方をコミットする。mise本体の版を上げる場合は、
 CIのmise-action指定も更新し、lock形式と両OSの互換性を確認する。
 
+#### Vite+ の連動依存を更新する順序
+
+`vite-plus`、`vite` alias、`vitest`、`@vitest/coverage-v8` は連動しているため、
+この4依存はDependabotの単独更新から除外する（#821、#827、#828）。次の順序で更新する。
+
+1. **更新より先に互換性検証Issueを作る。** 対象バージョンの
+   [公式リリース](https://github.com/voidzero-dev/vite-plus/releases)と公開済みの
+   `vite-plus` の `package.json` を確認し、要求されるVite alias・Vitest・coverageの版と
+   一次ソースをIssueに記録する。CLIとcoreの番号が常に同じとは推測しない。
+2. 最新mainの固定Node/Bunで、`devDependencies`、対応する`overrides`、
+   `frontend/bun.lock`を同じ変更に揃える。例えばVite+ 1.6.0は
+   `vite = npm:@voidzero-dev/vite-plus-core@1.6.0`、`vitest = 5.1.0`を要求する。
+   coverageも`5.1.0`に揃える。
+3. frozen installと既存の依存整合性検査を維持し、以下を実行する。
+   formatter更新で差分が必要な場合は結果を確認して修正する。
+
+   ```powershell
+   uv run --locked python -m pytest scripts/tests/test_frontend_deps.py -q
+   uv run --locked scripts/pdg.py lint frontend
+   uv run --locked scripts/pdg.py test frontend
+   uv run --locked scripts/pdg.py build frontend
+   ```
+
+4. 検証Issueとローカル結果を参照する**draft PR**を作成し、そのhead SHAに対する
+   Windows/Linuxのlint・build・testとCI対象のbrowser smokeが成功したことを記録する。
+   通常の依存更新とは分け、Dependabotブランチの修正による自動マージを避ける。
+
 ### miseのLLVMセットアップ
 
 `mise trust`で`No untrusted config files found`と表示される場合、未信頼の設定がないという意味で、

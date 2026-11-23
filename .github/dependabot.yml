@@ -20,6 +20,13 @@ updates:
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
+    # Coupled Vite+ versions require a compatibility issue before a single draft PR.
+    # See docs/TROUBLESHOOTING.md and #828; aliases/overrides cannot update alone.
+    ignore:
+      - dependency-name: "vite-plus"
+      - dependency-name: "vite"
+      - dependency-name: "vitest"
+      - dependency-name: "@vitest/coverage-v8"
     # Group minor and patch updates together
     groups:
       development-dependencies:
