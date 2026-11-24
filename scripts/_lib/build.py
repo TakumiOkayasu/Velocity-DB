@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 import tomllib
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -650,38 +651,53 @@ def build_backend(
     _clear_stale_cmake_cache(project_root, build_dir, env, ninja_path, out=out)
     _clear_cmake_scratch(project_root, build_dir, out=out)
 
-    print(f"\n[3/4] Configuring with CMake (preset: {preset})...", file=out)
-    cmake_cmd = [str(cmake_path), "--preset", preset]
-    if ninja_path:
-        cmake_ninja_path = _as_cmake_path(ninja_path)
-        cmake_cmd.append(f"-DCMAKE_MAKE_PROGRAM:FILEPATH={cmake_ninja_path}")
-        print(f"Using Ninja from: {ninja_path}", file=out)
-    success, stderr = utils.run_command(
-        cmake_cmd, "CMake Configure", cwd=project_root, env=env, capture_output=True, out=out
-    )
-    if not success:
-        print("\nERROR: CMake configuration failed", file=out)
-        _print_vcpkg_antivirus_diagnosis(project_root, out=out)
-        if stderr and out is None:
-            print(f"\n{stderr}")
-        return False
-
-    # Configure has succeeded in a tree with no incompatible compiler outputs.
-    # Keep this identity even if compilation fails, so retry remains incremental.
     try:
-        (build_dir / "msvc-fingerprint.json").write_text(fingerprint, encoding="utf-8")
+        build_dir.mkdir(exist_ok=True)
+        scratch = tempfile.TemporaryDirectory(
+            prefix="msvc-tmp-", dir=build_dir, ignore_cleanup_errors=True
+        )
     except OSError as error:
-        print(f"\nERROR: Cannot record MSVC compiler identity: {error}", file=out)
+        print(f"\nERROR: Cannot create MSVC temporary directory in {build_dir}: {error}", file=out)
         return False
 
-    print("\n[4/4] Building...", file=out)
-    build_cmd = [str(cmake_path), "--build", "--preset", preset]
-    success, _ = utils.run_command(
-        build_cmd, f"CMake Build ({build_type})", cwd=project_root, env=env, out=out
-    )
-    if not success:
-        print("\nERROR: Build failed", file=out)
-        return False
+    with scratch as scratch_path:
+        # cl.exe writes intermediate files to TMP. Isolate the whole CMake process tree
+        # from the shared user Temp directory, including configure-time compiler checks.
+        env = {key: value for key, value in env.items() if key.upper() not in {"TEMP", "TMP"}}
+        env.update(TEMP=scratch_path, TMP=scratch_path)
+        print(f"\n[MSVC] Temporary directory: {scratch_path}", file=out)
+        print(f"\n[3/4] Configuring with CMake (preset: {preset})...", file=out)
+        cmake_cmd = [str(cmake_path), "--preset", preset]
+        if ninja_path:
+            cmake_ninja_path = _as_cmake_path(ninja_path)
+            cmake_cmd.append(f"-DCMAKE_MAKE_PROGRAM:FILEPATH={cmake_ninja_path}")
+            print(f"Using Ninja from: {ninja_path}", file=out)
+        success, stderr = utils.run_command(
+            cmake_cmd, "CMake Configure", cwd=project_root, env=env, capture_output=True, out=out
+        )
+        if not success:
+            print("\nERROR: CMake configuration failed", file=out)
+            _print_vcpkg_antivirus_diagnosis(project_root, out=out)
+            if stderr and out is None:
+                print(f"\n{stderr}")
+            return False
+
+        # Configure has succeeded in a tree with no incompatible compiler outputs.
+        # Keep this identity even if compilation fails, so retry remains incremental.
+        try:
+            (build_dir / "msvc-fingerprint.json").write_text(fingerprint, encoding="utf-8")
+        except OSError as error:
+            print(f"\nERROR: Cannot record MSVC compiler identity: {error}", file=out)
+            return False
+
+        print("\n[4/4] Building...", file=out)
+        build_cmd = [str(cmake_path), "--build", "--preset", preset]
+        success, _ = utils.run_command(
+            build_cmd, f"CMake Build ({build_type})", cwd=project_root, env=env, out=out
+        )
+        if not success:
+            print("\nERROR: Build failed", file=out)
+            return False
 
     exe_path = build_dir / build_type / "VelocityDB.exe"
     if not exe_path.exists():

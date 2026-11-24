@@ -119,7 +119,11 @@ class MsvcBuildTest(unittest.TestCase):
             build._prepare_msvc_build(self.root / "other-project", self.build_dir, "new")
         self.assertTrue(self.pch.exists())
 
-    def test_backend_records_identity_only_after_configure(self) -> None:
+    def test_backend_isolates_compiler_temp_and_records_identity_after_configure(self) -> None:
+        # Both CMake phases use the same writable scratch directory. Even a failed
+        # configure or compile must release it without changing the caller's Temp.
+        inherited_temp = {"Temp": str(self.root / "missing user temp"), "tMp": "unused"}
+        temp_dirs: list[Path] = []
         for configure_ok, compile_ok in ((False, False), (True, False), (True, True)):
             with self.subTest(configure_ok=configure_ok, compile_ok=compile_ok):
                 self.compiler.write_bytes(b"new compiler")
@@ -127,7 +131,7 @@ class MsvcBuildTest(unittest.TestCase):
                 self.stamp.write_text(self.fingerprint, encoding="utf-8")
                 calls = []
                 environment = Mock(spec=BuildEnvironment)
-                environment.activate.return_value = self.env.copy()
+                environment.activate.return_value = self.env | inherited_temp
 
                 def run(
                     cmd: list[str],
@@ -139,13 +143,25 @@ class MsvcBuildTest(unittest.TestCase):
                     **kwargs: object,
                 ) -> tuple[bool, str]:
                     self.assertEqual(kwargs["cwd"], self.root)
+                    env = kwargs["env"]
+                    assert isinstance(env, dict)
+                    temp_dir = Path(env["TMP"])
+                    self.assertEqual(env["TEMP"], str(temp_dir))
+                    self.assertEqual(
+                        {key for key in env if key.upper() in {"TEMP", "TMP"}}, {"TEMP", "TMP"}
+                    )
+                    self.assertEqual(temp_dir.parent, self.build_dir)
                     if "--build" not in cmd:
-                        self.assertFalse(self.build_dir.exists())
-                        self.build_dir.mkdir()
+                        self.assertFalse(self.pch.exists())
+                        self.assertNotIn(temp_dir, temp_dirs)
+                        temp_dirs.append(temp_dir)
+                        (temp_dir / "compiler-intermediate").write_text("created by configure")
                         calls.append("configure")
                         self.assertFalse(self.stamp.exists())
                         return configure_ok, ""
                     calls.append("build")
+                    self.assertEqual(temp_dir, temp_dirs[-1])
+                    self.assertTrue((temp_dir / "compiler-intermediate").is_file())
                     self.assertEqual(
                         self.stamp.read_text(encoding="utf-8"), build._msvc_fingerprint(self.env)
                     )
@@ -172,6 +188,8 @@ class MsvcBuildTest(unittest.TestCase):
                 environment.activate.assert_called_once()
                 self.assertEqual(calls, ["configure", "build"] if configure_ok else ["configure"])
                 self.assertEqual(self.stamp.exists(), configure_ok)
+                self.assertFalse(temp_dirs[-1].exists())
+                self.assertFalse((self.root / "missing user temp").exists())
 
 
 if __name__ == "__main__":
