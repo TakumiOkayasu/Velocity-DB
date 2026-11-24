@@ -189,7 +189,10 @@ export function MainLayout() {
     const query = useQueryStore.getState().queriesById[activeQueryId];
     if (!query) return;
 
-    const result = checkQueryExecutability(query.content, { isReadOnly, isProduction });
+    const result = checkQueryExecutability(query.content, {
+      isReadOnly: activeQueryConnection?.isReadOnly ?? false,
+      isProduction: activeQueryConnection?.isProduction ?? false,
+    });
 
     if (result.action === 'execute') {
       doExecuteQuery();
@@ -212,8 +215,7 @@ export function MainLayout() {
   }, [
     activeQueryId,
     activeQueryConnectionId,
-    isProduction,
-    isReadOnly,
+    activeQueryConnection,
     doExecuteQuery,
     openQueryConfirm,
   ]);

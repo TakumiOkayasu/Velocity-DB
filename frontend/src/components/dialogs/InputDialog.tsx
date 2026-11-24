@@ -31,13 +31,20 @@ export function InputDialog({
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  const [previous, setPrevious] = useState({ isOpen, defaultValue });
+  if (previous.isOpen !== isOpen || previous.defaultValue !== defaultValue) {
+    setPrevious({ isOpen, defaultValue });
     if (isOpen) {
       setValue(defaultValue);
       setError(null);
-      // Focus and select on open
-      requestAnimationFrame(() => inputRef.current?.select());
     }
+  }
+
+  useEffect(() => {
+    if (!isOpen) return;
+    // Focus and select on open
+    const frame = requestAnimationFrame(() => inputRef.current?.select());
+    return () => cancelAnimationFrame(frame);
   }, [isOpen, defaultValue]);
 
   const tryConfirm = useCallback(() => {

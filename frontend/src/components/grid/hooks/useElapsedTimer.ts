@@ -7,12 +7,17 @@ import { useEffect, useState } from 'react';
 export function useElapsedTimer(active: boolean): number {
   const [seconds, setSeconds] = useState(0);
 
+  const [wasActive, setWasActive] = useState(active);
+  if (wasActive !== active) {
+    setWasActive(active);
+    setSeconds(0);
+  }
+
   useEffect(() => {
     if (!active) return;
-    setSeconds(0);
     const id = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(id);
   }, [active]);
 
-  return seconds;
+  return active ? seconds : 0;
 }

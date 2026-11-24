@@ -13,7 +13,7 @@
 //   4. 300px (varchar clamp) への変化を検証
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 
 vi.mock('../../utils/logger', () => ({
@@ -37,13 +37,11 @@ const MOCK_CHAR_WIDTH = 14 * 0.6;
 // CELL_HORIZONTAL_PADDING (CSS .th/.td 24 + sort indicator 8)
 const EXPECTED_PADDING = 32;
 
-interface MenuItemRef {
-  current: Array<{ label: string; action: () => void }>;
-}
+type MenuItems = ReturnType<ReturnType<typeof useGridContextMenu>['getMenuItems']>;
 
 interface HarnessProps {
-  sizingObserver: { current: Record<string, number> | null };
-  menuItemsObserver?: MenuItemRef;
+  sizingObserver: (sizing: Record<string, number>) => void;
+  menuItemsObserver?: (items: MenuItems) => void;
   descriptionText: string;
   /** 行数。>500 で useColumnAutoSize が async chunk path に入る (SYNC_THRESHOLD=500) */
   rowCount?: number;
@@ -100,7 +98,9 @@ function Harness({
     columns,
     rowData,
   });
-  sizingObserver.current = columnSizing;
+  useLayoutEffect(() => {
+    sizingObserver(columnSizing);
+  }, [sizingObserver, columnSizing]);
 
   const gridRows = useMemo(() => rowData.map((r) => ({ original: r })), [rowData]);
   const tableShim = useMemo(() => ({ getColumn: () => undefined }), []);
@@ -112,7 +112,9 @@ function Harness({
   });
 
   // contextMenu state 確定後 (click で open した後) の getMenuItems を外部へ公開
-  if (menuItemsObserver) menuItemsObserver.current = getMenuItems();
+  useLayoutEffect(() => {
+    menuItemsObserver?.(getMenuItems());
+  }, [menuItemsObserver, getMenuItems]);
 
   return (
     <div>
@@ -154,93 +156,105 @@ describe('ResultGrid auto-adjust 経路 integration (4 経路の state 末端ま
   afterEach(() => cleanup());
 
   it('初期 mount で useLayoutEffect 経由の auto-size が短 content を反映する', () => {
-    const sizingRef = { current: null as Record<string, number> | null };
-    render(<Harness sizingObserver={sizingRef} descriptionText="short" />);
+    const observeSizing = vi.fn<(sizing: Record<string, number>) => void>();
+    render(<Harness sizingObserver={observeSizing} descriptionText="short" />);
 
     // header 'description' = 11 chars, content 'short' = 5 chars → header の方が広い
     // 11 * 8.4 + 32 = 124.4
     const expected = 'description'.length * MOCK_CHAR_WIDTH + EXPECTED_PADDING;
-    expect(sizingRef.current?.description).toBeCloseTo(expected, 5);
+    expect(observeSizing.mock.lastCall?.[0].description).toBeCloseTo(expected, 5);
   });
 
   it('ツールバー ↔ ボタン click: content 長変更後に click すると新 content で再計算される', () => {
-    const sizingRef = { current: null as Record<string, number> | null };
-    const { rerender } = render(<Harness sizingObserver={sizingRef} descriptionText="short" />);
-    const initialWidth = sizingRef.current?.description;
+    const observeSizing = vi.fn<(sizing: Record<string, number>) => void>();
+    const { rerender } = render(<Harness sizingObserver={observeSizing} descriptionText="short" />);
+    const initialWidth = observeSizing.mock.lastCall?.[0].description;
 
     // content を 100 chars に変更。columnsKey (description:varchar) 不変のため
     // useLayoutEffect の guard で再計算スキップ → sizing は初期値のまま
-    rerender(<Harness sizingObserver={sizingRef} descriptionText={'X'.repeat(100)} />);
-    expect(sizingRef.current?.description).toBe(initialWidth);
+    rerender(<Harness sizingObserver={observeSizing} descriptionText={'X'.repeat(100)} />);
+    expect(observeSizing.mock.lastCall?.[0].description).toBe(initialWidth);
 
     // button click → triggerAutoSize → 新 rowData で再計算 → 100*8.4+32=872 → varchar 300 にクランプ
     act(() => {
       fireEvent.click(screen.getByTitle(/列幅をオートアジャスト/));
     });
-    expect(sizingRef.current?.description).toBe(VARCHAR_MAX_WIDTH);
+    expect(observeSizing.mock.lastCall?.[0].description).toBe(VARCHAR_MAX_WIDTH);
   });
 
   it('ContextMenu "全列をオートアジャスト" action: triggerAutoSize 経由で state が更新される', () => {
-    const sizingRef = { current: null as Record<string, number> | null };
-    const menuRef: MenuItemRef = { current: [] };
+    const observeSizing = vi.fn<(sizing: Record<string, number>) => void>();
+    const observeMenuItems = vi.fn<(items: MenuItems) => void>();
     const { rerender } = render(
-      <Harness sizingObserver={sizingRef} menuItemsObserver={menuRef} descriptionText="short" />
+      <Harness
+        sizingObserver={observeSizing}
+        menuItemsObserver={observeMenuItems}
+        descriptionText="short"
+      />
     );
-    const initialWidth = sizingRef.current?.description;
+    const initialWidth = observeSizing.mock.lastCall?.[0].description;
 
     rerender(
       <Harness
-        sizingObserver={sizingRef}
-        menuItemsObserver={menuRef}
+        sizingObserver={observeSizing}
+        menuItemsObserver={observeMenuItems}
         descriptionText={'X'.repeat(100)}
       />
     );
-    expect(sizingRef.current?.description).toBe(initialWidth);
+    expect(observeSizing.mock.lastCall?.[0].description).toBe(initialWidth);
 
     // header menu を開く (contextMenu state をセット → 再 render で getMenuItems が実アイテムを返す)
     act(() => {
       fireEvent.click(screen.getByTestId('open-header-menu'));
     });
 
-    const allItem = menuRef.current.find((i) => i.label === CONTEXT_MENU_ALL_COLUMNS);
+    const allItem = observeMenuItems.mock.lastCall?.[0].find(
+      (i) => i.label === CONTEXT_MENU_ALL_COLUMNS
+    );
     expect(allItem, 'ContextMenu に "全列をオートアジャスト" が存在する').toBeDefined();
 
     act(() => {
       allItem?.action();
     });
-    expect(sizingRef.current?.description).toBe(VARCHAR_MAX_WIDTH);
-    expect(sizingRef.current?.description).not.toBe(initialWidth);
+    expect(observeSizing.mock.lastCall?.[0].description).toBe(VARCHAR_MAX_WIDTH);
+    expect(observeSizing.mock.lastCall?.[0].description).not.toBe(initialWidth);
   });
 
   it('ContextMenu "この列をオートアジャスト" action: triggerAutoSizeForColumn 経由で state が更新される', () => {
-    const sizingRef = { current: null as Record<string, number> | null };
-    const menuRef: MenuItemRef = { current: [] };
+    const observeSizing = vi.fn<(sizing: Record<string, number>) => void>();
+    const observeMenuItems = vi.fn<(items: MenuItems) => void>();
     const { rerender } = render(
-      <Harness sizingObserver={sizingRef} menuItemsObserver={menuRef} descriptionText="short" />
+      <Harness
+        sizingObserver={observeSizing}
+        menuItemsObserver={observeMenuItems}
+        descriptionText="short"
+      />
     );
-    const initialWidth = sizingRef.current?.description;
+    const initialWidth = observeSizing.mock.lastCall?.[0].description;
 
     rerender(
       <Harness
-        sizingObserver={sizingRef}
-        menuItemsObserver={menuRef}
+        sizingObserver={observeSizing}
+        menuItemsObserver={observeMenuItems}
         descriptionText={'X'.repeat(100)}
       />
     );
-    expect(sizingRef.current?.description).toBe(initialWidth);
+    expect(observeSizing.mock.lastCall?.[0].description).toBe(initialWidth);
 
     act(() => {
       fireEvent.click(screen.getByTestId('open-header-menu'));
     });
 
-    const singleItem = menuRef.current.find((i) => i.label === CONTEXT_MENU_SINGLE_COLUMN);
+    const singleItem = observeMenuItems.mock.lastCall?.[0].find(
+      (i) => i.label === CONTEXT_MENU_SINGLE_COLUMN
+    );
     expect(singleItem, 'ContextMenu に "この列をオートアジャスト" が存在する').toBeDefined();
 
     act(() => {
       singleItem?.action();
     });
-    expect(sizingRef.current?.description).toBe(VARCHAR_MAX_WIDTH);
-    expect(sizingRef.current?.description).not.toBe(initialWidth);
+    expect(observeSizing.mock.lastCall?.[0].description).toBe(VARCHAR_MAX_WIDTH);
+    expect(observeSizing.mock.lastCall?.[0].description).not.toBe(initialWidth);
   });
 
   // 実機 (fix/drag-lag-probe, 4/23 17:21 ログ) で発覚した abort 連鎖を UI 末端で回帰ガード。
@@ -249,27 +263,29 @@ describe('ResultGrid auto-adjust 経路 integration (4 経路の state 末端ま
   // 「全列 triggerAutoSize 進行中に単列 trigger を割込んでも全列が commit される」を検証する。
   it('async path: toolbar 全列 trigger 進行中に ContextMenu 単列 trigger しても全列結果が反映される', async () => {
     const ASYNC_ROW_COUNT = 600; // > SYNC_THRESHOLD(500)
-    const sizingRef = { current: null as Record<string, number> | null };
-    const menuRef: MenuItemRef = { current: [] };
+    const observeSizing = vi.fn<(sizing: Record<string, number>) => void>();
+    const observeMenuItems = vi.fn<(items: MenuItems) => void>();
 
     // 長 content で mount → useLayoutEffect の全列 async が開始される
     render(
       <Harness
-        sizingObserver={sizingRef}
-        menuItemsObserver={menuRef}
+        sizingObserver={observeSizing}
+        menuItemsObserver={observeMenuItems}
         descriptionText={'X'.repeat(100)}
         rowCount={ASYNC_ROW_COUNT}
       />
     );
 
     // async 完了前の初期状態では columnSizing は未設定 ({})
-    expect(sizingRef.current?.description).toBeUndefined();
+    expect(observeSizing.mock.lastCall?.[0].description).toBeUndefined();
 
     // 全列 async 進行中に ContextMenu 単列を割込ませる
     act(() => {
       fireEvent.click(screen.getByTestId('open-header-menu'));
     });
-    const singleItem = menuRef.current.find((i) => i.label === CONTEXT_MENU_SINGLE_COLUMN);
+    const singleItem = observeMenuItems.mock.lastCall?.[0].find(
+      (i) => i.label === CONTEXT_MENU_SINGLE_COLUMN
+    );
     expect(singleItem, 'ContextMenu 単列アイテムが存在する').toBeDefined();
     act(() => {
       singleItem?.action();
@@ -280,7 +296,7 @@ describe('ResultGrid auto-adjust 経路 integration (4 経路の state 末端ま
     // 修正後 (token 分離) では全列完走 → 300 にクランプされる。
     await waitFor(
       () => {
-        expect(sizingRef.current?.description).toBe(VARCHAR_MAX_WIDTH);
+        expect(observeSizing.mock.lastCall?.[0].description).toBe(VARCHAR_MAX_WIDTH);
       },
       { timeout: 3000 }
     );

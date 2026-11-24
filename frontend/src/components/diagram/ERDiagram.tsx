@@ -160,13 +160,19 @@ function ERDiagramFlow({
   const saveViewport = useERDiagramStore((s) => s.saveViewport);
   const store = useERDiagramStoreApi();
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const modelNodes = useMemo(() => toNodes(tables, shapes), [tables, shapes]);
+  const [nodes, setNodes, onNodesChange] = useNodesState(modelNodes);
+  const [previousModelNodes, setPreviousModelNodes] = useState(modelNodes);
   const prevPageRef = useRef(selectedPage);
+  const [edgePosMap, setEdgePosMap] = useState<PosMap>(
+    () => new Map(tables.map((t) => [t.id, t.position]))
+  );
 
-  useEffect(() => {
-    setNodes(toNodes(tables, shapes));
+  if (previousModelNodes !== modelNodes) {
+    setPreviousModelNodes(modelNodes);
+    setNodes(modelNodes);
     setEdgePosMap(new Map(tables.map((t) => [t.id, t.position])));
-  }, [tables, shapes, setNodes]);
+  }
 
   useEffect(() => {
     const prevPage = prevPageRef.current;
@@ -180,10 +186,6 @@ function ERDiagramFlow({
     });
     return () => cancelAnimationFrame(frame);
   }, [selectedPage, store, saveViewport, getViewport, setViewport, fitView]);
-
-  const [edgePosMap, setEdgePosMap] = useState<PosMap>(
-    () => new Map(tables.map((t) => [t.id, t.position]))
-  );
 
   const edges: Edge[] = useMemo(() => buildEdges(relations, edgePosMap), [relations, edgePosMap]);
 

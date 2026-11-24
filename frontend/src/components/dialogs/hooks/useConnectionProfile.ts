@@ -3,6 +3,7 @@ import {
   type SetStateAction,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useReducer,
   useRef,
 } from 'react';
@@ -88,8 +89,10 @@ export function useConnectionProfile(isOpen: boolean): UseConnectionProfileResul
   const operationCounterRef = useRef(0);
   const modeRef = useRef(mode);
   const editingProfileIdRef = useRef(editingProfileId);
-  modeRef.current = mode;
-  editingProfileIdRef.current = editingProfileId;
+  useLayoutEffect(() => {
+    modeRef.current = mode;
+    editingProfileIdRef.current = editingProfileId;
+  }, [mode, editingProfileId]);
 
   const setConfig = useCallback<Dispatch<SetStateAction<ConnectionConfig>>>((value) => {
     dispatch({ type: 'SET_CONFIG', payload: value });

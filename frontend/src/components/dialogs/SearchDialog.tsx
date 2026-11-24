@@ -18,57 +18,54 @@ interface SearchResult {
   database: string;
 }
 
+const EMPTY_RESULTS: SearchResult[] = [];
+
 export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogProps) {
+  if (!isOpen) return null;
+
+  return <OpenSearchDialog onClose={onClose} onResultSelect={onResultSelect} />;
+}
+
+function OpenSearchDialog({ onClose, onResultSelect }: Omit<SearchDialogProps, 'isOpen'>) {
   const { activeConnectionId, connections } = useConnectionStore();
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearchQuery = useDeferredValue(searchQuery);
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [response, setResponse] = useState<{
+    connectionId: string;
+    query: string;
+    results: SearchResult[];
+  } | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const activeConnection = connections.find((c) => c.id === activeConnectionId);
-  const isStale = searchQuery !== deferredSearchQuery;
+  const hasQuery = Boolean(searchQuery.trim());
+  const currentResponse =
+    response?.connectionId === activeConnectionId && response?.query === deferredSearchQuery
+      ? response
+      : null;
+  if (response && !currentResponse) setResponse(null);
+  const results = (hasQuery ? currentResponse?.results : undefined) ?? EMPTY_RESULTS;
+  const isSearching =
+    hasQuery &&
+    Boolean(activeConnectionId) &&
+    (!currentResponse || searchQuery !== deferredSearchQuery);
 
   // Focus input when dialog opens
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-      setSearchQuery('');
-      setResults([]);
-      setSelectedIndex(0);
-    }
-  }, [isOpen]);
+    inputRef.current?.focus();
+  }, []);
 
   // Search when deferred query changes (prevents blocking UI during typing)
   useEffect(() => {
-    if (!deferredSearchQuery.trim() || !activeConnectionId) {
-      setResults([]);
-      return;
-    }
+    if (!deferredSearchQuery.trim() || !activeConnectionId) return;
 
     let cancelled = false;
-    const doSearch = async () => {
-      setIsSearching(true);
-      try {
-        const searchResults = await searchObjects(activeConnectionId, deferredSearchQuery);
-        if (!cancelled) {
-          setResults(searchResults);
-          setSelectedIndex(0);
-        }
-      } catch (err) {
-        console.error('Search failed:', err);
-        if (!cancelled) {
-          setResults([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsSearching(false);
-        }
-      }
-    };
-
-    doSearch();
+    void searchObjects(activeConnectionId, deferredSearchQuery).then((results) => {
+      if (cancelled) return;
+      setResponse({ connectionId: activeConnectionId, query: deferredSearchQuery, results });
+      setSelectedIndex(0);
+    });
     return () => {
       cancelled = true;
     };
@@ -76,15 +73,16 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      const selectedResult = results[selectedIndex];
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setSelectedIndex((i) => Math.min(i + 1, results.length - 1));
+        setSelectedIndex((i) => Math.max(0, Math.min(i + 1, results.length - 1)));
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setSelectedIndex((i) => Math.max(i - 1, 0));
-      } else if (e.key === 'Enter' && results.length > 0) {
+      } else if (e.key === 'Enter' && selectedResult) {
         e.preventDefault();
-        onResultSelect(results[selectedIndex]);
+        onResultSelect(selectedResult);
         onClose();
       } else if (e.key === 'Escape') {
         onClose();
@@ -100,8 +98,6 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
     },
     [onResultSelect, onClose]
   );
-
-  if (!isOpen) return null;
 
   return (
     <DialogOverlay
@@ -120,7 +116,7 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
           placeholder="テーブル、ビュー、プロシージャを検索..."
           className={styles.searchInput}
         />
-        {(isSearching || isStale) && <span className={styles.spinner}>{'\u23F3'}</span>}
+        {isSearching && <span className={styles.spinner}>{'\u23F3'}</span>}
       </div>
 
       <div className={styles.results}>
@@ -128,7 +124,7 @@ export function SearchDialog({ isOpen, onClose, onResultSelect }: SearchDialogPr
           <div className={styles.noConnection}>検索するにはデータベースに接続してください</div>
         ) : results.length === 0 && searchQuery.trim() ? (
           <div className={styles.noResults}>
-            {isSearching || isStale ? '検索中...' : '結果が見つかりません'}
+            {isSearching ? '検索中...' : '結果が見つかりません'}
           </div>
         ) : (
           results.map((result, index) => (

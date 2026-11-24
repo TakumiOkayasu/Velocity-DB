@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard';
 import type { ColumnMeta, RowData } from '../../../types/grid';
 import type { ContextMenuItem } from '../../common/ContextMenu';
@@ -96,27 +96,32 @@ export function useGridContextMenu(
     onAutoSizeColumns,
   }: UseGridContextMenuOptions = { isEditMode: false }
 ) {
-  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [menu, setMenu] = useState<{ rows: GridRow[]; contextMenu: ContextMenuState } | null>(null);
   const copyToClipboard = useCopyToClipboard();
-  const prevRowsRef = useRef(rows);
+  const contextMenu = menu?.rows === rows ? menu.contextMenu : null;
+  if (menu && !contextMenu) setMenu(null);
 
-  if (prevRowsRef.current !== rows) {
-    prevRowsRef.current = rows;
-    if (contextMenu) setContextMenu(null);
-  }
+  const openHeaderMenu = useCallback(
+    (e: GridMouseEvent, columnId: string) => {
+      e.preventDefault();
+      setMenu({ rows, contextMenu: { x: e.clientX, y: e.clientY, type: 'header', columnId } });
+    },
+    [rows]
+  );
 
-  const openHeaderMenu = useCallback((e: GridMouseEvent, columnId: string) => {
-    e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, type: 'header', columnId });
-  }, []);
+  const openCellMenu = useCallback(
+    (e: GridMouseEvent, rowIndex: number, columnId: string) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setMenu({
+        rows,
+        contextMenu: { x: e.clientX, y: e.clientY, type: 'cell', columnId, rowIndex },
+      });
+    },
+    [rows]
+  );
 
-  const openCellMenu = useCallback((e: GridMouseEvent, rowIndex: number, columnId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setContextMenu({ x: e.clientX, y: e.clientY, type: 'cell', columnId, rowIndex });
-  }, []);
-
-  const closeMenu = useCallback(() => setContextMenu(null), []);
+  const closeMenu = useCallback(() => setMenu(null), []);
 
   const getMenuItems = useCallback((): ContextMenuItem[] => {
     if (!contextMenu) return [];
