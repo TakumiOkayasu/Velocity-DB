@@ -40,11 +40,12 @@ export function usePanelLayoutState(params: UsePanelLayoutStateParams): UsePanel
   const [isLeftPanelVisible, setIsLeftPanelVisible] = useState(savedLeftPanelVisible);
   const [isBottomPanelVisible, setIsBottomPanelVisible] = useState(false);
 
-  useEffect(() => {
-    if (activeQueryId && hasActiveResult && !isDataView) {
-      setIsBottomPanelVisible(true);
-    }
-  }, [activeQueryId, hasActiveResult, isDataView]);
+  const queryWithResult = hasActiveResult && !isDataView ? activeQueryId : null;
+  const [previousQueryWithResult, setPreviousQueryWithResult] = useState<string | null>(null);
+  if (previousQueryWithResult !== queryWithResult) {
+    setPreviousQueryWithResult(queryWithResult);
+    if (queryWithResult) setIsBottomPanelVisible(true);
+  }
 
   useEffect(() => {
     saveLeftPanelWidth(leftPanelWidth);

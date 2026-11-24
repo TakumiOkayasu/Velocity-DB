@@ -250,7 +250,7 @@ export function ConnectionTreeSection({
   );
 
   const filterTree = useCallback(
-    (nodes: DatabaseObject[]): DatabaseObject[] => {
+    function filterNodes(nodes: DatabaseObject[]): DatabaseObject[] {
       if (!filter.trim()) return nodes;
 
       const lowerFilter = filter.toLowerCase();
@@ -259,7 +259,7 @@ export function ConnectionTreeSection({
         .map((node) => {
           // DB nodes and folder nodes are always shown
           if (node.type === 'database' || node.type === 'folder') {
-            const filteredChildren = node.children ? filterTree(node.children) : [];
+            const filteredChildren = node.children ? filterNodes(node.children) : [];
             // Update folder count in name (e.g. "Tables (5)" → "Tables (2)")
             let displayName = node.name;
             if (node.type === 'folder') {

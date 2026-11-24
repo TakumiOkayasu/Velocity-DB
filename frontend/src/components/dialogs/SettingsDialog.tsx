@@ -74,8 +74,22 @@ const SHORTCUT_DISPLAY: ReadonlyArray<{ label: string; keys: string }> = [
 ];
 
 export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
-  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [activeTab, setActiveTab] = useState<TabId>('general');
+  if (!isOpen) return null;
+
+  return <OpenSettingsDialog activeTab={activeTab} setActiveTab={setActiveTab} onClose={onClose} />;
+}
+
+function OpenSettingsDialog({
+  activeTab,
+  setActiveTab,
+  onClose,
+}: {
+  activeTab: TabId;
+  setActiveTab: (tab: TabId) => void;
+  onClose: () => void;
+}) {
+  const [settings, setSettings] = useState(getSettings);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [webviewStartup, setWebviewStartup] = useState<WebViewSettings | null>(null);
@@ -84,57 +98,48 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
   const isSavingRef = useRef(false);
   const isDirtyRef = useRef(false);
   const dirtyWebviewFieldsRef = useRef(new Set<keyof WebViewSettings>());
-  const lifecycleRef = useRef(0);
+  const lifecycleRef = useRef({ generation: 0 });
   const closeDialog = useCallback(() => {
     if (!isSavingRef.current) onClose();
   }, [onClose]);
-  useDialogKeyboard({ isOpen, onEscape: closeDialog });
+  useDialogKeyboard({ isOpen: true, onEscape: closeDialog });
 
   // 開いたタイミングで localStorage キャッシュ → backend 永続値 (settings.json) の順に読込。
   // IPC 不通時 (browser/dev 等) は localStorage / defaults のまま表示する
   useEffect(() => {
-    if (!isOpen) return;
-    const lifecycle = ++lifecycleRef.current;
-    isDirtyRef.current = false;
-    dirtyWebviewFieldsRef.current.clear();
-    isSavingRef.current = false;
-    setIsSaving(false);
-    setSaveError(null);
-    setWebviewStartup(null);
-    setWebviewRestartRequired(false);
-    setIsLoadingStartup(true);
-    setSettings(getSettings());
-    let cancelled = false;
+    const lifecycle = lifecycleRef.current;
+    const generation = ++lifecycle.generation;
     appSettingsProvider
       .getSettings()
       .then((backend) => {
-        if (cancelled || lifecycleRef.current !== lifecycle) return;
+        if (lifecycle.generation !== generation) return;
         setWebviewStartup(backend.webviewStartup);
         setWebviewRestartRequired(backend.webviewRestartRequired);
         setIsLoadingStartup(false);
+        const isDirty = isDirtyRef.current;
+        const dirtyWebviewFields = [...dirtyWebviewFieldsRef.current];
         setSettings((prev) => {
           const merged = mergeBackendSettings(prev, backend);
-          for (const key of dirtyWebviewFieldsRef.current) {
+          for (const key of dirtyWebviewFields) {
             merged.webview[key] = prev.webview[key];
           }
           // Other edits must not prevent untouched native startup options from hydrating.
-          return isDirtyRef.current ? { ...prev, webview: merged.webview } : merged;
+          return isDirty ? { ...prev, webview: merged.webview } : merged;
         });
       })
       .catch((err) => {
-        if (cancelled || lifecycleRef.current !== lifecycle) return;
+        if (lifecycle.generation !== generation) return;
         setIsLoadingStartup(false);
         console.error('Failed to load settings from backend:', err);
       });
     return () => {
-      cancelled = true;
-      ++lifecycleRef.current;
+      ++lifecycle.generation;
     };
-  }, [isOpen]);
+  }, []);
 
   const saveSettings = useCallback(async () => {
     if (isSavingRef.current) return;
-    const lifecycle = lifecycleRef.current;
+    const generation = lifecycleRef.current.generation;
     isSavingRef.current = true;
     // A late initial read must not replace the settings being saved.
     isDirtyRef.current = true;
@@ -172,13 +177,13 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
         },
       });
       if (!result.saved) throw new Error('Backend did not save settings');
-      if (lifecycleRef.current !== lifecycle) return;
+      if (lifecycleRef.current.generation !== generation) return;
       cacheSettings(saved);
       isSavingRef.current = false;
       setIsSaving(false);
       onClose();
     } catch (err) {
-      if (lifecycleRef.current !== lifecycle) return;
+      if (lifecycleRef.current.generation !== generation) return;
       console.error('Failed to sync settings to backend:', err);
       setSaveError('設定を保存できませんでした。もう一度お試しください。');
       isSavingRef.current = false;
@@ -210,8 +215,6 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
     },
     []
   );
-
-  if (!isOpen) return null;
 
   const webviewDiffersFromStartup =
     webviewStartup !== null &&

@@ -32,14 +32,21 @@ export function ValueEditorDialog({
   const [value, setValue] = useState(initialValue ?? '');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
+  const [previous, setPrevious] = useState({ isOpen, initialValue });
+  if (previous.isOpen !== isOpen || previous.initialValue !== initialValue) {
+    setPrevious({ isOpen, initialValue });
     if (isOpen) {
       setValue(initialValue ?? '');
-      setTimeout(() => {
-        textareaRef.current?.focus();
-        textareaRef.current?.select();
-      }, 0);
     }
+  }
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = setTimeout(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.select();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [isOpen, initialValue]);
 
   const handleSave = useCallback(() => {

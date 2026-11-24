@@ -235,9 +235,11 @@ export function useColumnAutoSize({
   const columnsRef = useRef(columns);
   const rowDataRef = useRef(rowData);
   const resultSetRef = useRef(resultSet);
-  columnsRef.current = columns;
-  rowDataRef.current = rowData;
-  resultSetRef.current = resultSet;
+  useLayoutEffect(() => {
+    columnsRef.current = columns;
+    rowDataRef.current = rowData;
+    resultSetRef.current = resultSet;
+  }, [columns, rowData, resultSet]);
 
   // cancellation token は「全列計測」「単列計測 (列ごと)」を独立 axis として分離する。
   // 共用にすると実機で toolbar 全列 trigger と ContextMenu 単列 trigger が相互に abort し合い、

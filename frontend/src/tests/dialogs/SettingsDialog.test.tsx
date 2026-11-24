@@ -68,10 +68,10 @@ describe('SettingsDialog', () => {
     localStorage.clear();
     defaultProps.onClose.mockClear();
     vi.mocked(appSettingsProvider.updateSettings).mockReset().mockResolvedValue({ saved: true });
-    // デフォルトは IPC 不通 (browser/dev モック環境相当)。必要なテストで resolve に差し替える
+    // デフォルトは IPC 読込中。応答が必要なテストで成功・失敗を指定する。
     vi.mocked(appSettingsProvider.getSettings)
       .mockReset()
-      .mockRejectedValue(new Error('backend unavailable'));
+      .mockImplementation(() => new Promise<BackendAppSettings>(() => {}));
   });
 
   afterEach(() => {
@@ -162,9 +162,11 @@ describe('SettingsDialog', () => {
     });
 
     it('getSettings 失敗時は defaults で表示される (フォールバック)', async () => {
-      render(<SettingsDialog {...defaultProps} />);
-      await waitFor(() => {
-        expect(appSettingsProvider.getSettings).toHaveBeenCalled();
+      vi.mocked(appSettingsProvider.getSettings).mockRejectedValue(
+        new Error('backend unavailable')
+      );
+      await act(async () => {
+        render(<SettingsDialog {...defaultProps} />);
       });
 
       expect((screen.getByLabelText('クエリ履歴の最大保存件数') as HTMLInputElement).value).toBe(
@@ -176,13 +178,15 @@ describe('SettingsDialog', () => {
     });
 
     it('getSettings 失敗時は localStorage キャッシュの値を表示する', async () => {
+      vi.mocked(appSettingsProvider.getSettings).mockRejectedValue(
+        new Error('backend unavailable')
+      );
       localStorage.setItem(
         'app-settings',
         JSON.stringify({ version: 2, editor: { fontSize: 20 } })
       );
-      render(<SettingsDialog {...defaultProps} />);
-      await waitFor(() => {
-        expect(appSettingsProvider.getSettings).toHaveBeenCalled();
+      await act(async () => {
+        render(<SettingsDialog {...defaultProps} />);
       });
 
       fireEvent.click(screen.getByText('エディタ'));
@@ -248,7 +252,7 @@ describe('SettingsDialog', () => {
       await waitFor(() => expect(defaultProps.onClose).toHaveBeenCalled());
     });
 
-    it('変更した一般/グリッド項目が payload に反映される', () => {
+    it('変更した一般/グリッド項目が payload に反映される', async () => {
       render(<SettingsDialog {...defaultProps} />);
 
       fireEvent.change(screen.getByLabelText('クエリ履歴の最大保存件数'), {
@@ -267,6 +271,7 @@ describe('SettingsDialog', () => {
           grid: expect.objectContaining({ nullDisplay: 'NULL' }),
         })
       );
+      await waitFor(() => expect(defaultProps.onClose).toHaveBeenCalledOnce());
     });
 
     it('保存成功時に localStorage へ frontend-only 項目含む全体を書き込み settings-changed を発火する', async () => {
@@ -348,22 +353,32 @@ describe('SettingsDialog', () => {
       expect(input.max).toBe('3600');
     });
 
-    it('入力値変更で内部状態がms単位で保持される (秒→ms変換)', () => {
-      render(<SettingsDialog {...defaultProps} />);
-      fireEvent.click(screen.getByText('クエリ'));
+    it.each([
+      { seconds: 600, milliseconds: 600000 },
+      { seconds: 3600, milliseconds: 3600000 },
+    ])(
+      '$seconds 秒をバックエンドに秒、キャッシュにミリ秒で保存する',
+      async ({ seconds, milliseconds }) => {
+        render(<SettingsDialog {...defaultProps} />);
+        fireEvent.click(screen.getByText('クエリ'));
 
-      const input = getTimeoutInput();
-      fireEvent.change(input, { target: { value: '600' } });
-      expect(input.value).toBe('600');
+        const input = getTimeoutInput();
+        fireEvent.change(input, { target: { value: String(seconds) } });
+        expect(input.value).toBe(String(seconds));
 
-      fireEvent.click(screen.getByText('保存'));
-      // 保存時は秒単位で Backend へ同期される (Backend の clamp 1-3600 と整合)
-      expect(appSettingsProvider.updateSettings).toHaveBeenCalledWith(
-        expect.objectContaining({
-          query: { timeoutSeconds: 600, autoCommit: true, maxRows: 10000 },
-        })
-      );
-    });
+        fireEvent.click(screen.getByText('保存'));
+        // 保存時は秒単位で Backend へ同期される (Backend の clamp 1-3600 と整合)
+        expect(appSettingsProvider.updateSettings).toHaveBeenCalledWith(
+          expect.objectContaining({
+            query: { timeoutSeconds: seconds, autoCommit: true, maxRows: 10000 },
+          })
+        );
+        await waitFor(() => expect(defaultProps.onClose).toHaveBeenCalledOnce());
+        expect(JSON.parse(localStorage.getItem('app-settings') ?? '{}').query.timeout).toBe(
+          milliseconds
+        );
+      }
+    );
 
     it('localStorage に保存された旧値 (30000ms) は秒単位で30と表示される (後方互換)', () => {
       localStorage.setItem(
@@ -376,20 +391,6 @@ describe('SettingsDialog', () => {
 
       const input = getTimeoutInput();
       expect(input.value).toBe('30');
-    });
-
-    it('上限値3600を入力した場合も保存できる (Backend clamp 上限と整合)', () => {
-      render(<SettingsDialog {...defaultProps} />);
-      fireEvent.click(screen.getByText('クエリ'));
-
-      const input = getTimeoutInput();
-      fireEvent.change(input, { target: { value: '3600' } });
-      fireEvent.click(screen.getByText('保存'));
-      expect(appSettingsProvider.updateSettings).toHaveBeenCalledWith(
-        expect.objectContaining({
-          query: { timeoutSeconds: 3600, autoCommit: true, maxRows: 10000 },
-        })
-      );
     });
   });
 
@@ -595,6 +596,9 @@ describe('SettingsDialog', () => {
     });
 
     it('backend 読込失敗時はキャッシュを今回の起動設定として表示しない', async () => {
+      vi.mocked(appSettingsProvider.getSettings).mockRejectedValue(
+        new Error('backend unavailable')
+      );
       localStorage.setItem('app-settings', JSON.stringify({ version: 2, webview: enabled }));
       render(<SettingsDialog {...defaultProps} />);
       fireEvent.click(screen.getByText('WebView'));
@@ -604,16 +608,16 @@ describe('SettingsDialog', () => {
       for (const label of labels) expect(screen.getByLabelText(label)).toBeChecked();
     });
   });
-});
 
-it('shows unsupported settings as disabled instead of pretending to apply them', async () => {
-  render(<SettingsDialog isOpen onClose={() => {}} />);
-  expect(screen.getByLabelText('起動時に前回の保存済み接続を復元')).toBeEnabled();
-  expect(screen.getByLabelText('終了時に確認する (未対応)')).toBeDisabled();
-  expect(screen.getByLabelText('言語 (切替未対応)')).toBeDisabled();
-  fireEvent.click(screen.getByText('クエリ'));
-  expect(screen.getByLabelText('自動コミット (OFF時は接続ごとにCommit/Rollback)')).toBeEnabled();
-  expect(screen.getByLabelText('任意SQLの最大表示行数 (各結果セット)')).toBeEnabled();
-  fireEvent.click(screen.getByText('外観'));
-  expect(screen.getByLabelText('テーマ (切替未対応)')).toBeDisabled();
+  it('shows unsupported settings as disabled instead of pretending to apply them', () => {
+    render(<SettingsDialog isOpen onClose={() => {}} />);
+    expect(screen.getByLabelText('起動時に前回の保存済み接続を復元')).toBeEnabled();
+    expect(screen.getByLabelText('終了時に確認する (未対応)')).toBeDisabled();
+    expect(screen.getByLabelText('言語 (切替未対応)')).toBeDisabled();
+    fireEvent.click(screen.getByText('クエリ'));
+    expect(screen.getByLabelText('自動コミット (OFF時は接続ごとにCommit/Rollback)')).toBeEnabled();
+    expect(screen.getByLabelText('任意SQLの最大表示行数 (各結果セット)')).toBeEnabled();
+    fireEvent.click(screen.getByText('外観'));
+    expect(screen.getByLabelText('テーマ (切替未対応)')).toBeDisabled();
+  });
 });

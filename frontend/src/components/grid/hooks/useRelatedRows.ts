@@ -19,32 +19,44 @@ interface UseRelatedRowsResult {
   ) => Promise<void>;
 }
 
+const EMPTY_FOREIGN_KEYS: ForeignKeyInfo[] = [];
+
 export function useRelatedRows({
   connectionId,
   tableName,
   onOpenRelatedTable,
 }: UseRelatedRowsOptions): UseRelatedRowsResult {
-  const [foreignKeys, setForeignKeys] = useState<ForeignKeyInfo[]>([]);
+  const [result, setResult] = useState<{
+    connectionId: string;
+    tableName: string;
+    foreignKeys: ForeignKeyInfo[];
+  } | null>(null);
+  const currentResult =
+    result?.connectionId === connectionId && result.tableName === tableName ? result : null;
+  if (result && !currentResult) setResult(null);
+  const foreignKeys = currentResult?.foreignKeys ?? EMPTY_FOREIGN_KEYS;
 
   // Fetch foreign keys when table changes
   useEffect(() => {
-    if (!connectionId || !tableName) {
-      setForeignKeys([]);
-      return;
-    }
+    if (!connectionId || !tableName) return;
 
+    let cancelled = false;
     const fetchForeignKeys = async () => {
       try {
         const fks = await schemaProvider.getForeignKeys(connectionId, tableName);
-        setForeignKeys(fks);
+        if (cancelled) return;
+        setResult({ connectionId, tableName, foreignKeys: fks });
         log.debug(`[useRelatedRows] Loaded ${fks.length} foreign keys for ${tableName}`);
       } catch (error) {
+        if (cancelled) return;
         log.error(`[useRelatedRows] Failed to fetch foreign keys: ${error}`);
-        setForeignKeys([]);
       }
     };
 
-    fetchForeignKeys();
+    void fetchForeignKeys();
+    return () => {
+      cancelled = true;
+    };
   }, [connectionId, tableName]);
 
   // columnName -> FK の index map を一度だけ構築し、判定/取得を O(1) に

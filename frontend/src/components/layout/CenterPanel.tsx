@@ -42,11 +42,12 @@ export function CenterPanel() {
   const isDataView = activeQuery?.isDataView === true;
   const diagram = activeQuery?.erDiagram;
 
+  const activeConnectionId = activeQuery?.connectionId;
   const selectorColor = useMemo(() => {
-    if (!activeQuery?.connectionId) return undefined;
-    const conn = connections.find((c) => c.id === activeQuery.connectionId);
+    if (!activeConnectionId) return undefined;
+    const conn = connections.find((c) => c.id === activeConnectionId);
     return conn ? connectionColor(conn) : undefined;
-  }, [activeQuery?.connectionId, connections]);
+  }, [activeConnectionId, connections]);
 
   const activeQueryId = activeQuery?.id ?? null;
   const handleConnectionChange = useCallback(

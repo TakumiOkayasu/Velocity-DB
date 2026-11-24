@@ -1,4 +1,4 @@
-import { act, render } from '@testing-library/react';
+import { cleanup, act, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import App from '../../App';
 import { useQueryStore } from '../../store/queryStore';
@@ -17,6 +17,7 @@ describe('Ctrl+W tab close shortcut (#391)', () => {
   });
 
   afterEach(() => {
+    cleanup();
     useQueryStore.setState(snapshot, true);
   });
 
