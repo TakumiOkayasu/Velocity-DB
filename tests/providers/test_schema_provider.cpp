@@ -111,14 +111,20 @@ TEST_F(SchemaProviderCacheTest, GetIndexesSecondCallHitsCacheWithoutReExecuting)
 // clearSchemaCache 後はキャッシュが無効化され、driver->execute が再度呼ばれる。
 TEST_F(SchemaProviderCacheTest, ClearSchemaCacheForcesReExecute) {
     resolveDriverByDefault();
-    EXPECT_CALL(*driver, execute(::testing::_)).Times(2).WillRepeatedly(::testing::Return(singleIndexRow()));
+    EXPECT_CALL(*driver, execute(::testing::_))
+        .WillOnce(::testing::Return(singleIndexRow()))
+        .WillOnce(::testing::Return(makeResultSet({{"IX_Users", "NONCLUSTERED", "0", "0", "Id"}})));
 
     SchemaProvider provider(connections);
     const std::string params = R"({"connectionId":"db_1","table":"Users"})";
 
-    provider.getIndexes(params);
-    provider.clearSchemaCache("");
-    provider.getIndexes(params);
+    const auto beforeClear = provider.getIndexes(params);
+    const auto cleared = provider.clearSchemaCache("");
+    const auto afterClear = provider.getIndexes(params);
+
+    EXPECT_NE(beforeClear.find("PK_Users"), std::string::npos);
+    EXPECT_EQ(cleared, R"({"success":true,"data":{"cleared":true}})");
+    EXPECT_NE(afterClear.find("IX_Users"), std::string::npos);
 }
 
 // エラー応答はキャッシュされない。1 回目で driver 解決に失敗してエラーを返しても、2 回目で driver が

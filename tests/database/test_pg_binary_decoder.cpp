@@ -379,37 +379,37 @@ TEST(PgBinaryDecoder, EmptyTextPassthrough) {
 TEST(PgBinaryDecoder, NumericTruncatedThrows) {
     std::deque<std::string> arena;
     char raw[4] = {};
-    EXPECT_THROW(decodeCell(1700, raw, 4, arena), std::runtime_error);
+    EXPECT_THROW(static_cast<void>(decodeCell(1700, raw, 4, arena)), std::runtime_error);
 }
 
 TEST(PgBinaryDecoder, TimestampTruncatedThrows) {
     std::deque<std::string> arena;
     char raw[4] = {};
-    EXPECT_THROW(decodeCell(1114, raw, 4, arena), std::runtime_error);
+    EXPECT_THROW(static_cast<void>(decodeCell(1114, raw, 4, arena)), std::runtime_error);
 }
 
 TEST(PgBinaryDecoder, UuidTruncatedThrows) {
     std::deque<std::string> arena;
     char raw[8] = {};
-    EXPECT_THROW(decodeCell(2950, raw, 8, arena), std::runtime_error);
+    EXPECT_THROW(static_cast<void>(decodeCell(2950, raw, 8, arena)), std::runtime_error);
 }
 
 TEST(PgBinaryDecoder, DateTruncatedThrows) {
     std::deque<std::string> arena;
     char raw[2] = {};
-    EXPECT_THROW(decodeCell(1082, raw, 2, arena), std::runtime_error);
+    EXPECT_THROW(static_cast<void>(decodeCell(1082, raw, 2, arena)), std::runtime_error);
 }
 
 TEST(PgBinaryDecoder, TimeTruncatedThrows) {
     std::deque<std::string> arena;
     char raw[4] = {};
-    EXPECT_THROW(decodeCell(1083, raw, 4, arena), std::runtime_error);
+    EXPECT_THROW(static_cast<void>(decodeCell(1083, raw, 4, arena)), std::runtime_error);
 }
 
 TEST(PgBinaryDecoder, IntervalTruncatedThrows) {
     std::deque<std::string> arena;
     char raw[8] = {};
-    EXPECT_THROW(decodeCell(1186, raw, 8, arena), std::runtime_error);
+    EXPECT_THROW(static_cast<void>(decodeCell(1186, raw, 8, arena)), std::runtime_error);
 }
 
 TEST(PgBinaryDecoder, ArenaPointerStabilityAcrossInserts) {
