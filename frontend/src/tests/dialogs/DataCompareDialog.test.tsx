@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { queryProvider } from '../../api/providers';
 import type { ExecuteQueryResult } from '../../api/providers/query';
@@ -56,18 +56,6 @@ const RESULT_B = queryResult([
   ['3', 'Carol'],
 ]);
 
-async function loadAndCompare() {
-  fireEvent.change(screen.getByLabelText('接続 (A)'), { target: { value: 'conn-1' } });
-  fireEvent.change(screen.getByLabelText('接続 (B)'), { target: { value: 'conn-2' } });
-  fireEvent.change(screen.getByLabelText('テーブル名 (A)'), { target: { value: 'dbo.TableA' } });
-  fireEvent.change(screen.getByLabelText('テーブル名 (B)'), { target: { value: 'dbo.TableB' } });
-  fireEvent.click(screen.getByText('データ読み込み'));
-
-  await waitFor(() => expect(screen.getByText('比較実行')).toBeInTheDocument());
-  fireEvent.click(screen.getByText('比較実行'));
-  await waitFor(() => expect(screen.getByText('追加 1')).toBeInTheDocument());
-}
-
 describe('DataCompareDialog', () => {
   const defaultProps = {
     isOpen: true as boolean,
@@ -87,6 +75,7 @@ describe('DataCompareDialog', () => {
   });
 
   afterEach(() => {
+    cleanup();
     useConnectionStore.setState({ connections: [], activeConnectionId: null });
     vi.clearAllMocks();
   });
@@ -148,19 +137,22 @@ describe('DataCompareDialog', () => {
     );
   });
 
-  it('比較実行でサマリカウントを表示する', async () => {
+  it('比較結果の件数と差分を表示し、すべてに切り替えると一致行も表示する', async () => {
     render(<DataCompareDialog {...defaultProps} />);
-    await loadAndCompare();
+    fireEvent.change(screen.getByLabelText('接続 (A)'), { target: { value: 'conn-1' } });
+    fireEvent.change(screen.getByLabelText('接続 (B)'), { target: { value: 'conn-2' } });
+    fireEvent.change(screen.getByLabelText('テーブル名 (A)'), { target: { value: 'dbo.TableA' } });
+    fireEvent.change(screen.getByLabelText('テーブル名 (B)'), { target: { value: 'dbo.TableB' } });
+    fireEvent.click(screen.getByText('データ読み込み'));
+
+    await waitFor(() => expect(screen.getByText('比較実行')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('比較実行'));
+    await waitFor(() => expect(screen.getByText('追加 1')).toBeInTheDocument());
 
     expect(screen.getByText('追加 1')).toBeInTheDocument();
     expect(screen.getByText('削除 0')).toBeInTheDocument();
     expect(screen.getByText('変更 1')).toBeInTheDocument();
     expect(screen.getByText('一致 1')).toBeInTheDocument();
-  });
-
-  it('デフォルトの差分のみフィルタでは identical 行を表示しない', async () => {
-    render(<DataCompareDialog {...defaultProps} />);
-    await loadAndCompare();
 
     // 変更行 (Bob → Bobby) と追加行 (Carol) は表示される
     expect(screen.getByText('Bob')).toBeInTheDocument();
@@ -168,11 +160,6 @@ describe('DataCompareDialog', () => {
     expect(screen.getByText('Carol')).toBeInTheDocument();
     // identical 行 (Alice) は非表示
     expect(screen.queryByText('Alice')).not.toBeInTheDocument();
-  });
-
-  it('「すべて」フィルタに切り替えると identical 行も表示する', async () => {
-    render(<DataCompareDialog {...defaultProps} />);
-    await loadAndCompare();
 
     fireEvent.click(screen.getByText('すべて'));
     expect(screen.getByText('Alice')).toBeInTheDocument();
