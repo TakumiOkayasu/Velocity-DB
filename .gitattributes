@@ -1,36 +1,14 @@
 ###############################################################################
 # Set default behavior to automatically normalize line endings.
 ###############################################################################
-* text=auto eol=crlf
+* text=auto eol=lf
 
-# Windows batch files need CRLF
+# Windows batch files need CRLF (cmd.exe misparses labels with LF)
 *.bat text eol=crlf
 *.cmd text eol=crlf
 
-# C++ source files - use CRLF for Windows (MSVC)
-*.cpp text eol=crlf
-*.h text eol=crlf
-*.hpp text eol=crlf
-*.c text eol=crlf
-
-# Frontend source files - use LF (Oxfmt expects LF)
-*.ts text eol=lf
-*.tsx text eol=lf
-*.js text eol=lf
-*.cjs text eol=lf
-*.jsx text eol=lf
-*.json text eol=lf
-*.css text eol=lf
-*.html text eol=lf
-
-# Config files - use LF
-*.md text eol=lf
-*.yml text eol=lf
-*.yaml text eol=lf
-*.sh text eol=lf
-*.xml text eol=lf
-*.cmake text eol=lf
-CMakeLists.txt text eol=lf
+# Windows resource script - keep CRLF (LF support in rc.exe not verified)
+*.rc text eol=crlf
 
 # Binary files
 *.exe binary
@@ -101,20 +79,3 @@ CMakeLists.txt text eol=lf
 #*.RTF   diff=astextplain
 *.cpp linguist-language=C++
 *.h linguist-language=C++
-
-# Lockfiles - mise / bun / uv write LF
-*.lock text eol=lf
-
-# TOML - mise / uv may rewrite these
-*.toml text eol=lf
-
-# Dotfiles - follow .editorconfig ([*] end_of_line = lf)
-.gitattributes text eol=lf
-.gitignore text eol=lf
-.editorconfig text eol=lf
-.clang-format text eol=lf
-.clang-tidy text eol=lf
-.python-version text eol=lf
-.semgrepignore text eol=lf
-.sqruff text eol=lf
-*.example text eol=lf
