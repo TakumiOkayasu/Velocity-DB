@@ -101,3 +101,20 @@ CMakeLists.txt text eol=lf
 #*.RTF   diff=astextplain
 *.cpp linguist-language=C++
 *.h linguist-language=C++
+
+# Lockfiles - mise / bun / uv write LF
+*.lock text eol=lf
+
+# TOML - mise / uv may rewrite these
+*.toml text eol=lf
+
+# Dotfiles - follow .editorconfig ([*] end_of_line = lf)
+.gitattributes text eol=lf
+.gitignore text eol=lf
+.editorconfig text eol=lf
+.clang-format text eol=lf
+.clang-tidy text eol=lf
+.python-version text eol=lf
+.semgrepignore text eol=lf
+.sqruff text eol=lf
+*.example text eol=lf
