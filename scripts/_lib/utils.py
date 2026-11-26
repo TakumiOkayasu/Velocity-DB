@@ -287,39 +287,43 @@ def _check_frontend_dependency_versions(frontend_dir: Path, out: TextIO | None) 
         manifest = json.loads((frontend_dir / "package.json").read_text(encoding="utf-8"))
         declared = manifest["devDependencies"]
         overrides = manifest.get("overrides", {})
-        versions = {
-            "vite-plus": declared["vite-plus"],
-            "vite": declared["vite-plus"],
-            "vitest": declared["vitest"],
-            "@vitest/coverage-v8": declared["vitest"],
-        }
-        core_name = "@voidzero-dev/vite-plus-core"
-        specs = versions | {"vite": f"npm:{core_name}@{versions['vite']}"}
-        installed = {}
-        for name, spec in specs.items():
+
+        def check_package(name: str, spec: str, *, alias_target: str | None = None) -> dict:
+            expected_name = alias_target or name
+            version = spec
+            if alias_target is not None:
+                prefix = f"npm:{alias_target}@"
+                version = spec.removeprefix(prefix) if isinstance(spec, str) else ""
+                if not version or version == spec:
+                    raise ValueError(
+                        f"{name}: expected an npm alias for {alias_target}, got {spec!r}"
+                    )
+
             if declared[name] != spec:
                 raise ValueError(f"{name}: expected declaration {spec}, got {declared[name]}")
             if name in overrides and overrides[name] != spec:
                 raise ValueError(f"{name}: declared {spec}, but override selects {overrides[name]}")
             package_file = frontend_dir / "node_modules" / name / "package.json"
             package = json.loads(package_file.read_text(encoding="utf-8"))
-            expected_name = core_name if name == "vite" else name
-            if package["name"] != expected_name or package["version"] != versions[name]:
+            if package["name"] != expected_name or package["version"] != version:
                 raise ValueError(
-                    f"{name}: expected {expected_name}@{versions[name]}, "
+                    f"{name}: expected {expected_name}@{version}, "
                     f"installed {package['name']}@{package['version']}"
                 )
-            installed[name] = package
+            return package
 
-        # Use Vite+'s published requirements rather than maintaining a second
-        # compatibility table that can drift when the dependency bot updates it.
-        for name in ("vite", "vitest"):
-            supported = installed["vite-plus"]["dependencies"][name]
-            if supported != specs[name]:
-                raise ValueError(
-                    f"vite-plus@{versions['vite-plus']} requires {name} {supported}, "
-                    f"but the frontend declares {specs[name]}"
-                )
+        vite_plus = check_package("vite-plus", declared["vite-plus"])
+        # The installed CLI's published manifest pins its compatible core and Vitest.
+        requirements = vite_plus["dependencies"]
+        vitest_version = requirements["vitest"]
+        installed = {
+            "vite-plus": vite_plus,
+            "vite": check_package(
+                "vite", requirements["vite"], alias_target="@voidzero-dev/vite-plus-core"
+            ),
+            "vitest": check_package("vitest", vitest_version),
+            "@vitest/coverage-v8": check_package("@vitest/coverage-v8", vitest_version),
+        }
     except (OSError, ValueError, KeyError, TypeError) as exc:
         print(f"\nERROR: Frontend dependency version check failed: {exc}", file=out)
         return False
