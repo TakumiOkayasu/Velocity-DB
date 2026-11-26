@@ -27,7 +27,7 @@ ignore = [
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
-line-ending = "cr-lf"  # Windows project
+line-ending = "lf"
 
 [tool.pytest.ini_options]
 pythonpath = [".", "scripts"]
