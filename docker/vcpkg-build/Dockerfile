@@ -32,7 +32,7 @@ ENV PATH="C:\build-work\vcpkg;C:\Program Files\CMake\bin;C:\Program Files\Git\cm
 # Set vcpkg triplet for static MSVC builds
 ENV VCPKG_DEFAULT_TRIPLET=x64-windows-static
 
-WORKDIR C:\build-work\src
+WORKDIR C:\\build-work\\src
 
 # Copy vcpkg.json for dependency caching
 COPY vcpkg.json .
