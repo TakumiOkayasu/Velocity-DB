@@ -10,8 +10,7 @@ RUN powershell -NoProfile -ExecutionPolicy Bypass -Command \
     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))"
 
 # Install build tools
-RUN choco install -y git cmake ninja visualstudio2022buildtools --package-parameters \
-    "--add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --includeRecommended"
+RUN choco install -y git cmake ninja visualstudio2022-workload-vctools
 
 # ツールのシステムインストールだけを管理者で行い、ビルド用ディレクトリに書き込みを許可する。
 # icacls はコンテナアカウントの名前を解決できないため、ContainerUser 固有の SID を使う。

@@ -6,9 +6,9 @@ $ErrorActionPreference = "Stop"
 Write-Host "=== Velocity-DB vcpkg Build ===" -ForegroundColor Cyan
 
 # Setup MSVC environment
-$vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+$vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
 if (-not $vsPath) {
-    $vsPath = "C:\Program Files\Microsoft Visual Studio\2022\BuildTools"
+    $vsPath = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\BuildTools"
 }
 
 $vcvarsPath = Join-Path $vsPath "VC\Auxiliary\Build\vcvars64.bat"
