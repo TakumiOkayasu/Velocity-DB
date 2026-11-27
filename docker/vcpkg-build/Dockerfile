@@ -10,7 +10,9 @@ RUN powershell -NoProfile -ExecutionPolicy Bypass -Command \
     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))"
 
 # Install build tools
-RUN choco install -y git cmake ninja visualstudio2022-workload-vctools
+RUN choco install -y git cmake ninja && \
+    choco install -y visualstudio2022-workload-vctools --package-parameters \
+    "--no-includeRecommended --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.26100"
 
 # ツールのシステムインストールだけを管理者で行い、ビルド用ディレクトリに書き込みを許可する。
 # icacls はコンテナアカウントの名前を解決できないため、ContainerUser 固有の SID を使う。
@@ -33,11 +35,7 @@ ENV VCPKG_DEFAULT_TRIPLET=x64-windows-static
 
 WORKDIR C:\\build-work\\src
 
-# Copy vcpkg.json for dependency caching
-COPY vcpkg.json .
-RUN vcpkg install --triplet x64-windows-static
-
-# Copy source code
+# vcpkg の依存は CMake の構成時に解決する。イメージには焼き込まない。
 COPY . .
 
 # Build script

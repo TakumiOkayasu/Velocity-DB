@@ -1,4 +1,4 @@
-# One-off verification of the Windows Compose entry point at PR #837.
+# Windows Compose の非管理者実行とホスト出力を検証する。
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
 $compose = @('compose', '-f', 'docker/vcpkg-build/compose.yaml')
@@ -16,19 +16,12 @@ docker @compose build $service
 Write-Host '::endgroup::'
 
 New-Item -ItemType Directory -Path build-output | Out-Null
-Write-Host '::group::Non-admin identity and bind mount'
+Write-Host '::group::Non-admin identity'
 $identity = docker @compose run --rm --no-deps $service whoami
 Write-Host $identity
 if ($identity -notmatch '(?i)(^|\\)ContainerUser\s*$') {
     throw "Expected ContainerUser; got $identity."
 }
-$probe = 'windows-compose-user-probe'
-docker @compose run --rm --no-deps $service cmd.exe /d /c 'echo windows-compose-user-probe>C:\output\compose-user-probe.txt'
-$probePath = 'build-output\compose-user-probe.txt'
-if ((Get-Content -LiteralPath $probePath -Raw).Trim() -ne $probe) {
-    throw 'The expected bind-mount probe did not reach the host.'
-}
-Remove-Item -LiteralPath $probePath
 Write-Host '::endgroup::'
 
 Write-Host '::group::Normal application build'

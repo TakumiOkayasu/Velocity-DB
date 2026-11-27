@@ -29,6 +29,7 @@ $cmakeArgs = @(
     "-B", "build",
     "-G", "Ninja",
     "-DCMAKE_BUILD_TYPE=Release",
+    "-DBUILD_TESTS=OFF",
     "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake",
     "-DVCPKG_TARGET_TRIPLET=x64-windows-static"
 )

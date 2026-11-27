@@ -1,8 +1,12 @@
-name: Verify Windows Compose for PR 837
+name: Verify Windows Compose
 
 on:
   push:
     branches: [verify/836-windows-compose]
+
+concurrency:
+  group: windows-compose-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -15,6 +19,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Verify build, identity, bind mount and artifact
+      - name: Verify non-admin build and host artifact
         shell: pwsh
         run: ./scripts/verify-windows-compose-837.ps1
