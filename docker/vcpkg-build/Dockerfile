@@ -14,9 +14,10 @@ RUN choco install -y git cmake ninja visualstudio2022buildtools --package-parame
     "--add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --includeRecommended"
 
 # ツールのシステムインストールだけを管理者で行い、ビルド用ディレクトリに書き込みを許可する。
+# icacls はコンテナアカウントの名前を解決できないため、ContainerUser 固有の SID を使う。
 RUN mkdir C:\build-work && mkdir C:\output && \
-    icacls C:\build-work /grant "ContainerUser:(OI)(CI)M" && \
-    icacls C:\output /grant "ContainerUser:(OI)(CI)M"
+    icacls C:\build-work /grant "*S-1-5-93-2-2:(OI)(CI)M" && \
+    icacls C:\output /grant "*S-1-5-93-2-2:(OI)(CI)M"
 
 USER ContainerUser
 
